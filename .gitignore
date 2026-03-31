@@ -1,0 +1,6 @@
+.venv
+logs/
+.csv
+.txt
+.idea
+.DS_Store
