@@ -1,6 +1,377 @@
-# Google Dork Job Search Generator
+# jobDork
 
-Builds targeted Google search queries ("dorks") that surface job postings across LinkedIn, Indeed, Glassdoor, 20+ ATS portals, the hidden job market (Google Docs/Sheets), and recruiter social posts — all from the command line.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](#license)
+
+Find work two ways, and only hear about the roles that pass filters you wrote
+down once.
+
+**`jobdork dork`** builds Google searches you click yourself. It reaches
+anything Google has indexed — including the hidden market that no applicant
+tracking system exposes: role lists dropped in public Docs, recruiter posts
+that go live before the listing, hiring managers to approach directly.
+
+**`jobdork scan`** fetches structured postings straight from the ATS APIs,
+screens them against your rules, and remembers what it already showed you.
+Roles arrive as rows with a title, a location, an advert and sometimes a
+salary — not as links.
+
+Neither replaces the other, and the second one is why this stopped being a
+query generator. A Google result is a thing you have to open to evaluate. A
+row is a thing that can be filtered, scored, ranked against your résumé, and
+struck off when you have dealt with it.
+
+```
+$ jobdork scan
+  usajobs: 156 roles, 15 requests
+  adzuna: 822 roles, 25 requests
+  workable: 1167 roles, 113 requests
+fetched 1822, kept 660, stored 660 (660 new)
+dropped: 1107x title matches nothing in titles.include; 27x 28 mi away,
+outside 25 mi; 6x 147 mi away, outside 25 mi; 4x title excluded by
+'support engineer'
+```
+
+That is a real run. The line worth reading is the last one: **1,107 of 1,822
+roles were dropped on the title alone**, and the tool says so rather than
+quietly handing you 660 and letting you assume that was everything there was.
+Every drop has a reason and the reasons are counted.
+
+Works anywhere. It ships a gazetteer of 69,933 places across 245 countries, so
+a reader in Manila, Munich, Melbourne or Chicago configures their own countries
+and everything else follows — including whether the radius is stated in miles
+or kilometres.
+
+Reading rather than running? [Under the hood](#under-the-hood) is the short
+version and [docs/](docs/README.md) is the long one.
+
+---
+
+## Install
+
+```bash
+git clone <your-fork>
+cd jobDork
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+cp config.example.yaml config.yaml     # then edit two lines
+.venv/bin/python scripts/build_gazetteer.py
+.venv/bin/python -m jobdork scan
+```
+
+The two lines are your job titles and where you live. Everything else has a
+default.
+
+```yaml
+titles:
+  include: [software engineer, security analyst]
+locations:
+  anchor: "Chicago, IL"
+```
+
+**There is no `config.yaml` in the repository.** It is gitignored, along with
+`.env`, `data/` and `out/`, so a fresh clone has none and nothing you put in
+yours ever conflicts on a pull. Your search stays yours.
+
+`build_gazetteer.py` downloads the place list the radius measures against. Run
+it with no arguments and it builds for the countries in your config; `all`
+builds every country. Without it the tool falls back to about 125 bundled
+metros and still works in the places most postings name.
+
+---
+
+## Where the jobs come from
+
+**Nothing here needs a credential to start.** Workable's cross-employer search
+takes a job title and answers for its whole market — no token, no account, no
+list of employers to maintain. That is where most of the volume comes from.
+
+Alongside it, five per-employer boards read one company each: Greenhouse,
+Ashby, Lever, Breezy and SmartRecruiters. Coverage there is exactly the
+companies you name, which is the trade for getting the full advert.
+
+`jobdork discover` finds those, by reading the board token off the employer's
+own careers page rather than guessing it from their name:
+
+```
+$ jobdork discover vectra.ai
+Looking for vectra.ai...
+  greenhouse         16 jobs  [verified]  .../boards/vectranetworks/jobs
+                    board names itself 'Vectra'
+
+Re-run with --add to write these into your config.
+```
+
+`vectranetworks` is why it reads rather than guesses. Tokens are not company
+names — `mymoose` is Rapid7, `evergreenix` is Garrison — and a board that
+answers is not proof you found the right company: on Ashby, `primer` is a
+Florida micro-schools operator. Only a board found on their site **and**
+returning jobs can be added; everything else is reported and refused.
+
+Two more are registered and dormant until you add a free key to `.env`. They
+report why they skipped rather than silently not running — a source that
+vanishes looks exactly like a source that found nothing:
+
+```
+$ jobdork sources
+Registered but dormant — no credential:
+  usajobs          free key at https://developer.usajobs.gov
+  adzuna           free key at https://developer.adzuna.com/signup
+```
+
+**Adzuna** runs a separate national index per country and is the widest keyed
+source: `gb us ca ie in de fr nl at be ch es it pl br mx za`, with `au nz sg`
+existing but currently answering 503. There is no Philippine, Indonesian,
+Malaysian, Japanese or Emirati index at all, and the adapter says so by name
+instead of returning nothing.
+
+**USAJOBS** is US federal hiring, and the only source here that publishes a
+salary on essentially every posting. It skips itself if the US is not in your
+countries.
+
+Getting an Adzuna key is worth one warning: the portal's own *API Access
+Details* link is broken and 404s. The working page is `/admin/applications`,
+which is linked from nowhere.
+
+---
+
+## Working outside the United States
+
+There is no built-in region. `locations.countries` takes any ISO 3166-1
+alpha-2 code the geocoder knows, and out of scope means "not in **your**
+countries" — the rule is the same in every direction. A Berlin posting is
+dropped for a Chicago reader and a Chicago posting is dropped for a Manila
+reader, by the same line of code.
+
+What adapts on its own:
+
+| | |
+|---|---|
+| **Units** | miles for the US and UK, kilometres everywhere else. A `radius: 25` in Berlin is 25 km, not 25 miles — the difference is 2.6× the search area |
+| **Adzuna** | follows `locations.countries`, so a Berlin reader gets the `de` index without knowing Adzuna calls it that |
+| **USAJOBS** | skips itself outside the US |
+| **Workable** | queries are spelled out, because it ignores two-letter codes *silently* — `DE` returns the whole world and looks like it worked |
+
+Place names are the part that needed real work:
+
+- **Accents fold both ways.** `Zurich` finds `Zürich`; `Sao Paulo` finds
+  `São Paulo`.
+- **English exonyms resolve.** `München` and `Munich` share almost no letters,
+  so folding cannot connect them. A curated table does — along with Köln,
+  Wien, Praha, Warszawa, København, Den Haag, Genève, Bombay and about thirty
+  more.
+- **`Makati` and `Makati City` are one place**, as are `Quezon` and
+  `Quezon City`.
+- **City-states work.** In Singapore the country name is also the city name.
+- **`Remote - Australia` is not a city.** There is a town called Australia, in
+  Cuba, with three thousand people in it.
+- **`WA` depends on who is reading.** Washington to someone in Seattle,
+  Western Australia to someone in Perth. Your configured countries settle it.
+
+Where a country has no Adzuna index — the Philippines, for one — the coverage
+is Workable's search, whatever employer boards you name, and dork mode. Stated
+here rather than left for you to find.
+
+---
+
+## What a scan gives you
+
+**It tells you what is new.** State is diffed between runs, so `list --new`
+reports what appeared since last time rather than the same three hundred rows
+every week.
+
+**It tells you why something was dropped.** Every rejection is counted and
+named. A filter that silently eats most of the market is worse than no filter.
+
+**It says when a source did not really answer.** Several of these APIs return
+HTTP 200 with an empty array both for a board that does not exist and for one
+that is rate-limiting you. An empty answer is reported as `SUSPECT`, never as
+"this company is not hiring" — those are different statements and only one of
+them is honest.
+
+**It ranks against your résumé, offline and free.** `.docx`, `.md`, `.txt`,
+and `.pdf` with the optional `pypdf` extra. Skill overlap sorts the list and
+names the gaps. No model, no tokens, no network.
+
+### The salary rule
+
+The one piece of behaviour worth understanding before you trust the output.
+
+- A posting whose **stated** pay is below your floor is **hidden**.
+- A posting with **no stated pay** is **shown**, marked *unconfirmed salary*.
+
+On one 855-role run, 81 postings stated a figure. **That is 12%.** A floor that
+also hid the silent ones would throw away seven jobs in eight, so only a number
+the employer actually published can disqualify a role.
+
+Day and hourly rates are annualised first, because $600 a day is $156,000 a
+year and not $600. A pay period that cannot be read is treated as unknown
+rather than assumed yearly — that assumption turns $50 an hour into $50 a year
+and hides the job.
+
+Salaries in a currency other than your floor's are never silently converted.
+They are shown and marked *not compared*, because a wrong exchange rate drops
+real jobs quietly.
+
+Estimated salaries are discarded rather than stored. Some sources guess where
+the employer published nothing; 251 of 292 Adzuna roles in one run were guesses.
+A guess must never be allowed to disqualify a job.
+
+### Remembering what you already did
+
+A scanner that forgets shows you the same job every week.
+
+```bash
+jobdork list --new                                  # only what is new
+jobdork applied <url|company|uid> -s interviewing --note "call booked"
+jobdork show <uid>                                  # the full advert
+jobdork rescreen --remove                           # re-apply your config
+```
+
+### Or have it mailed to you
+
+```bash
+jobdork scan --email you@example.com                # one line for a cron job
+jobdork digest --email you@example.com              # mail the last scan again
+jobdork digest --all --csv --email you@example.com  # everything open, CSV attached
+jobdork digest --dry-run                            # print it, send nothing
+```
+
+Needs `RESEND_API_KEY` and `RESEND_FROM` in `.env` — the same two the dork
+generator already uses. Free key at [resend.com](https://resend.com/api-keys).
+
+**"New" means first seen during the most recent completed scan**, not first
+seen today. Scan twice in one day and the second digest does not resend the
+first one's roles.
+
+An empty digest is not sent unless you ask for it with `--even-if-empty`. A
+mail that says "nothing new" every morning trains you to ignore the one that
+says something.
+
+Statuses run `new → interested → applied → submitted → interviewing → offer`,
+plus `rejected`, `withdrawn`, `skipped` and `closed`. **The four settled ones
+are hidden** rather than shown again.
+
+A status you set outranks a filter change: `rescreen --remove` deletes roles
+that no longer match your config, but never one you have acted on. That status
+is a decision you made and a rule change does not overrule it.
+
+Naming a company that matches several roles **stops and lists them** rather
+than guessing, because recording a status against the wrong role is worse than
+not recording it.
+
+`scan` also writes `out/index.html` — the same list as a self-contained page,
+light and dark, no server and no external request.
+
+---
+
+## What it cannot do
+
+A tool that quietly fails at something looks broken rather than out of scope.
+
+- **Employers not on a platform here, and not named by you.** There is no
+  bundled list of employer boards, so coverage is keyword search plus the
+  companies you add. `jobdork dork` covers the rest.
+- **Screening an advert that arrived truncated.** Adzuna caps every advert at
+  exactly 500 characters. Dealbreakers, work-mode detection and résumé
+  scoring all read the advert body, so on one run **517 of 653 Adzuna roles
+  had no detectable arrangement, against 0 of 200 from Workable.** Adzuna is a
+  discovery-and-salary source; Workable is the one you can filter on.
+- **Aggregators with no public API.** Indeed retired its publisher API in
+  2020, Glassdoor is partner-only, and LinkedIn's public endpoint carries no
+  description and no salary. Those stay dork-only, which is the better tool
+  for them anyway.
+- **Salary you can filter on**, for seven postings in eight.
+- **Right to work.** A posting that states its sponsorship position is
+  flagged, read from the advert. Most state nothing; treat an unflagged role
+  as unknown rather than as available.
+- **SmartRecruiters, honestly.** The adapter parses and has never been checked
+  against live data: every token tried returned `totalFound: 0`, which is also
+  what that platform returns when it is throttling. Believe your first
+  successful run over the docs.
+- **Jobs never posted to an ATS at all.** Trades, retail floor work and most
+  care work do not hire this way.
+
+---
+
+## Under the hood
+
+The four things that were harder than they look.
+
+**Failure usually looks like success.** Ashby and SmartRecruiters answer HTTP
+200 with an empty array for a dead board and for a throttle alike, so
+validation is on job count and never on the status code. USAJOBS goes further
+and **ignores an unknown parameter silently, with a 200** — a search carrying
+`NotARealParam` returned the same 501 results as one without it, so a
+misspelled filter does not fail, it just does not filter. Greenhouse answers
+403 to a GET carrying a body. Every platform's row is in
+[docs/PLATFORMS.md](docs/PLATFORMS.md).
+
+**The advert is not always the advert.** Greenhouse returns its HTML escaped —
+`&lt;h2&gt;`, not `<h2>` — so a tag stripper matches nothing, returns the
+entities verbatim, and every dealbreaker silently stops matching. Adzuna's
+`location.display_name` is city plus *county*, "Round Rock, Williamson County",
+which no gazetteer can place; the structured `location.area` is the one to
+read, and parsing the wrong field left 187 of 238 roles unplaced with the
+radius quietly doing nothing.
+
+**Identity is easy to get wrong in both directions.** Greenhouse boards are
+often served from the employer's own domain with the job id in the query
+string, so stripping `gh_jid` as a tracking parameter collapsed 579 Stripe
+jobs into one row. Meanwhile aggregators republish one vacancy under six or
+seven genuinely distinct posting ids, which cannot be merged at store time
+without risking the only copy — so those are collapsed on the way out instead.
+
+**Per-host pacing, and a circuit breaker.** Concurrency governs how many
+*different* boards are read at once, not how hard any one is hit: each host has
+its own clock and requests interleave. A host answering three consecutive 429s
+after its retries is treated as saying no rather than asking for a pause, and
+is blocked for five minutes rather than retried into. A `Retry-After` over a
+minute is read as a refusal for the rest of the run.
+
+That last one is not theoretical. `jobs.workable.com` is stricter than its
+per-board sibling, and a sixteen-title config at 0.7 requests a second earned
+a `Retry-After` of **86,130 seconds — a full day**. The rate is now 0.4/s with
+a six-page cap. Use `scan --limit` while tuning a config rather than re-running
+full scans; these are other people's servers, and a job board that starts
+blocking automated readers makes the market worse for everyone.
+
+---
+
+## Documentation
+
+| | |
+|---|---|
+| [docs/CONFIG.md](docs/CONFIG.md) | Every setting, what it accepts, what happens when it is wrong |
+| [docs/PLATFORMS.md](docs/PLATFORMS.md) | Each source's endpoint, quirks, rate limits and verification status |
+| [docs/SOURCES.md](docs/SOURCES.md) | Where coverage comes from, board tokens, the gazetteer |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pipeline fits together and why |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | What changed, and every bug found on the way |
+
+---
+
+## Development
+
+```bash
+python tests/run_all.py     # the whole suite, no pytest needed
+python -m pytest -q         # the same tests, if you have it
+```
+
+`run_all.py` **discovers** every `tests/test_*.py` rather than naming them.
+Naming one file means a new test file runs nowhere until somebody remembers to
+add it, and the suite reports a confident pass over tests it never ran. It
+catches `BaseException` rather than `Exception` for the same reason: a test
+raising `SystemExit` would otherwise end the run mid-file with no failure line
+and no summary.
+
+The 48 tests cover the rules that fail quietly — unstated salary being shown,
+unresolvable locations being kept, blocker words refusing a loose title match,
+day rates being annualised, `gh_jid` surviving canonicalisation, and a US
+posting being out of scope for a Manila reader exactly as a Berlin one is for
+a Chicago reader.
+
+---
+
+## The dork generator
 
 Results are always saved to a plain-text file. Optionally export a named CSV, email it, open every query in your browser, or schedule the whole thing to run automatically.
 

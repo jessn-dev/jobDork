@@ -91,15 +91,37 @@ SITE_DORKS: dict[str, tuple[str, str]] = {
     "ycombinator":       ("site:workatastartup.com",         ""),
 
     # ── ATS / company career portals ──────────────────────────────────────────
+    # Greenhouse migrated to job-boards.greenhouse.io; the old domain still
+    # carries older postings, so both are searched.
     "lever":             ("site:jobs.lever.co",              ""),
-    "greenhouse":        ("site:boards.greenhouse.io",       ""),
+    "greenhouse":        ("site:job-boards.greenhouse.io OR site:boards.greenhouse.io", ""),
     "workday":           ("site:myworkdayjobs.com",          ""),
     "ashby":             ("site:jobs.ashbyhq.com",           ""),
-    "workable":          ("site:apply.workable.com",         ""),
+    "workable":          ("site:apply.workable.com OR site:jobs.workable.com", ""),
     "smartrecruiters":   ("site:jobs.smartrecruiters.com",   ""),
     "icims":             ("site:careers.icims.com",          ""),
-    "breezy":            ("site:app.breezy.hr",              ""),
+    "breezy":            ("site:breezy.hr",                  ""),
     "rippling":          ("site:ats.rippling.com",           ""),
+
+    # ── North American mid-market ATS ─────────────────────────────────────────
+    # Where a great deal of US hiring outside startups actually happens, and
+    # none of it is reachable from a startup-weighted board list.
+    "paycom":            ("site:paycomonline.net",           ""),
+    "adp":               ("site:workforcenow.adp.com",       ""),
+    "ukg":               ("site:recruiting.ultipro.com",     ""),
+    "paylocity":         ("site:recruiting.paylocity.com",   ""),
+    "jazzhr":            ("site:applytojob.com",             ""),
+    "bamboohr":          ("site:bamboohr.com",               "/careers"),
+    "jobvite":           ("site:jobs.jobvite.com",           ""),
+    "taleo":             ("site:taleo.net",                  ""),
+    "successfactors":    ("site:jobs2web.com",               ""),
+    "oraclecloud":       ("site:oraclecloud.com",            "/hcmUI/CandidateExperience"),
+    "recruitee":         ("site:recruitee.com",              ""),
+    "teamtailor":        ("site:teamtailor.com",             ""),
+    "eightfold":         ("site:eightfold.ai",               ""),
+    "dover":             ("site:app.dover.com",              ""),
+    "pinpoint":          ("site:pinpointhq.com",             ""),
+    "usajobs":           ("site:usajobs.gov",                "/job"),
 
     # ── Company career pages (open web) ───────────────────────────────────────
     "careers":           ("", 'careers OR "job openings" OR "we\'re hiring"'),
@@ -133,6 +155,9 @@ DEFAULT_SITES: list[str] = [
     "ziprecruiter", "monster", "careerbuilder", "flexjobs", "wellfound",
     "ycombinator", "lever", "greenhouse", "workday", "ashby", "workable",
     "smartrecruiters", "icims", "breezy", "rippling", "careers",
+    # North American mid-market ATS. Off this list you only see startups.
+    "paycom", "adp", "ukg", "paylocity", "jazzhr", "bamboohr", "jobvite",
+    "taleo", "successfactors", "oraclecloud", "usajobs",
 ]
 
 # All registered site keys (including opt-in strategies)

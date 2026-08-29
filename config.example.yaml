@@ -1,0 +1,136 @@
+# jobdork config
+#
+# Copy to config.yaml and edit. Both config.yaml and config.local.yaml are
+# gitignored; config.local.yaml wins when both exist.
+#
+# API keys do NOT go in here. They go in .env, which is also gitignored:
+#   USAJOBS_API_KEY=...     USAJOBS_EMAIL=you@example.com
+#   ADZUNA_APP_ID=...       ADZUNA_APP_KEY=...
+# Both are free. Without them the scan still runs on the keyless sources.
+
+titles:
+  # Matched against the posting title, whole words, case-insensitive. A second
+  # looser pass accepts the same words in another order with up to two words
+  # between, so "software engineer" also finds "Engineer, Software Platform".
+  # A word that changes the job rather than rewording it — product, business,
+  # program, project, sales, account — still blocks the match.
+  include:
+    - software engineer
+    - backend engineer
+    - platform engineer
+  # Never show these, even if they match above.
+  exclude:
+    - sales engineer
+    - support engineer
+
+locations:
+  # Where you are. "City, ST" in the US, Canada and Australia; "City, Country"
+  # anywhere else. A bare region works too. Used as the centre of the radius,
+  # and sent to the sources that can filter on it themselves.
+  #   "Chicago, IL"   "Makati, Philippines"   "Berlin, Germany"   "Sydney, NSW"
+  anchor: "Chicago, IL"
+
+  # "exact", or a distance in `units` below.
+  #   exact   the posting's city and region must match the anchor
+  #   25      measured with the bundled gazetteer, no geocoding API
+  # Remote roles skip this entirely: distance to a job with no office is not
+  # a number that means anything.
+  radius: 25
+
+  # mi | km. Leave blank and it picks miles for the US and UK, kilometres
+  # everywhere else. This is not cosmetic: 25 miles is 2.6x the area of 25 km.
+  units: ""
+
+  # Any ISO 3166-1 alpha-2 code. Out of scope means "not in YOUR countries" —
+  # a Berlin posting is dropped for a Chicago reader by the same rule that
+  # drops a Chicago posting for a Manila reader. Empty accepts everywhere.
+  countries: [US]
+
+  # Allow-list of remote, hybrid, office. Empty keeps all three.
+  # This is the setting a remote_ok boolean cannot express: "I don't want to
+  # work from home" and "I won't take anything else" are different questions.
+  # A posting that names no arrangement is KEPT whatever you set, and flagged,
+  # because about half of them name none.
+  work_modes: []
+
+  # Never show roles here. Matched against the raw location string.
+  exclude: []
+
+resume:
+  # Optional, and checked on every load — a resume you moved fails loudly
+  # rather than quietly producing a document about a career you did not have.
+  # Used for offline fit scoring, and by the generation features if you add
+  # the claude CLI later. .docx, .pdf, .md and .txt all work.
+  path: ""
+
+salary:
+  # A role whose STATED pay is below this is hidden.
+  # A role with NO stated pay is shown and marked "unconfirmed salary" —
+  # about 12% of postings state a figure, so hiding the rest would throw away
+  # most of the market. Only a published number can disqualify.
+  # Day and hourly rates are annualised first. Other currencies are never
+  # converted: they are shown and marked "not compared".
+  floor: null
+  # Your floor's currency. 45 are accepted. A salary in any other currency is
+  # shown and marked "not compared", never converted.
+  currency: USD
+
+# Read against the job description, which is where the detail hides. A role
+# can look right in a search result and be wrong in the third paragraph.
+# `hard: true` hides it; `hard: false` shows it with a warning.
+# A broken pattern stops the run rather than silently matching nothing.
+dealbreakers:
+  - name: unpaid take-home
+    pattern: "take.?home (?:test|project|assignment)|unpaid (?:trial|project)"
+    hard: false
+  - name: on-call rotation
+    pattern: "on.?call rotation|24/7 on.?call|pager duty rotation"
+    hard: false
+
+sources:
+  # Sources that need no credential. This is what a fresh install runs.
+  #   workable         cross-employer keyword search — the widest keyless
+  #                    source, and the only one that reaches employers nobody
+  #                    has added by hand. No salary field at all.
+  #   greenhouse ashby lever smartrecruiters breezy
+  #                    one employer each, and each needs a board token below
+  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy]
+
+  # Employer boards to watch. The token is the board id, not the company name
+  # — `mymoose` is Rapid7 — so read it off the employer's own posting URL
+  # rather than guessing. See docs/SOURCES.md#board-tokens.
+  companies: []
+    # - name: Stripe
+    #   platform: greenhouse
+    #   token: stripe
+    # - name: Ramp
+    #   platform: ashby
+    #   token: ramp
+
+  # Adzuna national indexes. Leave empty and it follows locations.countries,
+  # so a Berlin reader gets `de` without knowing the code.
+  #   serving: gb us ca ie in de fr nl at be ch es it pl br mx za
+  #   503:     au nz sg        404 (no index): ph id my jp ae ru
+  # Each country is a full extra set of calls; the free tier is 2,500 a month.
+  adzuna_countries: []
+
+output:
+  dir: out
+  # html  out/index.html  self-contained page, light and dark, no server
+  # json  out/roles.json  full rows minus the advert body
+  # md    out/roles.md    the same list as text, for a note or an email
+  # csv   out/roles.csv   one row per role, for a spreadsheet or a script
+  # "markdown" is accepted as a spelling of "md".
+  formats: [html, json]
+
+fetch:
+  # How many DIFFERENT boards are read at once — not how hard any one is hit.
+  # Each host is paced on its own clock (about 3 requests a second, and 0.4
+  # for Workable's search, which throttles early and bans for a day). Capped
+  # at 64.
+  concurrency: 8
+  timeout: 20
+  retries: 2
+
+# Where the database lives. Gitignored, so your history stays yours.
+db: data/jobdork.db
