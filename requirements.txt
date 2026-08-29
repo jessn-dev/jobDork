@@ -1,1 +1,6 @@
+PyYAML>=6.0
+requests>=2.31
 resend>=2.0.0
+
+# Optional: only for reading a PDF résumé. Everything else works without it.
+pypdf>=4.0

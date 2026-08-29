@@ -1,7 +1,21 @@
 .venv
 logs/
-.csv
-.txt
 .idea
 .DS_Store
 __pycache__/
+.claude
+
+# These were '.csv' and '.txt', which match a file called exactly ".csv".
+# The generated result files were never actually ignored.
+*.csv
+*.txt
+!requirements.txt
+# The gazetteer is data the tool ships with, not output.
+!jobdork/data/cities.csv
+
+# Your search is yours. None of this belongs in a repository.
+.env
+config.yaml
+config.local.yaml
+data/
+out/

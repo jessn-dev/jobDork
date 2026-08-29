@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobdork"
+version = "0.2.0"
+description = "Google dork job search plus direct ATS scanning for North America"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "PyYAML>=6.0",
+    "requests>=2.31",
+    "resend>=2.0.0",
+]
+
+[project.optional-dependencies]
+# Only needed to read a PDF résumé. Scanning, filtering and tracking all work
+# without it, and a missing parser says so rather than scoring nothing.
+pdf = ["pypdf>=4.0"]
+
+[project.scripts]
+jobdork = "jobdork.cli:main"
+
+[tool.setuptools]
+packages = ["jobdork", "jobdork.fetch"]
+
+[tool.setuptools.package-data]
+jobdork = ["data/*.csv"]
