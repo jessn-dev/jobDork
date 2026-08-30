@@ -4,11 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jobdork"
-version = "0.2.0"
-description = "Google dork job search plus direct ATS scanning for North America"
+version = "0.13.0"
+description = "Google dork job search plus direct ATS scanning, anywhere in the world"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
+authors = [{ name = "Jesse Ngolab" }]
+keywords = ["jobs", "job-search", "ats", "scraper", "cli"]
+
+# The single source of truth for what this needs to run. requirements.txt
+# defers to this file rather than repeating it: two lists of dependencies
+# drift, and the one that drifts is always the one you did not edit.
 dependencies = [
     "PyYAML>=6.0",
     "requests>=2.31",
@@ -19,12 +25,73 @@ dependencies = [
 # Only needed to read a PDF résumé. Scanning, filtering and tracking all work
 # without it, and a missing parser says so rather than scoring nothing.
 pdf = ["pypdf>=4.0"]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
 
 [project.scripts]
 jobdork = "jobdork.cli:main"
 
+[project.urls]
+Documentation = "https://github.com/jessengolab/jobDork/tree/main/docs"
+
 [tool.setuptools]
-packages = ["jobdork", "jobdork.fetch"]
+packages = ["jobdork", "jobdork.fetch", "jobdork.dork"]
 
 [tool.setuptools.package-data]
 jobdork = ["data/*.csv"]
+
+# ── tests ─────────────────────────────────────────────────────────────────────
+# The suite is plain functions with asserts, so it runs under pytest without
+# any pytest-specific code. `tests/run_all.py` runs the same files with nothing
+# installed, which is what makes a fresh clone testable before `pip install`.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q --strict-markers"
+filterwarnings = ["error::DeprecationWarning"]
+
+# ── linting ───────────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+exclude = [".venv", "out", "data"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",      # pycodestyle
+    "F",           # pyflakes
+    "I",           # import sorting
+    "UP",          # pyupgrade
+    "B",           # bugbear
+    "SIM",         # simplify
+    "C4",          # comprehensions
+    "RUF",         # ruff's own
+]
+ignore = [
+    # A bare `except Exception` around one job board is deliberate: an adapter
+    # that raises must kill that board and not the run. Every one is commented.
+    "BLE001",
+    # Multi-line implicit string concatenation is how the prompts and the long
+    # explanatory messages are written, and joining them would hurt them.
+    "ISC001", "ISC003",
+    "E501",        # long lines are caught by the formatter, not the linter
+    # En dashes in salary ranges ($99,840–101,920) and typographic apostrophes
+    # are correct punctuation, not confusables to be normalised away.
+    "RUF001", "RUF002", "RUF003",
+    # Dataclass-style config holders use mutable defaults deliberately, via
+    # field(default_factory=...) where it matters.
+    "RUF012",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests build config objects inline and shadow names freely; that is fine.
+"tests/*" = ["B011", "RUF012", "SIM117"]
+# The dork generator is the original script, kept working rather than rewritten.
+# Linting it to today's style would mean editing 992 working lines for taste,
+# which is the change-for-its-own-sake the move deliberately avoided.
+"jobdork/dork/*" = ["UP", "SIM", "C4", "B", "RUF005", "E741"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["jobdork"]

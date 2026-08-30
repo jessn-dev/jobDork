@@ -3,19 +3,24 @@ jobdork.fetch.smartrecruiters
 =============================
     GET https://api.smartrecruiters.com/v1/companies/{token}/postings
 
-UNVERIFIED. The endpoint answers HTTP 200 and the envelope is right — it
-returns `{offset, limit, totalFound, content}` — but every token tried during
-development came back `totalFound: 0` with an empty `content`, so no posting
-from this adapter has ever been parsed against live data.
+VERIFIED, eventually. Ten well-known company names in a row answered HTTP 200
+with `totalFound: 0` — which on this platform is also what a throttle and a
+non-existent board look like, so none of them proved anything. `Bytedance`
+finally returned rows, and what they contained corrected three guesses:
 
-That is exactly the failure this platform is known for: SmartRecruiters
-answers 200 with nothing both for a board that is not there and for one that
-is throttling you, so an empty answer proves neither. Treat your first
-successful run as the test and believe the run over this docstring.
+  `location.fullLocation` is "Mumbai, MH, India" — assembled and readable.
+  Building the string from `city, region, country` instead produced
+  "Mumbai, MH, in", because `country` is a LOWERCASE two-letter code.
 
-The advert is not in the index. `content[]` carries a summary, and the full
-posting needs a second call per role, which is why enrich exists rather than
-this adapter making one request per job.
+  `location.hybrid` exists alongside `location.remote`. Reading only `remote`
+  filed every hybrid role as arrangement-not-stated.
+
+  `ref` is the posting's own detail URL, which is where the advert lives. The
+  index carries none: `jobAd` appears only on the detail response, so the
+  advert needs one request per role and that belongs to `enrich`.
+
+The public posting page carries no schema.org data, so the generic enricher
+cannot read it either — `enrich` uses the detail endpoint for this platform.
 """
 
 from __future__ import annotations
@@ -31,16 +36,28 @@ MAX_PAGES = 10
 
 
 def _location(job: dict) -> str:
+    """`fullLocation` first — it is the only field already spelled out.
+
+    The parts are city, region and a LOWERCASE country code, so assembling
+    them gives "Mumbai, MH, in" where the platform already offers
+    "Mumbai, MH, India".
+    """
     loc = job.get("location") or {}
-    bits = [loc.get("city"), loc.get("region"), loc.get("country")]
-    out = ", ".join(clean(b) for b in bits if b)
-    return out.upper() if out and len(out) == 2 else out
+    full = clean(loc.get("fullLocation") or "")
+    if full:
+        return full
+    bits = [loc.get("city"), loc.get("region"),
+            (loc.get("country") or "").upper()]
+    return ", ".join(clean(b) for b in bits if b)
 
 
 def _work_mode(job: dict) -> str:
+    """Both flags are published, and reading only one loses the hybrids."""
     loc = job.get("location") or {}
     if loc.get("remote") is True:
         return "remote"
+    if loc.get("hybrid") is True:
+        return "hybrid"
     return ""
 
 
@@ -72,10 +89,12 @@ def fetch(fetcher, cfg, token: str = "", company: str = "", **_) -> SourceResult
 
         for job in items:
             job_id = job.get("id") or ""
-            url = (job.get("applyUrl")
-                   or job.get("ref")
-                   or (f"https://jobs.smartrecruiters.com/{token}/{job_id}"
-                       if job_id else ""))
+            # The human posting page, not `ref`. `ref` is the API's own detail
+            # URL — real, but it answers JSON, so storing it hands you a page
+            # of braces when you click through. `enrich` derives the detail
+            # URL back from this one.
+            url = (f"https://jobs.smartrecruiters.com/{token}/{job_id}"
+                   if job_id else (job.get("applyUrl") or ""))
             if not url:
                 continue
             roles.append(Role(

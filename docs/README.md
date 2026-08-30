@@ -10,6 +10,15 @@
 
 ---
 
+## What it looks like
+
+| | |
+|---|---|
+| ![dashboard](images/dashboard.jpg) | `jobdork serve` — the list with buttons, on 127.0.0.1 |
+| ![static page](images/static-page.jpg) | `out/index.html` — the same list, self-contained, written by every scan |
+
+---
+
 ## Start here
 
 **Setting it up** — [CONFIG.md](CONFIG.md), then the

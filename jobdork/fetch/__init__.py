@@ -23,8 +23,8 @@ found nothing.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from ..store import Role
 
@@ -75,7 +75,15 @@ def get(name: str) -> Callable | None:
 
 
 # Import for side effects: each module registers itself.
-from . import adzuna, ashby, breezy, greenhouse, lever, smartrecruiters  # noqa: E402,F401
-from . import usajobs, workable  # noqa: E402,F401
+from . import (  # noqa: E402,F401  # noqa: E402,F401
+    adzuna,
+    ashby,
+    breezy,
+    greenhouse,
+    lever,
+    smartrecruiters,
+    usajobs,
+    workable,
+)
 
-__all__ = ["SourceResult", "REGISTRY", "register", "get", "Role"]
+__all__ = ["REGISTRY", "Role", "SourceResult", "get", "register"]

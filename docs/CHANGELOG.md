@@ -6,6 +6,625 @@ it and into an entry when the work is done.
 
 ---
 
+## 0.13.1 — 2026-08-29 — Workable is back
+
+### Resolved
+
+- **The Workable rate limit expired.** `jobs.workable.com` answers 200 again;
+  a `security analyst` search in Chicago returns 512 results. Nothing was
+  fixed and nothing needed to be — the circuit breaker read the refusal
+  correctly and waited it out, which was the whole design.
+
+  It cost roughly 24 hours of the widest keyless source, and it was earned by
+  re-running full scans to test config changes. `scan --limit` exists for that.
+
+- **The backlog is empty.** Every item that has been in *Still outstanding*
+  has either shipped or expired. The section is kept as a heading, with the
+  standing operational notes that are not work: Adzuna's permanent advert cap,
+  SmartRecruiters' ambiguous silence, and Workable's temper.
+
+### Changed
+
+- Ruff's per-file ignores for `jobdork/dork/` extended to `RUF005` and `E741`.
+  The generator was moved rather than rewritten, and linting 992 working lines
+  to today's style is the change-for-its-own-sake that decision avoided.
+  `ruff check .` is clean.
+
+---
+
+## 0.13.0 — 2026-08-29 — the review pass
+
+Six structural problems raised in review. Five accepted as stated, one accepted
+with a caveat.
+
+### The dork generator lives in the package now
+
+`main.py` and `config.py` sat at the repository root and were reached by
+`runpy.run_path` on a hardcoded path — a hack that worked and would break the
+first time the file moved. They are now `jobdork/dork/generator.py` and
+`jobdork/dork/boards.py`, and there is a real entry point:
+`python -m jobdork.dork`. `jobdork dork ...` still dispatches with the
+generator's own flags intact.
+
+**The generator itself was not rewritten.** It works, it is well documented,
+and rewriting it would have been change for its own sake.
+
+**Fixed during the move:** it resolved logs, `.env` and result files relative
+to its own file, so moving it moved the user's files into the package.
+`PROJECT_ROOT` now points where it did before.
+
+### Schema migrations
+
+`CREATE TABLE IF NOT EXISTS` gets a database created and then quietly stops
+being enough — it cannot add a column, and a database created before a column
+existed keeps opening cleanly and fails on the first write that mentions it.
+
+`jobdork/migrations.py` runs numbered, append-only, forwards-only steps, each
+in its own transaction, with the version in `meta.schema_version`. A database
+newer than the code is refused rather than opened.
+
+The first step reconciles `roles` against every column the current schema
+expects, which closes the gap for good rather than for one column. Your
+database migrated in place: **888 roles, 10 artifacts and 6 statuses intact.**
+
+Eight tests build the case that cannot be reached by using the tool — an old
+database opened by new code — including a step that fails mid-way and must
+leave the version where it was.
+
+### `pyproject.toml` is the only place dependencies are declared
+
+`requirements.txt` now contains `-e .` and a comment explaining why. Two lists
+of dependencies drift, and the one that drifts is the one nobody edited.
+
+Same problem, same fix, for the version: `__version__` reads installed package
+metadata instead of a second literal. **`jobdork --version` had been reporting
+0.2.0 through five releases.**
+
+### ruff, configured and clean
+
+75 issues at the start, zero now. The configuration says which rules are
+ignored and why — `BLE001` because catching broadly around one job board is
+deliberate and commented at every site, `RUF001` because en dashes in salary
+ranges are correct punctuation rather than confusables.
+
+### Screening heuristics are configurable
+
+`BLOCKERS` and the work-mode patterns were hardcoded. They encode a judgement
+about one job market — "program" turns an engineering manager into a different
+job in the US and may not elsewhere — and a judgement baked into source is one
+nobody can disagree with.
+
+```yaml
+screening:
+  blockers: [product, business, program, sales]
+  loose_gap: 2
+  office_patterns: ["in the Chicago office"]
+```
+
+Extra patterns are **merged** with the built-in ones rather than replacing
+them, so adding one never silently loses the defaults. A broken pattern stops
+the run, like every other regex in the config. Defaults are unchanged, so a
+config that says nothing behaves exactly as before.
+
+### pytest, with the custom runner kept
+
+Accepted with a caveat. The suite is plain functions and asserts, so pytest
+already collected all of it — this was configuration, not a rewrite, and
+`[tool.pytest.ini_options]` now provides it.
+
+`tests/run_all.py` stays, and is not redundant. It runs the same files **with
+nothing installed**, which is what makes a fresh clone testable before
+`pip install`, and it exists because CI once ran one test file and reported a
+confident pass over the rest. Both are wired up; they run the same 132 tests.
+
+---
+
+## 0.12.2 — 2026-08-29 — documents go in Documents
+
+Generated CVs, cover letters and screens were being written to
+`~/job-applications`, dropped straight into the home directory. That is not
+where documents belong on any of the three platforms this runs on.
+
+### Changed
+
+The default is now the user's **Documents** folder — `~/Documents/job-applications`
+on macOS and Windows, and on Linux whatever `XDG_DOCUMENTS_DIR` or
+`~/.config/user-dirs.dirs` says it is, because a localised desktop calls it
+`Dokumente` or `Documentos` rather than `Documents`.
+
+If none of those resolves to a real directory the home directory is used
+rather than creating a `Documents` folder that the machine had evidently
+chosen not to have.
+
+`--dir` still overrides everything.
+
+### Migrated
+
+The seven folders already written to the old location were moved, and **ten
+artifact rows in the database were repointed** — moving the files alone would
+have left every recorded screen and CV pointing at a path that no longer
+existed, which is the sort of breakage that only shows up weeks later when
+somebody clicks one.
+
+---
+
+## 0.12.1 — 2026-08-29 — dealbreakers, and a duplicate picking the wrong copy
+
+### Fixed — the dedupe was showing the worse copy
+
+Adding employer boards produced the same Vectra role twice: truncated to 500
+characters from an aggregator, and complete at 4,701 from the company's own
+Greenhouse board. **The list showed the 500-character one.**
+
+Duplicates were ranked by score alone, and the truncated copy scored *higher* —
+a tidier location string, and no advert content on which to lose points.
+Nothing about that is visible from the outside; it just quietly hands you the
+version that cannot be screened, since dealbreakers and fit scoring both read
+the advert body.
+
+The fuller advert now wins, and score only breaks ties between copies that say
+as much as each other. Bucketed by thousands of characters, because 4,700 and
+4,900 are the same advert and the score should decide between those.
+
+### Added — six dealbreakers, all soft
+
+```
+extended client-site travel · unpaid take-home · heavy on-call
+active clearance required · contract or staffing agency · relocation required
+```
+
+Every one starts `hard: false`, which shows the role with a warning rather
+than hiding it. None of these is a preference anybody stated; promoting one to
+`hard: true` is a decision for the reader once they are sure.
+
+They caught **29 roles** on the first pass. One of them is the cross-check
+worth having: the ITRS role that the `screen` had independently flagged for
+buried travel expectations was caught by the regex too — a model reading the
+advert and a pattern matching it agreeing about the same sentence.
+
+**Widened while testing:** the travel pattern missed its own motivating
+example. The advert reads "consecutive weeks **are spent** full-time at a
+client site", and the pattern allowed no intervening words.
+
+Dealbreakers only fire on adverts long enough to contain them, so they are
+quiet on the 500-character aggregator rows and useful on the rest — another
+place the cap costs something.
+
+---
+
+## 0.12.0 — 2026-08-29 — employer boards, and what they are worth
+
+Not a code change. `sources.companies` had been empty since the scanner was
+built, so all five per-employer adapters fetched nothing and every advert came
+from an aggregator that truncates at 500 characters. `discover` existed to fix
+that and had never been pointed at anything.
+
+### Added
+
+Eight boards, found with `discover` and verified before being written:
+
+| Company | Platform | Token |
+|---|---|---|
+| Vectra | greenhouse | `vectranetworks` |
+| Tenable | greenhouse | `tenableinc` |
+| Enova International | greenhouse | `enova` |
+| Huntress | greenhouse | `huntress` |
+| Dragos | greenhouse | `dragos` |
+| Expel | greenhouse | `expel` |
+| Vanta | ashby | `vanta` |
+| Drata | ashby | `drata` |
+
+`vectranetworks` and `tenableinc` are the argument for reading tokens rather
+than guessing them.
+
+### Measured: this is what the aggregator cap costs
+
+| Source | Roles | Average advert | Arrangement unstated |
+|---|---|---|---|
+| ashby | 17 | **6,375 chars** | 0 / 17 |
+| greenhouse | 16 | **5,896 chars** | 0 / 16 |
+| workable | 200 | 4,903 chars | 0 / 200 |
+| usajobs | 2 | 4,121 chars | 2 / 2 |
+| adzuna | 653 | **500 chars** | **517 / 653** |
+
+Résumé fit scoring reads the advert body, and the difference is not subtle. The
+same feature, on the same résumé:
+
+```
+adzuna, 500 chars   fit: has security
+ashby, 6,375 chars  fit: has compliance, penetration testing, security;
+                         wants hipaa, iso 27001, soc 2, vulnerability management
+```
+
+The second is a gap analysis. The first is a coincidence.
+
+### Also learned
+
+Most large employers are on Workday, which has no adapter here — `arcticwolf`,
+`relativity` and others were located and named as such rather than reported as
+"nothing found". Several more, including `rapid7`, `cloudflare`, `datadog` and
+`sproutsocial`, render their careers pages in JavaScript and expose no token to
+read, so `discover` correctly declined rather than guessing.
+
+Eight boards from nineteen employers tried. The hit rate is the reason
+`discover` reports four distinct outcomes instead of found/not-found.
+
+---
+
+## 0.11.1 — 2026-08-29 — what the first live generation found
+
+`generate` shipped in 0.11.0 having never been run. Two runs against real roles
+corrected three things, which is the argument for running it rather than
+trusting it.
+
+### Fixed
+
+- **The résumé was outside the sandbox and therefore unreadable.** `--add-dir`
+  names the job folder and nothing else, so a résumé at `~/Documents` could not
+  be opened. The first screen came back *"file access was not granted"* and
+  assessed nothing.
+
+  Widening the sandbox to reach it would undo the point of having one, so the
+  résumé is **copied into the job folder** instead and referenced by local
+  name. The scope stays one directory.
+
+- **A screen was being held to send-time gates.** It flagged
+  `"$140,000 - $170,000"` as a figure not in the résumé — the advertised
+  salary, read correctly off the posting. Those gates guard documents you
+  *send*; a screen is notes to yourself and is *supposed* to quote the advert.
+  Gates are now per-kind: a screen gets a length check and nothing else.
+
+- **Identifiers inside URLs were read as claims.** A draft quoting
+  `https://www.adzuna.com/details/5792028474` had the posting id flagged as an
+  unsupported figure. URLs and code spans are stripped before the check.
+
+### What the runs showed
+
+On a role with a **full 4,511-character advert**, the screen was worth having:
+it found a title mismatch (advertised "DevOps Engineer", described a Forward
+Deployed Engineer), buried travel expectations — "consecutive weeks spent
+full-time at a client site" against an advert headlined as 2-days-a-week
+hybrid — a currency typo in the salary, and named four requirements not on the
+résumé.
+
+On a role whose advert had been **truncated to 500 characters by an
+aggregator**, it refused: *"cannot screen yet. Advert is a stub. Re-scrape
+before spending time."* It did not guess a match from company marketing. That
+refusal is the behaviour worth having, and it is the Adzuna cap showing up
+where it costs something.
+
+Both runs ended with the model reporting, as instructed, that nothing inside
+the advert markers had attempted to issue instructions.
+
+### Also
+
+- **`sources` reported USAJOBS as active for a reader outside the US**, while
+  the adapter skipped itself. The report and the behaviour now agree, and the
+  reason is printed.
+- Screenshots of the dashboard and the static page added under
+  `docs/images/`.
+
+---
+
+## 0.11.0 — 2026-08-29 — `generate`
+
+Screens a role, and drafts a CV or a cover letter, by spawning headless
+`claude -p`. The last feature on the list, and the only one that spends money.
+
+### Added
+
+```bash
+jobdork generate <ref> -k screen         # do this first: seconds, pennies
+jobdork generate <ref> -k cv
+jobdork generate <ref> -k cover_letter   # refused until the CV exists
+jobdork generate <ref> --dry-run         # the prompt and the command, spending nothing
+```
+
+The Claude Code CLI rather than the API, deliberately: the agent reads your
+résumé off disk, writes the draft, and is checked by scripts afterwards.
+Through a bare API call all of that would be reassembled out of prompt text,
+and the drafting quality lives in the reading and writing. The desktop chat
+app ships no command-line entry point and cannot be driven from here.
+
+Documents land in `~/Documents/job-applications/<date>-<company>-<role>/` alongside a
+**snapshot of the advert**. Postings are pulled the moment they are filled,
+which is usually just before somebody calls you about one.
+
+**Nothing generates unless you ask.** No schedule, no watcher, no speculative
+drafting.
+
+### The gates are scripts, not judgement
+
+A model asked to re-read its own draft will say it looks fine. A script
+counting em-dashes says how many there are.
+
+| Gate | What it catches |
+|---|---|
+| **unsupported figures** | any number or scale word in the draft that is not in your résumé |
+| **phrase overlap** | a cover letter repeating the CV — no run of six words may appear in both |
+| **em dashes** | more than two |
+| **length** | a draft that came back empty |
+| **slop score** | the natural-writing linter, when installed — and it says so when not, rather than passing silently |
+
+`unsupported figures` is the one that matters. A tailored CV is the easiest
+place in a job search to acquire a statistic nobody can back up. Tested: a
+draft claiming "2.5 million" and "tripled" against a résumé that says neither
+is caught on all three, while the figures that *are* in the résumé are not
+flagged. Dates and small integers are ignored — they are list counts, not
+claims.
+
+**Nothing is redrafted automatically.** A failed gate means read this before
+you send it, not this is broken; a second pass would cost tokens you did not
+ask for. Results are recorded against the document either way.
+
+**The cover letter is refused until the CV exists**, so the overlap gate has
+something to compare against. The CV carries the facts, the letter carries
+judgement, and they should share nothing but your name.
+
+### A job description is hostile input
+
+It comes from thousands of third-party servers, anybody can post a job, and
+here that text lands in a prompt *and* in the working directory of a
+subprocess that can write files. Each of these is tested:
+
+- **Fenced and labelled**, with the fence markers stripped out of the advert
+  first — verified with an advert that tries to close the fence and continue
+  as instructions. Exactly one marker of each survives, and the injected text
+  remains inside as data. Neutralised by position, not by censorship.
+- **Every prompt states** that everything inside the fence is a claim about a
+  job, never an instruction, whatever it says or claims to be from.
+- **The subprocess is scoped to one folder.** `--add-dir` names that
+  directory and nothing else — never `~/.claude/skills`, which would be write
+  access to every skill you own. A compromise damages one role's folder.
+- **Links are scheme-checked.** `javascript:`, `data:` and `file:` never reach
+  a file; the line reads "link withheld: unsafe scheme".
+
+None of this makes an agent immune to persuasion. Prompt injection has no
+complete fix, and a determined posting may still get odd wording into a draft
+you were going to read anyway. The blast radius is one folder and one
+document.
+
+### Recorded
+
+Each run writes an `artifacts` row with the path and the gate results, so
+"which roles have a CV but no application" stays one query. Drafting a
+document moves a role from `new` to `interested`; screening does not, because
+screening is how you decide.
+
+---
+
+## 0.10.0 — 2026-08-29 — SmartRecruiters verified
+
+Two of the three "not fixable here" items turned out to be fixable, once
+something answered.
+
+### SmartRecruiters was never broken, only silent
+
+Ten well-known company names in a row returned HTTP 200 with `totalFound: 0`.
+On this platform that is also what a throttle and a non-existent board look
+like, so none of them proved anything either way — which is why the adapter
+shipped marked unverified rather than assumed working.
+
+`Bytedance` finally returned rows, and real data corrected three guesses:
+
+- **`location.fullLocation` is already assembled** — "Mumbai, MH, India".
+  Building the string from `city, region, country` produced "Mumbai, MH, in",
+  because `country` is a lowercase two-letter code. The assembled version
+  geocodes; the built one does not.
+- **`location.hybrid` exists alongside `location.remote`.** Reading only
+  `remote` filed every hybrid role as arrangement-not-stated.
+- **`ref` is the API's own detail URL.** It was winning the URL precedence, so
+  clicking a stored role handed you a page of JSON. The human posting page is
+  used now, and `enrich` derives the detail URL back from it.
+
+### `enrich` gained a SmartRecruiters reader
+
+Its public posting page carries no schema.org data, so the generic JSON-LD
+reader finds nothing there. The advert lives on the detail endpoint, split
+across `jobAd.sections` — job description, qualifications, additional
+information and company description — and all four are joined, because a
+dealbreaker about qualifications sits in a different section from one about
+the role.
+
+Verified end to end: two roles stored with empty adverts came back at 1,181
+and 1,016 characters.
+
+### Adzuna `au`, `nz` and `sg` are live again
+
+They answered 503 while 0.3.0 was being written and were recorded as such.
+Re-probed today: all three return 200. The outage was theirs and it is over —
+`au nz sg` join the working indexes, and only `ph id my jp ae ru` have no
+index at all.
+
+---
+
+## 0.9.0 — 2026-08-29 — the small gaps
+
+Four things that were each individually minor and collectively the reason the
+backlog never emptied.
+
+### Metro names now work outside North America
+
+`Bay Area`, `GTA` and `DMV` resolved; `Kanto`, `Klang Valley` and `Randstad`
+did not. About seventy more are recognised across Asia Pacific, Europe, Latin
+America, Africa and the Middle East — `Metro Manila`, `BGC`, `Jabodetabek`,
+`Greater Tokyo`, `Île-de-France`, `Ruhrgebiet`, `Öresund`, `Gauteng`, `CDMX`,
+`Greater Sydney`.
+
+**One name can belong to several countries.** `NCR` is the National Capital
+Region in Canada, India *and* the Philippines, and `Bay Area` is San Francisco
+to most readers and Hong Kong to some. Those are settled by your configured
+countries, exactly as an ambiguous region code is — a country named in the
+string itself outranks even that.
+
+**Fixed:** the cleanup turns hyphens into commas, so `Île-de-France` split into
+three fragments, the last of which is a country, leaving a city called `Île`.
+Metro names are now checked against the untouched string first.
+
+### `locations.exclude` matches what a location resolved to
+
+It was a substring match on the raw string, which is too literal to be useful:
+`exclude: [TX]` matched nothing, because postings say "Austin, Texas" and never
+"TX" — while `exclude: [Texas]` missed every posting that wrote the code.
+
+An entry is now tried as a region code, then a country, then a city, then a
+metro name, and finally as a substring. So `TX`, `Texas`, `Chicago`,
+`Bay Area`, `Canada` and an arbitrary phrase all work.
+
+### `jobdork add` takes many URLs
+
+```bash
+jobdork add <url> <url> <url>
+jobdork add --from-file urls.txt
+```
+
+The file is one URL per line, tolerating `#` comments, `- ` bullets and
+`title<TAB>url`, because that is how a pasted list actually looks.
+
+**It reads posting URLs, not the dork generator's output.** That file holds
+Google *search* URLs, and turning those into postings would mean scraping
+Google's results — bot-protected, and a control this tool does not work
+around. Click the results, paste the ones worth keeping.
+
+A role that fails your filters is still stored, and says so: you asked for that
+one by name, and a filter is not a better judge of that than you are.
+
+### LICENSE
+
+MIT, matching what `README.md` and `pyproject.toml` already declared.
+Copyright Jesse Ngolab, taken from the repository's own git author.
+
+---
+
+## 0.8.0 — 2026-08-29 — `enrich`
+
+Fetches the full advert for roles stored as summaries. Dealbreakers read the
+advert body, so does work-mode detection, so does résumé fit scoring — a role
+stored with 200 characters of teaser was waved through rather than screened,
+and the flags on it were guesses.
+
+### Added
+
+- **`jobdork enrich`** — reads schema.org `JobPosting` JSON-LD, which posting
+  pages publish for Google's benefit and which is therefore both stable and
+  meant for machines.
+
+  Measured on live pages: six roles seeded with 180-character teasers came back
+  at 1,462 to 4,479 characters. **17,498 characters of advert recovered,
+  2,916 average.**
+
+- **A role whose advert grows is re-screened.** A dealbreaker that could not
+  match 200 characters may well match 7,000, and leaving the old verdict in
+  place would be worse than never having fetched. Three of the six test roles
+  stopped passing once the real text arrived, and were marked skipped with the
+  reason.
+
+- `--dry-run`, `--limit`, `--platform`, and `--thin N` for what counts as a
+  summary rather than a description.
+
+### Adzuna cannot be enriched, and this refuses to try
+
+Its `redirect_url` answers **403 from bot protection**. Getting past that is
+breaking a control rather than declining a request, which is a line this tool
+does not cross — so Adzuna is skipped by name, with the reason.
+
+**Adzuna's 500-character cap is therefore permanent.** Worth knowing before
+writing a dealbreaker that depends on advert text and wondering why it never
+fires: on one run that was 653 of 855 roles.
+
+Platforms whose adverts already arrive whole — Workable, Greenhouse, Ashby,
+Lever, USAJOBS — are skipped too, rather than spending a request per role to
+learn nothing.
+
+---
+
+## 0.7.0 — 2026-08-29 — command-line overrides
+
+Every setting that mattered lived only in `config.yaml`, so trying a different
+country meant editing a file you had tuned, or keeping several and passing
+`-c`.
+
+### Added
+
+- `--title` · `--exclude-title` · `--anchor` · `--country` · `--radius` ·
+  `--units` · `--work-mode` · `--salary-floor` · `--currency` · `--resume` ·
+  `--out` · `--db`. The list ones repeat.
+
+  ```bash
+  jobdork sources --anchor "Berlin, Germany" --country DE
+  jobdork list --title "penetration tester" --work-mode remote --salary-floor 150000
+  ```
+
+- **They go after the verb**, where people write them, rather than having to
+  precede it — every subcommand inherits the same group.
+
+### Deliberate
+
+- **An override is validated exactly as the file is**, so it cannot be a
+  looser way in than the config it replaces. `--country ZZ`, `--currency XYZ`,
+  `--radius nonsense`, a résumé path that does not exist, and a numeric radius
+  with no anchor are all refused the same way they would be in YAML.
+
+- **`--country` moves units and the Adzuna index with it.** Carrying miles
+  over from a config written for Chicago into a German search would silently
+  cover 2.6x the intended area, and a pinned `adzuna_countries: [us]` would
+  otherwise have searched America for a Berlin reader.
+
+---
+
+## 0.6.0 — 2026-08-29 — `serve`
+
+The dashboard with buttons, at `http://127.0.0.1:8765`. The same list `jobdork
+list` prints, except that what you click sticks.
+
+### Added
+
+- **`jobdork serve`** — filter by status, scope (open / new since last scan /
+  including settled) and a text box; per-role buttons for interested, apply,
+  interviewing and skip, a status dropdown carrying all ten states, and a note
+  field.
+
+- **It reads and writes the same database the CLI does**, so the two cannot
+  disagree. Verified both directions: a status set in the browser shows up in
+  `jobdork list`, and one set by `jobdork applied` shows up in the browser
+  without a restart.
+
+- **Apply opens the posting and then records it.** Marking a role applied
+  without opening it would be recording something that did not happen.
+
+### Local only, deliberately
+
+- **It binds to `127.0.0.1` and there is no `--host`.** A dashboard listing
+  where you are applying is not a thing to put on a network, and an option to
+  do it is an option somebody uses.
+
+- **The `Host` header is validated against the address actually bound to**,
+  not against `Origin`. Under DNS rebinding a page on an attacker's domain
+  resolves to 127.0.0.1 and reaches this server from your browser; `Host` and
+  `Origin` are both attacker-controlled and agree with each other, and the
+  bound address is not. A foreign `Host` gets 421.
+
+- **A uid must be twelve hex characters** — it is the only value from the page
+  that reaches the database. Path traversal, SQL and short or long ids are all
+  400.
+
+- **`GET` cannot change anything.** A status change is not reachable by
+  following a link.
+
+- **Standard library only, no external request.** No CDN, no fonts, no
+  framework; a test asserts the page contains no outside URL.
+
+- Unknown paths are 404 rather than an attempt to read something off disk, and
+  a body over 8KB is refused.
+
+### Tests
+
+`tests/test_serve.py` runs a real server on a real loopback port for each
+case — 12 tests covering the guards above and the read/write parity, bringing
+the suite to 74.
+
+---
+
 ## 0.5.0 — 2026-08-29 — `discover`
 
 Finds an employer's job board by reading it off their own site, so the five
@@ -147,59 +766,27 @@ open; a digest arrives, and what arrived with it is what was not there before.
 
 ## Still outstanding
 
-Nothing here is built. It is written down so that a gap is a decision rather
-than a surprise, and so the next session starts from a list instead of from
-memory.
+Nothing. Every item that has been in this section has moved into an entry
+above, and the last one — a rate limit that was somebody else's clock —
+expired on its own.
 
-### Designed, never built
+It is kept as a heading rather than deleted, because the next gap goes here
+and a section that has to be re-invented is a section that gets skipped.
 
-- **`jobdork serve`** — the interactive dashboard. `scan` already writes a
-  static `out/index.html`; this is the version with buttons. Standard library
-  `http.server` only, bound to `127.0.0.1`, validating the `Host` header
-  against the address it actually bound to, sharing the database with the CLI
-  so the two cannot disagree. See
-  [ARCHITECTURE.md](ARCHITECTURE.md#what-is-not-built).
-- **Document generation** — screen, CV and cover letter, each spawning
-  headless `claude -p` in the background and writing results back as
-  `artifacts` rows. Every invocation costs tokens, so nothing generates
-  without a click. Quality gates would be mechanical: phrase overlap between
-  CV and cover letter, em-dash count, and any figure or scale word in a draft
-  that is not in the résumé. Job descriptions must be treated as hostile
-  input if this is built.
-- **`enrich`** — Breezy and SmartRecruiters return a summary index; their
-  full adverts need a second request per role. Until then those roles carry
-  thin descriptions and cannot really be screened.
+### Operational notes, not work
 
-### Started, incomplete
-
-- **No CLI overrides.** Only `-c/--config`, `--db` and `-v` exist. Changing
-  country, anchor, radius or titles means editing the config or keeping
-  several files and passing `-c`. Workable for a multi-country search, but
-  not obvious.
-
-### Known-unreliable, not fixable here
-
-- **SmartRecruiters is unverified.** Every token tried returned
-  `totalFound: 0`, which is also what the platform returns when throttling,
-  so the two cannot be told apart. First successful run is the test.
-- **Adzuna `au`, `nz` and `sg` answer 503.** The indexes exist and are
-  currently unavailable. Nothing to fix; retry later.
-- **`jobs.workable.com` is rate-limited until roughly 2026-08-29 evening.**
-  Checked 2026-08-29: `Retry-After: 28525`. Earned by re-running full scans
-  while tuning a config; use `scan --limit` for that instead.
-
-### Smaller gaps
-
-- **Metro aliases are US and Canada only.** `Bay Area`, `GTA` and `DMV`
-  resolve; `Kanto`, `Klang Valley`, `NCR` and `Randstad` do not.
-- **Dork results reach the database one at a time.** `jobdork add <url>`
-  bridges a single posting; there is no bulk path from a dork run.
-- **`locations.exclude` is a substring match** on the raw location string,
-  with no region-level exclusion.
-- **There is no `LICENSE` file**, though `README.md` and `pyproject.toml`
-  both declare MIT. It needs a copyright holder name.
-- **Nothing is committed.** HEAD is `8d151a3`; all of 0.2.0 and 0.3.0 exists
-  only in the working tree.
+- **`jobs.workable.com` bans hard.** The ban that ran through 0.6.0 to 0.12.x
+  was earned by re-running full scans while tuning a config: fifteen
+  consecutive 429s, then a `Retry-After` of 86,130 seconds. Cleared 2026-08-29.
+  Use `scan --limit` while experimenting.
+- **Adzuna adverts are capped at 500 characters and cannot be enriched** — its
+  links answer 403 from bot protection, which this tool does not work around.
+  That cap is permanent, and it is the reason employer boards matter.
+- **SmartRecruiters answers 200 with `totalFound: 0`** for a throttle and for
+  a board that is not there alike. An empty answer from it proves nothing
+  either way.
+- **Uncommitted:** 0.6.0 through 0.13.0 exist only in the working tree.
+  `f550183` carries 0.2.0 through 0.5.0.
 
 ---
 

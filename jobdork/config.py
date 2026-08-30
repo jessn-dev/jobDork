@@ -31,6 +31,11 @@ import yaml
 
 WORK_MODES = ("remote", "hybrid", "office")
 
+# Words that change the job rather than reword it. Overridable via
+# `screening.blockers`; these are the defaults that were hardcoded.
+DEFAULT_BLOCKERS = ("product", "business", "program", "programme", "project",
+                    "sales", "account")
+
 # Any ISO 3166-1 alpha-2 country the geocoder recognises. There is no built-in
 # region: a reader in Manila, Munich or Melbourne configures their own
 # countries and everything else follows from that.
@@ -145,6 +150,29 @@ class Locations:
 
 
 @dataclass
+class Screening:
+    """Heuristics that were hardcoded, now overridable.
+
+    Defaults are the values that were in `screen.py`, so a config that says
+    nothing behaves exactly as before. These are exposed because they encode
+    judgements about a job market — "program" changes an engineering manager
+    role into a different job in the US, and may not elsewhere — and a
+    judgement baked into source is one nobody can disagree with.
+    """
+    # Words that change the job rather than reword it, blocking a loose title
+    # match: "Engineering Program Manager" is not an engineering manager.
+    blockers: list[str] = field(default_factory=lambda: list(DEFAULT_BLOCKERS))
+    # How many unrelated words may sit between the words of a title phrase
+    # before the loose pass stops believing it is the same title.
+    loose_gap: int = 2
+    # Extra patterns for reading the arrangement off an advert, merged with
+    # the built-in ones rather than replacing them.
+    remote_patterns: list[str] = field(default_factory=list)
+    hybrid_patterns: list[str] = field(default_factory=list)
+    office_patterns: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Salary:
     floor: float | None = None
     currency: str = "USD"
@@ -204,6 +232,7 @@ class Config:
     titles_exclude: list[str] = field(default_factory=list)
     locations: Locations = field(default_factory=Locations)
     salary: Salary = field(default_factory=Salary)
+    screening: Screening = field(default_factory=Screening)
     dealbreakers: list[Dealbreaker] = field(default_factory=list)
     resume_path: str = ""
     sources: Sources = field(default_factory=Sources)
@@ -234,19 +263,28 @@ class Config:
         """
         return tuple(self.locations.countries)
 
+    def usajobs_in_scope(self) -> bool:
+        """US federal postings only, so it is off outside the US."""
+        return not self.locations.countries or "US" in self.locations.countries
+
     def active_sources(self) -> list[str]:
-        """Keyless sources, plus keyed ones whose credentials are present."""
+        """Keyless sources, plus keyed ones that will actually run.
+
+        "Will actually run" matters: reporting USAJOBS as active for a Berlin
+        reader and then having the adapter skip itself is the report and the
+        behaviour disagreeing, which is the thing `sources` exists to prevent.
+        """
         active = [s for s in self.sources.keyless if s in ALL_SOURCES]
-        if self.sources.usajobs_ready():
+        if self.sources.usajobs_ready() and self.usajobs_in_scope():
             active.append("usajobs")
         if self.sources.adzuna_ready():
             active.append("adzuna")
         return active
 
     def dormant_sources(self) -> list[str]:
-        """Keyed sources that are registered but have no credential yet."""
+        """Keyed sources that are registered but will not run, and why."""
         dormant = []
-        if not self.sources.usajobs_ready():
+        if not self.sources.usajobs_ready() or not self.usajobs_in_scope():
             dormant.append("usajobs")
         if not self.sources.adzuna_ready():
             dormant.append("adzuna")
@@ -301,6 +339,53 @@ def load(explicit: str = "", require: bool = True) -> Config:
     return cfg
 
 
+def apply_overrides(cfg: Config, **overrides: Any) -> Config:
+    """Apply command-line overrides, then validate the result.
+
+    Re-validating matters: `--radius 25` with no anchor anywhere, or
+    `--country ZZ`, has to fail the same way it would in the file. An override
+    that skipped validation would be a second, looser way in.
+
+    Clearing units when countries change is deliberate — a reader who says
+    `--country DE` means kilometres, and carrying miles over from a config
+    written for Chicago would silently search 2.6x the intended area.
+    """
+    if overrides.get("titles"):
+        cfg.titles_include = list(overrides["titles"])
+    if overrides.get("exclude_titles"):
+        cfg.titles_exclude = list(overrides["exclude_titles"])
+    if overrides.get("anchor") is not None:
+        cfg.locations.anchor = overrides["anchor"]
+    if overrides.get("countries"):
+        cfg.locations.countries = [c.upper() for c in overrides["countries"]]
+        if not overrides.get("units"):
+            from .geo import default_units
+            cfg.locations.units = default_units(cfg.locations.countries)
+        # A pinned `adzuna_countries` in the file would otherwise beat the
+        # override, so `--country DE` would search Germany with the American
+        # index. Clearing it lets Adzuna follow the countries just asked for.
+        cfg.sources.adzuna_countries = []
+    if overrides.get("units"):
+        cfg.locations.units = overrides["units"]
+    if overrides.get("radius") is not None:
+        cfg.locations.radius = overrides["radius"]
+    if overrides.get("work_modes"):
+        cfg.locations.work_modes = [m.lower() for m in overrides["work_modes"]]
+    if overrides.get("salary_floor") is not None:
+        cfg.salary.floor = float(overrides["salary_floor"])
+    if overrides.get("currency"):
+        cfg.salary.currency = overrides["currency"].upper()
+    if overrides.get("resume") is not None:
+        cfg.resume_path = overrides["resume"]
+    if overrides.get("db"):
+        cfg.db_path = overrides["db"]
+    if overrides.get("output_dir"):
+        cfg.output.dir = overrides["output_dir"]
+
+    _validate(cfg)
+    return cfg
+
+
 def _build(raw: dict[str, Any]) -> Config:
     cfg = Config()
 
@@ -337,6 +422,20 @@ def _build(raw: dict[str, Any]) -> Config:
                 hard=bool(entry.get("hard", True)),
             )
         )
+
+    scr = raw.get("screening") or {}
+    cfg.screening = Screening(
+        blockers=[b.lower() for b in
+                  _str_list(scr.get("blockers"), "screening.blockers")]
+        or list(DEFAULT_BLOCKERS),
+        loose_gap=int(scr.get("loose_gap", 2)),
+        remote_patterns=_str_list(scr.get("remote_patterns"),
+                                  "screening.remote_patterns"),
+        hybrid_patterns=_str_list(scr.get("hybrid_patterns"),
+                                  "screening.hybrid_patterns"),
+        office_patterns=_str_list(scr.get("office_patterns"),
+                                  "screening.office_patterns"),
+    )
 
     resume = raw.get("resume") or {}
     cfg.resume_path = str(resume.get("path") or "").strip()
@@ -469,6 +568,18 @@ def _validate(cfg: Config) -> None:
         )
     if cfg.salary.floor is not None and cfg.salary.floor < 0:
         raise ConfigError("salary.floor cannot be negative")
+
+    if cfg.screening.loose_gap < 0:
+        raise ConfigError("screening.loose_gap cannot be negative")
+    for group in ("remote_patterns", "hybrid_patterns", "office_patterns"):
+        for pattern in getattr(cfg.screening, group):
+            try:
+                re.compile(pattern, re.IGNORECASE)
+            except re.error as exc:
+                raise ConfigError(
+                    f"screening.{group} has a broken pattern {pattern!r}: {exc}. "
+                    "Left alone it would match nothing and look like a clean run."
+                ) from exc
 
     for db in cfg.dealbreakers:
         if not db.pattern:

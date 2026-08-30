@@ -3,6 +3,11 @@ logs/
 .idea
 .DS_Store
 __pycache__/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
 .claude
 
 # These were '.csv' and '.txt', which match a file called exactly ".csv".

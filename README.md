@@ -52,7 +52,7 @@ version and [docs/](docs/README.md) is the long one.
 ```bash
 git clone <your-fork>
 cd jobDork
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 -m venv .venv && .venv/bin/pip install -e '.[pdf]'
 cp config.example.yaml config.yaml     # then edit two lines
 .venv/bin/python scripts/build_gazetteer.py
 .venv/bin/python -m jobdork scan
@@ -119,8 +119,8 @@ Registered but dormant — no credential:
 ```
 
 **Adzuna** runs a separate national index per country and is the widest keyed
-source: `gb us ca ie in de fr nl at be ch es it pl br mx za`, with `au nz sg`
-existing but currently answering 503. There is no Philippine, Indonesian,
+source: `gb us ca ie in de fr nl at be ch es it pl br mx za au nz sg`. There
+is no Philippine, Indonesian,
 Malaysian, Japanese or Emirati index at all, and the adapter says so by name
 instead of returning nothing.
 
@@ -187,6 +187,24 @@ HTTP 200 with an empty array both for a board that does not exist and for one
 that is rate-limiting you. An empty answer is reported as `SUSPECT`, never as
 "this company is not hiring" — those are different statements and only one of
 them is honest.
+
+**It can fetch the full advert where only a summary arrived.** `jobdork
+enrich` reads schema.org `JobPosting` data off the posting page — on a test
+run, six roles went from 180-character teasers to 1,462–4,479 characters, and
+three of them stopped passing once the real text was screened. Adzuna is the
+exception: its links answer 403 from bot protection, so its 500-character cap
+is permanent and `enrich` refuses to try rather than working around a control.
+
+**Any setting can be overridden for one run**, and each is validated exactly
+as the file is:
+
+```bash
+jobdork scan --anchor "Berlin, Germany" --country DE
+jobdork list --title "penetration tester" --work-mode remote --salary-floor 150000
+```
+
+`--country` carries units and the Adzuna index with it, so a German search is
+in kilometres against the `de` index without your having to say so.
 
 **It ranks against your résumé, offline and free.** `.docx`, `.md`, `.txt`,
 and `.pdf` with the optional `pypdf` extra. Skill overlap sorts the list and
@@ -262,6 +280,73 @@ not recording it.
 `scan` also writes `out/index.html` — the same list as a self-contained page,
 light and dark, no server and no external request.
 
+![The static page](docs/images/static-page.jpg)
+
+The header line is the config that produced it, so a page you saved last week
+still says what it was searching for.
+
+### Drafting, when you want it
+
+```bash
+jobdork generate <uid> -k screen     # is this worth applying to? seconds, pennies
+jobdork generate <uid> -k cv
+jobdork generate <uid> -k cover_letter
+```
+
+Needs the `claude` CLI on your PATH — the desktop chat app ships no
+command-line entry point. **Nothing generates unless you ask**, and screening
+first is cheaper than finding a coding round after drafting a CV.
+
+Documents land in `~/Documents/job-applications/<date>-<company>-<role>/` with a snapshot
+of the advert, because postings are pulled the moment they are filled.
+
+Every draft is checked by scripts rather than re-read by a model: any figure or
+scale word not in your résumé, any six-word run shared between the CV and the
+cover letter, em-dash count. Nothing is redrafted for you — a failed gate is a
+thing to read before you send it. A screen is exempt: it is notes to yourself
+and it is supposed to quote the advert.
+
+A real screen, on a role with a full advert:
+
+> **Verdict: MAYBE — lean apply, but confirm travel and title first.**
+>
+> **Travel is the big one.** "Consecutive weeks spent full-time at a client
+> site." Advertised as 2 days/week hybrid in Chicago, but the real shape may be
+> extended on-site stints at banks. Not a normal hybrid job.
+>
+> **Title mismatch.** Called "DevOps Engineer," reports to Platform Engineering
+> Manager, but the job described is Forward Deployed Engineer.
+>
+> **Pay: stated — "$140,000 - £170,000 per annum."** Currency mismatch is a
+> typo (London HQ).
+
+On a role whose advert had been truncated by an aggregator, the same command
+refused rather than guessing: *"cannot screen yet. Advert is a stub."* That is
+the behaviour worth having — it would rather tell you it cannot see than invent
+a match.
+
+The advert is treated as hostile input: fenced with its own markers stripped
+out first, labelled as a claim rather than an instruction, and the subprocess
+scoped to that one folder.
+
+### Or with buttons
+
+```bash
+jobdork serve        # http://127.0.0.1:8765
+```
+
+![The dashboard](docs/images/dashboard.jpg)
+
+The same list, except what you click sticks. It reads and writes the same
+database the CLI does, so the two cannot disagree.
+
+Local only, and deliberately hard to make otherwise: it binds to loopback and
+there is no `--host`; the `Host` header is checked against the address it
+actually bound to rather than against `Origin`, because under DNS rebinding
+both of those are attacker-controlled and the bound address is not; a role id
+must be twelve hex characters; and `GET` cannot change anything. Standard
+library only — no CDN, no framework, no external request.
+
 ---
 
 ## What it cannot do
@@ -284,10 +369,9 @@ A tool that quietly fails at something looks broken rather than out of scope.
 - **Right to work.** A posting that states its sponsorship position is
   flagged, read from the advert. Most state nothing; treat an unflagged role
   as unknown rather than as available.
-- **SmartRecruiters, honestly.** The adapter parses and has never been checked
-  against live data: every token tried returned `totalFound: 0`, which is also
-  what that platform returns when it is throttling. Believe your first
-  successful run over the docs.
+- **Telling a SmartRecruiters throttle from an empty board.** It answers 200
+  with `totalFound: 0` for both, so a quiet board is reported as unknown
+  rather than as not hiring.
 - **Jobs never posted to an ATS at all.** Trades, retail floor work and most
   care work do not hire this way.
 
@@ -352,8 +436,10 @@ blocking automated readers makes the market worse for everyone.
 ## Development
 
 ```bash
-python tests/run_all.py     # the whole suite, no pytest needed
-python -m pytest -q         # the same tests, if you have it
+pip install -e '.[dev]'     # pytest and ruff
+pytest                      # the whole suite
+ruff check .                # lint
+python tests/run_all.py     # the same tests, with nothing installed
 ```
 
 `run_all.py` **discovers** every `tests/test_*.py` rather than naming them.

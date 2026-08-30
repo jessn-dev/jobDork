@@ -151,44 +151,44 @@ def _build(wanted: set[str]) -> int:
         return 1
 
     rows: list[tuple[int, str, str, str, str, str]] = []
-    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-        with archive.open("cities5000.txt") as handle:
-            for raw in io.TextIOWrapper(handle, encoding="utf-8"):
-                cols = raw.rstrip("\n").split("\t")
-                if len(cols) < 15:
+    with (zipfile.ZipFile(io.BytesIO(payload)) as archive,
+          archive.open("cities5000.txt") as handle):
+        for raw in io.TextIOWrapper(handle, encoding="utf-8"):
+            cols = raw.rstrip("\n").split("\t")
+            if len(cols) < 15:
+                continue
+            country = cols[8]
+            if wanted and country not in wanted:
+                continue
+
+            admin1 = cols[10]
+            state = ADMIN1_FIXUPS.get(country, {}).get(admin1, admin1)
+            if country in CODED_REGIONS:
+                # A numeric admin1 that has no fixup is not a region code
+                # anybody writes in a posting, so it is dropped.
+                if not state or state.isdigit() or len(state) > 3:
                     continue
-                country = cols[8]
-                if wanted and country not in wanted:
-                    continue
+            else:
+                # Elsewhere the country identifies the place; a raw admin1
+                # number would only pollute the region column.
+                state = ""
 
-                admin1 = cols[10]
-                state = ADMIN1_FIXUPS.get(country, {}).get(admin1, admin1)
-                if country in CODED_REGIONS:
-                    # A numeric admin1 that has no fixup is not a region code
-                    # anybody writes in a posting, so it is dropped.
-                    if not state or state.isdigit() or len(state) > 3:
-                        continue
-                else:
-                    # Elsewhere the country identifies the place; a raw admin1
-                    # number would only pollute the region column.
-                    state = ""
+            try:
+                population = int(cols[14] or 0)
+            except ValueError:
+                population = 0
 
-                try:
-                    population = int(cols[14] or 0)
-                except ValueError:
-                    population = 0
+            lat, lon = cols[4], cols[5]
+            name = cols[1]
+            rows.append((population, name, state, country, lat, lon))
 
-                lat, lon = cols[4], cols[5]
-                name = cols[1]
-                rows.append((population, name, state, country, lat, lon))
-
-                # Postings do not always use the gazetteer's spelling. Extra
-                # rows are written for the names people actually type; geo.py
-                # keeps the first entry per (name, region), and rows are
-                # sorted most-populous first, so an alias never outranks a
-                # bigger city of the same name.
-                for alias in _aliases(name, cols[2], cols[3]):
-                    rows.append((population - 1, alias, state, country, lat, lon))
+            # Postings do not always use the gazetteer's spelling. Extra
+            # rows are written for the names people actually type; geo.py
+            # keeps the first entry per (name, region), and rows are
+            # sorted most-populous first, so an alias never outranks a
+            # bigger city of the same name.
+            for alias in _aliases(name, cols[2], cols[3]):
+                rows.append((population - 1, alias, state, country, lat, lon))
 
     if not rows:
         print("no rows parsed — the file format may have changed", file=sys.stderr)

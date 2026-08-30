@@ -41,10 +41,10 @@ floor does most of its work.
 
 from __future__ import annotations
 
+from .. import geo
 from ..store import Role
 from ..textutil import to_text
 from . import SourceResult, register
-from .. import geo
 from .boards import annualise, clean, normalise_interval
 
 API = "https://data.usajobs.gov/api/search"
@@ -65,7 +65,7 @@ def _location_params(cfg) -> dict:
     params = {"LocationName": name}
     radius = cfg.radius_miles()
     if radius is not None:
-        params["Radius"] = int(round(radius))
+        params["Radius"] = round(radius)
     return params
 
 
@@ -121,7 +121,7 @@ def _num(value) -> float | None:
         return None
 
 
-def _location(item: dict, anchor: "geo.Resolved | None" = None) -> tuple[str, int]:
+def _location(item: dict, anchor: geo.Resolved | None = None) -> tuple[str, int]:
     """Pick the location nearest your anchor, not simply the first one.
 
     A federal posting is routinely open in a dozen cities at once. Taking

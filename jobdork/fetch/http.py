@@ -30,6 +30,7 @@ happened and never decides what it meant.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 import time
@@ -237,10 +238,8 @@ class Fetcher:
                 retry_after = resp.headers.get("Retry-After", "")
                 if attempt + 1 < attempts:
                     pause = 2.0 + attempt * 2
-                    try:
+                    with contextlib.suppress(ValueError):
                         pause = min(float(retry_after), RETRY_AFTER_REFUSAL) or pause
-                    except ValueError:
-                        pass
                     time.sleep(pause)
                     continue
                 self._note_429(host, retry_after)

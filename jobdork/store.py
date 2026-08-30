@@ -26,13 +26,13 @@ import json
 import sqlite3
 import time
 import urllib.parse
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .config import SETTLED_STATUSES, STATUSES
-
-SCHEMA_VERSION = 1
+from .migrations import SCHEMA_VERSION, migrate
 
 # Tracking parameters that change per click and would otherwise mint a new
 # uid for a posting already stored.
@@ -204,10 +204,24 @@ class Store:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.executescript(SCHEMA)
-        self._set_meta_default("schema_version", str(SCHEMA_VERSION))
+        # A fresh database is created at the current version; an existing one
+        # is stepped up to it. `CREATE TABLE IF NOT EXISTS` above builds the
+        # shape a NEW database starts with and can do nothing for an old one,
+        # which is what migrations are for.
+        fresh = self._is_fresh()
+        self._set_meta_default(
+            "schema_version", str(SCHEMA_VERSION if fresh else 1))
         self.conn.commit()
+        self.applied_migrations = migrate(self.conn)
 
-    def __enter__(self) -> "Store":
+    def _is_fresh(self) -> bool:
+        """True when nothing has been stored yet, so no migration is owed."""
+        if self.conn.execute(
+                "SELECT value FROM meta WHERE key = 'schema_version'").fetchone():
+            return False
+        return self.conn.execute("SELECT COUNT(*) FROM roles").fetchone()[0] == 0
+
+    def __enter__(self) -> Store:
         return self
 
     def __exit__(self, *exc: Any) -> None:
@@ -412,12 +426,24 @@ class Store:
                 )""")
 
         if collapse_duplicates:
+            # Ordering matters more than it looks. Ranking by score alone kept
+            # the WORSE copy: the same Vectra role arrived from an aggregator
+            # truncated to 500 characters and from the employer's own board at
+            # 4,701, and the truncated one scored higher — it had a tidier
+            # location string, and it could not lose points on advert content
+            # it did not contain. So the fuller advert wins first, and score
+            # only breaks ties between copies that say as much as each other.
+            #
+            # Bucketed rather than compared exactly, because two adverts of
+            # 4,700 and 4,900 characters are the same advert and the score
+            # should decide between them.
             where.append("""r.uid IN (
                 SELECT uid FROM (
                     SELECT uid, ROW_NUMBER() OVER (
                         PARTITION BY lower(trim(COALESCE(company, ''))),
                                      lower(trim(COALESCE(title, '')))
-                        ORDER BY score DESC, first_seen ASC, uid ASC
+                        ORDER BY LENGTH(COALESCE(description, '')) / 1000 DESC,
+                                 score DESC, first_seen ASC, uid ASC
                     ) AS rn
                     FROM roles
                 ) WHERE rn = 1

@@ -16,10 +16,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from jobdork import geo, screen                                # noqa: E402
-from jobdork.config import Config, Locations, Salary           # noqa: E402
-from jobdork.fetch import adzuna, usajobs, workable            # noqa: E402
-from jobdork.store import Role                                 # noqa: E402
+from jobdork import geo, screen
+from jobdork.config import Config, Locations, Salary
+from jobdork.fetch import adzuna, usajobs, workable
+from jobdork.store import Role
 
 
 def _cfg(anchor: str, countries: list[str], radius=25, units="") -> Config:
@@ -200,6 +200,91 @@ def test_workable_queries_are_spelled_out_not_coded():
     assert workable.location_queries(_cfg("Berlin, Germany", ["DE"])) == ["Berlin, Germany"]
     assert workable.location_queries(_cfg("Makati, Philippines", ["PH"])) == \
         ["Makati, Philippines"]
+
+
+# ── metros outside North America ───────────────────────────────────────────────
+
+def test_metros_resolve_worldwide():
+    for text, prefer, _city in (
+        ("Kanto", ("JP",), "Tokyo"),
+        ("Klang Valley", ("MY",), "Kuala Lumpur"),
+        ("Metro Manila", ("PH",), "Manila"),
+        ("BGC", ("PH",), "Taguig"),
+        ("Randstad", ("NL",), "Amsterdam"),
+        ("Greater London", ("GB",), "London"),
+        ("Gauteng", ("ZA",), "Johannesburg"),
+        ("CDMX", ("MX",), "Mexico City"),
+        ("Greater Sydney", ("AU",), "Sydney"),
+        ("Ruhrgebiet", ("DE",), "Essen"),
+        ("Jabodetabek", ("ID",), "Jakarta"),
+        ("Öresund", ("DK",), "Copenhagen"),
+    ):
+        resolved = geo.resolve(text, prefer)
+        assert resolved.located, text
+        assert resolved.country == prefer[0], f"{text} -> {resolved.country}"
+        assert resolved.approximate, f"{text} should be marked approximate"
+
+
+def test_a_hyphenated_metro_survives_the_cleanup():
+    """The cleanup turns hyphens into commas, and France is a country.
+
+    Without an early check, 'Île-de-France' splits into three fragments and
+    the last one is read as the country, leaving a city called 'Île'.
+    """
+    for text in ("Île-de-France", "Ile-de-France"):
+        resolved = geo.resolve(text, ("FR",))
+        assert resolved.city == "Paris", f"{text} -> {resolved.city}"
+
+
+def test_one_metro_name_three_countries():
+    """NCR is the National Capital Region in Canada, India and the Philippines."""
+    assert geo.resolve("NCR", ("CA",)).city == "Ottawa"
+    assert geo.resolve("NCR", ("PH",)).city == "Manila"
+    assert geo.resolve("NCR", ("IN",)).city == "New Delhi"
+    # With no countries configured it still resolves rather than giving up.
+    assert geo.resolve("NCR", ()).located
+
+
+def test_north_american_metros_are_unchanged():
+    for text, city in (("GTA", "Toronto"), ("DMV", "Washington"),
+                       ("Silicon Valley", "San Jose"), ("DFW", "Dallas"),
+                       ("Bay Area", "San Francisco")):
+        assert geo.resolve(text, ("US", "CA")).city == city, text
+
+
+# ── locations.exclude ──────────────────────────────────────────────────────────
+
+def _dropped(exclude, location, countries=("US",)) -> bool:
+    cfg = Config(
+        titles_include=["engineer"],
+        locations=Locations(anchor="", radius="exact", units="mi",
+                            countries=list(countries), exclude=list(exclude)),
+        salary=Salary(),
+    )
+    role = Role(platform="w", title="Engineer", url=f"https://x.test/{location}",
+                location_raw=location, work_mode="office")
+    return not screen.screen(role, cfg).keep
+
+
+def test_exclude_matches_a_region_however_it_is_written():
+    """A substring match was too literal: postings say 'Texas', configs say TX."""
+    assert _dropped(["TX"], "Austin, Texas")
+    assert _dropped(["Texas"], "Austin, TX")
+    assert not _dropped(["TX"], "Chicago, Illinois")
+
+
+def test_exclude_matches_a_city_and_the_metro_that_stands_for_it():
+    assert _dropped(["Chicago"], "Chicago, IL")
+    assert not _dropped(["Chicago"], "Austin, TX")
+    assert _dropped(["Bay Area"], "San Francisco, CA")
+
+
+def test_exclude_matches_a_country():
+    assert _dropped(["Canada"], "Toronto, Ontario, Canada", ("US", "CA"))
+
+
+def test_exclude_still_takes_an_arbitrary_phrase():
+    assert _dropped(["Bee Cave"], "Bee Cave, Texas")
 
 
 # ── keep this block LAST ───────────────────────────────────────────────────────

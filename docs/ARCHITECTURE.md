@@ -48,6 +48,8 @@ filters.
 | `render.py` | 196 | Static HTML and JSON |
 | `resume.py` | 163 | Résumé parsing, skill extraction, fit scoring |
 | `textutil.py` | 77 | HTML → text for advert bodies |
+| `migrations.py` | 150 | Numbered, forwards-only schema steps |
+| `dork/` | ~1,100 | The original Google query generator, moved not rewritten |
 | `fetch/*.py` | ~900 | Eight source adapters plus shared board helpers |
 
 ---
@@ -191,16 +193,10 @@ happens on the way out: same company, same title, best score wins.
 
 ## What is not built
 
-**`jobdork serve`** — an interactive dashboard on `127.0.0.1`, standard library
-only, sharing the database with the CLI so the two cannot disagree. It would
-bind to loopback and validate the `Host` header against the address it actually
-bound to, because both `Host` and `Origin` are attacker-controlled together
-under DNS rebinding.
-
-**Document generation** — screen, CV and cover letter, each spawning headless
-`claude -p` in the background and writing results back as `artifacts` rows.
-Every invocation costs tokens, so nothing would generate without a click.
-Quality gates would be mechanical: phrase overlap between CV and cover letter,
+**Document generation** — shipped in 0.11.0. Screen, CV and cover letter, each
+spawning headless `claude -p` and writing results back as `artifacts` rows.
+Every invocation costs tokens, so nothing generates without a click.
+Quality gates are mechanical: phrase overlap between CV and cover letter,
 em-dash count, and any figure or scale word in a draft that is not in the
 résumé.
 
@@ -211,8 +207,8 @@ write files. Fence and label the advert, strip the fence markers from it first,
 scope the subprocess to one job's folder, and scheme-check every URL — apply
 links are employer-supplied on several platforms.
 
-**`enrich`** and the two above are what remain. `discover` shipped in 0.5.0;
-see [SOURCES.md](SOURCES.md#finding-one-automatically).
+Nothing. `discover` shipped in 0.5.0, `serve` in 0.6.0, `enrich` in 0.8.0 and
+`generate` in 0.11.0.
 
 ---
 

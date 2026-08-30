@@ -88,7 +88,7 @@ locations:
 | `locations.units` | `mi` \| `km` | by country | Blank picks miles for US/UK, km elsewhere |
 | `locations.countries` | list | `[]` | Any ISO 3166-1 alpha-2 code; empty accepts everywhere |
 | `locations.work_modes` | list | `[]` | Allow-list of `remote`, `hybrid`, `office` |
-| `locations.exclude` | list of strings | `[]` | Substring match on the raw location |
+| `locations.exclude` | list of strings | `[]` | Region, country, city, metro name, or a substring |
 
 A numeric `radius` with no `anchor` is refused — a radius needs somewhere to
 measure from. A country code the geocoder does not know is refused by name
@@ -123,6 +123,15 @@ with no office is not a number that means anything.
 **A location that cannot be resolved is kept and flagged**, never dropped.
 "We could not parse it" is not evidence the job is somewhere else. The role
 carries `location not resolved: ...`.
+
+### exclude
+
+An entry is tried as a region code, then a country, then a city, then a metro
+name, and finally as a substring of the raw string. So `TX` and `Texas` both
+drop a role in Austin, `Bay Area` drops one in San Francisco, and an arbitrary
+phrase still works. A plain substring match was too literal to be useful:
+postings write "Austin, Texas" and configs write `TX`, and neither matched the
+other.
 
 **A country you did not list is dropped**, because that *is* the employer
 telling you where the job is. With `countries: [US]`, "Berlin, Germany" goes

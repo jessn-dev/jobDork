@@ -81,28 +81,33 @@ from pathlib import Path
 import resend
 from resend.exceptions import ResendError
 
-from config import (
-    GOOGLE_BASE,
-    DEFAULT_DATE_FILTER,
-    DATE_FILTERS,
-    CRON_SCHEDULES,
-    LEVEL_KEYWORDS,
-    ARRANGEMENT_TERMS,
-    SITE_DORKS,
-    DEFAULT_SITES,
+from jobdork.dork.boards import (
     ALL_SITES,
+    ARRANGEMENT_TERMS,
+    CRON_SCHEDULES,
+    DATE_FILTERS,
+    DEFAULT_DATE_FILTER,
+    DEFAULT_SITES,
+    GOOGLE_BASE,
+    LEVEL_KEYWORDS,
+    SITE_DORKS,
 )
 
-
 # ── Runtime constants ──────────────────────────────────────────────────────────
-SCRIPT_NAME      = Path(__file__).name
+SCRIPT_NAME      = "jobdork dork"
+
+# Where logs, .env and result files live. Moving this script into the package
+# must not move the user's files into it too: `.env` sits beside config.yaml at
+# the project root, and logs and CSVs belong where the user runs the command,
+# not inside site-packages.
+PROJECT_ROOT     = Path(__file__).resolve().parent.parent.parent
 RUN_SCRIPT_NAME  = "run.sh"
-LOG_DIR          = Path(__file__).parent / "logs"
+LOG_DIR          = PROJECT_ROOT / "logs"
 DEFAULT_LOG_FILE = LOG_DIR / "job_dork.log"
 LOGGER           = logging.getLogger("job_dork")
 
 # ── .env loader ────────────────────────────────────────────────────────────────
-_ENV_FILE = Path(__file__).parent / ".env"
+_ENV_FILE = PROJECT_ROOT / ".env"
 
 
 def _load_dotenv() -> None:
@@ -143,7 +148,7 @@ def setup_logging(log_file: str = "") -> Path:
     """Set up file + stderr logging. Returns the resolved log path."""
     log_path = Path(log_file).expanduser() if log_file else DEFAULT_LOG_FILE
     if not log_path.is_absolute():
-        log_path = Path(__file__).parent / log_path
+        log_path = PROJECT_ROOT / log_path
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     LOGGER.setLevel(logging.INFO)
@@ -608,7 +613,7 @@ def install_cron(schedule_key: str) -> None:
 
     LOGGER.info("Cron installed: %s", schedule_key)
     print(f"\n  Cron job installed -> {label.lower()}")
-    print(f"  View   : crontab -l")
+    print("  View   : crontab -l")
     print(f"  Remove : crontab -e  (delete the line containing '{marker}')")
 
 
