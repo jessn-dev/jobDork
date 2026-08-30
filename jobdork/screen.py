@@ -23,16 +23,16 @@ import re
 from dataclasses import dataclass, field
 
 from . import geo
+
+# Defaults, used when a config does not override them. The live values come
+# from `cfg.screening`, because these encode a judgement about one job market
+# — "program" changes an engineering manager into a different job in the US
+# and may not elsewhere — and a judgement baked into source is one nobody can
+# disagree with.
+from .config import DEFAULT_BLOCKERS as BLOCKERS
 from .config import Config
 from .store import Role
 
-# Words that change the job rather than reword it. "Engineering Program
-# Manager" is not an engineering manager, however many of the words line up.
-BLOCKERS = ("product", "business", "program", "programme", "project",
-            "sales", "account")
-
-# How many unrelated words may sit between the words of a title phrase before
-# the loose pass stops believing them to be the same title.
 LOOSE_GAP = 2
 
 _TOKEN = re.compile(r"[a-z0-9+#.]+")
@@ -79,7 +79,9 @@ def _phrase_in(tokens: list[str], phrase_tokens: list[str]) -> bool:
                for i in range(len(tokens) - n + 1))
 
 
-def _loose_match(tokens: list[str], phrase_tokens: list[str]) -> bool:
+def _loose_match(tokens: list[str], phrase_tokens: list[str],
+                 blockers: tuple[str, ...] = BLOCKERS,
+                 gap: int = LOOSE_GAP) -> bool:
     """Same words, another order, up to two unrelated words between them.
 
     This is what finds "Manager, Engineering Platform" for `engineering
@@ -101,11 +103,11 @@ def _loose_match(tokens: list[str], phrase_tokens: list[str]) -> bool:
     starts = [min(p) for p in positions]
     ends = [max(p) for p in positions]
     span_start, span_end = min(starts), max(ends)
-    if span_end - span_start + 1 > len(phrase_tokens) + LOOSE_GAP:
+    if span_end - span_start + 1 > len(phrase_tokens) + gap:
         return False
 
     inside = set(tokens[span_start:span_end + 1]) - set(phrase_tokens)
-    return not (inside & set(BLOCKERS))
+    return not (inside & set(blockers))
 
 
 def title_verdict(title: str, cfg: Config) -> tuple[bool, str, float]:
@@ -122,8 +124,11 @@ def title_verdict(title: str, cfg: Config) -> tuple[bool, str, float]:
         if _phrase_in(tokens, _tokens(term)):
             return True, f"title matches {term!r}", 30.0
 
+    screening = getattr(cfg, "screening", None)
+    blockers = tuple(screening.blockers) if screening else BLOCKERS
+    gap = screening.loose_gap if screening else LOOSE_GAP
     for term in cfg.titles_include:
-        if _loose_match(tokens, _tokens(term)):
+        if _loose_match(tokens, _tokens(term), blockers, gap):
             return True, f"title loosely matches {term!r}", 18.0
 
     return False, "title matches nothing in titles.include", 0.0
@@ -131,7 +136,14 @@ def title_verdict(title: str, cfg: Config) -> tuple[bool, str, float]:
 
 # ── Work arrangement ───────────────────────────────────────────────────────────
 
-def detect_work_mode(role: Role) -> tuple[str, list[str]]:
+def _extra(patterns: list[str]) -> re.Pattern | None:
+    """Compile a config's extra arrangement patterns, if it gave any."""
+    if not patterns:
+        return None
+    return re.compile("|".join(f"(?:{p})" for p in patterns), re.IGNORECASE)
+
+
+def detect_work_mode(role: Role, cfg=None) -> tuple[str, list[str]]:
     """Use what the platform said. Only read the advert when it said nothing.
 
     Workable and Ashby both state the arrangement on every posting, and a
@@ -144,19 +156,62 @@ def detect_work_mode(role: Role) -> tuple[str, list[str]]:
 
     haystack = f"{role.title}\n{role.location_raw}\n{role.description[:4000]}"
 
-    if _HYBRID.search(haystack):
+    # A config may add patterns; they are merged with the built-in ones rather
+    # than replacing them, so adding one never silently loses the defaults.
+    screening = getattr(cfg, "screening", None)
+    extra_hybrid = _extra(screening.hybrid_patterns) if screening else None
+    extra_remote = _extra(screening.remote_patterns) if screening else None
+    extra_office = _extra(screening.office_patterns) if screening else None
+
+    if _HYBRID.search(haystack) or (extra_hybrid and extra_hybrid.search(haystack)):
         return "hybrid", flags
-    if _REMOTE.search(haystack):
+    if _REMOTE.search(haystack) or (extra_remote and extra_remote.search(haystack)):
         if _TETHERED.search(haystack):
             flags.append("says remote but requires living near an office")
             return "hybrid", flags
         return "remote", flags
-    if _OFFICE.search(haystack):
+    if _OFFICE.search(haystack) or (extra_office and extra_office.search(haystack)):
         return "office", flags
     return "", flags
 
 
 # ── Location ───────────────────────────────────────────────────────────────────
+
+def _excluded_by(banned: str, role: Role, resolved: geo.Resolved, cfg) -> bool:
+    """Does one `locations.exclude` entry rule this role out?
+
+    Matched against what the location *resolved to*, not only the raw string.
+    Substring alone was too literal to be useful: `exclude: [TX]` matched
+    nothing, because a posting says "Austin, Texas" and never "TX", and
+    `exclude: [Texas]` missed every posting that wrote the code instead.
+
+    An entry is tried as a region code, then a country code, then a city name,
+    and finally as a substring of the raw string — so `NY`, `New York`,
+    `Manhattan` and `US` all work, and so does an arbitrary phrase.
+    """
+    needle = (banned or "").strip()
+    if not needle:
+        return False
+
+    region = geo.normalise_state(needle, cfg.country_prefs())
+    if region and resolved.state and region == resolved.state:
+        return True
+
+    country = geo.country_code(needle)
+    if country and resolved.country and country == resolved.country:
+        return True
+
+    if resolved.city and geo._key(needle) == geo._key(resolved.city):
+        return True
+
+    # A metro name excludes the city it stands for: "Bay Area" rules out
+    # San Francisco.
+    metro = geo._metro(geo._key(needle), cfg.country_prefs())
+    if metro and resolved.city and geo._key(metro[0]) == geo._key(resolved.city):
+        return True
+
+    return needle.lower() in (role.location_raw or "").lower()
+
 
 def location_verdict(
     role: Role, cfg: Config, anchor: geo.Resolved, mode: str
@@ -172,8 +227,7 @@ def location_verdict(
         flags.append(resolved.note)
 
     for banned in cfg.locations.exclude:
-        needle = banned.strip().lower()
-        if needle and needle in (role.location_raw or "").lower():
+        if _excluded_by(banned, role, resolved, cfg):
             return False, f"location excluded by {banned!r}", 0.0, flags
 
     # A country the employer named and you did not list is a real refusal.
@@ -313,7 +367,7 @@ def screen(
         return verdict
     verdict.score += points
 
-    mode, mode_flags = detect_work_mode(role)
+    mode, mode_flags = detect_work_mode(role, cfg)
     role.work_mode = mode
     verdict.flags.extend(mode_flags)
 

@@ -1,6 +1,10 @@
-PyYAML>=6.0
-requests>=2.31
-resend>=2.0.0
+# Dependencies are declared in pyproject.toml, which is the single source of
+# truth. This file exists because `pip install -r requirements.txt` is what
+# people type; it installs the project and nothing is repeated here, so the
+# two cannot drift apart.
+#
+#   pip install -r requirements.txt          the tool
+#   pip install -e '.[pdf]'                  plus PDF résumé support
+#   pip install -e '.[dev]'                  plus pytest and ruff
 
-# Optional: only for reading a PDF résumé. Everything else works without it.
-pypdf>=4.0
+-e .

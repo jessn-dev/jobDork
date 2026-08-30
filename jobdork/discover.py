@@ -238,12 +238,12 @@ def _verify(fetcher: Fetcher, item: Found) -> Found:
     class _Stub:
         """The minimum an adapter reads. Discovery has no user config yet."""
         titles_include: list[str] = []
-        class locations:                                    # noqa: N801
+        class locations:
             anchor = ""
             radius = "exact"
             units = "mi"
             countries: list[str] = []
-        class sources:                                      # noqa: N801
+        class sources:
             adzuna_countries: list[str] = []
         def country_prefs(self):
             return ()

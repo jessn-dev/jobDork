@@ -17,7 +17,7 @@ the documentation is not.
 | [Ashby](#ashby) | `api.ashbyhq.com/posting-api/job-board/{name}` | none | full | structured | stated | verified |
 | [Lever](#lever) | `api.lever.co/v0/postings/{token}` | none | full | rare | stated | verified |
 | [Breezy](#breezy) | `{company}.breezy.hr/json` | none | summary | field present | unreliable | partial |
-| [SmartRecruiters](#smartrecruiters) | `api.smartrecruiters.com/v1/companies/{token}/postings` | none | summary | — | — | **unverified** |
+| [SmartRecruiters](#smartrecruiters) | `api.smartrecruiters.com/v1/companies/{token}/postings` | none | detail endpoint | — | stated | verified |
 | [Adzuna](#adzuna) | `api.adzuna.com/v1/api/jobs/{cc}/search/{page}` | free key | **500 chars, capped** | 30%, mostly predicted | rarely | verified |
 | [USAJOBS](#usajobs) | `data.usajobs.gov/api/search` | free key | full | **100%** | rarely | verified |
 
@@ -198,17 +198,28 @@ The index carries no advert body; the posting page does. Paced at 3/s.
 GET https://api.smartrecruiters.com/v1/companies/{token}/postings
 ```
 
-**Unverified.** The envelope is right — `{offset, limit, totalFound, content}`
-— and it answers 200, but every token tried during development returned
-`totalFound: 0` with an empty `content`. No posting from this adapter has been
-parsed against live data.
+**Verified, eventually.** Ten well-known company names in a row returned
+`totalFound: 0`. On this platform that is also what a throttle and a
+non-existent board look like, so an empty answer proves nothing either way —
+which is the single most important thing to know about it.
 
-That is precisely this platform's known failure mode: 200 with nothing, both
-for a board that is not there and for one that is throttling. An empty answer
-proves neither. **Treat your first successful run as the test and believe the
-run over this file.**
+What live rows corrected:
 
-The advert is not in the index; `content[]` is a summary. Paced at 8/s.
+- **`location.fullLocation`** is "Mumbai, MH, India", already assembled.
+  Building from `city, region, country` gives "Mumbai, MH, **in**" — the
+  country is a lowercase code — and that does not geocode.
+- **`location.hybrid`** exists beside `location.remote`. Reading only `remote`
+  files every hybrid role as arrangement-not-stated.
+- **`ref` is the API's own detail URL.** Storing it as the role's link hands
+  you JSON when you click through; the human page is
+  `jobs.smartrecruiters.com/{token}/{id}`.
+
+**The advert is not in the index and not on the posting page either** — that
+page carries no schema.org data. It lives on the detail endpoint, split across
+`jobAd.sections`: `jobDescription`, `qualifications`, `additionalInformation`
+and `companyDescription`. `jobdork enrich` joins all four.
+
+Paced at 8/s.
 
 ---
 
@@ -222,7 +233,7 @@ Free key from `developer.adzuna.com`. The only source that watches more than
 one country from the same config — the country is two letters in the URL path.
 
 Probed live. **Serving:** `gb us ca ie in de fr nl at be ch es it pl br mx za`.
-**Answering 503:** `au nz sg` — the indexes exist but are unavailable.
+**Previously 503, live again since 2026-08-29:** `au nz sg`.
 **Answering 404:** `ph id my jp ae ru` — no index exists at all.
 
 `sources.adzuna_countries` left empty follows `locations.countries`, so a

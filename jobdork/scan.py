@@ -18,7 +18,8 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
-from . import fetch, geo, resume as resume_mod, screen
+from . import fetch, geo, screen
+from . import resume as resume_mod
 from .config import Config
 from .fetch.http import Fetcher
 from .store import Role, Store

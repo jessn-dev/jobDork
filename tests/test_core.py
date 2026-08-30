@@ -17,10 +17,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from jobdork import geo, screen, textutil                      # noqa: E402
-from jobdork.config import Config, Dealbreaker, Locations, Salary  # noqa: E402
-from jobdork.fetch.boards import annualise                     # noqa: E402
-from jobdork.store import Role, canonical_url, make_uid        # noqa: E402
+from jobdork import geo, screen, textutil
+from jobdork.config import Config, Dealbreaker, Locations, Salary
+from jobdork.fetch.boards import annualise
+from jobdork.store import Role, canonical_url, make_uid
 
 
 def _cfg(**kwargs) -> Config:
@@ -325,7 +325,7 @@ def test_tags_do_not_hide_a_dealbreaker_match():
 
 def test_every_accepted_format_has_a_writer():
     """A format that validates and then writes nothing is a silent failure."""
-    from jobdork import cli, render
+    from jobdork import render
     from jobdork.config import OUTPUT_FORMATS
     writers = {"html": render.to_html, "json": render.to_json,
                "md": render.to_markdown, "csv": render.to_csv}
@@ -335,7 +335,9 @@ def test_every_accepted_format_has_a_writer():
 
 def test_markdown_alias_normalises_to_md():
     """'markdown' and 'md' must not reach the writer as two strings."""
-    import tempfile, os
+    import os
+    import tempfile
+
     from jobdork import config
     with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
         fh.write("titles: {include: [engineer]}\n"
@@ -350,7 +352,9 @@ def test_markdown_alias_normalises_to_md():
 
 
 def test_unknown_format_is_refused():
-    import tempfile, os
+    import os
+    import tempfile
+
     from jobdork import config
     from jobdork.config import ConfigError
     with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
@@ -410,6 +414,7 @@ def test_new_means_seen_in_the_last_run_not_on_the_last_date():
 def test_digest_renders_without_credentials():
     """Building a digest must never need a key; only sending does."""
     import tempfile
+
     from jobdork import digest
     with tempfile.TemporaryDirectory() as tmp:
         store = _seeded_store(tmp)
@@ -447,6 +452,7 @@ def test_digest_csv_matches_the_normal_writer():
     import csv as csvmod
     import io
     import tempfile
+
     from jobdork import digest, render
     with tempfile.TemporaryDirectory() as tmp:
         store = _seeded_store(tmp)
@@ -525,6 +531,7 @@ def test_an_unverified_board_is_never_addable():
 
 def test_add_preserves_comments_and_appends():
     import tempfile
+
     from jobdork import discover
     example = Path(__file__).resolve().parent.parent / "config.example.yaml"
     with tempfile.TemporaryDirectory() as tmp:
@@ -546,6 +553,288 @@ def test_add_preserves_comments_and_appends():
         cfg = config.load(str(target))
         assert {(c.name, c.token) for c in cfg.sources.companies} == {
             ("Vectra", "vectranetworks"), ("Ramp", "ramp")}
+
+
+# ── cli overrides ──────────────────────────────────────────────────────────────
+
+def _base_config_file(tmpdir) -> str:
+    path = Path(tmpdir) / "config.yaml"
+    path.write_text(
+        "titles: {include: [software engineer]}\n"
+        "locations: {anchor: 'Chicago, IL', radius: 25, countries: [US]}\n"
+        "sources: {adzuna_countries: [us]}\n",
+        encoding="utf-8")
+    return str(path)
+
+
+def test_country_override_moves_units_and_adzuna_together():
+    """--country DE must not leave miles and the American index behind."""
+    import tempfile
+
+    from jobdork import config
+    from jobdork.fetch import adzuna
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = config.load(_base_config_file(tmp))
+        assert cfg.locations.units == "mi" and adzuna._indexes(cfg) == ["us"]
+
+        config.apply_overrides(cfg, countries=["DE"], anchor="Berlin, Germany")
+        assert cfg.locations.units == "km", "a German search is in kilometres"
+        assert adzuna._indexes(cfg) == ["de"], "a pinned index must not win"
+
+
+def test_a_km_override_is_converted_not_taken_literally():
+    import tempfile
+
+    from jobdork import config
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = config.load(_base_config_file(tmp))
+        config.apply_overrides(cfg, countries=["DE"], anchor="Berlin, Germany",
+                               radius=25.0)
+        assert abs(cfg.radius_miles() - 15.53) < 0.05
+
+
+def test_overrides_are_validated_like_the_file():
+    """An override must not be a looser way in than the config it replaces."""
+    import tempfile
+
+    from jobdork import config
+    from jobdork.config import ConfigError
+    with tempfile.TemporaryDirectory() as tmp:
+        path = _base_config_file(tmp)
+        for bad in ({"countries": ["ZZ"]},
+                    {"currency": "XYZ"},
+                    {"work_modes": ["telepathic"]},
+                    {"resume": "/definitely/not/here.pdf"},
+                    {"anchor": "", "radius": 25.0}):
+            cfg = config.load(path)
+            try:
+                config.apply_overrides(cfg, **bad)
+            except ConfigError:
+                pass
+            else:
+                raise AssertionError(f"{bad} should have been refused")
+
+
+def test_every_subcommand_accepts_the_overrides():
+    """They belong after the verb, where people write them."""
+    from jobdork.cli import build_parser
+    parser = build_parser()
+    for verb in ("scan", "list", "digest", "rescreen", "sources", "serve",
+                 "enrich"):
+        args = parser.parse_args([verb, "--anchor", "Berlin, Germany",
+                                  "--country", "DE"])
+        assert args.anchor == "Berlin, Germany" and args.country == ["DE"], verb
+
+
+# ── enrich ─────────────────────────────────────────────────────────────────────
+
+def test_a_jobposting_description_is_read_from_json_ld():
+    from jobdork import enrich
+    html = """<html><head>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"JobPosting",
+     "title":"Security Analyst",
+     "description":"<p>You will run the SOC.</p><p>Live coding round.</p>"}
+    </script></head><body>ignored</body></html>"""
+    text = enrich.extract_description(html)
+    assert "You will run the SOC." in text
+    assert "Live coding round." in text
+    assert "<p>" not in text
+
+
+def test_the_longest_description_wins():
+    """A page may carry a teaser block and a full one."""
+    from jobdork import enrich
+    html = ("""<script type="application/ld+json">
+            {"@type":"JobPosting","description":"short"}</script>"""
+            """<script type="application/ld+json">
+            {"@type":"JobPosting","description":"a much longer advert body"}</script>""")
+    assert enrich.extract_description(html) == "a much longer advert body"
+
+
+def test_nested_json_ld_shapes_are_found():
+    from jobdork import enrich
+    for html in (
+        '<script type="application/ld+json">[{"@type":"JobPosting",'
+        '"description":"in a list"}]</script>',
+        '<script type="application/ld+json">{"@graph":[{"@type":"JobPosting",'
+        '"description":"in a graph"}]}</script>',
+    ):
+        assert enrich.extract_description(html)
+
+
+def test_a_page_with_no_jobposting_yields_nothing():
+    from jobdork import enrich
+    assert enrich.extract_description("<html>no structured data</html>") == ""
+    assert enrich.extract_description(
+        '<script type="application/ld+json">{"@type":"Organization",'
+        '"description":"we are a company"}</script>') == ""
+    assert enrich.extract_description(
+        '<script type="application/ld+json">{not json</script>') == ""
+
+
+def test_adzuna_is_never_fetched():
+    """Its links answer 403 from bot protection, which is not worked around."""
+    from jobdork import enrich
+    assert "adzuna" in enrich.UNREACHABLE
+    assert "403" in enrich.UNREACHABLE["adzuna"]
+
+
+def test_platforms_that_already_send_full_adverts_are_not_refetched():
+    from jobdork import enrich
+    for platform in ("workable", "greenhouse", "ashby", "lever", "usajobs"):
+        assert platform in enrich.ALREADY_FULL
+
+
+# ── bulk add ───────────────────────────────────────────────────────────────────
+
+def test_a_url_list_tolerates_how_people_paste():
+    import tempfile
+
+    from jobdork.cli import _read_url_file
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "urls.txt"
+        path.write_text(
+            "# pasted from a dork run\n"
+            "\n"
+            "https://jobs.ashbyhq.com/acme/1\n"
+            "- https://jobs.lever.co/acme/2\n"
+            "Some Job Title\thttps://job-boards.greenhouse.io/acme/jobs/3\n"
+            "https://acme.breezy.hr/p/4,\n",
+            encoding="utf-8")
+        urls = _read_url_file(str(path))
+    assert urls == [
+        "https://jobs.ashbyhq.com/acme/1",
+        "https://jobs.lever.co/acme/2",
+        "https://job-boards.greenhouse.io/acme/jobs/3",
+        "https://acme.breezy.hr/p/4",
+    ], urls
+
+
+def test_add_takes_several_urls():
+    from jobdork.cli import build_parser
+    args = build_parser().parse_args(
+        ["add", "https://a.test/1", "https://b.test/2"])
+    assert args.url == ["https://a.test/1", "https://b.test/2"]
+    assert build_parser().parse_args(["add", "--from-file", "x.txt"]).from_file
+
+
+def test_the_fuller_advert_wins_a_duplicate_not_the_higher_score():
+    """The same role from an aggregator and from the employer's own board.
+
+    Ranking duplicates by score alone kept the worse copy: a Vectra role
+    arrived truncated to 500 characters from an aggregator and complete at
+    4,701 from Greenhouse, and the truncated one scored higher — tidier
+    location string, and no advert content to lose points on. Dealbreakers and
+    fit scoring both read the advert, so showing the short copy throws away
+    the thing that makes the role screenable.
+    """
+    import tempfile
+
+    from jobdork.store import Role, Store
+    with tempfile.TemporaryDirectory() as tmp:
+        store = Store(Path(tmp) / "dupes.db")
+        try:
+            store.upsert(Role(platform="adzuna", company="Vectra",
+                              title="Senior Security Engineer",
+                              url="https://agg.test/1",
+                              description="x" * 500, score=100))
+            store.upsert(Role(platform="greenhouse", company="Vectra",
+                              title="Senior Security Engineer",
+                              url="https://boards.test/1",
+                              description="x" * 4701, score=81))
+            store.conn.commit()
+
+            shown = store.list_roles()
+            assert len(shown) == 1, "the two copies must collapse"
+            assert shown[0]["platform"] == "greenhouse", shown[0]["platform"]
+            assert len(shown[0]["description"]) == 4701
+
+            assert len(store.list_roles(collapse_duplicates=False)) == 2
+        finally:
+            store.close()
+
+
+def test_score_still_decides_between_equally_full_adverts():
+    """Bucketed by thousands: 4,700 and 4,900 characters are one advert."""
+    import tempfile
+
+    from jobdork.store import Role, Store
+    with tempfile.TemporaryDirectory() as tmp:
+        store = Store(Path(tmp) / "dupes.db")
+        try:
+            store.upsert(Role(platform="lever", company="Acme", title="Engineer",
+                              url="https://a.test/1",
+                              description="x" * 4700, score=50))
+            store.upsert(Role(platform="ashby", company="Acme", title="Engineer",
+                              url="https://b.test/1",
+                              description="x" * 4900, score=90))
+            store.conn.commit()
+            shown = store.list_roles()
+            assert len(shown) == 1
+            assert shown[0]["platform"] == "ashby", shown[0]["platform"]
+        finally:
+            store.close()
+
+
+# ── configurable screening ─────────────────────────────────────────────────────
+
+def test_blockers_can_be_overridden():
+    """The default list encodes a judgement about one job market."""
+    from jobdork.config import Screening
+    cfg = _cfg(titles_include=["engineering manager"])
+    assert not screen.title_verdict("Engineering Program Manager", cfg)[0]
+
+    # A reader who WANTS programme roles removes the blocker.
+    cfg.screening = Screening(blockers=["sales", "account"])
+    assert screen.title_verdict("Engineering Program Manager", cfg)[0]
+
+
+def test_loose_gap_is_configurable():
+    from jobdork.config import Screening
+    cfg = _cfg(titles_include=["head of engineering"])
+    title = "Head of Global Platform and Site Reliability Engineering"
+    cfg.screening = Screening(loose_gap=0)
+    assert not screen.title_verdict(title, cfg)[0]
+    cfg.screening = Screening(loose_gap=6)
+    assert screen.title_verdict(title, cfg)[0]
+
+
+def test_extra_arrangement_patterns_add_to_the_defaults():
+    """Adding one must not silently lose the built-in ones."""
+    from jobdork.config import Screening
+    cfg = _cfg()
+    cfg.screening = Screening(office_patterns=[r"in the (?:Chicago )?office"])
+
+    custom = Role(platform="x", title="Engineer", url="https://x.test/1",
+                  description="You will be in the Chicago office daily.")
+    assert screen.detect_work_mode(custom, cfg)[0] == "office"
+
+    builtin = Role(platform="x", title="Engineer", url="https://x.test/2",
+                   description="This is a fully remote role.")
+    assert screen.detect_work_mode(builtin, cfg)[0] == "remote"
+
+
+def test_a_broken_screening_pattern_stops_the_run():
+    import os
+    import tempfile
+
+    from jobdork import config
+    from jobdork.config import ConfigError
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
+        fh.write("titles: {include: [engineer]}\n"
+                 "locations: {anchor: 'Chicago, IL', radius: exact}\n"
+                 "screening: {office_patterns: ['(unclosed']}\n")
+        path = fh.name
+    try:
+        try:
+            config.load(path)
+        except ConfigError as exc:
+            assert "broken pattern" in str(exc)
+        else:
+            raise AssertionError("a broken pattern must stop the run")
+    finally:
+        os.unlink(path)
 
 
 # ── keep this block LAST ───────────────────────────────────────────────────────

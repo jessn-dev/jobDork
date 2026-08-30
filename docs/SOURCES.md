@@ -116,6 +116,19 @@ jobdork add "https://stripe.com/jobs/search?gh_jid=7532733" --token stripe
 and stores it as a full row. This is the bridge from a Google result to the
 database: Google does the finding, the adapter does the reading.
 
+It takes several at once:
+
+```bash
+jobdork add <url> <url> <url>
+jobdork add --from-file urls.txt
+```
+
+The file is one URL per line, tolerating `#` comments, `- ` bullets and
+`title<TAB>url`. **These are posting URLs, not the dork generator's output** —
+that file holds Google *search* URLs, and turning those into postings would
+mean scraping Google's results, which is bot-protected and not something this
+tool works around. Click the results, paste the ones worth keeping.
+
 A role added this way is stored **even if it fails your filters** — you asked
 for it by name, and a rule is not a better judge of that than you are. The
 mismatch is reported rather than silently applied.
@@ -220,15 +233,22 @@ given up on.
 city; the gazetteer spells it one way and postings spell it all three. `Ft.`
 and `Mt.` likewise.
 
-**Metro names that are not cities**, about forty of them, each mapped to an
-anchor point and marked approximate:
+**Metro names that are not cities**, about a hundred and ten of them
+worldwide, each mapped to an anchor point and marked approximate. Where one
+name belongs to several countries — `NCR` is the National Capital Region in
+Canada, India and the Philippines; `Bay Area` is San Francisco or Hong Kong —
+your configured countries settle it:
 
 ```
 Bay Area · Silicon Valley · SoCal · NYC · Tri-State · DMV · Northern Virginia
 Greater Boston · Chicagoland · DFW · Metroplex · Research Triangle · RTP
 Twin Cities · PNW · Puget Sound · Front Range · Delaware Valley · South Florida
 Tampa Bay · Wasatch Front · Silicon Slopes · GTA · Metro Vancouver
-Lower Mainland · National Capital Region
+Kanto · Kansai · Metro Manila · BGC · Klang Valley · Jabodetabek · Delhi NCR
+MMR · Greater Seoul · Greater Taipei · Pearl River Delta · Greater Sydney
+Greater Auckland · Greater London · Randstad · Île-de-France · Ruhrgebiet
+Rhein-Main · Öresund · Greater Madrid · Tricity · Gauteng · Greater Cairo
+Greater Dubai · CDMX · Greater São Paulo · Greater Buenos Aires
 ```
 
 **Countries.** A posting naming a country you did not list is dropped — that

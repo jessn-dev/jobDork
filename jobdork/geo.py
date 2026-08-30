@@ -135,6 +135,123 @@ def country_name(code: str) -> str:
 # Postings say "Bay Area" far more often than they say "San Francisco, CA".
 # Each maps to an anchor point, which is an approximation and marked as one.
 
+#
+# Values are (city, region, country). Region is blank outside the countries
+# whose postings name one — see REGIONS — because "Makati, Philippines" is how
+# a posting there writes an address.
+#
+# Some names belong to more than one country. `NCR` is the National Capital
+# Region in Canada, India and the Philippines; `Bay Area` is San Francisco to
+# most readers and Hong Kong to some. Those live in AMBIGUOUS_METROS and are
+# settled by your configured countries, exactly as an ambiguous region code is.
+METRO_ALIASES_3: dict[str, tuple[str, str, str]] = {
+    # Asia Pacific
+    "kanto": ("Tokyo", "", "JP"),
+    "greater tokyo": ("Tokyo", "", "JP"),
+    "tokyo metropolitan area": ("Tokyo", "", "JP"),
+    "kansai": ("Osaka", "", "JP"),
+    "keihanshin": ("Osaka", "", "JP"),
+    "greater seoul": ("Seoul", "", "KR"),
+    "sudogwon": ("Seoul", "", "KR"),
+    "greater taipei": ("Taipei", "", "TW"),
+    "metro manila": ("Manila", "", "PH"),
+    "greater manila": ("Manila", "", "PH"),
+    "bgc": ("Taguig", "", "PH"),
+    "bonifacio global city": ("Taguig", "", "PH"),
+    "ortigas": ("Pasig", "", "PH"),
+    "klang valley": ("Kuala Lumpur", "", "MY"),
+    "greater kuala lumpur": ("Kuala Lumpur", "", "MY"),
+    "jabodetabek": ("Jakarta", "", "ID"),
+    "greater jakarta": ("Jakarta", "", "ID"),
+    "greater bangkok": ("Bangkok", "", "TH"),
+    "delhi ncr": ("New Delhi", "", "IN"),
+    "national capital region delhi": ("New Delhi", "", "IN"),
+    "mmr": ("Mumbai", "", "IN"),
+    "greater mumbai": ("Mumbai", "", "IN"),
+    "greater bengaluru": ("Bengaluru", "", "IN"),
+    "greater hyderabad": ("Hyderabad", "", "IN"),
+    "pearl river delta": ("Shenzhen", "", "CN"),
+    # Oceania
+    "greater sydney": ("Sydney", "NSW", "AU"),
+    "greater melbourne": ("Melbourne", "VIC", "AU"),
+    "greater brisbane": ("Brisbane", "QLD", "AU"),
+    "greater perth": ("Perth", "WA", "AU"),
+    "greater auckland": ("Auckland", "", "NZ"),
+    "greater wellington": ("Wellington", "", "NZ"),
+    # Europe
+    "greater london": ("London", "", "GB"),
+    "central london": ("London", "", "GB"),
+    "the city": ("London", "", "GB"),
+    "greater manchester": ("Manchester", "", "GB"),
+    "west midlands": ("Birmingham", "", "GB"),
+    "central belt": ("Glasgow", "", "GB"),
+    "greater dublin": ("Dublin", "", "IE"),
+    "randstad": ("Amsterdam", "", "NL"),
+    "greater amsterdam": ("Amsterdam", "", "NL"),
+    "ile de france": ("Paris", "", "FR"),
+    "greater paris": ("Paris", "", "FR"),
+    "grand paris": ("Paris", "", "FR"),
+    "greater berlin": ("Berlin", "", "DE"),
+    "ruhr": ("Essen", "", "DE"),
+    "ruhrgebiet": ("Essen", "", "DE"),
+    "rhein main": ("Frankfurt am Main", "", "DE"),
+    "greater munich": ("Munich", "", "DE"),
+    "greater zurich": ("Zürich", "", "CH"),
+    "oresund": ("Copenhagen", "", "DK"),
+    "greater copenhagen": ("Copenhagen", "", "DK"),
+    "greater stockholm": ("Stockholm", "", "SE"),
+    "greater madrid": ("Madrid", "", "ES"),
+    "greater barcelona": ("Barcelona", "", "ES"),
+    "greater milan": ("Milan", "", "IT"),
+    "greater lisbon": ("Lisbon", "", "PT"),
+    "greater warsaw": ("Warsaw", "", "PL"),
+    "tricity": ("Gdansk", "", "PL"),
+    # Middle East and Africa
+    "greater dubai": ("Dubai", "", "AE"),
+    "greater cairo": ("Cairo", "", "EG"),
+    "gauteng": ("Johannesburg", "", "ZA"),
+    "greater johannesburg": ("Johannesburg", "", "ZA"),
+    "western cape": ("Cape Town", "", "ZA"),
+    "greater lagos": ("Lagos", "", "NG"),
+    "greater nairobi": ("Nairobi", "", "KE"),
+    # Latin America
+    "greater sao paulo": ("São Paulo", "", "BR"),
+    "grande sao paulo": ("São Paulo", "", "BR"),
+    "greater rio": ("Rio de Janeiro", "", "BR"),
+    "cdmx": ("Mexico City", "", "MX"),
+    "greater mexico city": ("Mexico City", "", "MX"),
+    "greater buenos aires": ("Buenos Aires", "", "AR"),
+    "greater santiago": ("Santiago", "", "CL"),
+    "greater bogota": ("Bogotá", "", "CO"),
+}
+
+# One name, several countries. Settled by your configured countries; with none
+# set, the first entry wins and the result is marked approximate either way.
+AMBIGUOUS_METROS: dict[str, dict[str, tuple[str, str]]] = {
+    "ncr": {
+        "CA": ("Ottawa", "ON"),
+        "PH": ("Manila", ""),
+        "IN": ("New Delhi", ""),
+    },
+    "national capital region": {
+        "CA": ("Ottawa", "ON"),
+        "PH": ("Manila", ""),
+        "IN": ("New Delhi", ""),
+    },
+    "bay area": {
+        "US": ("San Francisco", "CA"),
+        "HK": ("Hong Kong", ""),
+    },
+    "greater bay area": {
+        "HK": ("Hong Kong", ""),
+        "US": ("San Francisco", "CA"),
+    },
+    "midlands": {
+        "GB": ("Birmingham", ""),
+        "IE": ("Athlone", ""),
+    },
+}
+
 METRO_ALIASES: dict[str, tuple[str, str]] = {
     "bay area": ("San Francisco", "CA"),
     "sf bay area": ("San Francisco", "CA"),
@@ -609,6 +726,32 @@ def _country_token(text: str) -> str:
     return _COUNTRY_TOKENS.get(_key(text), "")
 
 
+def _metro(key: str, prefer: tuple[str, ...] = (),
+           country_hint: str = "") -> tuple[str, str] | None:
+    """Resolve a metro name to (city, region), settling collisions by country.
+
+    `NCR` is the National Capital Region in Canada, India and the Philippines.
+    Nothing in the string says which, so your configured countries do — and a
+    country named in the string itself outranks even those.
+    """
+    if key in AMBIGUOUS_METROS:
+        options = AMBIGUOUS_METROS[key]
+        if country_hint and country_hint in options:
+            return options[country_hint]
+        for country in prefer:
+            if country in options:
+                return options[country]
+        return next(iter(options.values()))
+
+    if key in METRO_ALIASES_3:
+        city, region, _country = METRO_ALIASES_3[key]
+        return city, region
+
+    if key in METRO_ALIASES:
+        return METRO_ALIASES[key]
+    return None
+
+
 def country_code(text: str) -> str:
     """'Germany', 'Deutschland', 'DE', 'EMEA' -> an ISO alpha-2 code."""
     key = _key(text)
@@ -651,6 +794,19 @@ def resolve(location: str, prefer: tuple[str, ...] = ()) -> Resolved:
     raw = (location or "").strip()
     if not raw:
         return Resolved(note="no location given")
+
+    # Metro names are checked against the untouched string first, because the
+    # cleanup below turns hyphens into commas and would split "Île-de-France"
+    # into three fragments, the last of which is a country.
+    early = _metro(_key(raw), prefer)
+    if early:
+        index, by_city = _load_gazetteer()
+        place = index.get((_key(early[0]), early[1]))
+        if place:
+            where = f"{early[0]}, {early[1]}" if early[1] else early[0]
+            return Resolved(place.city, place.state, place.country,
+                            place.lat, place.lon, approximate=True,
+                            note=f"{raw!r} read as {where}")
 
     # "Remote - US", "Hybrid | Austin, TX", "Chicago, IL (Hybrid)" all put the
     # arrangement next to the place. Strip the decoration, keep the place.
@@ -716,14 +872,16 @@ def resolve(location: str, prefer: tuple[str, ...] = ()) -> Resolved:
 
     # Metro names first: they are not cities and would otherwise miss.
     alias_key = _key(cleaned)
-    if alias_key in METRO_ALIASES:
-        city, state = METRO_ALIASES[alias_key]
+    resolved_alias = _metro(alias_key, prefer, country_hint)
+    if resolved_alias:
+        city, state = resolved_alias
         place = index.get((_key(city), state))
         if place:
+            where = f"{city}, {state}" if state else city
             return Resolved(
                 city=place.city, state=place.state, country=place.country,
                 lat=place.lat, lon=place.lon, approximate=True,
-                note=f"{raw!r} read as {city}, {state}",
+                note=f"{raw!r} read as {where}",
             )
 
     parts = [p.strip() for p in cleaned.split(",") if p.strip()]

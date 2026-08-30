@@ -103,7 +103,7 @@ def _flags(row: sqlite3.Row) -> list[str]:
 def rows_to_dicts(rows: list[sqlite3.Row]) -> list[dict]:
     out = []
     for row in rows:
-        item = {k: row[k] for k in row.keys()}
+        item = {k: row[k] for k in row}
         item["flags"] = _flags(row)
         # The advert is large and nobody reads it out of a JSON dump.
         item.pop("description", None)
