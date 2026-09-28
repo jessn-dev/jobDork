@@ -2,10 +2,10 @@
 
 | Document | What is in it |
 |---|---|
-| [CONFIG.md](CONFIG.md) | Every setting, what it accepts, what happens when it is wrong |
+| [CONFIG.md](CONFIG.md) | Every setting, what it accepts, what happens when it is wrong, including the [AI reader](CONFIG.md#llm) |
 | [PLATFORMS.md](PLATFORMS.md) | Each source's endpoint, quirks, rate limits and verification status |
 | [SOURCES.md](SOURCES.md) | Where coverage comes from, board tokens, the gazetteer, what is out of reach |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | How the pipeline fits together and why |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | How the pipeline fits together and why, the package layout, the AI guard and run history |
 | [CHANGELOG.md](CHANGELOG.md) | What changed, and every bug found on the way |
 
 ---
@@ -14,8 +14,11 @@
 
 | | |
 |---|---|
-| ![dashboard](images/dashboard.jpg) | `jobdork serve` — the list with buttons, on 127.0.0.1 |
-| ![static page](images/static-page.jpg) | `out/index.html` — the same list, self-contained, written by every scan |
+| ![dashboard](images/dashboard.jpg) | `jobdork serve` opens on the Dashboard: runs, AI calls and latency, the hallucination rate, what went wrong in the last scan |
+| ![job posts](images/job-posts.jpg) | Job posts: the list with buttons, match, fit and AI scores, copies of one job grouped |
+| ![a job post](images/role-detail.jpg) | One post: the advert, drafts, and the AI verdict with how many of its claims were found in your résumé and the advert |
+| ![a run](images/live-run.jpg) | A run reporting itself, from the page or the terminal |
+| ![static page](images/static-page.jpg) | `out/index.html` — the list, self-contained, written by every scan |
 
 ---
 
@@ -35,6 +38,9 @@
 
 **Writing an adapter** — [Adding a source](SOURCES.md#adding-a-source) and
 [the adapter contract](ARCHITECTURE.md#adapter-contract).
+
+**Setting up the AI reader** — [llm](CONFIG.md#llm), then
+[how its output is checked](ARCHITECTURE.md#the-ai-reader-and-the-guard).
 
 ---
 

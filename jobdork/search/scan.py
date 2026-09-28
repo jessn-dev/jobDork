@@ -1,6 +1,6 @@
 """
-jobdork.scan
-============
+jobdork.search.scan
+===================
 Runs the sources, screens what came back, stores what passed.
 
 Keyword sources and employer boards are read in one pool. Concurrency governs
@@ -18,13 +18,15 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
-from . import fetch, geo, screen
+from .. import fetch
+from ..core import telemetry
+from ..core.config import Config
+from ..db.store import Role, Store
+from ..fetch.http import Fetcher
+from . import geo, screen
 from . import resume as resume_mod
-from .config import Config
-from .fetch.http import Fetcher
-from .store import Role, Store
 
-log = logging.getLogger("jobdork.scan")
+log = logging.getLogger("jobdork.search.scan")
 
 
 @dataclass
@@ -34,6 +36,8 @@ class ScanReport:
     stored: int = 0
     newly_seen: int = 0
     dropped: dict[str, int] = field(default_factory=dict)
+    # Listed again by a source after you deleted them; not re-added.
+    previously_deleted: int = 0
     per_source: list[fetch.SourceResult] = field(default_factory=list)
     blocked_hosts: list[str] = field(default_factory=list)
 
@@ -46,6 +50,9 @@ class ScanReport:
         if self.dropped:
             top = sorted(self.dropped.items(), key=lambda kv: -kv[1])[:6]
             out.append("dropped: " + "; ".join(f"{n}x {why}" for why, n in top))
+        if self.previously_deleted:
+            out.append(f"{self.previously_deleted} you deleted earlier were "
+                       "listed again and left out")
         if self.blocked_hosts:
             out.append(
                 "blocked after repeated 429s (left alone, not retried): "
@@ -107,14 +114,18 @@ def run(cfg: Config, store: Store, limit: int = 0,
     anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
     if cfg.locations.anchor and not anchor.located:
         log.warning(
-            "anchor %r could not be placed (%s) — distance filtering is off",
+            "anchor %r could not be placed (%s), so distance filtering is off",
             cfg.locations.anchor, anchor.note,
         )
 
     cv = _load_resume(cfg)
     jobs = _jobs_for(cfg)
     run_id = store.start_run()
+    deleted = store.deleted_uids()
     keepers: list[Role] = []
+
+    telemetry.tick(total=len(jobs))
+    sources_done = 0
 
     with ThreadPoolExecutor(max_workers=cfg.fetch.concurrency) as pool:
         futures = {}
@@ -132,12 +143,24 @@ def run(cfg: Config, store: Store, limit: int = 0,
                 log.exception("%s raised", name)
                 result = fetch.SourceResult(source=name, errors=[str(exc)])
             report.per_source.append(result)
+            sources_done += 1
+            telemetry.tick(done=sources_done)
             if progress:
                 progress(result.summary())
 
             for role in result.roles:
                 report.fetched += 1
+                if role.uid in deleted:
+                    report.previously_deleted += 1
+                    continue
+                # A source that only ever sends a teaser (Adzuna's is 500
+                # characters) must not replace an advert fetched by `enrich`
+                # or pasted in by hand, nor be what the role is screened on.
+                stored = store.stored_description(role.uid)
+                if len(stored) > len(role.description or ""):
+                    role.description = stored
                 verdict = screen.screen(role, cfg, anchor, cv)
+                telemetry.tick(count="kept" if verdict.keep else "dropped")
                 if verdict.keep:
                     keepers.append(role)
                 else:
@@ -172,11 +195,16 @@ def rescreen(cfg: Config, store: Store, remove: bool = False) -> tuple[int, int,
     """
     anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
     cv = _load_resume(cfg)
-    rows = store.list_roles(include_settled=True)
+    # Every copy, not just the one the list shows. Duplicates are collapsed
+    # by score, so a hidden copy left on its old score can outrank the copy
+    # that was re-screened and become the one displayed.
+    rows = store.list_roles(include_settled=True, collapse_duplicates=False)
     checked = stale = removed = 0
+    telemetry.tick(total=len(rows))
 
     for row in rows:
         checked += 1
+        telemetry.tick(done=checked)
         role = Role(
             platform=row["platform"],
             company=row["company"] or "",
@@ -193,11 +221,16 @@ def rescreen(cfg: Config, store: Store, remove: bool = False) -> tuple[int, int,
             salary_stated=bool(row["salary_stated"]),
         )
         verdict = screen.screen(role, cfg, anchor, cv)
+        # Commit as it goes. One write held open over hundreds of posts kept
+        # every other writer out, telemetry included, until the very end.
+        if checked % 50 == 0:
+            store.conn.commit()
         if verdict.keep:
-            store.upsert(role)
+            store.upsert(role, seen=False)
             continue
 
         stale += 1
+        telemetry.tick(count="no longer matching")
         if remove and not store.has_acted(row["uid"]):
             store.delete(row["uid"])
             removed += 1

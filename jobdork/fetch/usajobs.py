@@ -41,9 +41,9 @@ floor does most of its work.
 
 from __future__ import annotations
 
-from .. import geo
-from ..store import Role
-from ..textutil import to_text
+from ..core.textutil import to_text
+from ..db.store import Role
+from ..search import geo
 from . import SourceResult, register
 from .boards import annualise, clean, normalise_interval
 
@@ -169,8 +169,8 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
     if not cfg.sources.usajobs_ready():
         return SourceResult(
             source="usajobs",
-            skipped="no USAJOBS_API_KEY / USAJOBS_EMAIL in .env — "
-                    "free key at https://developer.usajobs.gov",
+            skipped="no USAJOBS_API_KEY / USAJOBS_EMAIL in .env. "
+                    "Get a free key at https://developer.usajobs.gov",
         )
 
     headers = {

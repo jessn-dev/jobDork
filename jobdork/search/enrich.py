@@ -1,6 +1,6 @@
 """
-jobdork.enrich
-==============
+jobdork.search.enrich
+=====================
 Fetches the full advert for roles that arrived with only a summary.
 
 Dealbreakers read the advert body. So does work-mode detection, and so does
@@ -30,10 +30,10 @@ import logging
 import re
 from dataclasses import dataclass, field
 
-from .store import Role, Store
-from .textutil import to_text
+from ..core.textutil import to_text
+from ..db.store import Role, Store
 
-log = logging.getLogger("jobdork.enrich")
+log = logging.getLogger("jobdork.search.enrich")
 
 # Below this, an advert is a teaser rather than a description.
 THIN = 400
@@ -178,9 +178,12 @@ def enrich(cfg, store: Store, fetcher, limit: int = 0, platform: str = "",
         params.append(limit)
 
     rows = store.conn.execute("\n".join(sql), params).fetchall()
+    from ..core import telemetry
+    telemetry.tick(total=len(rows))
 
     for row in rows:
         report.considered += 1
+        telemetry.tick(done=report.considered)
         source = row["platform"] or ""
 
         if source in UNREACHABLE or source in ALREADY_FULL:
@@ -215,6 +218,7 @@ def enrich(cfg, store: Store, fetcher, limit: int = 0, platform: str = "",
             continue
 
         report.improved += 1
+        telemetry.tick(count="improved")
         report.gained += len(description) - before
         if progress:
             progress(f"  {row['uid']} {before} -> {len(description)} chars  "
@@ -237,7 +241,8 @@ def enrich(cfg, store: Store, fetcher, limit: int = 0, platform: str = "",
         # 200-character teaser may match 7,000 characters, and keeping the old
         # verdict would be worse than never having fetched.
         verdict = screen.screen(role, cfg, anchor, cv)
-        store.upsert(role)
+        store.upsert(role, seen=False)
+        store.conn.commit()                  # each fetch is slow; do not hold a write
         if not verdict.keep:
             report.rescreened_out.append(row["uid"])
             store.set_status(row["uid"], "skipped",

@@ -17,8 +17,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from jobdork import migrations
-from jobdork.store import Role, Store
+from jobdork.db import migrations
+from jobdork.db.store import Role, Store
 
 # The v1 schema, as it shipped, before any migration existed.
 V1_SCHEMA = """
@@ -77,8 +77,10 @@ def test_an_old_database_is_upgraded_without_losing_anything():
         _v1_database(path)
 
         with Store(path) as store:
-            assert store.applied_migrations == [2], store.applied_migrations
-            assert migrations.current_version(store.conn) == 2
+            assert store.applied_migrations == [2, 3, 4, 5, 6], store.applied_migrations
+            assert migrations.current_version(store.conn) == 6
+            assert {"fit", "score_parts", "llm_score", "listing_state"} \
+                <= migrations._columns(store.conn, "roles")
 
             row = store.get(OLD_UID)
             assert row["company"] == "Acme"
@@ -92,7 +94,7 @@ def test_migrating_twice_does_nothing_the_second_time():
         path = Path(tmp) / "old.db"
         _v1_database(path)
         with Store(path) as store:
-            assert store.applied_migrations == [2]
+            assert store.applied_migrations == [2, 3, 4, 5, 6]
         with Store(path) as store:
             assert store.applied_migrations == [], "already at the version"
 

@@ -14,4 +14,8 @@ else
   exit 1
 fi
 
-exec "$PYTHON_BIN" "$SCRIPT_DIR/main.py" "$@"
+if [[ $# -eq 0 ]]; then
+  set -- serve
+fi
+
+exec "$PYTHON_BIN" -m jobdork "$@"

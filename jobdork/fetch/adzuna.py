@@ -51,9 +51,9 @@ documentation:
 
 from __future__ import annotations
 
-from .. import geo
-from ..store import Role
-from ..textutil import to_text
+from ..core.textutil import to_text
+from ..db.store import Role
+from ..search import geo
 from . import SourceResult, register
 from .boards import clean
 
@@ -146,8 +146,8 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
     if not cfg.sources.adzuna_ready():
         return SourceResult(
             source="adzuna",
-            skipped="no ADZUNA_APP_ID / ADZUNA_APP_KEY in .env — "
-                    "free key at https://developer.adzuna.com/signup",
+            skipped="no ADZUNA_APP_ID / ADZUNA_APP_KEY in .env. "
+                    "Get a free key at https://developer.adzuna.com/signup",
         )
 
     countries = _indexes(cfg)

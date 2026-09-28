@@ -132,5 +132,19 @@ fetch:
   timeout: 20
   retries: 2
 
+# The AI reader, optional. Off while provider is empty; the dashboard's AI page
+# writes this section for you. Keys never go here (a key in this file stops the
+# load): type it on the AI page, where it is held in memory only, or set
+# ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY for the terminal.
+# See docs/CONFIG.md#llm.
+llm:
+  provider: ""              # ollama | anthropic | gemini | openai
+  model: ""                 # e.g. gemma4:26b for Ollama
+  ollama_url: http://localhost:11434
+  judge_on_scan: false      # judge the best new job posts after each scan
+  judge_top: 25             # how many a judging run reads (1-500)
+  read_pages: false         # ask the model about posting pages that are unclear
+  guard: true               # check verdicts and drafts for unsupported claims
+
 # Where the database lives. Gitignored, so your history stays yours.
 db: data/jobdork.db

@@ -1,7 +1,8 @@
 """
 jobdork
 =======
-Job search tooling for North America.
+Job search tooling, from any country (see docs/ARCHITECTURE.md for the
+layout: core, db, fetch, search, ai, writing, web, output, dork).
 
 Two ways of finding a role, sharing one database:
 

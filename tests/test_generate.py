@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from jobdork import gates, generate
+from jobdork.writing import gates, generate
 
 
 class _Row(dict):
@@ -223,10 +223,10 @@ def test_a_screen_is_not_held_to_send_time_gates():
     names = {g.name for g in gates.run_all(
         "The advert states $140,000 - $170,000 — read it before applying.",
         "screen", resume_text="a résumé with no salary in it")}
-    assert names == {"length"}, names
+    assert names == {"length", "AI tells"}, names
     # A CV is still held to all of them.
     cv_names = {g.name for g in gates.run_all("draft", "cv", resume_text="x")}
-    assert "unsupported figures" in cv_names and "em dashes" in cv_names
+    assert "unsupported figures" in cv_names and "AI tells" in cv_names
 
 
 def test_identifiers_in_urls_are_not_treated_as_claims():

@@ -9,7 +9,7 @@ description = "Google dork job search plus direct ATS scanning, anywhere in the 
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Jesse Ngolab" }]
+authors = [{ name = "jessn-dev" }]
 keywords = ["jobs", "job-search", "ats", "scraper", "cli"]
 
 # The single source of truth for what this needs to run. requirements.txt
@@ -25,6 +25,9 @@ dependencies = [
 # Only needed to read a PDF résumé. Scanning, filtering and tracking all work
 # without it, and a missing parser says so rather than scoring nothing.
 pdf = ["pypdf>=4.0"]
+# The Claude provider on the AI page. Ollama, Gemini and ChatGPT need nothing
+# beyond requests.
+ai = ["anthropic>=1.8"]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
@@ -34,13 +37,15 @@ dev = [
 jobdork = "jobdork.cli:main"
 
 [project.urls]
-Documentation = "https://github.com/jessengolab/jobDork/tree/main/docs"
+Documentation = "https://github.com/jessn-dev/jobDork/tree/main/docs"
 
 [tool.setuptools]
-packages = ["jobdork", "jobdork.fetch", "jobdork.dork"]
+packages = ["jobdork", "jobdork.ai", "jobdork.core", "jobdork.db", "jobdork.dork",
+            "jobdork.fetch", "jobdork.output", "jobdork.search", "jobdork.web",
+            "jobdork.writing"]
 
 [tool.setuptools.package-data]
-jobdork = ["data/*.csv"]
+jobdork = ["data/*.csv", "data/*.html", "data/humanizer/*"]
 
 # ── tests ─────────────────────────────────────────────────────────────────────
 # The suite is plain functions with asserts, so it runs under pytest without

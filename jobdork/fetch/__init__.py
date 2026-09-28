@@ -26,7 +26,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from ..store import Role
+from ..db.store import Role
 
 log = logging.getLogger("jobdork.fetch")
 
@@ -48,12 +48,12 @@ class SourceResult:
 
     def summary(self) -> str:
         if self.skipped:
-            return f"{self.source}: skipped — {self.skipped}"
+            return f"{self.source}: skipped ({self.skipped})"
         parts = [f"{self.source}: {len(self.roles)} roles"]
         if self.requests_made:
             parts.append(f"{self.requests_made} requests")
         if self.suspect:
-            parts.append("SUSPECT — answered empty where it usually does not")
+            parts.append("SUSPECT: answered empty where it usually does not")
         if self.errors:
             parts.append(f"{len(self.errors)} errors")
         return ", ".join(parts)
@@ -75,7 +75,7 @@ def get(name: str) -> Callable | None:
 
 
 # Import for side effects: each module registers itself.
-from . import (  # noqa: E402,F401  # noqa: E402,F401
+from . import (  # noqa: E402,F401
     adzuna,
     ashby,
     breezy,

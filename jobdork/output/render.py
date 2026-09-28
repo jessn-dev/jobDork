@@ -1,6 +1,6 @@
 """
-jobdork.render
-==============
+jobdork.output.render
+=====================
 Writes the scan out as a file you can open.
 
 This is the read-only dashboard: one self-contained HTML page, no server, no
@@ -13,6 +13,7 @@ they cannot disagree.
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import html
 import json
@@ -26,10 +27,11 @@ CSV_COLUMNS = (
     "uid", "score", "status", "title", "company", "location", "distance_mi",
     "work_mode", "salary_stated", "salary_min", "salary_max", "salary_currency",
     "salary_period", "platform", "posted_at", "first_seen", "url", "flags",
+    "fit",
 )
 
 STATUS_COLOURS = {
-    "new": "#6b7280", "interested": "#2563eb", "applied": "#7c3aed",
+    "new": "#6b7280", "viewed": "#0891b2", "interested": "#2563eb", "applied": "#7c3aed",
     "submitted": "#7c3aed", "interviewing": "#c2410c", "offer": "#15803d",
     "rejected": "#991b1b", "withdrawn": "#991b1b", "skipped": "#4b5563",
     "closed": "#4b5563",
@@ -103,8 +105,20 @@ def _flags(row: sqlite3.Row) -> list[str]:
 def rows_to_dicts(rows: list[sqlite3.Row]) -> list[dict]:
     out = []
     for row in rows:
-        item = {k: row[k] for k in row}
+        # dict(row), not `{k: row[k] for k in row}`: iterating an sqlite3.Row
+        # yields its values, and a lint "simplification" of `.keys()` to that
+        # broke roles.json, and with it every scan that wrote one.
+        item = dict(row)
         item["flags"] = _flags(row)
+        # Stored as JSON text; written out as JSON, not as strings inside it.
+        for key in ("reasons", "score_parts", "llm_judgement"):
+            if isinstance(item.get(key), str):
+                with contextlib.suppress(json.JSONDecodeError):
+                    item[key] = json.loads(item[key])
+        judgement = item.get("llm_judgement")
+        if isinstance(judgement, dict) and isinstance(judgement.get("score"), (int, float)):
+            from ..ai.llm import verdict_for
+            judgement["verdict"] = verdict_for(judgement["score"])
         # The advert is large and nobody reads it out of a JSON dump.
         item.pop("description", None)
         out.append(item)
@@ -158,6 +172,7 @@ def to_csv(rows: list[sqlite3.Row], path: Path) -> Path:
                 (row["first_seen"] or "")[:10],
                 row["url"] or "",
                 "; ".join(_flags(row)),
+                "" if row["fit"] is None else f"{row['fit']:.1f}",
             ])
     return path
 
@@ -169,7 +184,7 @@ def to_markdown(rows: list[sqlite3.Row], path: Path, cfg=None,
     lines = [
         "# jobdork",
         "",
-        f"{time.strftime('%A %d %B %Y, %H:%M')} — {len(rows)} roles, "
+        f"{time.strftime('%A %d %B %Y, %H:%M')}: {len(rows)} job posts, "
         "settled ones hidden.",
         "",
     ]
@@ -180,11 +195,11 @@ def to_markdown(rows: list[sqlite3.Row], path: Path, cfg=None,
         radius = (cfg.locations.radius if cfg.locations.radius == "exact"
                   else f"{cfg.locations.radius} {units}")
         lines += [
-            f"- **anchor** {cfg.locations.anchor or 'anywhere'}",
-            f"- **radius** {radius}",
-            f"- **countries** {', '.join(cfg.locations.countries) or 'any'}",
-            f"- **modes** {', '.join(cfg.locations.work_modes) or 'all'}",
-            f"- **salary floor** {floor}",
+            f"- anchor: {cfg.locations.anchor or 'anywhere'}",
+            f"- radius: {radius}",
+            f"- countries: {', '.join(cfg.locations.countries) or 'any'}",
+            f"- modes: {', '.join(cfg.locations.work_modes) or 'all'}",
+            f"- salary floor: {floor}",
             "",
         ]
 
@@ -208,7 +223,8 @@ def to_markdown(rows: list[sqlite3.Row], path: Path, cfg=None,
         ]
         score = "-" if row["score"] is None else f"{row['score']:.0f}"
         title = (row["title"] or "").replace("[", "").replace("]", "")
-        lines.append(f"### {score} · [{title}]({row['url']})")
+        fit = "–" if row["fit"] is None else f"{row['fit']:.0f}"
+        lines.append(f"### match {score} · fit {fit}/25 · [{title}]({row['url']})")
         lines.append("")
         lines.append(" · ".join(str(m) for m in meta if m))
         lines.append("")
@@ -223,7 +239,7 @@ def to_markdown(rows: list[sqlite3.Row], path: Path, cfg=None,
     if report:
         for result in report.per_source:
             if result.skipped:
-                notes.append(f"`{result.source}` skipped — {result.skipped}")
+                notes.append(f"`{result.source}` skipped: {result.skipped}")
             elif result.suspect:
                 notes.append(
                     f"`{result.source}` answered empty. These APIs return 200 "
@@ -260,7 +276,8 @@ def to_html(rows: list[sqlite3.Row], path: Path, cfg=None,
         parts.append(f"""
       <div class="role">
         <div class="role-head">
-          <span class="score">{row['score'] if row['score'] is not None else '-'}</span>
+          <span class="score" title="title, arrangement, distance, salary and résumé fit, added up">match {'-' if row['score'] is None else f"{row['score']:.0f}"}</span>
+          <span class="uid" title="résumé fit, out of 25">fit {'–' if row['fit'] is None else f"{row['fit']:.0f}"}/25</span>
           <span class="title"><a href="{_e(row['url'])}" rel="noopener noreferrer"
             target="_blank">{_e(row['title'])}</a></span>
           <span class="pill" style="background:{colour}">{_e(status)}</span>
@@ -291,7 +308,7 @@ def to_html(rows: list[sqlite3.Row], path: Path, cfg=None,
     if report:
         for result in report.per_source:
             if result.skipped:
-                notes.append(f"{result.source}: skipped — {result.skipped}")
+                notes.append(f"{result.source}: skipped ({result.skipped})")
             elif result.suspect:
                 notes.append(
                     f"{result.source}: answered empty. Several of these APIs "
@@ -304,10 +321,10 @@ def to_html(rows: list[sqlite3.Row], path: Path, cfg=None,
     page = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>jobdork — {len(rows)} roles</title><style>{CSS}</style></head>
+<title>jobdork: {len(rows)} job posts</title><style>{CSS}</style></head>
 <body><div class="wrap">
 <h1>jobdork</h1>
-<p class="sub">{time.strftime('%A %d %B %Y, %H:%M')} — settled roles are hidden.
+<p class="sub">{time.strftime('%A %d %B %Y, %H:%M')}. Settled job posts are hidden.
 Salary reads &ldquo;unconfirmed&rdquo; where the employer published no figure,
 which is most of them.</p>
 <div class="stats">{''.join(f'<span>{s}</span>' for s in stats)}</div>

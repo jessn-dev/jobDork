@@ -9,6 +9,7 @@ dist/
 .pytest_cache/
 .ruff_cache/
 .claude
+proposal.md
 
 # These were '.csv' and '.txt', which match a file called exactly ".csv".
 # The generated result files were never actually ignored.
@@ -19,8 +20,11 @@ dist/
 !jobdork/data/cities.csv
 
 # Your search is yours. None of this belongs in a repository.
+# Anchored with a leading slash: a bare `data/` also matched jobdork/data/,
+# so the dashboard page, the humanizer rules and the gazetteer were never
+# committed and a fresh clone had no dashboard.
 .env
 config.yaml
 config.local.yaml
-data/
-out/
+/data/
+/out/

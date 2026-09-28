@@ -326,10 +326,10 @@ anywhere:
 | `pdf_resumes` | publicly posted résumés, for studying how your field presents |
 
 No applicant tracking system exposes any of that. Adding a board to dork mode
-is one line in `config.py`; an API adapter is roughly a hundred plus its
+is one line in `jobdork/dork/boards.py`; an API adapter is roughly a hundred plus its
 quirks.
 
-Run `python main.py --list-sites` for the full board list.
+Run `jobdork dork --list-sites` for the full board list.
 
 ---
 
@@ -361,5 +361,5 @@ which marks it suspect. This layer reports what happened.
 circuit breaker. A direct `requests` call bypasses all three and is how a host
 starts refusing.
 
-Then add the name to `KEYLESS_SOURCES` or `KEYED_SOURCES` in `config.py`, and
+Then add the name to `KEYLESS_SOURCES` or `KEYED_SOURCES` in `jobdork/core/config.py`, and
 a row to [PLATFORMS.md](PLATFORMS.md) documenting what breaks on it.

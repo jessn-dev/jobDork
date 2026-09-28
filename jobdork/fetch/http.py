@@ -78,6 +78,9 @@ class Response:
     json: object = None
     error: str = ""
     host: str = ""
+    # Where the request ended up after redirects. A closed Greenhouse posting
+    # answers 200 — from the board's index, reached by redirect.
+    final_url: str = ""
 
     @property
     def ok(self) -> bool:
@@ -168,7 +171,7 @@ class Fetcher:
         elif count >= MAX_CONSECUTIVE_429:
             self._block(
                 host, BLOCK_SECONDS,
-                f"{count} consecutive 429s after retries — treating as no",
+                f"{count} consecutive 429s after retries, treating as no",
             )
 
     def _note_ok(self, host: str) -> None:
@@ -185,8 +188,8 @@ class Fetcher:
         headers: dict | None = None,
         expect_json: bool = True,
     ) -> Response:
-        return self._request("GET", url, params=params, headers=headers,
-                             expect_json=expect_json)
+        return self._timed("GET", url, params=params, headers=headers,
+                           expect_json=expect_json)
 
     def post(
         self,
@@ -195,8 +198,18 @@ class Fetcher:
         headers: dict | None = None,
         expect_json: bool = True,
     ) -> Response:
-        return self._request("POST", url, json_body=json_body, headers=headers,
-                             expect_json=expect_json)
+        return self._timed("POST", url, json_body=json_body, headers=headers,
+                           expect_json=expect_json)
+
+    def _timed(self, method: str, url: str, **kwargs) -> Response:
+        """A request, reported to the Activity page by host and outcome."""
+        from ..core import telemetry
+
+        started = time.monotonic()
+        resp = self._request(method, url, **kwargs)
+        telemetry.fetch(resp.host, resp.status, time.monotonic() - started,
+                        resp.error)
+        return resp
 
     def _request(
         self,
@@ -253,7 +266,8 @@ class Fetcher:
                 continue
 
             self._note_ok(host)
-            out = Response(url=url, status=resp.status_code, host=host)
+            out = Response(url=url, status=resp.status_code, host=host,
+                           final_url=str(resp.url or url))
             if not out.ok:
                 out.error = f"HTTP {resp.status_code}"
                 return out

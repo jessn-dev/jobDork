@@ -154,9 +154,9 @@ GET https://api.lever.co/v0/postings/{token}?mode=json
 GET https://api.eu.lever.co/v0/postings/{token}?mode=json
 ```
 
-**Two separate deployments.** A token that exists on one 404s on the other. A
-North American search reads the US host and falls back to the EU host, so a
-company that moved does not read as a dead board.
+**Two separate deployments.** A token that exists on one 404s on the other. The
+adapter reads the US host and falls back to the EU host, so a company whose
+board lives in Europe does not read as a dead board.
 
 The response is a **bare top-level list**, not an object with a `jobs` key.
 
@@ -290,8 +290,10 @@ roles unplaced with the radius quietly doing nothing.
 
 Adzuna aggregates, so one vacancy arrives under six or seven distinct posting
 ids. Each is a legitimately different uid and cannot be merged at store time
-without risking the loss of the only copy. `list` collapses repeats of the same
-employer and title on the way out; `list --duplicates` shows them all.
+without risking the loss of the only copy. They are grouped instead, by
+employer, title and place: one post on screen, one status for all copies
+(see [ARCHITECTURE.md](ARCHITECTURE.md#deduplication-in-two-places));
+`list --duplicates` shows them all.
 
 ### Quota
 
@@ -411,10 +413,12 @@ plus its quirks — which is most of this document.
 
 ---
 
-## Not yet implemented
+## Reading the full advert
 
-**`enrich`.** Breezy and SmartRecruiters return a summary index; their full
-adverts need a second request per role.
+**`enrich`** fetches the advert where a source sent only a summary: through
+SmartRecruiters' posting API, and for the others from the schema.org
+`JobPosting` data on the posting page. Adzuna is refused by name: its links
+answer 403 from bot protection, which this tool does not work around.
 
-**`discover`.** Board tokens are supplied by hand. See
-[SOURCES.md](SOURCES.md#board-tokens).
+**`discover`** reads an employer's board token off their own careers page. See
+[SOURCES.md](SOURCES.md#finding-one-automatically).

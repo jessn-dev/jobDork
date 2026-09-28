@@ -28,10 +28,12 @@ import re
 import sys
 from pathlib import Path
 
-from . import __version__, config, render
-from . import scan as scan_mod
-from .config import STATUSES, ConfigError
-from .store import Store, canonical_url
+from . import __version__
+from .core import config
+from .core.config import STATUSES, ConfigError
+from .db.store import Store, canonical_url
+from .output import render
+from .search import scan as scan_mod
 
 
 def _log(verbose: bool) -> None:
@@ -39,6 +41,26 @@ def _log(verbose: bool) -> None:
         level=logging.DEBUG if verbose else logging.INFO,
         format="%(levelname)s %(message)s",
     )
+
+
+def _say(line: str) -> None:
+    """Print a progress line, and record it for the Activity page."""
+    from .core import telemetry
+
+    print(line)
+    telemetry.line(line)
+
+
+def _summary(report) -> None:
+    """What a finished job is remembered by on the Activity page."""
+    from .core import telemetry
+
+    telemetry.summary(" · ".join(report.lines()))
+
+
+# Commands that run long enough to be worth watching on the Activity page.
+RECORDED = ("scan", "enrich", "check", "judge", "rescreen", "generate",
+            "letter", "review")
 
 
 def _load(args) -> config.Config:
@@ -89,7 +111,7 @@ def _print_roles(rows, show_flags: bool = False) -> None:
         distance = (f"{row['distance_mi']:.0f}mi"
                     if row["distance_mi"] is not None else "-")
         score = f"{row['score']:.0f}" if row["score"] is not None else "-"
-        print(f"{score:>4}  {row['title']}  —  {row['company']}")
+        print(f"{score:>4}  {row['title']}  at  {row['company']}")
         print(f"      {row['uid']}  {row['status']}  "
               f"{row['location_raw'] or 'location not stated'}  "
               f"{distance}  {row['work_mode'] or 'arrangement not stated'}  "
@@ -111,11 +133,12 @@ def cmd_scan(args) -> int:
     with Store(cfg.db_path) as store:
         report = scan_mod.run(
             cfg, store, limit=args.limit,
-            progress=(lambda line: print(f"  {line}")) if not args.quiet else None,
+            progress=(lambda line: _say(f"  {line}")) if not args.quiet else None,
         )
         print()
         for line in report.lines():
             print(line)
+        _summary(report)
 
         out_dir = Path(cfg.output.dir)
         rows = store.list_roles()
@@ -138,7 +161,7 @@ def cmd_scan(args) -> int:
         if args.email:
             # Deliberately after the files are written: a mail that fails
             # must not cost you the scan that produced it.
-            from . import digest as digest_mod
+            from .output import digest as digest_mod
             new_rows = store.list_roles(new_only=True)
             built = digest_mod.build(new_rows, cfg, new_only=True)
             if built.empty and not args.even_if_empty:
@@ -151,14 +174,14 @@ def cmd_scan(args) -> int:
                     print(f"emailed {len(new_rows)} new to {args.email} "
                           f"(id {message_id})")
                 except digest_mod.DigestError as exc:
-                    print(f"digest failed, roles are still stored: {exc}",
+                    print(f"digest failed, job posts are still stored: {exc}",
                           file=sys.stderr)
     return 0
 
 
 def cmd_digest(args) -> int:
     """Mail what the last scan found. The point of scheduling a scan."""
-    from . import digest as digest_mod
+    from .output import digest as digest_mod
 
     cfg = _load(args)
     with Store(cfg.db_path) as store:
@@ -190,7 +213,7 @@ def cmd_digest(args) -> int:
         except digest_mod.DigestError as exc:
             print(f"digest: {exc}", file=sys.stderr)
             return 1
-        print(f"sent {len(rows)} role{'' if len(rows) == 1 else 's'} "
+        print(f"sent {len(rows)} job post{'' if len(rows) == 1 else 's'} "
               f"to {args.email} (id {message_id})")
     return 0
 
@@ -207,7 +230,7 @@ def cmd_list(args) -> int:
             print(json.dumps(render.rows_to_dicts(rows), indent=2))
         else:
             _print_roles(rows, show_flags=args.flags)
-            print(f"\n{len(rows)} role{'' if len(rows) == 1 else 's'}"
+            print(f"\n{len(rows)} job post{'' if len(rows) == 1 else 's'}"
                   + ("" if args.all else " (settled ones hidden)"))
     return 0
 
@@ -220,7 +243,7 @@ def cmd_show(args) -> int:
             print(f"Nothing matches {args.ref!r}.")
             return 1
         if len(matches) > 1:
-            print(f"{args.ref!r} matches {len(matches)} roles. "
+            print(f"{args.ref!r} matches {len(matches)} job posts. "
                   "Give a uid or a URL:")
             _print_roles(matches[:10])
             return 1
@@ -252,13 +275,13 @@ def cmd_applied(args) -> int:
         if len(matches) > 1:
             # Recording a status against the wrong role is worse than not
             # recording it, so this stops rather than guessing.
-            print(f"{args.ref!r} matches {len(matches)} roles. "
+            print(f"{args.ref!r} matches {len(matches)} job posts. "
                   "Narrow it with a uid or a URL:")
             _print_roles(matches[:10])
             return 1
         row = matches[0]
         store.set_status(row["uid"], args.status, args.note)
-        print(f"{row['uid']}  {row['title']} — {row['company']}  ->  {args.status}")
+        print(f"{row['uid']}  {row['title']} at {row['company']}  ->  {args.status}")
         if args.note:
             print(f"  note: {args.note}")
     return 0
@@ -271,7 +294,7 @@ def cmd_rescreen(args) -> int:
         print(f"checked {checked}, no longer matching {stale}, removed {removed}")
         if stale and not args.remove:
             print("Nothing was deleted. Re-run with --remove to drop the ones "
-                  "you have not acted on; roles with a status you set are kept "
+                  "you have not acted on; job posts with a status you set are kept "
                   "either way.")
     return 0
 
@@ -299,7 +322,8 @@ def _read_url_file(path: str) -> list[str]:
 def _add_one(cfg, fetcher, url: str, token: str, company: str,
              store, anchor, quiet: bool = False) -> str:
     """Returns one of: added, updated, failed."""
-    from . import fetch, screen
+    from . import fetch
+    from .search import screen
 
     url = canonical_url(url)
     platform, found_token = _platform_for(url)
@@ -326,7 +350,7 @@ def _add_one(cfg, fetcher, url: str, token: str, company: str,
     if wanted is None:
         if not quiet:
             print(f"  - {url}\n      read {token!r} on {platform} "
-                  f"({len(result.roles)} roles) but none is that URL; "
+                  f"({len(result.roles)} job posts) but none is that URL; "
                   "it may already be filled")
         return "failed"
 
@@ -334,7 +358,7 @@ def _add_one(cfg, fetcher, url: str, token: str, company: str,
     is_new = store.upsert(wanted)
     if not quiet:
         mark = "+" if is_new else "="
-        print(f"  {mark} {wanted.uid}  {wanted.title} — {wanted.company}")
+        print(f"  {mark} {wanted.uid}  {wanted.title} at {wanted.company}")
         if not verdict.keep:
             # Stored anyway: you asked for this one by name, and a filter is
             # not a better judge of that than you are.
@@ -347,8 +371,8 @@ def _add_one(cfg, fetcher, url: str, token: str, company: str,
 
 def cmd_add(args) -> int:
     """Fetch postings by URL — the bridge from a Google result to the database."""
-    from . import geo
     from .fetch.http import Fetcher
+    from .search import geo
 
     cfg = _load(args)
     urls = list(args.url or [])
@@ -414,8 +438,8 @@ def _platform_for(url: str) -> tuple[str, str]:
 
 def cmd_discover(args) -> int:
     """Find an employer's board by reading it off their own careers page."""
-    from . import discover as discover_mod
     from .fetch.http import Fetcher
+    from .search import discover as discover_mod
 
     cfg = _load(args)
     fetcher = Fetcher(cfg.fetch.user_agent, cfg.fetch.timeout, cfg.fetch.retries)
@@ -428,6 +452,7 @@ def cmd_discover(args) -> int:
 
     for line in report.lines():
         print(line)
+    _summary(report)
 
     addable = [item for item in report.found if item.addable]
     if not addable:
@@ -453,7 +478,8 @@ def cmd_discover(args) -> int:
 
 def cmd_generate(args) -> int:
     """Screen a role, or draft a CV or cover letter. Spends tokens."""
-    from . import generate as gen
+    from .ai import guard
+    from .writing import generate as gen
 
     cfg = _load(args)
     with Store(cfg.db_path) as store:
@@ -462,7 +488,7 @@ def cmd_generate(args) -> int:
             print(f"Nothing matches {args.ref!r}.")
             return 1
         if len(matches) > 1:
-            print(f"{args.ref!r} matches {len(matches)} roles. "
+            print(f"{args.ref!r} matches {len(matches)} job posts. "
                   "Give a uid or a URL:")
             _print_roles(matches[:10])
             return 1
@@ -472,7 +498,8 @@ def cmd_generate(args) -> int:
             result = gen.generate(
                 row, args.kind, cfg.resume_path, root=args.dir,
                 dry_run=args.dry_run,
-                progress=(lambda line: print(line)) if not args.quiet else None,
+                progress=_say if not args.quiet else None,
+                settings=guard.settings_for(cfg),
             )
         except gen.GenerateError as exc:
             print(f"generate: {exc}", file=sys.stderr)
@@ -496,23 +523,17 @@ def cmd_generate(args) -> int:
             print("\nA failed gate is a thing to read before you send it, "
                   "not a thing that was fixed for you.")
 
-        store.add_artifact(row["uid"], args.kind, str(result.path),
-                           gates=gates_summary(result.gates))
+        gen.record(store, row, result)
         if args.kind != "screen" and (row["status"] or "new") == "new":
             store.set_status(row["uid"], "interested",
                              f"{args.kind} drafted")
     return 0
 
 
-def gates_summary(gates) -> dict:
-    from .gates import summarise
-    return summarise(gates)
-
-
 def cmd_enrich(args) -> int:
     """Fetch full adverts for roles that arrived as summaries."""
-    from . import enrich as enrich_mod
     from .fetch.http import Fetcher
+    from .search import enrich as enrich_mod
 
     cfg = _load(args)
     fetcher = Fetcher(cfg.fetch.user_agent, cfg.fetch.timeout, cfg.fetch.retries)
@@ -521,21 +542,149 @@ def cmd_enrich(args) -> int:
             cfg, store, fetcher,
             limit=args.limit, platform=args.platform, thin=args.thin,
             dry_run=args.dry_run,
-            progress=(lambda line: print(line)) if not args.quiet else None,
+            progress=_say if not args.quiet else None,
         )
     print()
     for line in report.lines():
         print(line)
+    _summary(report)
     if args.dry_run:
-        print("(dry run — nothing was written)")
+        print("(dry run: nothing was written)")
+    return 0
+
+
+def cmd_check(args) -> int:
+    """Check whether stored postings are still up; close the ones that are not."""
+    from .fetch.http import Fetcher
+    from .search import listing
+
+    cfg = _load(args)
+    fetcher = Fetcher(cfg.fetch.user_agent, cfg.fetch.timeout, cfg.fetch.retries)
+    with Store(cfg.db_path) as store:
+        report = listing.run(cfg, store, fetcher, limit=args.limit,
+                             uid=args.uid, force=args.force,
+                             platform=args.platform,
+                             progress=None if args.quiet else _say)
+    print()
+    for line in report.lines():
+        print(line)
+    _summary(report)
+    return 0
+
+
+def cmd_judge(args) -> int:
+    """Have the configured model read the best roles against your résumé."""
+    from .ai import judging
+    from .ai.llm import LLMError
+
+    cfg = _load(args)
+    with Store(cfg.db_path) as store:
+        try:
+            report = judging.run(cfg, store, limit=args.limit, uid=args.uid,
+                                 force=args.force,
+                                 progress=None if args.quiet else _say)
+        except LLMError as exc:
+            print(f"cannot judge: {exc}")
+            return 1
+    print()
+    for line in report.lines():
+        print(line)
+    _summary(report)
+    return 0
+
+
+def _one_uid(store, ref: str) -> str:
+    """A uid from a uid, URL or company. Empty when it does not pick one post."""
+    matches = store.resolve(ref)
+    if len(matches) != 1:
+        print(f"{ref!r} matches {len(matches)} job posts; give its uid",
+              file=sys.stderr)
+        return ""
+    return matches[0]["uid"]
+
+
+def cmd_letter(args) -> int:
+    """A cover letter from the AI-page model, guarded and saved to the job folder."""
+    from .ai import writer
+    from .ai.llm import LLMError
+
+    cfg = _load(args)
+    with Store(cfg.db_path) as store:
+        uid = _one_uid(store, args.uid)
+        if not uid:
+            return 2
+        try:
+            draft = writer.letter(cfg, store, uid, root=args.dir,
+                                  progress=None if args.quiet else _say)
+        except LLMError as exc:
+            print(f"cannot write the letter: {exc}")
+            return 1
+    print(f"\n{draft.path}")
+    _summary_text(f"wrote {draft.path.name} (output {draft.output_id})")
+    return 0
+
+
+def cmd_review(args) -> int:
+    """A résumé review: general, or against one job post with its uid."""
+    from .ai import writer
+    from .ai.llm import LLMError
+
+    cfg = _load(args)
+    with Store(cfg.db_path) as store:
+        uid = _one_uid(store, args.uid) if args.uid else ""
+        if args.uid and not uid:
+            return 2
+        try:
+            result = writer.review(cfg, store, uid, root=args.dir,
+                                   progress=None if args.quiet else _say)
+        except LLMError as exc:
+            print(f"cannot review: {exc}")
+            return 1
+    print()
+    print(result.text)
+    if result.path:
+        print(result.path)
+    _summary_text(f"{len(result.health)} résumé point(s) (output {result.output_id})")
+    return 0
+
+
+def _summary_text(text: str) -> None:
+    from .core import telemetry
+    telemetry.summary(text)
+
+
+def cmd_prune(args) -> int:
+    """Delete old or settled job posts. Previews unless --yes."""
+    from .web import api
+
+    cfg = _load(args)
+    try:
+        preview = api.cleanup_preview(cfg, args.older_than, args.status)
+    except api.ApiError as exc:
+        print(f"prune: {exc}", file=sys.stderr)
+        return 2
+    print(f"{preview['count']} job posts {preview['reason']}")
+    if preview["count"] and preview["count"] == preview["total"]:
+        print("That is every job post you have.")
+    for title in preview["sample"]:
+        print(f"  {title}")
+    if not preview["count"] or not args.yes:
+        if preview["count"]:
+            print("\nNothing deleted. Add --yes to delete them "
+                  "(the database is backed up first).")
+        return 0
+    done = api.cleanup_run(cfg, args.older_than, args.status, preview["count"])
+    print(f"\ndeleted {done['deleted']}; backup at {done['backup']}")
     return 0
 
 
 def cmd_serve(args) -> int:
-    from . import serve as serve_mod
+    from .web import serve as serve_mod
 
     cfg = _load(args)
-    return serve_mod.serve(cfg, port=args.port, open_browser=not args.no_open)
+    return serve_mod.serve(cfg, port=args.port,
+                           open_browser=not args.no_open,
+                           token=args.token)
 
 
 def cmd_sources(args) -> int:
@@ -553,9 +702,9 @@ def cmd_sources(args) -> int:
                 reason = ("US federal postings only, and US is not in "
                           "locations.countries")
             elif name == "usajobs":
-                reason = "no credential — free key at https://developer.usajobs.gov"
+                reason = "no credential. Get a free key at https://developer.usajobs.gov"
             else:
-                reason = ("no credential — free key at "
+                reason = ("no credential. Get a free key at "
                           "https://developer.adzuna.com/signup")
             print(f"  {name:16} {reason}")
         if any(not getattr(cfg.sources, f"{n}_ready")() for n in dormant
@@ -628,7 +777,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="jobdork",
         description="Watch North American job boards and only hear about the "
-                    "roles that pass your own filters.",
+                    "job posts that pass your own filters.",
     )
     parser.add_argument("--version", action="version", version=f"jobdork {__version__}")
     parser.add_argument("-c", "--config", default="",
@@ -640,11 +789,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = subs.add_parser("scan", parents=[over], help="read the sources, screen, store")
     p.add_argument("--limit", type=int, default=0,
-                   help="keep at most N roles — for a quick look")
+                   help="keep at most N job posts, for a quick look")
     p.add_argument("--email", default="",
-                   help="mail the new roles after storing them")
+                   help="mail the new job posts after storing them")
     p.add_argument("--csv-attachment", action="store_true",
-                   help="attach the roles as CSV to that mail")
+                   help="attach the job posts as CSV to that mail")
     p.add_argument("--even-if-empty", action="store_true",
                    help="send the mail even when nothing is new")
     p.add_argument("-q", "--quiet", action="store_true")
@@ -654,30 +803,30 @@ def build_parser() -> argparse.ArgumentParser:
                         help="mail what the last scan found, without rescanning")
     p.add_argument("--email", default="", help="recipient; omit to print instead")
     p.add_argument("--all", action="store_true",
-                   help="every open role, not only what is new")
-    p.add_argument("--csv", action="store_true", help="attach the roles as CSV")
+                   help="every open job post, not only what is new")
+    p.add_argument("--csv", action="store_true", help="attach the job posts as CSV")
     p.add_argument("--even-if-empty", action="store_true")
     p.add_argument("--dry-run", action="store_true",
                    help="print the message instead of sending it")
     p.add_argument("--limit", type=int, default=0)
     p.set_defaults(func=cmd_digest)
 
-    p = subs.add_parser("list", parents=[over], help="print stored roles")
+    p = subs.add_parser("list", parents=[over], help="print stored job posts")
     p.add_argument("--new", action="store_true", help="only what was first seen today")
     p.add_argument("--status", default="", choices=("", *STATUSES))
-    p.add_argument("--all", action="store_true", help="include settled roles")
-    p.add_argument("--flags", action="store_true", help="show per-role flags")
+    p.add_argument("--all", action="store_true", help="include settled job posts")
+    p.add_argument("--flags", action="store_true", help="show per-post flags")
     p.add_argument("--duplicates", action="store_true",
                    help="show aggregator repeats of the same job")
     p.add_argument("--json", action="store_true")
     p.add_argument("--limit", type=int, default=0)
     p.set_defaults(func=cmd_list)
 
-    p = subs.add_parser("show", parents=[over], help="one role in full, including the advert")
+    p = subs.add_parser("show", parents=[over], help="one job post in full, including the advert")
     p.add_argument("ref", help="uid, posting URL, or company name")
     p.set_defaults(func=cmd_show)
 
-    p = subs.add_parser("applied", parents=[over], help="record what you did about a role")
+    p = subs.add_parser("applied", parents=[over], help="record what you did about a job post")
     p.add_argument("ref", help="uid, posting URL, or company name")
     p.add_argument("-s", "--status", default="applied", choices=STATUSES)
     p.add_argument("--note", default="")
@@ -700,7 +849,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_add)
 
     p = subs.add_parser("generate", parents=[over],
-                        help="screen a role, or draft a CV or cover letter "
+                        help="screen a job post, or draft a CV or cover letter "
                              "(spends tokens)")
     p.add_argument("ref", help="uid, posting URL, or company name")
     p.add_argument("-k", "--kind", default="screen",
@@ -714,19 +863,70 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_generate)
 
     p = subs.add_parser("enrich", parents=[over],
-                        help="fetch full adverts for roles stored as summaries")
+                        help="fetch full adverts for job posts stored as summaries")
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--platform", default="", help="only this platform")
     p.add_argument("--thin", type=int, default=400,
-                   help="advert length below which a role is worth fetching")
+                   help="advert length below which a job post is worth fetching")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("-q", "--quiet", action="store_true")
     p.set_defaults(func=cmd_enrich)
+
+    p = subs.add_parser("prune", parents=[over],
+                        help="delete old or settled job posts (previews unless --yes)")
+    p.add_argument("--older-than", type=int, default=0, metavar="DAYS",
+                   help="first seen over DAYS ago and not applied, submitted, "
+                        "interviewing or offer")
+    p.add_argument("--status", default="",
+                   help="comma separated: rejected,withdrawn,skipped,closed")
+    p.add_argument("--yes", action="store_true", help="delete, after a backup")
+    p.set_defaults(func=cmd_prune)
+
+    p = subs.add_parser("check", parents=[over],
+                        help="check stored postings are still open")
+    p.add_argument("--limit", type=int, default=0)
+    p.add_argument("--uid", default="", help="just this job post")
+    p.add_argument("--force", action="store_true",
+                   help="re-check job posts checked in the last 12 hours")
+    p.add_argument("--platform", default="", help="only this platform, e.g. adzuna")
+    p.add_argument("-q", "--quiet", action="store_true")
+    p.set_defaults(func=cmd_check)
+
+    p = subs.add_parser("judge", parents=[over],
+                        help="AI reads top job posts against your résumé (llm: in "
+                             "config; keys from the environment)")
+    p.add_argument("--limit", type=int, default=0,
+                   help="how many job posts (default llm.judge_top)")
+    p.add_argument("--uid", default="", help="just this job post")
+    p.add_argument("--force", action="store_true",
+                   help="judge again even if already judged")
+    p.add_argument("-q", "--quiet", action="store_true")
+    p.set_defaults(func=cmd_judge)
+
+    p = subs.add_parser("letter", parents=[over],
+                        help="AI cover letter for one job post, checked against "
+                             "your résumé and the advert")
+    p.add_argument("uid", help="the job post's uid, URL or company")
+    p.add_argument("--dir", default="", help="job folders root "
+                                              "(default ~/Documents/job-applications)")
+    p.add_argument("-q", "--quiet", action="store_true")
+    p.set_defaults(func=cmd_letter)
+
+    p = subs.add_parser("review", parents=[over],
+                        help="AI résumé review; give a job post id to compare with it")
+    p.add_argument("uid", nargs="?", default="", help="compare with this job post")
+    p.add_argument("--dir", default="", help="job folders root "
+                                              "(default ~/Documents/job-applications)")
+    p.add_argument("-q", "--quiet", action="store_true")
+    p.set_defaults(func=cmd_review)
 
     p = subs.add_parser("serve", parents=[over], help="the dashboard, at 127.0.0.1:8765")
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--no-open", action="store_true",
                    help="do not open a browser")
+    p.add_argument("--token", default="",
+                   help="use this token instead of a fresh one; for a parent "
+                        "process that spawned jobdork and already has one")
     p.set_defaults(func=cmd_serve)
 
     p = subs.add_parser("discover", parents=[over],
@@ -748,6 +948,21 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _recorded(args) -> int:
+    """Run a command with its progress written where the dashboard reads it."""
+    from .core import telemetry
+
+    try:
+        db_path = config.load(getattr(args, "config", "") or "").db_path
+    except ConfigError:
+        return args.func(args)            # the command reports the config error
+    with telemetry.job(db_path, args.command, "terminal"):
+        code = args.func(args)
+        if code:
+            telemetry.summary(f"exited with {code}")
+        return code
+
+
 def main(argv: list[str] | None = None) -> int:
     raw = list(sys.argv[1:] if argv is None else argv)
     if raw and raw[0] == "dork":
@@ -756,6 +971,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(raw)
     _log(args.verbose)
     try:
+        if args.command in RECORDED:
+            return _recorded(args)
         return args.func(args)
     except ConfigError as exc:
         print(f"config: {exc}", file=sys.stderr)

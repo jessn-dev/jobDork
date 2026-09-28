@@ -1,6 +1,6 @@
 """
-jobdork.geo
-===========
+jobdork.search.geo
+==================
 Turns a posting's location string into somewhere on a map, then measures how
 far that is from your anchor.
 
@@ -30,7 +30,7 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"      # jobdork/data
 GAZETTEER = DATA_DIR / "cities.csv"
 
 EARTH_RADIUS_MI = 3958.7613
