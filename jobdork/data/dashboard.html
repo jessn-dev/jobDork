@@ -1,0 +1,1728 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>jobdork</title><style>
+:root { color-scheme: light;
+  --bg:#fff; --fg:#18181b; --muted:#71717a; --line:#e4e4e7; --card:#fafafa;
+  --accent:#1d4ed8; --flag:#92400e; --flagbg:#fef3c7; --btn:#fff;
+  --ok:#15803d; --bad:#991b1b; --warn:#b45309;
+  --nav-bg:#fff; --nav-fg:#4b5563; --nav-icon:#64748b; --nav-hover:#f1f5f9;
+  --nav-on-bg:#e8f1fd; --nav-on-fg:#1d4ed8; --nav-badge-bg:#e8f1fd; --nav-badge-fg:#1d4ed8;
+  --logo:#3b82f6;
+  /* charts (dataviz reference palette, validated on #fff): tools in fixed
+     order, then thumbs up / down as a diverging pair */
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
+  --fb-up:#2a78d6; --fb-down:#e34948; --grid:#e4e4e7; --axis:#a1a1aa; }
+/* Dark: the system's choice, unless the toggle chose light (and vice versa). */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark;
+  --bg:#0b0b0d; --fg:#e7e7ea; --muted:#a1a1aa; --line:#27272a; --card:#141417;
+  --accent:#93b4ff; --flag:#fde68a; --flagbg:#3f2d0a; --btn:#1c1c20;
+  --ok:#4ade80; --bad:#f87171; --warn:#fbbf24;
+  --nav-bg:#151518; --nav-fg:#e4e4e7; --nav-icon:#d4d4d8; --nav-hover:#202025;
+  --nav-on-bg:#34343c; --nav-on-fg:#fff; --nav-badge-bg:#e4e4e7; --nav-badge-fg:#151518;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
+  --fb-up:#3987e5; --fb-down:#e66767; --grid:#27272a; --axis:#52525b; } }
+:root[data-theme="dark"] { color-scheme: dark;
+  --bg:#0b0b0d; --fg:#e7e7ea; --muted:#a1a1aa; --line:#27272a; --card:#141417;
+  --accent:#93b4ff; --flag:#fde68a; --flagbg:#3f2d0a; --btn:#1c1c20;
+  --ok:#4ade80; --bad:#f87171; --warn:#fbbf24;
+  --nav-bg:#151518; --nav-fg:#e4e4e7; --nav-icon:#d4d4d8; --nav-hover:#202025;
+  --nav-on-bg:#34343c; --nav-on-fg:#fff; --nav-badge-bg:#e4e4e7; --nav-badge-fg:#151518;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
+  --fb-up:#3987e5; --fb-down:#e66767; --grid:#27272a; --axis:#52525b; }
+[hidden]{display:none!important}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.55 ui-sans-serif,-apple-system,Segoe UI,Roboto,sans-serif}
+
+/* ── nav: icon + label rows, a filled pill for the page you are on ─────────── */
+.shell{display:grid;grid-template-columns:248px 1fr;min-height:100vh;
+  transition:grid-template-columns .2s ease}
+.shell.rail{grid-template-columns:76px 1fr}
+nav{position:sticky;top:0;height:100vh;overflow:auto;background:var(--nav-bg);
+  border-right:1px solid var(--line);display:flex;flex-direction:column;
+  padding:1.25rem .9rem}
+.brand{display:flex;align-items:center;gap:.75rem;padding:0 .35rem;margin-bottom:1.6rem}
+.brand .logo{width:38px;height:38px;border-radius:9px;background:var(--logo);
+  display:grid;place-items:center;flex:none}
+.brand .logo svg{width:22px;height:22px;fill:#fff}
+.brand .name{font-size:1.2rem;font-weight:700;color:var(--nav-fg);letter-spacing:-.01em}
+.brand .fold{margin-left:auto;background:none;border:0;color:var(--nav-icon);
+  cursor:pointer;padding:.25rem;border-radius:6px;display:grid;place-items:center}
+.brand .fold:hover{background:var(--nav-hover)}
+.brand .fold svg{width:18px;height:18px;fill:currentColor;transition:transform .2s}
+nav .item{display:flex;align-items:center;gap:.85rem;width:100%;border:0;
+  background:none;color:var(--nav-fg);font:inherit;font-size:.95rem;text-align:left;
+  padding:.62rem .75rem;border-radius:8px;cursor:pointer;margin:.12rem 0;
+  white-space:nowrap}
+nav .item svg{width:22px;height:22px;flex:none;fill:var(--nav-icon)}
+nav .item:hover{background:var(--nav-hover)}
+nav .item.on{background:var(--nav-on-bg);color:var(--nav-on-fg);font-weight:650}
+nav .item.on svg{fill:var(--nav-on-fg)}
+nav .item .count{margin-left:auto;min-width:1.5rem;padding:.05rem .4rem;border-radius:5px;
+  background:var(--nav-badge-bg);color:var(--nav-badge-fg);font-size:.75rem;
+  font-weight:600;text-align:center;font-variant-numeric:tabular-nums}
+nav .item .pip{position:relative}
+nav .item .pip .dot{position:absolute;top:-2px;right:-3px;width:9px;height:9px;
+  margin:0;border:2px solid var(--nav-bg)}
+nav .sec{color:var(--nav-icon);opacity:.75;font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.08em;padding:1rem .75rem .3rem}
+nav .foot{margin-top:auto;padding-top:1rem}
+nav .status{display:flex;align-items:center;gap:.45rem;color:var(--warn);font-size:.78rem;
+  font-weight:600;padding:.45rem .75rem;margin-bottom:.4rem;border-radius:8px;
+  background:color-mix(in srgb, var(--warn) 12%, transparent)}
+nav .status .dot{margin:0;background:var(--warn);animation:blink 1.2s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+nav .item .info{margin-left:auto;display:grid;place-items:center;opacity:.45;
+  padding:.15rem;border-radius:50%}
+nav .item .info svg{width:15px;height:15px}
+nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
+.navtip{position:fixed;z-index:50;width:17rem;padding:.65rem .8rem;border-radius:8px;
+  background:var(--card);color:var(--fg);border:1px solid var(--line);
+  box-shadow:0 10px 28px rgba(0,0,0,.28);font-size:.8rem;line-height:1.45;pointer-events:none}
+.navtip b{display:block;margin-bottom:.2rem;font-size:.82rem}
+.navtip::before{content:"";position:absolute;left:-6px;top:var(--arrow,1rem);width:10px;height:10px;
+  background:var(--card);border-left:1px solid var(--line);border-bottom:1px solid var(--line);
+  transform:rotate(45deg)}
+.switch{margin-left:auto;display:inline-flex;align-items:center;gap:.4rem;
+  padding:.18rem .5rem .18rem .2rem;border-radius:999px;border:1px solid var(--line);
+  background:var(--nav-hover);font-size:.72rem;font-weight:600;color:var(--nav-fg)}
+.switch i{width:16px;height:16px;border-radius:50%;background:var(--nav-icon)}
+.switch.on i{background:var(--logo)}
+/* The rail: icons only, labels on hover through the title attribute. */
+.shell.rail nav{padding:1.25rem .6rem}
+.shell.rail .brand{flex-direction:column;gap:.6rem;padding:0}
+.shell.rail .brand .name,.shell.rail nav .label,.shell.rail nav .count,
+.shell.rail nav .sec,.shell.rail nav .info,.shell.rail .switch,.shell.rail nav #net-text{display:none}
+.shell.rail nav .status{justify-content:center;padding:.5rem 0}
+.shell.rail .brand .fold svg{transform:rotate(180deg)}
+.shell.rail nav .item{justify-content:center;padding:.62rem 0}
+.shell.rail nav .sec + .item{margin-top:.9rem}
+@media (max-width:760px){.shell{grid-template-columns:76px 1fr}
+  .shell nav{padding:1.25rem .6rem}
+  .shell .brand{flex-direction:column;gap:.6rem;padding:0}
+  .shell .brand .name,.shell nav .label,.shell nav .count,.shell nav .sec,
+  .shell nav .info,.shell nav #net-text,.shell .switch,.shell .brand .fold{display:none}
+  .shell nav .item{justify-content:center;padding:.62rem 0}}
+main{padding:1.5rem 1.75rem;min-width:0}
+/* The Dashboard uses the whole width; pages of forms and reading keep a
+   measure that is comfortable to read. */
+main > section:not(#view-scan){max-width:1060px}
+h2{font-size:1.05rem;margin:0 0 .35rem}
+.bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+select,input,textarea{background:var(--btn);color:var(--fg);
+  border:1px solid var(--line);border-radius:6px;padding:.4rem .55rem;
+  font:inherit;font-size:.85rem}
+textarea{width:100%;min-height:5rem;font-family:ui-monospace,Menlo,monospace}
+button.act{background:var(--btn);color:var(--fg);border:1px solid var(--line);
+  border-radius:6px;padding:.35rem .7rem;font:inherit;font-size:.82rem;cursor:pointer}
+button.act:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+button.act:disabled{opacity:.4;cursor:default}
+button.primary{border-color:var(--accent);color:var(--accent);font-weight:600}
+button.spend{border-color:var(--warn);color:var(--warn)}
+.count{color:var(--muted);font-size:.85rem;margin-left:auto}
+.role{border:1px solid var(--line);border-radius:8px;padding:.85rem 1rem;
+  margin-bottom:.6rem;background:var(--card)}
+.role.busy{opacity:.45}
+.head{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
+.score{font-variant-numeric:tabular-nums;font-weight:600;color:var(--accent);min-width:3ch}.title{font-weight:600;cursor:pointer}
+.title:hover{text-decoration:underline}
+.pill{padding:.1rem .5rem;border-radius:999px;font-size:.7rem;font-weight:600;
+  color:#fff;text-transform:uppercase;letter-spacing:.02em}
+.meta{color:var(--muted);font-size:.85rem;margin-top:.3rem;display:flex;
+  gap:.3rem 1rem;flex-wrap:wrap}
+.thin{color:var(--bad)}
+.flags{margin-top:.4rem;display:flex;gap:.3rem;flex-wrap:wrap}
+.flag{background:var(--flagbg);color:var(--flag);font-size:.72rem;
+  padding:.1rem .45rem;border-radius:4px}
+.acts{margin-top:.6rem;display:flex;gap:.35rem;flex-wrap:wrap;align-items:center}
+.note{flex:1;min-width:11rem}
+.uid{font-family:ui-monospace,Menlo,monospace;font-size:.72rem;color:var(--muted)}
+.empty{color:var(--muted);padding:2rem 0}
+.log{background:#0b0b0d;color:#d4d4d8;font-family:ui-monospace,Menlo,monospace;
+  font-size:.78rem;padding:.85rem 1rem;border-radius:8px;height:20rem;
+  overflow:auto;white-space:pre-wrap;border:1px solid var(--line)}
+.log .ok{color:#4ade80}.log .bad{color:#f87171}.log .dim{color:#71717a}
+.field{margin-bottom:1rem}
+.field label{display:block;font-size:.82rem;color:var(--muted);margin-bottom:.25rem}
+.hint{color:var(--muted);font-size:.78rem;margin-top:.25rem}
+.saved{color:var(--ok);font-size:.85rem}.err{color:var(--bad);font-size:.85rem}
+.dot{width:.5rem;height:.5rem;border-radius:50%;display:inline-block;
+  background:var(--muted);margin-right:.4rem}
+.dot.live{background:var(--ok)}
+dialog{background:var(--bg);color:var(--fg);border:1px solid var(--line);
+  border-radius:10px;max-width:820px;width:92vw;padding:0}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+.dlg-head{padding:1rem 1.25rem;border-bottom:1px solid var(--line);
+  display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
+.dlg-body{padding:1rem 1.25rem;max-height:66vh;overflow:auto}
+.advert{white-space:pre-wrap;font-size:.88rem;line-height:1.6}
+.tabs{display:flex;gap:.3rem;margin-bottom:.75rem;flex-wrap:wrap}
+/* match and fit: one badge style, so the two read as a pair */
+.badge{position:relative;display:inline-flex;align-items:baseline;gap:.35rem;
+  padding:.12rem .55rem;border:1px solid var(--line);border-radius:6px;
+  background:var(--bg);font-size:.9rem;line-height:1.4;
+  font-variant-numeric:tabular-nums;cursor:help;white-space:nowrap}
+.badge:hover,.badge:focus{border-color:var(--accent);outline:none}
+.badge .k{font-size:.68rem;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted)}
+.badge .v{font-weight:700;color:var(--fg)}
+.badge.match .v{color:var(--accent)}
+.badge .of{font-size:.8rem;font-weight:500;color:var(--muted)}
+.tip{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:30;
+  width:min(27rem,82vw);padding:.65rem .8rem;background:var(--card);
+  border:1px solid var(--line);border-radius:8px;
+  box-shadow:0 10px 28px rgba(0,0,0,.28);white-space:normal;cursor:default;
+  font-size:.8rem;line-height:1.45;color:var(--fg)}
+.badge:hover .tip,.badge:focus .tip{display:block}
+.tip h4{margin:0 0 .4rem;font-size:.8rem}
+.tip table{width:100%;border-collapse:collapse}
+.tip td{padding:.25rem 0;vertical-align:top}
+.tip td.pts{text-align:right;font-weight:700;white-space:nowrap;padding-left:.8rem}
+.tip .part{font-weight:600;display:block}
+.tip .why{color:var(--muted)}
+.tip tfoot td{border-top:1px solid var(--line);padding-top:.4rem;font-weight:700}
+.tip .skills{display:flex;flex-wrap:wrap;gap:.25rem;margin:.2rem 0 .45rem}
+.tip .sk{padding:.05rem .4rem;border-radius:4px;font-size:.75rem;
+  border:1px solid var(--line)}
+.tip .sk.has{color:var(--ok);border-color:currentColor}
+.tip .sk.wants{color:var(--muted)}
+.badge.ai.strong .v{color:var(--ok)}
+.badge.ai.possible .v{color:var(--warn)}
+.badge.ai.weak .v{color:var(--bad)}
+.tip ul{margin:.15rem 0 .45rem;padding-left:1.1rem}
+.tip li{margin:.1rem 0}
+.tip .meta-line{color:var(--muted);font-size:.72rem;margin-top:.3rem}
+.listing{font-size:.78rem;padding:.05rem .45rem;border-radius:4px;
+  border:1px solid currentColor}
+.listing.closed{color:var(--bad)}
+.listing.unlisted,.listing.stale{color:var(--warn)}
+.listing.open{color:var(--ok)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;
+  flex-wrap:wrap}
+.seg button{background:var(--btn);color:var(--fg);border:0;border-right:1px solid var(--line);
+  padding:.4rem .85rem;font:inherit;font-size:.85rem;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:var(--bg);font-weight:600}
+label.check{display:block;font-size:.88rem;color:var(--fg);margin:.35rem 0}
+/* activity */
+h3{font-size:.9rem;margin:1.2rem 0 .45rem}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.6rem;margin:.6rem 0}
+.tile{border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem;background:var(--card)}
+.tile .k{font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tile .v{font-size:1.45rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.25;margin-top:.15rem}
+.tile .s{font-size:.75rem;color:var(--muted)}
+.jobhead{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
+.jobhead strong{font-size:1rem}
+.state{font-size:.72rem;font-weight:600;padding:.1rem .5rem;border-radius:999px;
+  border:1px solid currentColor;text-transform:uppercase;letter-spacing:.04em}
+.state.running{color:var(--accent)} .state.done{color:var(--ok)}
+.state.failed,.state.died{color:var(--bad)} .state.stopped,.state.quiet{color:var(--warn)}
+.pbar{height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin:.2rem 0 .3rem}
+.pbar > span{display:block;height:100%;background:var(--accent);border-radius:5px;
+  transition:width .6s ease}
+.pbar.indet > span{width:30%;animation:slide 1.4s ease-in-out infinite}
+@keyframes slide{0%{margin-left:-30%}100%{margin-left:100%}}
+.stack{display:flex;height:12px;gap:2px;margin:.3rem 0 .4rem}
+.stack > span{border-radius:3px;min-width:3px}
+.legend{display:flex;flex-wrap:wrap;gap:.3rem 1rem;font-size:.8rem;color:var(--fg)}
+.legend i{display:inline-block;width:.65rem;height:.65rem;border-radius:2px;margin-right:.35rem;vertical-align:-.05rem}
+.act-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:1.25rem}
+@media (max-width:900px){.act-grid{grid-template-columns:1fr}}
+.tbl-wrap{overflow-x:auto}
+table.data{width:100%;border-collapse:collapse;font-size:.8rem;font-variant-numeric:tabular-nums}
+table.data th{text-align:left;font-weight:600;color:var(--muted);font-size:.72rem;
+  text-transform:uppercase;letter-spacing:.04em;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+table.data td{padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+table.data td.n,table.data th.n{text-align:right}
+table.data tr.pick{cursor:pointer} table.data tr.pick:hover td{background:var(--card)}
+table.data tr.on td{background:var(--card)}
+table.data tr.on td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+table.data td.n{white-space:nowrap}
+.warnc{color:var(--warn);font-weight:600} .badc{color:var(--bad);font-weight:600}
+/* a modal dialog clips overflow by default, which would cut the tip off */
+dialog{overflow:visible}
+.paste{margin:.25rem 0 1rem}
+.paste summary{cursor:pointer;color:var(--accent);font-size:.85rem}
+.paste textarea{width:100%;min-height:12rem;margin:.5rem 0;box-sizing:border-box;
+  font:inherit;font-size:.85rem}
+.copies{font-size:.72rem;padding:.05rem .45rem;border-radius:4px;
+  border:1px solid var(--line);color:var(--muted)}
+.alsoat{width:100%;display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:center;
+  margin-top:.45rem;font-size:.82rem}
+.alsoat a{display:inline-flex;gap:.35rem;align-items:center;padding:.1rem .5rem;
+  border:1px solid var(--line);border-radius:6px;text-decoration:none;color:var(--accent)}
+.alsoat a:hover{border-color:var(--accent)}
+.lastruns{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.6rem;
+  margin:.2rem 0 1rem}
+.lastrun{border:1px solid var(--line);border-radius:8px;padding:.55rem .75rem;background:var(--card);
+  font-size:.84rem}
+.lastrun.warn{border-color:color-mix(in srgb, var(--warn) 55%, var(--line))}
+.lastrun .top{display:flex;gap:.5rem;align-items:baseline}
+.lastrun .top b{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
+.lastrun .top .ago{margin-left:auto;color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums}
+.lastrun .sum{color:var(--muted);margin-top:.15rem}
+.lastrun ul{margin:.35rem 0 0;padding-left:1rem;color:var(--warn);font-weight:600}
+.lastrun.pick{cursor:pointer} .lastrun.pick:hover{border-color:var(--accent)}
+.allruns summary{cursor:pointer;font-weight:600;font-size:.9rem}
+/* feedback on an AI output */
+.fb{display:inline-flex;align-items:center;gap:.2rem;vertical-align:middle}
+.fb .q{font-size:.75rem;color:var(--muted);margin-right:.15rem}
+.fb button{display:inline-grid;place-items:center;width:1.75rem;height:1.6rem;padding:0;
+  background:var(--btn);color:var(--muted);border:1px solid var(--line);border-radius:6px;cursor:pointer}
+.fb button:hover{color:var(--fg);border-color:var(--muted)}
+.fb button svg{width:15px;height:15px}
+.fb button[aria-pressed="true"].up{color:var(--fb-up);border-color:var(--fb-up);
+  background:color-mix(in srgb, var(--fb-up) 12%, var(--btn))}
+.fb button[aria-pressed="true"].down{color:var(--fb-down);border-color:var(--fb-down);
+  background:color-mix(in srgb, var(--fb-down) 12%, var(--btn))}
+.fb .ack{font-size:.72rem;color:var(--muted);min-width:3.5rem}
+.review-out{margin-top:.75rem}
+.md-doc{white-space:normal}
+.md-doc h4{margin:.9rem 0 .35rem;font-size:.95rem}
+.md-doc h4.h1{margin-top:0;font-size:1.05rem}
+.md-doc h4.h3{font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.md-doc ul{margin:.2rem 0 .5rem;padding-left:1.2rem}
+.md-doc li{margin:.25rem 0}
+.md-doc p{margin:.3rem 0}
+.review-out .advert{border:1px solid var(--line);border-radius:8px;padding:.75rem .9rem}
+/* metrics */
+.metrics{margin:.4rem 0 1.1rem}
+.tile.has-tip{position:relative;cursor:help}
+.tile.has-tip:hover .tip,.tile.has-tip:focus .tip{display:block}
+.tile.has-tip .tip{left:auto;right:0}   /* the tile sits last in the row */
+.tile.has-tip:focus{outline:2px solid var(--accent);outline-offset:1px}
+.m-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,26rem),1fr));gap:1rem;margin-top:.4rem}
+.panel{border:1px solid var(--line);border-radius:8px;padding:.7rem .85rem .6rem;background:var(--bg);min-width:0}
+.panel-head{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
+.panel-head h3{margin:0}
+.panel-head .sub{color:var(--muted);font-size:.78rem}
+.linkbtn{margin-left:auto;background:none;border:0;padding:0;font:inherit;font-size:.78rem;
+  color:var(--accent);cursor:pointer}
+.linkbtn:hover{text-decoration:underline}
+.chart{position:relative;margin-top:.45rem}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart .hit{fill:transparent;cursor:crosshair}
+.chart .col:hover .seg-mark,.chart .col.on .seg-mark{opacity:.8}
+.chart .tick{fill:var(--muted);font-size:10px;font-variant-numeric:tabular-nums}
+.chart .grid{stroke:var(--grid);stroke-width:1}
+.chart .base{stroke:var(--axis);stroke-width:1}
+.chart-tip{position:absolute;pointer-events:none;z-index:20;min-width:9rem;padding:.45rem .6rem;
+  background:var(--card);border:1px solid var(--line);border-radius:6px;
+  box-shadow:0 8px 22px rgba(0,0,0,.22);font-size:.76rem;line-height:1.4}
+.chart-tip .d{color:var(--muted);margin-bottom:.2rem}
+.chart-tip .r{display:flex;align-items:center;gap:.4rem}
+.chart-tip .r i{display:inline-block;width:.8rem;height:2px;border-radius:1px}
+.chart-tip .r b{min-width:1.6rem;text-align:right;font-variant-numeric:tabular-nums}
+.chart-tip .r span{color:var(--muted)}
+.chart .none{color:var(--muted);font-size:.82rem;padding:2.2rem 0;text-align:center}
+.cleanup{border:1px solid var(--line);border-radius:8px;padding:.75rem .9rem;background:var(--card)}
+.cleanup .row{display:flex;flex-wrap:wrap;gap:.5rem .7rem;align-items:center;padding:.35rem 0}
+.cleanup .row + .row{border-top:1px solid var(--line);margin-top:.3rem;padding-top:.65rem}
+.check-inline{display:inline-flex;gap:.3rem;align-items:center;font-size:.88rem}
+#cl-result{margin-top:.5rem;font-size:.86rem}
+#cl-result ul{margin:.3rem 0 .5rem;padding-left:1.1rem;color:var(--muted)}
+button.danger{border-color:var(--bad);color:var(--bad);font-weight:600}
+button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
+.statusbar{width:100%;display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.5rem}
+.statusbar button.cur:disabled{color:#fff;font-weight:600;opacity:1}
+.tabs button{background:none;border:1px solid var(--line);border-radius:999px;
+  padding:.2rem .7rem;font:inherit;font-size:.78rem;color:var(--muted);cursor:pointer}
+.tabs button.on{color:var(--accent);border-color:var(--accent)}
+.gate{font-size:.8rem;margin:.15rem 0}
+.gate.pass{color:var(--ok)}.gate.fail{color:var(--warn)}
+table{border-collapse:collapse;width:100%;font-size:.85rem}
+td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+</style></head><body>
+<div class="shell">
+<nav aria-label="Main">
+  <div class="brand"><span class="logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 3h6a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v4H2V8a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 1.8V6h6V4.8H9zM2 13.8h8v.7a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7h8V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.2z"/></svg></span><span class="name">jobdork</span><button class="fold" id="fold" title="Collapse menu" aria-label="Collapse menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 1 0 1.4L10.4 12l4.3 4.3a1 1 0 0 1-1.4 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.4 0z"/></svg></button></div>
+  <button class="item on" data-view="scan" title="Dashboard"><span class="pip"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 10v4h2.5v-4H7zm3.75-6v10h2.5V7h-2.5zM14.5 10v7H17v-7h-2.5z"/></svg><span id="act-dot" class="dot live" hidden></span></span><span class="label">Dashboard</span></button>
+  <button class="item" data-view="roles" title="Job posts"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 3h6a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v4H2V8a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 1.8V6h6V4.8H9zM2 13.8h8v.7a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7h8V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.2z"/></svg><span class="label">Job posts</span><span class="count" id="nav-new" title="new since you last looked" hidden></span></button>
+  <div class="sec">Setup</div>
+  <button class="item" data-view="settings" data-label="Search" data-info="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen." aria-description="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24a1 1 0 0 1-1.42 1.42l-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span class="label">Search</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="resume" data-label="Résumé" data-info="Upload your résumé as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. It stays on this machine." aria-description="Upload your résumé as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Résumé</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="sources" data-label="Sources" data-info="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not." aria-description="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not."><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 8.2C5.6 9.3 8.6 10 12 10s6.4-.7 8-1.8V12c0 1.66-3.6 3-8 3s-8-1.34-8-3V8.2zm0 7c1.6 1.1 4.6 1.8 8 1.8s6.4-.7 8-1.8V19c0 1.66-3.6 3-8 3s-8-1.34-8-3v-3.8z"/></svg><span class="label">Sources</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="ai" data-label="AI" data-info="Choose a model (local through Ollama, or Claude, Gemini or ChatGPT) to judge fit against your résumé and read posting pages that do not say whether a job is open. API keys are held in memory only." aria-description="Choose a model (local through Ollama, or Claude, Gemini or ChatGPT) to judge fit against your résumé and read posting pages that do not say whether a job is open. API keys are held in memory only."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2l1.9 5.6 5.6 1.9-5.6 1.9L11 17l-1.9-5.6-5.6-1.9 5.6-1.9L11 2zm7.5 11l.95 2.55 2.55.95-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95L18.5 13z"/></svg><span class="label">AI</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="tools" data-label="Tools" data-info="One-off helpers: add a posting from a link, find an employer's job board from their own website, and email yourself a digest of what was found." aria-description="One-off helpers: add a posting from a link, find an employer's job board from their own website, and email yourself a digest of what was found."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><rect x="11" y="5.75" width="10" height="2.5" rx="1.25"/><circle cx="18" cy="17" r="3"/><rect x="3" y="15.75" width="10" height="2.5" rx="1.25"/></svg><span class="label">Tools</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <div class="foot">
+    <div class="status" id="net" role="status" hidden><span class="dot"></span><span id="net-text"></span></div>
+    <button class="item" id="theme" title="Dark mode"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg><span class="label">Dark mode</span><span class="switch" id="theme-switch"><i></i><span id="theme-state">OFF</span></span></button>
+  </div>
+</nav>
+<main>
+  <section id="view-roles" hidden>
+    <div class="bar">
+      <select id="status"></select>
+      <select id="scope">
+        <option value="open">open job posts</option>
+        <option value="new">new since last scan</option>
+        <option value="all">including settled</option>
+      </select>
+      <input type="search" id="q" placeholder="filter by title or company">
+      <span class="count" id="count"></span>
+    </div>
+    <div id="list"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section id="view-scan">
+    <div class="bar" style="margin-bottom:.4rem">
+      <h2 style="margin:0">Dashboard</h2>
+      <span class="count" id="act-updated"></span>
+    </div>
+    <p class="hint" style="margin-top:0">Start a run here. Every run, whether started here or in the
+      terminal, shows below. Scans are paced per host on
+      purpose: running several in a day is how you earn a rate limit.</p>
+    <div class="bar">
+      <button class="act primary" id="run">Run a scan</button>
+      <button class="act" id="btn-enrich">Fetch missing adverts</button>
+      <button class="act" id="btn-rescreen">Re-apply filters</button>
+      <button class="act" id="btn-check" title="Ask each posting whether the job is still up; close the ones that are gone">Check still open</button>
+      <button class="act spend" id="btn-judge" title="The model on the AI page reads the best job posts against your résumé">AI: judge top job posts</button>
+      <span class="count" id="scanstate"></span>
+    </div>
+    <p class="hint" id="aihint"></p>
+    <div id="scanmsg"></div>
+
+    <div class="metrics" id="metrics">
+      <div class="bar" style="margin:.2rem 0 0">
+        <div class="seg" id="m-days" role="group" aria-label="Period">
+          <button data-days="7">7 days</button><button data-days="30" class="on">30 days</button><button data-days="90">90 days</button>
+        </div>
+        <span class="count" id="m-since"></span>
+      </div>
+      <div class="tiles" id="m-tiles"></div>
+      <div class="m-grid">
+        <div class="panel">
+          <div class="panel-head"><h3>Runs by tool, per day</h3>
+            <button class="linkbtn" data-table="m-runs">Show as table</button></div>
+          <div class="legend" id="m-runs-legend" style="margin-top:.35rem"></div>
+          <div class="chart" id="m-runs"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Feedback on AI output, per day</h3>
+            <span class="sub" id="m-fb-sub"></span>
+            <button class="linkbtn" data-table="m-fb">Show as table</button></div>
+          <div class="legend" id="m-fb-legend" style="margin-top:.35rem"></div>
+          <div class="chart" id="m-fb"></div>
+        </div>
+      </div>
+    </div>
+    <div class="lastruns" id="last-runs"></div>
+
+    <div id="act-head"></div>
+    <div class="tiles" id="act-tiles"></div>
+    <div id="act-progress"></div>
+    <div id="act-counts"></div>
+
+    <div class="act-grid">
+      <div><h3>Network, by host</h3><div id="act-hosts"></div></div>
+      <div><h3>AI calls</h3><div id="act-ai"></div>
+        <h3 style="margin-top:1.2rem">Postings, by listing state</h3>
+        <div id="act-listing"></div></div>
+    </div>
+
+    <h3>Log</h3>
+    <div class="log" id="act-log" style="height:16rem"></div>
+
+    <details class="allruns" style="margin-top:1.2rem">
+      <summary>All runs <span class="hint">(pick one to show it above)</span></summary>
+      <div id="act-history"></div>
+    </details>
+
+    <h3 style="margin-top:1.6rem">Clean up job posts</h3>
+    <p class="hint" style="margin-top:0">Preview first; nothing is deleted until
+      you press the red button. The database is backed up to
+      <code>data/backups/</code> before every delete, and a deleted post stays
+      deleted: later scans leave it out.</p>
+    <div class="cleanup">
+      <div class="row">
+        <span>Older than</span>
+        <select id="cl-days"><option value="15">15 days</option>
+          <option value="30" selected>30 days</option></select>
+        <span class="hint">that you are not pursuing (applied, submitted,
+          interviewing and offer are always kept)</span>
+        <button class="act" data-mode="age">Preview</button>
+      </div>
+      <div class="row">
+        <span>With status</span>
+        <label class="check-inline"><input type="checkbox" value="rejected" checked> rejected</label>
+        <label class="check-inline"><input type="checkbox" value="withdrawn" checked> withdrawn</label>
+        <label class="check-inline"><input type="checkbox" value="skipped" checked> skipped</label>
+        <label class="check-inline"><input type="checkbox" value="closed" checked> closed</label>
+        <button class="act" data-mode="status">Preview</button>
+      </div>
+      <div id="cl-result"></div>
+    </div>
+  </section>
+
+  <section id="view-tools" hidden>
+    <h2>Résumé review</h2>
+    <p class="hint">The model on the AI page reads your résumé and lists what to
+      fix, each point quoting the line it is about. A point that quotes something
+      not in your résumé is dropped. To compare it with one job post, use
+      <b>Review résumé for this post</b> in that post's window.</p>
+    <div class="bar">
+      <button class="act spend" id="btn-review">Review my résumé</button>
+      <span class="hint" id="review-state"></span>
+    </div>
+    <div class="review-out" id="review-out"></div>
+
+    <h2 style="margin-top:1.5rem">Add a posting</h2>
+    <p class="hint">Paste a link you found yourself. Google does the finding,
+      the adapter reads it into a proper row.</p>
+    <div class="bar">
+      <input id="add-url" placeholder="https://job-boards.greenhouse.io/acme/jobs/1"
+        style="flex:1;min-width:22rem">
+      <input id="add-token" placeholder="board token, if the URL has none" style="width:15rem">
+      <button class="act" id="btn-add">Add</button>
+    </div>
+    <div id="addmsg" style="margin-bottom:1.5rem"></div>
+
+    <h2>Find an employer's board</h2>
+    <p class="hint">Reads the board token off their own careers page rather
+      than guessing it. Tokens are rarely the company name.</p>
+    <div class="bar">
+      <input id="disc-domain" placeholder="vectra.ai" style="width:16rem">
+      <input id="disc-name" placeholder="name to record (optional)" style="width:15rem">
+      <button class="act" id="btn-discover">Look</button>
+      <button class="act primary" id="btn-discover-add">Look and add</button>
+    </div>
+
+    <h2 style="margin-top:1.5rem">Email a digest</h2>
+    <p class="hint">Needs RESEND_API_KEY and RESEND_FROM in <code>.env</code>.</p>
+    <div class="bar">
+      <input id="dig-email" type="email" placeholder="you@example.com" style="width:18rem">
+      <label style="font-size:.85rem"><input type="checkbox" id="dig-all"> everything, not just new</label>
+      <label style="font-size:.85rem"><input type="checkbox" id="dig-csv"> attach CSV</label>
+      <button class="act" id="btn-digest">Send</button>
+    </div>
+    <div class="log" id="toolslog" style="height:14rem"><span class="dim">Output appears here.</span></div>
+  </section>
+
+  <section id="view-ai" hidden>
+    <h2>AI reader</h2>
+    <p class="hint">A model reads the full advert against your résumé and gives
+      its own verdict beside the match score, and can read posting pages that
+      do not say plainly whether the job is still open. It never hides a job post.
+      Local models cost nothing; the others spend tokens on your key.</p>
+
+    <div class="field"><label>Provider</label>
+      <div class="seg" id="ai-provider"></div></div>
+
+    <div class="field" id="ai-ollama-row"><label>Ollama address</label>
+      <input id="ai-ollama" style="width:20rem" spellcheck="false"></div>
+
+    <div class="field" id="ai-key-row"><label>API key</label>
+      <div class="bar" style="margin:0">
+        <input id="ai-key" type="password" autocomplete="off" spellcheck="false"
+          placeholder="paste the key" style="width:22rem">
+        <button class="act" id="ai-key-hold">Hold in memory</button>
+        <span id="ai-key-state"></span>
+      </div>
+      <div class="hint">Kept only in this server's memory and never written to the
+        config, the database, a log, or sent back to this page. Forgotten when
+        you stop jobdork, when you click Forget, or a minute after the last
+        dashboard tab closes.</div></div>
+
+    <div class="field"><label>Model</label>
+      <div class="bar" style="margin:0">
+        <input id="ai-model" list="ai-models" style="width:22rem" spellcheck="false"
+          placeholder="choose or type a model name">
+        <datalist id="ai-models"></datalist>
+        <button class="act" id="ai-load">Load models</button>
+        <span id="ai-load-msg" class="hint"></span>
+      </div></div>
+
+    <div class="field"><label>When to use it</label>
+      <label class="check"><input type="checkbox" id="ai-on-scan"> After each scan,
+        judge the top <input id="ai-top" type="number" min="1" max="500"
+        style="width:4.5rem"> job posts not yet judged</label>
+      <label class="check"><input type="checkbox" id="ai-pages"> When checking
+        postings, read pages that do not say whether the job is open</label>
+      <label class="check"><input type="checkbox" id="ai-guard"> Check each
+        verdict and draft for claims your résumé and the advert do not
+        support</label>
+      <div class="hint">Judging needs a résumé and at least 200 characters of
+        advert. A 26B local model takes about a minute per job post, and the
+        check adds two more calls to each.</div></div>
+
+    <div class="bar">
+      <button class="act primary" id="ai-save">Save</button>
+      <button class="act" id="ai-test">Save and test</button>
+      <span id="ai-msg"></span>
+    </div>
+  </section>
+
+  <section id="view-settings" hidden>
+    <h2>What you are looking for</h2>
+    <div id="cfgform"></div>
+    <div class="bar">
+      <button class="act primary" id="save">Save</button>
+      <span id="savemsg"></span>
+    </div>
+    <p class="hint">Written to your config file. API keys are never stored
+      here; they live in <code>.env</code>.</p>
+  </section>
+
+  <section id="view-resume" hidden>
+    <h2>Résumé</h2>
+    <p class="hint">Used to rank job posts by skill overlap, offline and free. It
+      is also what every drafted document is built from. Without one, a CV
+      would be inventing a career rather than tailoring one.</p>
+    <div class="bar">
+      <input type="file" id="resume-file" accept=".pdf,.docx,.md,.txt">
+      <button class="act primary" id="btn-upload">Upload</button>
+      <span id="resumemsg"></span>
+    </div>
+    <div id="resumeinfo"></div>
+  </section>
+
+  <section id="view-sources" hidden>
+    <h2>Sources</h2>
+    <div id="sourceinfo"><p class="empty">Loading…</p></div>
+  </section>
+</main>
+</div>
+
+<dialog id="detail"><div class="dlg-head" id="dlg-head"></div>
+  <div class="dlg-body" id="dlg-body"></div></dialog>
+
+<script>
+const STATUSES = __STATUSES__, COLOURS = __COLOURS__, MODES = __WORK_MODES__;
+const TOKEN = new URLSearchParams(location.search).get('t') || '';
+if (TOKEN) history.replaceState(null, '', location.pathname);
+const api = (p, o = {}) => fetch(p, {...o,
+  headers: {...(o.headers || {}), 'X-Jobdork-Token': TOKEN}});
+
+let roles = [], cfg = null, detail = null, detailTab = 'advert', hasClaude = false;
+let aiLabel = '';
+const $ = id => document.getElementById(id);
+// At or below this, an advert is a teaser: dealbreakers and fit have almost
+// nothing to read. Adzuna's cap is 500.
+const THIN_ADVERT = 600;
+// The score is a sum, and fit is the part of it that came from the advert
+// matching your résumé. Shown on its own so a 100 made of title, distance and
+// salary is not mistaken for a 100 made of skills.
+// Hover or focus either badge for how its number was reached. The parts come
+// from screening (roles.score_parts); a role not screened since they were
+// introduced has none, and says how to get them.
+const pts = n => (n > 0 ? '+' : n < 0 ? '−' : '') +
+  (Number.isInteger(Math.abs(n)) ? Math.abs(n) : Math.abs(n).toFixed(1));
+const NO_PARTS = `<p class="why">Scored before explanations were kept.
+  Tools → <b>Re-apply filters</b> fills this in.</p>`;
+
+function matchTag(score, parts) {
+  const rows = (parts || []).map(p => `<tr>
+    <td><span class="part">${esc(p.part)}</span><span class="why">${esc(p.why)}</span></td>
+    <td class="pts">${pts(p.points)}</td></tr>`).join('');
+  const tip = rows
+    ? `<table>${rows}<tfoot><tr><td>match</td><td class="pts">${score ?? '-'}</td></tr></tfoot></table>`
+    : NO_PARTS;
+  return `<span class="badge match" tabindex="0"><span class="k">match</span>
+    <span class="v">${score ?? '-'}</span>
+    <span class="tip"><h4>Why ${score ?? '-'}: every rule, added up</h4>${tip}</span></span>`;
+}
+
+function fitTag(fit, parts) {
+  const p = (parts || []).find(x => x.part === 'résumé fit');
+  const chips = (list, cls) => (list || []).length
+    ? `<div class="skills">${list.map(s => `<span class="sk ${cls}">${esc(s)}</span>`).join('')}</div>` : '';
+  const tip = p
+    ? `<p class="why" style="margin:0 0 .45rem">${esc(p.why)}</p>
+       ${(p.has || []).length ? '<b>On your résumé</b>' + chips(p.has, 'has') : ''}
+       ${(p.wants || []).length ? '<b>Asked for, not on your résumé</b>' + chips(p.wants, 'wants') : ''}`
+    : NO_PARTS;
+  return `<span class="badge fit" tabindex="0"><span class="k">fit</span>
+    <span class="v">${fit ?? '-'}</span><span class="of">/ 25</span>
+    <span class="tip"><h4>Résumé fit: the advert's skills you have</h4>${tip}</span></span>`;
+}
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const form = o => new URLSearchParams(o);
+
+document.querySelectorAll('nav button[data-view]').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('nav button[data-view]').forEach(x =>
+      x.classList.toggle('on', x === b));
+    ['roles','scan','tools','settings','resume','sources','ai'].forEach(v =>
+      $('view-' + v).hidden = v !== b.dataset.view);
+    if (b.dataset.view === 'settings') drawConfig();
+    if (b.dataset.view === 'sources') drawSources();
+    if (b.dataset.view === 'resume') drawResume();
+    if (b.dataset.view === 'ai') drawAI();
+    if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); }
+    if (b.dataset.view === 'tools') drawReview();
+  };
+});
+
+// ── roles ────────────────────────────────────────────────────────────────────
+$('status').innerHTML = '<option value="">any status</option>' +
+  STATUSES.map(s => `<option value="${s}">${s}</option>`).join('');
+
+async function loadRoles() {
+  const r = await api(`/api/roles?scope=${$('scope').value}` +
+                      `&status=${encodeURIComponent($('status').value)}`);
+  if (!r.ok) { $('list').innerHTML = `<p class="empty">${esc(await r.text())}</p>`; return; }
+  const d = await r.json();
+  roles = d.roles; drawRoles(d);
+}
+
+function drawRoles(d) {
+  const q = $('q').value.toLowerCase();
+  const shown = roles.filter(r => !q ||
+    (r.title + ' ' + r.company).toLowerCase().includes(q));
+  // Copies of one job are one post (grouping.py); say how many were folded in.
+  const grouped = roles.reduce((t, r) => t + Math.max(0, (r.copies || 1) - 1), 0);
+  $('count').textContent = `${shown.length} of ${roles.length}` +
+    (d && d.settled ? ` · ${d.settled} settled and hidden` : '') +
+    (grouped ? ` · ${grouped} duplicates grouped` : '');
+  const fresh = roles.filter(r => r.status === 'new').length;
+  $('nav-new').hidden = !fresh;
+  $('nav-new').textContent = fresh > 999 ? '999+' : fresh;
+  $('list').innerHTML = shown.length ? shown.map(card).join('')
+    : '<p class="empty">Nothing matches.</p>';
+}
+
+function card(r) {
+  const colour = COLOURS[r.status] || '#6b7280';
+  const meta = [r.company, r.location, r.distance, r.work_mode, r.salary,
+                r.platform, r.first_seen ? 'first seen ' + r.first_seen : ''];
+  // Dealbreakers and fit scoring both read the advert body; this number is
+  // the difference between a screened role and a guess.
+  const thin = r.advert_chars && r.advert_chars <= THIN_ADVERT
+    ? `<span class="thin">advert is only ${r.advert_chars} chars, too short to screen</span>` : '';
+  const flags = (r.flags || []).map(f => `<span class="flag">${esc(f)}</span>`).join('');
+  const opts = STATUSES.map(s =>
+    `<option value="${s}"${s === r.status ? ' selected' : ''}>${s}</option>`).join('');
+  return `<div class="role" id="r-${r.uid}">
+    <div class="head">
+      ${matchTag(r.score, r.parts)}
+      ${fitTag(r.fit, r.parts)}
+      ${aiTag(r.ai)}
+      <span class="title" onclick="openRole('${r.uid}')">${esc(r.title)}</span>
+      <span class="pill" style="background:${colour}">${esc(r.status)}</span>
+      <span class="uid">${r.uid}</span>
+      ${r.copies > 1 ? `<span class="copies" title="Posted in ${r.copies} places. Open it to see every link.">+${r.copies - 1} ${r.copies === 2 ? 'copy' : 'copies'}</span>` : ''}
+    </div>
+    <div class="meta">${listingTag(r.listing)}${meta.filter(Boolean).map(m => `<span>${esc(m)}</span>`).join('')}${thin}</div>
+    ${flags ? `<div class="flags">${flags}</div>` : ''}
+    <div class="acts">
+      <button class="act" onclick="openRole('${r.uid}')">Open</button>
+      <button class="act" onclick="act('${r.uid}','interested')">Interested</button>
+      <button class="act" onclick="apply('${r.uid}','${esc(r.url)}')">Apply</button>
+      <button class="act" onclick="act('${r.uid}','skipped')">Skip</button>
+      <select onchange="act('${r.uid}', this.value)">${opts}</select>
+      <input class="note" value="${esc(r.note)}" placeholder="note (Enter saves)"
+        onkeydown="if(event.key==='Enter')act('${r.uid}', null, this.value)">
+    </div></div>`;
+}
+
+async function act(uid, status, note) {
+  const el = $('r-' + uid); if (el) el.classList.add('busy');
+  const body = form({uid}); if (status) body.set('status', status);
+  if (note) body.set('note', note);
+  const r = await api('/api/action', {method: 'POST', body});
+  if (!r.ok) { alert('Not saved: ' + await r.text()); if (el) el.classList.remove('busy'); return; }
+  await loadRoles();
+  if (detail && detail.uid === uid && $('detail').open) openRole(uid, detailTab);
+}
+
+// The posting is opened and then recorded. Marking applied without opening it
+// would be recording something that did not happen.
+function apply(uid, url) { window.open(url, '_blank', 'noopener'); act(uid, 'applied'); }
+
+$('scope').onchange = loadRoles; $('status').onchange = loadRoles;
+$('q').oninput = () => drawRoles();
+
+async function saveAdvert(uid) {
+  const text = $('paste-text').value.trim();
+  const msg = $('paste-msg');
+  if (!text) { msg.className = 'err'; msg.textContent = 'Nothing pasted.'; return; }
+  msg.className = 'hint'; msg.textContent = 'Saving…';
+  const r = await api('/api/advert', {method: 'POST', body: form({uid, text})});
+  if (!r.ok) { msg.className = 'err'; msg.textContent = 'Not saved: ' + await r.text(); return; }
+  const d = await r.json();
+  await loadRoles();
+  await openRole(uid, 'advert');
+  // The dialog was redrawn, so the message goes in the new one.
+  const m = $('paste-msg');
+  if (m) {
+    m.className = d.dropped ? 'err' : 'saved';
+    m.textContent = d.dropped
+      ? `Saved, and it no longer passes: ${d.dropped}. Marked skipped.`
+      : `Saved ${d.advert_chars.toLocaleString()} characters. Score ${Math.round(d.score)}, fit ${d.fit == null ? '-' : Math.round(d.fit)}/25.`;
+    m.closest('details').open = true;
+  }
+}
+
+// ── role detail ──────────────────────────────────────────────────────────────
+async function openRole(uid, tab = 'advert') {
+  const r = await api('/api/role?uid=' + uid);
+  if (!r.ok) { alert(await r.text()); return; }
+  detail = await r.json();
+  // Opening a role IS viewing it. Without recording that, a role you have read
+  // and not decided on looks identical to one you never opened.
+  if (detail.status === 'new') act(uid, 'viewed');
+  // A tab is an artifact kind; fall back to the advert if this role lacks it.
+  const kinds = (detail.artifacts || []).map(a => a.kind);
+  drawDetail(kinds.includes(tab) ? tab : 'advert');
+  // act() reopens the role to redraw it; showModal on an open dialog throws.
+  if (!$('detail').open) $('detail').showModal();
+}
+
+const TAB_LABEL = {cover_letter: 'cover letter', resume_review: 'résumé review', cv: 'CV'};
+const tabLabel = t => TAB_LABEL[t] || t.replace('_', ' ');
+
+function drawDetail(tab) {
+  const d = detail;
+  detailTab = tab;
+  const gen = k => `<button class="act spend" ${hasClaude ? '' : 'disabled'}
+    onclick="generate('${d.uid}','${k}')">${k.replace('_',' ')}</button>`;
+  $('dlg-head').innerHTML = `
+    ${matchTag(d.score == null ? null : Math.round(d.score), d.parts)}
+    ${fitTag(d.fit == null ? null : Math.round(d.fit), d.parts)}
+    ${aiTag(d.ai)}
+    ${d.ai ? fbButtons(d.ai.ai_output_id, d.ai.feedback, 'Was the AI verdict useful?', true) : ''}
+    <strong>${esc(d.title)}</strong>
+    <span class="pill" style="background:${COLOURS[d.status] || '#6b7280'}">${esc(d.status)}</span>
+    <span class="uid">${d.uid}</span>
+    <span style="margin-left:auto">
+      <a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer"
+        class="act" style="text-decoration:none">Open posting</a>
+      <button class="act" onclick="document.getElementById('detail').close()">Close</button>
+    </span>
+    <div class="meta" style="width:100%">${
+      listingTag(d.listing, true) + [d.company, d.location, d.work_mode, d.platform,
+       `advert ${d.advert_chars} chars`].filter(Boolean)
+        .map(m => `<span>${esc(m)}</span>`).join('')}</div>
+    ${(d.copies || []).length ? `<div class="alsoat"><span class="hint">Also posted at</span>${
+      d.copies.map(c => `<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer"
+        title="${esc(c.note || 'not checked yet')} · last listed ${esc(c.last_seen)} · advert ${c.advert_chars} chars">${
+        esc(c.platform)}${c.listing ? ' ' + listingTag({state: c.listing, note: c.note, checked_at: ''}, true) : ''}</a>`).join('')
+    }<span class="hint">A status set here applies to every copy.</span></div>` : ''}
+    <div class="statusbar">${
+      // new and viewed are recorded for you; these are the ones you decide.
+      STATUSES.filter(s => s !== 'new' && s !== 'viewed').map(s => s === d.status
+        ? `<button class="act cur" style="background:${COLOURS[s] || '#6b7280'};border-color:${COLOURS[s] || '#6b7280'}" disabled>${s}</button>`
+        : `<button class="act" onclick="act('${d.uid}','${s}')">${s}</button>`).join('')}</div>`;
+
+  const tabs = ['advert', ...(d.artifacts || []).map(a => a.kind)];
+  const uniq = [...new Set(tabs)];
+  let body = `<div class="tabs">${uniq.map(t =>
+      `<button class="${t === tab ? 'on' : ''}" onclick="drawDetail('${t}')">${esc(tabLabel(t))}</button>`).join('')}
+    </div>
+    <div class="bar">${!hasClaude
+      ? '<span class="hint">The claude CLI is not on PATH, so drafting is unavailable. Everything else works.</span>'
+      : 'Draft: ' + ['screen','cv','cover_letter'].map(gen).join(' ')}</div>
+    <div class="bar">
+      <button class="act spend" onclick="roleJob('judge','${d.uid}')"
+        title="${esc(aiLabel || 'set up a model on the AI page')}">${d.ai ? 'Ask AI again' : 'Ask AI'}</button>
+      <button class="act spend" onclick="roleJob('letter','${d.uid}','cover_letter')"
+        title="${esc(aiLabel ? `${aiLabel} writes it from your résumé and this advert, then checks its claims` : 'set up a model on the AI page')}">Write cover letter (AI)</button>
+      <button class="act spend" onclick="roleJob('review','${d.uid}','resume_review')"
+        title="${esc(aiLabel ? `${aiLabel} reviews your résumé against this advert` : 'set up a model on the AI page')}">Review résumé for this post</button>
+      <button class="act" onclick="roleJob('check','${d.uid}')">Check if still open</button>
+      <span id="rolejob" class="hint"></span>
+    </div>`;
+
+  if (tab === 'advert') {
+    body += (d.flags || []).length
+      ? `<div class="flags" style="margin-bottom:.6rem">${
+          d.flags.map(f => `<span class="flag">${esc(f)}</span>`).join('')}</div>` : '';
+    // Some sources cannot be fetched whole (Adzuna refuses scripts), but the
+    // person reading the posting in a browser can copy it.
+    const thinAd = d.advert_chars <= THIN_ADVERT;
+    body += `<details class="paste"${thinAd ? ' open' : ''}>
+      <summary>${thinAd
+        ? `Only ${d.advert_chars} characters stored. Paste the full advert from the posting.`
+        : 'Replace the advert with pasted text'}</summary>
+      <textarea id="paste-text" placeholder="Open the posting, select all of the job description, copy, paste here"></textarea>
+      <button class="act primary" onclick="saveAdvert('${d.uid}')">Save and re-screen</button>
+      <span id="paste-msg"></span>
+    </details>`;
+    body += `<div class="advert">${esc(d.description) || '<em>No advert stored.</em>'}</div>`;
+    $('dlg-body').innerHTML = body;
+  } else {
+    const art = (d.artifacts || []).find(a => a.kind === tab);
+    $('dlg-body').innerHTML = body + '<p class="empty">Loading…</p>';
+    api('/api/artifact?id=' + art.id).then(async r => {
+      if (!r.ok) { $('dlg-body').innerHTML = body + `<p class="err">${esc(await r.text())}</p>`; return; }
+      const doc = await r.json();
+      const gates = Object.entries(doc.gates || {}).map(([n, g]) =>
+        `<div class="gate ${g.passed ? 'pass' : 'fail'}">${g.passed ? 'ok' : 'READ'}: ${esc(n)}, ${esc(g.detail)}${
+          !g.passed && (g.items || []).length
+            ? `<ul>${g.items.slice(0, 12).map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}</div>`).join('');
+      $('dlg-body').innerHTML = body +
+        (gates ? `<div style="margin-bottom:.75rem">${gates}</div>` : '') +
+        (doc.output ? `<div style="margin-bottom:.6rem">${fbButtons(doc.output.id, doc.output.feedback,
+          `Was this ${tabLabel(tab)} useful?`)}</div>` : '') +
+        `<div class="hint" style="margin-bottom:.5rem">${esc(doc.path)}</div>` +
+        (tab === 'resume_review' ? `<div class="advert md-doc">${mdLite(doc.text)}</div>`
+                                 : `<div class="advert">${esc(doc.text)}</div>`);
+    });
+  }
+}
+
+async function generate(uid, kind) {
+  const r = await api('/api/generate', {method: 'POST', body: form({uid, kind})});
+  if (!r.ok) { alert(await r.text()); return; }
+  $('detail').close();
+  document.querySelector('nav button[data-view="scan"]').click();
+  logLine(`${kind.replace('_',' ')} started (this spends tokens)`, 'dim');
+}
+
+// ── jobs and the live log ────────────────────────────────────────────────────
+function logLine(text, cls, target) {
+  const el = $(target || 'scanmsg');
+  const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  el.insertAdjacentHTML('beforeend', `<div class="${cls || ''}">${esc(text)}</div>`);
+  if (bottom) el.scrollTop = el.scrollHeight;
+}
+
+async function startJob(path, body, logTarget) {
+  const r = await api(path, {method: 'POST', body: form(body || {})});
+  const text = await r.text();
+  if (!r.ok) { logLine(text, 'bad', logTarget); return false; }
+  return true;
+}
+
+// A job started here shows on the dashboard below like any other; only a
+// refusal (another job running, no model set up) is reported beside the
+// buttons.
+async function runJob(path) {
+  $('scanmsg').innerHTML = '';
+  actPick = 0;
+  if (await startJob(path, {}, 'scanmsg')) pollActivity();
+}
+$('run').onclick = () => runJob('/api/scan');
+$('btn-enrich').onclick = () => runJob('/api/enrich');
+$('btn-rescreen').onclick = () => runJob('/api/rescreen');
+$('btn-check').onclick = () => runJob('/api/check');
+$('btn-judge').onclick = () => runJob('/api/judge');
+
+// One role, from its dialog. Output goes to the Dashboard; the dialog redraws
+// when the job finishes.
+async function roleJob(which, uid, tab) {
+  $('rolejob').textContent = {judge: 'AI is reading…', check: 'checking…',
+    letter: 'AI is writing the letter; it opens here when done…',
+    review: 'AI is reviewing your résumé; it opens here when done…'}[which];
+  // The dialog redraws when the run finishes; land on what it made.
+  if (tab) detailTab = tab;
+  const r = await api('/api/' + which, {method: 'POST', body: form({uid, force: '1'})});
+  if (!r.ok) $('rolejob').textContent = await r.text();
+}
+// Headings and bullet lists, which is all a review uses. Escaped first, so
+// nothing in the text can become markup.
+function mdLite(text) {
+  let html = '', inList = false;
+  for (const raw of esc(text).split('\n')) {
+    const line = raw.trimEnd(), h = line.match(/^(#{1,3}) (.*)$/), li = line.match(/^- (.*)$/);
+    if (!li && inList) { html += '</ul>'; inList = false; }
+    if (h) html += `<h4 class="md h${h[1].length}">${h[2]}</h4>`;
+    else if (li) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${li[1]}</li>`; }
+    else if (line) html += `<p>${line}</p>`;
+  }
+  return html + (inList ? '</ul>' : '');
+}
+
+// A general résumé review has no job post and no file: it is read back from
+// ai_outputs, the newest one first.
+let reviewPending = false;
+async function drawReview() {
+  const out = $('review-out');
+  const r = await api('/api/review/latest');
+  if (!r.ok) { out.innerHTML = `<p class="err">${esc(await r.text())}</p>`; return; }
+  const o = await r.json();
+  if (!o.id) { out.innerHTML = '<p class="hint">No review yet.</p>'; return; }
+  const g = o.guard || {};
+  const check = g.checked
+    ? `${g.claims - g.unsupported} of ${g.claims} claims found in your résumé`
+    : `claims not checked${g.error ? ': ' + g.error : ''}`;
+  out.innerHTML = `<div class="bar" style="margin-bottom:.4rem">
+      <span class="hint" style="margin:0">${esc(o.model)} · ${esc(o.created_at.replace('T', ' '))} · ${esc(check)}</span>
+      <span style="margin-left:auto">${fbButtons(o.id, o.feedback, 'Was this review useful?')}</span></div>
+    ${(g.flagged || []).length ? `<div class="gate fail">READ: not in your résumé<ul>${
+      g.flagged.map(f => `<li>${esc(f.claim)}</li>`).join('')}</ul></div>` : ''}
+    <div class="advert md-doc">${mdLite(o.text)}</div>`;
+}
+$('btn-review').onclick = async () => {
+  $('toolslog').innerHTML = '';
+  reviewPending = true;
+  $('review-state').textContent = 'reading your résumé… progress is in the log at the bottom';
+  if (!await startJob('/api/review', {}, 'toolslog')) {
+    reviewPending = false; $('review-state').textContent = '';
+  }
+};
+
+$('btn-discover').onclick = () => { $('toolslog').innerHTML = '';
+  startJob('/api/discover', {employer: $('disc-domain').value}, 'toolslog'); };
+$('btn-discover-add').onclick = () => { $('toolslog').innerHTML = '';
+  startJob('/api/discover', {employer: $('disc-domain').value, add: '1',
+                             name: $('disc-name').value}, 'toolslog'); };
+$('btn-digest').onclick = () => { $('toolslog').innerHTML = '';
+  startJob('/api/digest', {email: $('dig-email').value,
+    all: $('dig-all').checked ? '1' : '', csv: $('dig-csv').checked ? '1' : ''},
+    'toolslog'); };
+
+$('btn-add').onclick = async () => {
+  const r = await api('/api/add', {method: 'POST',
+    body: form({url: $('add-url').value, token: $('add-token').value})});
+  const msg = $('addmsg');
+  if (!r.ok) { msg.innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
+  const d = await r.json();
+  msg.innerHTML = `<span class="saved">${d.added ? 'added' : 'updated'}</span> ` +
+    `${esc(d.title)} at ${esc(d.company)}` +
+    (d.passes_filters ? '' :
+      `<div class="hint">Does not pass your filters (${esc(d.why_not)}). ` +
+      `Stored anyway because you asked for it.</div>`);
+  loadRoles();
+};
+
+function connect() {
+  // EventSource cannot set headers, so the stream carries the token in the
+  // query. It never leaves this machine.
+  const s = new EventSource(`/api/events?t=${encodeURIComponent(TOKEN)}`);
+  // Silent while connected. Shown only when the server has gone away, which
+  // is the one time it matters: everything you click will fail until it's back.
+  s.onopen = () => { $('net').hidden = true; };
+  s.onerror = () => {
+    $('net-text').textContent = 'Server stopped. Reconnecting…';
+    $('net').hidden = false;
+  };
+  s.onmessage = ev => {
+    const e = JSON.parse(ev.data);
+    // Tools keeps its own log for discover and digest. Everything else is
+    // shown by the dashboard, which reads the same lines from the database —
+    // so an event here only asks it to refresh now rather than in 2s.
+    const tools = !$('view-tools').hidden;
+    if (tools && e.kind === 'progress') logLine('  ' + e.text, '', 'toolslog');
+    if (e.kind === 'progress') return;
+    if (tools) logLine(e.text, {status: 'dim', done: 'ok', error: 'bad'}[e.kind], 'toolslog');
+    refreshState(); pollActivity();
+    if (e.kind === 'done') { loadRoles(); cfg = null; redrawDetail(); loadMetrics(); }
+    if (reviewPending && (e.kind === 'done' || e.kind === 'error')) {
+      reviewPending = false; $('review-state').textContent = '';
+      if (e.kind === 'done') drawReview();
+    }
+    if (e.kind === 'error') {
+      if (!tools) logLine(e.text, 'bad', 'scanmsg');
+      if ($('rolejob')) $('rolejob').textContent = e.text;
+    }
+  };
+}
+
+async function refreshState() {
+  const s = await (await api('/api/state')).json();
+  hasClaude = s.claude;
+  aiLabel = s.ai || '';
+  $('aihint').textContent = s.ai_problem ? `AI: ${s.ai_problem}` : `AI: ${s.ai}`;
+  const busy = s.busy;
+  ['run','btn-enrich','btn-rescreen','btn-check','btn-judge','btn-discover','btn-discover-add','btn-digest','btn-review']
+    .forEach(id => { if ($(id)) $(id).disabled = busy; });
+  $('run').textContent = busy && s.job === 'scan' ? 'Scanning…' : 'Run a scan';
+  $('scanstate').textContent = busy ? `${s.job} running` : '';
+}
+
+// ── activity ─────────────────────────────────────────────────────────────────
+// Reads /api/activity, which reads the database, so jobs started in the
+// terminal show here too. Polls fast while visible, slowly otherwise (only
+// to light the nav dot).
+let actPick = 0, actTimer = null;
+
+const fmtDur = s => s == null ? '-' : s < 60 ? `${Math.round(s)}s`
+  : s < 3600 ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`
+  : `${Math.floor(s / 3600)}h ${Math.floor(s % 3600 / 60)}m`;
+const n = x => Number(x || 0).toLocaleString();
+const secs = s => s < 1 ? `${Math.round(s * 1000)} ms` : `${s.toFixed(1)} s`;
+// Status colors carry meaning, and every one is paired with its label.
+const STATE_INK = {closed: 'var(--bad)', failed: 'var(--bad)', weak: 'var(--bad)',
+  unlisted: 'var(--warn)', stale: 'var(--warn)', possible: 'var(--warn)', 'no longer matching': 'var(--warn)',
+  open: 'var(--ok)', strong: 'var(--ok)', improved: 'var(--ok)', kept: 'var(--accent)'};
+const LABEL = {unlisted: 'not in latest results', stale: 'Adzuna, scan too old',
+               listed: 'listed (Adzuna)', open: 'still open'};
+
+function stack(counts) {
+  const entries = Object.entries(counts || {}).filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
+  const sum = entries.reduce((t, [, v]) => t + v, 0);
+  if (!sum) return '<p class="hint">Nothing counted yet.</p>';
+  const ink = k => STATE_INK[k] || 'var(--muted)';
+  return `<div class="stack" role="img" aria-label="${esc(entries.map(([k, v]) => `${k} ${v}`).join(', '))}">${
+    entries.map(([k, v]) => `<span style="flex:${v};background:${ink(k)}" title="${esc(LABEL[k] || k)}: ${n(v)}"></span>`).join('')}</div>
+    <div class="legend">${entries.map(([k, v]) =>
+      `<span><i style="background:${ink(k)}"></i>${esc(LABEL[k] || k)} <b>${n(v)}</b></span>`).join('')}</div>`;
+}
+
+function table(cols, rows, empty) {
+  if (!rows.length) return `<p class="hint">${empty}</p>`;
+  return `<div class="tbl-wrap"><table class="data"><thead><tr>${
+    cols.map(c => `<th class="${c.num ? 'n' : ''}">${c.label}</th>`).join('')}</tr></thead><tbody>${
+    rows.map(r => `<tr>${cols.map(c => `<td class="${c.num ? 'n' : ''}">${c.get(r)}</td>`).join('')}</tr>`).join('')
+  }</tbody></table></div>`;
+}
+
+async function pollActivity() {
+  clearTimeout(actTimer);
+  const visible = !$('view-scan').hidden;
+  try {
+    const r = await api('/api/activity' + (actPick ? `?id=${actPick}` : ''));
+    if (r.ok) {
+      const d = await r.json();
+      $('act-dot').hidden = !d.running.length;
+      $('act-dot').classList.toggle('live', d.running.length > 0);
+      if (visible) drawActivity(d);
+    }
+  } catch (e) { /* the server is restarting; try again next tick */ }
+  actTimer = setTimeout(pollActivity, visible ? 2000 : 10000);
+}
+
+function drawActivity(d) {
+  const j = d.chosen;
+  $('act-updated').textContent = 'updated ' + new Date().toLocaleTimeString();
+  if (!j) {
+    $('act-head').innerHTML = '<p class="empty">No run recorded yet. Run a scan or a check.</p>';
+    ['act-tiles', 'act-progress', 'act-counts', 'act-hosts', 'act-ai', 'act-log', 'act-history']
+      .forEach(id => $(id).innerHTML = '');
+  } else {
+    const state = j.health === 'ok' ? j.state : j.health;
+    $('act-head').innerHTML = `<div class="jobhead">
+      <strong>${esc(j.job)}</strong><span class="state ${esc(state)}">${esc(state)}</span>
+      <span class="hint">from the ${esc(j.origin)}${j.pid ? ' · pid ' + j.pid : ''} · started ${esc(j.started_at.replace('T', ' '))}</span></div>
+      ${j.health === 'died' ? '<p class="err">Its process ended before the job finished: it was stopped or it crashed.</p>' : ''}
+      ${j.health === 'quiet' ? `<p class="warnc">No heartbeat for ${fmtDur(j.heartbeat_age)} ; it is busy or stuck.</p>` : ''}
+      <p class="hint" style="margin:.3rem 0 0">${esc(j.state === 'running' ? j.last_line : (j.summary || j.last_line))}</p>`;
+
+    const hosts = Object.entries(j.hosts || {});
+    const req = hosts.reduce((t, [, h]) => t + h.requests, 0);
+    const limited = hosts.reduce((t, [, h]) => t + h.limited, 0);
+    const ai = Object.values(j.ai || {});
+    const calls = ai.reduce((t, m) => t + m.calls, 0);
+    const aiSecs = ai.reduce((t, m) => t + m.seconds, 0);
+    const pct = j.total ? Math.min(100, Math.round(j.done / j.total * 100)) : null;
+    const tile = (k, v, s) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || '&nbsp;'}</div></div>`;
+    $('act-tiles').innerHTML =
+      tile('Progress', j.total ? `${n(j.done)} / ${n(j.total)}` : n(j.done), pct == null ? 'total unknown' : `${pct}%`) +
+      tile('Rate', j.rate_per_min ? `${j.rate_per_min}/min` : '-', 'items per minute') +
+      tile(j.state === 'running' ? 'Time left' : 'Took', j.state === 'running' ? fmtDur(j.eta) : fmtDur(j.elapsed),
+           j.state === 'running' ? `running ${fmtDur(j.elapsed)}` : '') +
+      tile('Requests', n(req), limited ? `<span class="warnc">${n(limited)} rate-limited</span>` : `${hosts.length} hosts`) +
+      tile('AI calls', n(calls), calls ? `avg ${(aiSecs / calls).toFixed(1)}s` : 'none');
+    $('act-progress').innerHTML = j.state === 'running'
+      ? `<div class="pbar ${pct == null ? 'indet' : ''}"><span style="width:${pct ?? 30}%"></span></div>` : '';
+    $('act-counts').innerHTML = Object.keys(j.counters || {}).length ? `<h3>Outcomes</h3>${stack(j.counters)}` : '';
+
+    $('act-hosts').innerHTML = table([
+      {label: 'Host', get: ([h, v]) => esc(h) + (v.blocked ? ' <span class="badc">blocked</span>' : '')},
+      {label: 'Requests', num: 1, get: ([, v]) => n(v.requests)},
+      {label: '2xx/3xx', num: 1, get: ([, v]) => n(v.ok)},
+      {label: '4xx', num: 1, get: ([, v]) => n(v.client)},
+      {label: '429', num: 1, get: ([, v]) => v.limited ? `<span class="warnc">${n(v.limited)}</span>` : '0'},
+      {label: 'Failed', num: 1, get: ([, v]) => v.errors ? `<span class="badc">${n(v.errors)}</span>` : '0'},
+      {label: 'Avg', num: 1, get: ([, v]) => secs(v.seconds / v.requests)},
+      {label: 'Slowest', num: 1, get: ([, v]) => secs(v.slowest)},
+    ], hosts.sort((a, b) => b[1].requests - a[1].requests), 'No requests in this job.');
+
+    $('act-ai').innerHTML = table([
+      {label: 'Model', get: ([m]) => esc(m)},
+      {label: 'Calls', num: 1, get: ([, v]) => n(v.calls)},
+      {label: 'Failed', num: 1, get: ([, v]) => v.failed ? `<span class="badc">${n(v.failed)}</span>` : '0'},
+      {label: 'Avg', num: 1, get: ([, v]) => `${(v.seconds / v.calls).toFixed(1)} s`},
+      {label: 'Slowest', num: 1, get: ([, v]) => `${v.slowest.toFixed(1)} s`},
+    ], Object.entries(j.ai || {}), 'No AI calls in this job.');
+
+    const log = $('act-log');
+    const bottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+    log.innerHTML = d.events.map(e => `<div class="${e.level === 'error' ? 'bad' : ''}"><span class="dim">${esc(e.at.slice(11))}</span> ${esc(e.text)}</div>`).join('')
+      || '<span class="dim">No output recorded.</span>';
+    if (bottom) log.scrollTop = log.scrollHeight;
+  }
+
+  // One line per kind of run, with what went wrong called out. A scan is
+  // read from the scan history, so scans from before run history count.
+  const label = {scan: 'Last scan', check: 'Last check', judge: 'Last AI judging'};
+  $('last-runs').innerHTML = (d.last_runs || []).map(r => `
+    <div class="lastrun ${r.warnings.length ? 'warn' : ''} ${r.id ? 'pick' : ''}"
+      ${r.id ? `onclick="actPick=${r.id};pollActivity()" title="Show this run above"` : ''}>
+      <div class="top"><b>${label[r.kind]}</b><span class="ago" title="${esc(r.when.replace('T', ' '))}">${esc(r.ago || 'never')}</span></div>
+      <div class="sum">${esc(r.summary)}</div>
+      ${r.warnings.length ? `<ul>${r.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+    </div>`).join('');
+
+  const db = d.database;
+  $('act-listing').innerHTML = stack(db.listing_states) +
+    `<p class="hint">${n(db.checked_10m)} postings checked in the last 10 minutes${
+      db.last_checked ? `, latest at ${esc(db.last_checked.slice(11))}` : ''}. Counted from
+      the database, so a check started before this page existed shows here too.</p>`;
+
+  $('act-history').innerHTML = d.recent.length ? `<div class="tbl-wrap"><table class="data"><thead><tr>
+    <th>Job</th><th>From</th><th>Started</th><th class="n">Took</th><th class="n">Done</th><th>State</th><th>Result</th></tr></thead><tbody>${
+    d.recent.map(x => `<tr class="pick ${j && x.id === j.id ? 'on' : ''}" onclick="actPick=${x.id};pollActivity()">
+      <td>${esc(x.job)}</td><td>${esc(x.origin)}</td><td>${esc(x.started_at.replace('T', ' ').slice(5, 16))}</td>
+      <td class="n">${fmtDur(x.elapsed)}</td><td class="n">${n(x.done)}${x.total ? ' / ' + n(x.total) : ''}</td>
+      <td><span class="state ${esc(x.health === 'ok' ? x.state : x.health)}">${esc(x.health === 'ok' ? x.state : x.health)}</span></td>
+      <td class="hint">${esc((x.summary || x.last_line).slice(0, 90))}</td></tr>`).join('')}</tbody></table></div>`
+    : '<p class="hint">Nothing yet.</p>';
+}
+
+// ── feedback ─────────────────────────────────────────────────────────────────
+// Thumbs up or down on one ai_outputs row. Pressing the pressed one clears it.
+// Counted on the Dashboard's feedback chart.
+const THUMB = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v12"/>
+  <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>`;
+const THUMB_DOWN = THUMB.replace('aria-hidden="true"', 'aria-hidden="true" style="transform:scale(1,-1)"');
+
+// `compact` keeps the question for the buttons' titles and screen readers
+// only, where there is no room to print it (beside the AI badge).
+function fbButtons(id, value, question, compact) {
+  if (!id) return '';
+  const what = question ? ` (${question.replace(/\?$/, '')})` : '';
+  return `<span class="fb" data-id="${Number(id)}">${question && !compact ? `<span class="q">${esc(question)}</span>` : ''}
+    <button class="up" title="${esc('Useful' + what)}" aria-label="${esc('Useful' + what)}" aria-pressed="${value === 1}"
+      onclick="rate(this, 1)">${THUMB}</button>
+    <button class="down" title="${esc('Not useful or wrong' + what)}" aria-label="${esc('Not useful or wrong' + what)}"
+      aria-pressed="${value === -1}" onclick="rate(this, -1)">${THUMB_DOWN}</button>
+    <span class="ack" aria-live="polite"></span></span>`;
+}
+
+async function rate(btn, value) {
+  const box = btn.closest('.fb'), ack = box.querySelector('.ack');
+  const next = btn.getAttribute('aria-pressed') === 'true' ? 0 : value;
+  const r = await api('/api/feedback', {method: 'POST',
+    body: form({output_id: box.dataset.id, value: next})});
+  if (!r.ok) { ack.textContent = await r.text(); return; }
+  box.querySelector('.up').setAttribute('aria-pressed', next === 1);
+  box.querySelector('.down').setAttribute('aria-pressed', next === -1);
+  ack.textContent = next ? 'thanks' : 'cleared';
+  setTimeout(() => { ack.textContent = ''; }, 2500);
+  if (detail && detail.ai && detail.ai.ai_output_id == box.dataset.id) detail.ai.feedback = next || null;
+}
+
+// ── metrics ──────────────────────────────────────────────────────────────────
+// /api/metrics over 7, 30 or 90 days. Tool colours follow a fixed order, so a
+// tool keeps its colour whichever tools ran. Every chart has a table view,
+// which is also what makes the light-theme hues under 3:1 legible.
+let mDays = 30, mData = null;
+const mTable = {};
+const pct = x => x == null ? '-' : `${(x * 100).toFixed(x > 0 && x < 0.1 ? 1 : 0)}%`;
+const toolInk = i => `var(--s${i + 1})`;
+const shortDate = d => d.slice(5).replace('-', '/');
+
+async function loadMetrics() {
+  $('metrics').style.opacity = mData ? .55 : 1;          // keep the frame while it reloads
+  try {
+    const r = await api('/api/metrics?days=' + mDays);
+    if (r.ok) mData = await r.json();
+  } catch (e) { /* server restarting; the next refresh tries again */ }
+  $('metrics').style.opacity = 1;
+  if (mData) drawMetrics();
+}
+
+document.querySelectorAll('#m-days button').forEach(b => b.onclick = () => {
+  mDays = Number(b.dataset.days);
+  document.querySelectorAll('#m-days button').forEach(x => x.classList.toggle('on', x === b));
+  loadMetrics();
+});
+document.querySelectorAll('#metrics [data-table]').forEach(b => b.onclick = () => {
+  const id = b.dataset.table;
+  mTable[id] = !mTable[id];
+  b.textContent = mTable[id] ? 'Show as chart' : 'Show as table';
+  drawMetrics();
+});
+let mResize = null;
+window.addEventListener('resize', () => { clearTimeout(mResize);
+  mResize = setTimeout(() => { if (mData && !$('view-scan').hidden) drawMetrics(); }, 150); });
+
+function drawMetrics() {
+  const d = mData, runs = d.runs, calls = d.ai_calls, h = d.hallucination;
+  $('m-since').textContent = `since ${d.since}`;
+  const tile = (k, v, s, tip) => `<div class="tile${tip ? ' has-tip' : ''}"${tip ? ' tabindex="0"' : ''}>
+    <div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || '&nbsp;'}</div>${tip || ''}</div>`;
+  const late = since => since && since > d.since ? ` · recorded from ${since}` : '';
+  const errs = Object.entries(runs.by_state).filter(([, v]) => v).map(([k, v]) => `${v} ${k}`).join(', ');
+  const kinds = h.by_kind.map(k => `<tr><td>${esc(k.label)}</td><td class="pts">${k.checked} of ${k.outputs}</td>
+    <td class="pts">${k.claims ? `${k.unsupported} of ${k.claims}` : '-'}</td><td class="pts">${pct(k.rate)}</td></tr>`).join('');
+  const hTip = `<span class="tip"><h4>Claims not supported by the advert or résumé</h4>
+    ${kinds ? `<table><tr><td></td><td class="pts">checked</td><td class="pts">unsupported</td><td class="pts">rate</td></tr>${kinds}</table>`
+            : '<p class="why">No AI output in this period.</p>'}
+    <div class="meta-line">Each output is split into single claims and each claim is looked up in its
+      sources; a claim only counts as supported when its quote is found there (HalluLens method).
+      Coverage is the share of outputs that were checked at all.</div></span>`;
+  $('m-tiles').innerHTML =
+    tile('Runs', n(runs.total), `in the last ${d.days} days`) +
+    tile('Errored runs', runs.errored ? `<span class="badc">${n(runs.errored)}</span>` : '0',
+         runs.errored ? `${pct(runs.error_rate)} of runs · ${esc(errs)}` : 'none failed') +
+    tile('AI calls', n(calls.total),
+         (calls.failed ? `<span class="badc">${n(calls.failed)} failed</span>` : 'none failed') + late(calls.recorded_since)) +
+    tile('P50 AI latency', calls.p50 == null ? '-' : secs(calls.p50),
+         calls.p95 == null ? 'no calls' : `P95 ${secs(calls.p95)}`) +
+    tile('Hallucination', h.rate == null ? '-' : pct(h.rate),
+         h.outputs ? `${h.unsupported} of ${n(h.claims)} claims · coverage ${pct(h.coverage)}${late(h.recorded_since)}`
+                   : 'no AI output yet', hTip);
+
+  // Runs by tool
+  const used = d.tools.map((t, i) => ({t, i, total: d.per_day.reduce((s, x) => s + x.runs[t], 0)}));
+  $('m-runs-legend').innerHTML = used.map(u =>
+    `<span><i style="background:${toolInk(u.i)}"></i>${esc(u.t)} <b>${n(u.total)}</b></span>`).join('');
+  if (mTable['m-runs']) {
+    const rows = d.per_day.filter(x => d.tools.some(t => x.runs[t])).reverse();
+    $('m-runs').innerHTML = table([{label: 'Day', get: x => esc(x.date)},
+      ...d.tools.map(t => ({label: esc(t), num: 1, get: x => n(x.runs[t])})),
+      {label: 'Total', num: 1, get: x => n(d.tools.reduce((s, t) => s + x.runs[t], 0))}],
+      rows, 'No runs in this period.') + (rows.length ? '<p class="hint">Days with no runs are left out.</p>' : '');
+  } else if (!runs.total) {
+    $('m-runs').innerHTML = '<div class="none">No runs in this period.</div>';
+  } else {
+    columns($('m-runs'), d.per_day, {
+      up: x => d.tools.map((t, i) => ({v: x.runs[t], ink: toolInk(i), label: t})),
+      tip: x => ({head: x.date, rows: d.tools.map((t, i) => ({ink: toolInk(i), v: x.runs[t], label: t}))
+                    .filter(r => r.v), foot: `${d.tools.reduce((s, t) => s + x.runs[t], 0)} runs`})});
+  }
+
+  // Feedback
+  const fb = d.feedback;
+  $('m-fb-sub').textContent = fb.approval == null ? '' : `${pct(fb.approval)} approval`;
+  $('m-fb-legend').innerHTML =
+    `<span><i style="background:var(--fb-up)"></i>thumbs up <b>${n(fb.up)}</b></span>
+     <span><i style="background:var(--fb-down)"></i>thumbs down <b>${n(fb.down)}</b></span>`;
+  if (mTable['m-fb']) {
+    const rows = d.per_day.filter(x => x.up || x.down).reverse();
+    $('m-fb').innerHTML = table([{label: 'Day written', get: x => esc(x.date)},
+      {label: 'Up', num: 1, get: x => n(x.up)}, {label: 'Down', num: 1, get: x => n(x.down)},
+      {label: 'Approval', num: 1, get: x => pct(x.up / (x.up + x.down))}], rows, 'No ratings in this period.');
+  } else if (!fb.up && !fb.down) {
+    $('m-fb').innerHTML = `<div class="none">No ratings in this period. Rate an AI verdict,
+      letter or review with thumbs up or down and it is counted here, on the day it was written.</div>`;
+  } else {
+    columns($('m-fb'), d.per_day, {
+      up: x => [{v: x.up, ink: 'var(--fb-up)', label: 'thumbs up'}],
+      down: x => [{v: x.down, ink: 'var(--fb-down)', label: 'thumbs down'}],
+      tip: x => ({head: x.date, rows: [{ink: 'var(--fb-up)', v: x.up, label: 'thumbs up'},
+                                       {ink: 'var(--fb-down)', v: x.down, label: 'thumbs down'}],
+                  foot: x.up + x.down ? `${pct(x.up / (x.up + x.down))} approval` : 'no ratings'})});
+  }
+}
+
+const niceMax = v => { if (v <= 0) return 1;
+  const p = 10 ** Math.floor(Math.log10(v));
+  // 25 rather than 50 for a peak of 22. A half-way tick that is not whole
+  // is simply not drawn.
+  return [1, 2, 2.5, 5, 10].map(m => m * p)
+    .find(m => m >= v && Number.isInteger(m)) || 10 * p; };
+
+// A column per day: stacked segments up from the baseline, and optionally a
+// second stack down from it (diverging). 2px surface gaps between segments,
+// a 4px round on the end away from the baseline, square at the baseline.
+function columns(el, days, spec) {
+  const W = Math.max(280, el.clientWidth || 600), H = 170;
+  const L = 30, R = 6, T = 8, B = 20, pw = W - L - R, ph = H - T - B;
+  const sum = xs => xs.reduce((s, x) => s + x.v, 0);
+  const maxUp = Math.max(...days.map(x => sum(spec.up(x))));
+  const maxDown = spec.down ? Math.max(...days.map(x => sum(spec.down(x)))) : 0;
+  const top = niceMax(Math.max(maxUp, maxDown));
+  const half = spec.down ? ph / 2 : ph, base = T + half, k = half / top;
+  const band = pw / days.length, bw = Math.max(2, Math.min(24, band - 2));
+  const endPath = (x, y, w, h, up) => {
+    const r = Math.min(4, w / 2, h);
+    return up
+      ? `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`
+      : `M${x},${y}V${y + h - r}Q${x},${y + h} ${x + r},${y + h}H${x + w - r}Q${x + w},${y + h} ${x + w},${y + h - r}V${y}Z`;
+  };
+  const stack = (segs, x, up) => {
+    let out = '', cur = base;
+    const live = segs.filter(s => s.v > 0);
+    live.forEach((s, i) => {
+      const full = s.v * k, gap = i ? 2 : 0, h = Math.max(1, full - gap);
+      const y = up ? cur - full : cur + gap;
+      out += i === live.length - 1
+        ? `<path class="seg-mark" d="${endPath(x, y, bw, h, up)}" fill="${s.ink}"/>`
+        : `<rect class="seg-mark" x="${x}" y="${y}" width="${bw}" height="${h}" fill="${s.ink}"/>`;
+      cur = up ? cur - full : cur + full;
+    });
+    return out;
+  };
+  const ticks = spec.down ? [top, 0, top] : [0, top / 2, top].filter(t => Number.isInteger(t));
+  const tickY = (t, i) => spec.down ? (i === 0 ? T : i === 1 ? base : T + ph) : base - t * k;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="per-day chart; use Show as table for the numbers">`;
+  ticks.forEach((t, i) => {
+    const y = tickY(t, i) + .5;
+    svg += `<line class="${(spec.down ? i === 1 : t === 0) ? 'base' : 'grid'}" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/>
+      <text class="tick" x="${L - 5}" y="${y + 3}" text-anchor="end">${
+        // Diverging: the lower tick counts downwards, and says so.
+        spec.down && t ? (i === 0 ? '↑' : '↓') + t.toLocaleString() : t.toLocaleString()}</text>`;
+  });
+  days.forEach((x, i) => {
+    const cx = L + i * band + (band - bw) / 2;
+    svg += `<g class="col" data-i="${i}">${stack(spec.up(x), cx, true)}${spec.down ? stack(spec.down(x), cx, false) : ''}
+      <rect class="hit" x="${L + i * band}" y="${T}" width="${band}" height="${ph}"/></g>`;
+  });
+  const labelAt = [0, Math.floor((days.length - 1) / 2), days.length - 1];
+  [...new Set(labelAt)].forEach(i => svg += `<text class="tick" x="${L + i * band + band / 2}" y="${H - 5}"
+    text-anchor="${i === 0 ? 'start' : i === days.length - 1 ? 'end' : 'middle'}">${shortDate(days[i].date)}</text>`);
+  el.innerHTML = svg + '</svg>';
+
+  // One tooltip per chart, built with textContent: every series on that day.
+  const tip = document.createElement('div');
+  tip.className = 'chart-tip'; tip.hidden = true; el.appendChild(tip);
+  el.querySelectorAll('.col').forEach(g => {
+    const show = ev => {
+      const x = days[+g.dataset.i], t = spec.tip(x);
+      el.querySelectorAll('.col.on').forEach(o => o.classList.remove('on'));
+      g.classList.add('on');
+      tip.replaceChildren();
+      const head = document.createElement('div'); head.className = 'd'; head.textContent = t.head;
+      tip.appendChild(head);
+      t.rows.forEach(r => {
+        const row = document.createElement('div'); row.className = 'r';
+        const key = document.createElement('i'); key.style.background = r.ink;
+        const val = document.createElement('b'); val.textContent = r.v.toLocaleString();
+        const lab = document.createElement('span'); lab.textContent = r.label;
+        row.append(key, val, lab); tip.appendChild(row);
+      });
+      const foot = document.createElement('div'); foot.className = 'd';
+      foot.style.margin = '.2rem 0 0'; foot.textContent = t.foot; tip.appendChild(foot);
+      tip.hidden = false;
+      const box = el.getBoundingClientRect(), scale = box.width / W;
+      const colX = (L + (+g.dataset.i + .5) * band) * scale;
+      const left = colX + 12 + tip.offsetWidth > box.width ? colX - 12 - tip.offsetWidth : colX + 12;
+      tip.style.left = `${Math.max(0, left)}px`; tip.style.top = '4px';
+    };
+    g.addEventListener('pointerenter', show);
+    g.addEventListener('pointermove', show);
+    g.addEventListener('pointerleave', () => { tip.hidden = true; g.classList.remove('on'); });
+  });
+}
+
+// ── clean up ─────────────────────────────────────────────────────────────────
+// Two steps on purpose. Preview says how many and which; the delete button
+// carries that count, and the server refuses if the number has moved since.
+function cleanupQuery(mode) {
+  if (mode === 'age') return {days: $('cl-days').value};
+  const statuses = [...document.querySelectorAll('.cleanup input[type=checkbox]:checked')]
+    .map(c => c.value).join(',');
+  return {statuses};
+}
+
+document.querySelectorAll('.cleanup button[data-mode]').forEach(b => b.onclick = async () => {
+  const mode = b.dataset.mode, q = cleanupQuery(mode), out = $('cl-result');
+  if (mode === 'status' && !q.statuses) { out.innerHTML = '<span class="err">Tick at least one status.</span>'; return; }
+  out.innerHTML = '<span class="hint">Counting…</span>';
+  const r = await api('/api/cleanup/preview', {method: 'POST', body: form(q)});
+  if (!r.ok) { out.innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
+  const d = await r.json();
+  if (!d.count) { out.innerHTML = `<span class="saved">Nothing to delete: no job post is ${esc(d.reason)}.</span>`; return; }
+  const split = Object.entries(d.by_status).map(([s, n]) => `${n} ${s}`).join(', ');
+  const all = d.count === d.total
+    ? '<p class="err" style="margin:.2rem 0 .4rem">That is every job post you have.</p>' : '';
+  out.innerHTML = `${all}<b>${d.count.toLocaleString()} of ${d.total.toLocaleString()} job posts</b> would be deleted (${esc(split)}), for example:
+    <ul>${d.sample.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+    <button class="act danger" id="cl-go">Delete ${d.count.toLocaleString()} job posts</button>
+    <button class="act" id="cl-cancel">Cancel</button>`;
+  $('cl-cancel').onclick = () => out.innerHTML = '';
+  $('cl-go').onclick = async () => {
+    $('cl-go').disabled = true;
+    const r2 = await api('/api/cleanup', {method: 'POST', body: form({...q, expect: d.count})});
+    if (!r2.ok) { out.innerHTML = `<span class="err">${esc(await r2.text())}</span>`; return; }
+    const done = await r2.json();
+    out.innerHTML = `<span class="saved">Deleted ${done.deleted.toLocaleString()} job posts.</span>
+      <span class="hint">Backup: <code>${esc(done.backup)}</code></span>`;
+    loadRoles(); pollActivity();
+  };
+});
+
+// ── AI verdict and listing state ─────────────────────────────────────────────
+function aiTag(a) {
+  if (!a) return '';
+  const list = (xs, mark) => (xs || []).length
+    ? `<ul>${xs.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '';
+  // The model said the advert or résumé was too thin: its number is a guess.
+  const thin = a.enough_evidence === false;
+  // Claims the guard could not find in the advert or the résumé (guard.py).
+  const g = a.guard;
+  const flagged = g && g.checked ? (g.flagged || []) : [];
+  const checked = !g ? '' : !g.checked ? ' · claims not checked'
+    : ` · ${g.claims - g.unsupported} of ${g.claims} claims found in the advert or résumé`;
+  return `<span class="badge ai ${thin ? '' : esc(a.verdict)}" tabindex="0"><span class="k">ai</span>
+    <span class="v">${thin ? '?' : a.score}</span>
+    <span class="tip"><h4>${thin ? 'Not enough to judge'
+                                 : esc(a.verdict) + " fit, in the model's reading"}</h4>
+      <p style="margin:0 0 .45rem">${esc(a.summary)}</p>
+      ${a.reasons?.length ? '<b>For</b>' + list(a.reasons) : ''}
+      ${a.concerns?.length ? '<b>Against</b>' + list(a.concerns) : ''}
+      ${flagged.length ? `<b>Not in the advert or résumé</b><ul>${flagged.map(f =>
+        `<li><s>${esc(f.claim)}</s></li>`).join('')}</ul>` : ''}
+      <div class="meta-line">${esc(a.model)} · ${esc((a.at || '').replace('T', ' '))}
+        · read ${Number(a.advert_chars || 0).toLocaleString()} characters of advert${checked}</div>
+    </span></span>`;
+}
+
+// Only the states worth a glance: gone, probably gone, confirmed up.
+function listingTag(l, always) {
+  if (!l || !l.state) return '';
+  const label = {closed: 'closed', unlisted: 'maybe gone', stale: 'maybe gone', open: 'still open',
+                 listed: 'listed', unknown: 'not checked'}[l.state] || l.state;
+  if (!always && !['closed', 'unlisted', 'stale'].includes(l.state)) return '';
+  return `<span class="listing ${esc(l.state)}" title="${esc(l.note)} (checked ${esc(l.checked_at.replace('T', ' '))})">${label}</span>`;
+}
+
+function redrawDetail() {
+  if (detail && $('detail').open) openRole(detail.uid, detailTab);
+}
+
+// ── AI settings ──────────────────────────────────────────────────────────────
+let ai = null;
+
+async function drawAI() {
+  ai = await (await api('/api/llm')).json();
+  $('ai-provider').innerHTML = ['', ...Object.keys(ai.providers)].map(p =>
+    `<button data-p="${p}" class="${p === ai.provider ? 'on' : ''}">${
+      p ? esc(ai.providers[p]) : 'Off'}</button>`).join('');
+  $('ai-provider').querySelectorAll('button').forEach(b => b.onclick = () => {
+    if (ai.provider !== b.dataset.p) $('ai-model').value = '';
+    ai.provider = b.dataset.p; paintAI(); loadModels(true);
+  });
+  $('ai-ollama').value = ai.ollama_url;
+  $('ai-model').value = ai.model;
+  $('ai-on-scan').checked = ai.judge_on_scan;
+  $('ai-top').value = ai.judge_top;
+  $('ai-pages').checked = ai.read_pages;
+  $('ai-guard').checked = ai.guard;
+  $('ai-msg').textContent = ai.problem ? ai.problem : `Ready: ${ai.label}`;
+  $('ai-msg').className = ai.problem ? 'hint' : 'saved';
+  paintAI(); loadModels(true);
+}
+
+function paintAI() {
+  const p = ai.provider;
+  $('ai-provider').querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b.dataset.p === p));
+  $('ai-ollama-row').hidden = p !== 'ollama';
+  $('ai-key-row').hidden = !(p in ai.keys);
+  const where = ai.keys[p];
+  $('ai-key-state').innerHTML = where === 'memory'
+    ? `<span class="saved">held in memory</span> <button class="act" id="ai-forget">Forget</button>`
+    : where === 'environment' ? '<span class="hint">using the key from the environment</span>'
+    : '<span class="hint">no key held</span>';
+  if ($('ai-forget')) $('ai-forget').onclick = async () => {
+    await api('/api/llm/forget', {method: 'POST', body: form({provider: p})});
+    drawAI();
+  };
+  document.querySelectorAll('#ai-model, #ai-load, #ai-on-scan, #ai-top, #ai-pages, #ai-guard')
+    .forEach(el => el.disabled = !p);
+}
+
+async function loadModels(quiet) {
+  const p = ai.provider, msg = $('ai-load-msg');
+  $('ai-models').innerHTML = '';
+  if (!p || (p in ai.keys && !ai.keys[p])) { msg.textContent = ''; return; }
+  msg.textContent = 'loading…';
+  const r = await api(`/api/llm/models?provider=${p}&url=${encodeURIComponent($('ai-ollama').value)}`);
+  if (!r.ok) { msg.textContent = await r.text(); return; }
+  const models = (await r.json()).models;
+  $('ai-models').innerHTML = models.map(m => `<option value="${esc(m)}">`).join('');
+  msg.textContent = `${models.length} available`;
+  if (!$('ai-model').value && models.length && !quiet) $('ai-model').value = models[0];
+}
+
+async function saveAI() {
+  const r = await api('/api/llm', {method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({provider: ai.provider, model: $('ai-model').value.trim(),
+      ollama_url: $('ai-ollama').value.trim(), judge_on_scan: $('ai-on-scan').checked,
+      judge_top: Number($('ai-top').value) || 25, read_pages: $('ai-pages').checked,
+      guard: $('ai-guard').checked})});
+  if (!r.ok) { $('ai-msg').className = 'err'; $('ai-msg').textContent = await r.text(); return false; }
+  ai = {...ai, ...(await r.json())};
+  $('ai-msg').className = ai.problem ? 'hint' : 'saved';
+  $('ai-msg').textContent = ai.problem ? `Saved. ${ai.problem}` : `Saved: ${ai.label}`;
+  refreshState();
+  return !ai.problem;
+}
+
+$('ai-key-hold').onclick = async () => {
+  const key = $('ai-key').value;
+  const r = await api('/api/llm/key', {method: 'POST',
+    body: form({provider: ai.provider, key})});
+  $('ai-key').value = '';            // the page does not keep it either
+  if (!r.ok) { $('ai-key-state').innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
+  ai.keys[ai.provider] = 'memory'; paintAI(); loadModels(false); refreshState();
+};
+$('ai-load').onclick = () => loadModels(false);
+$('ai-save').onclick = saveAI;
+$('ai-test').onclick = async () => {
+  if (!await saveAI()) return;
+  $('ai-msg').className = 'hint'; $('ai-msg').textContent = 'asking the model…';
+  const r = await api('/api/llm/test', {method: 'POST'});
+  const text = await r.text();
+  if (!r.ok) { $('ai-msg').className = 'err'; $('ai-msg').textContent = text; return; }
+  const d = JSON.parse(text);
+  $('ai-msg').className = 'saved';
+  $('ai-msg').textContent = `${d.model} answered in ${d.seconds}s`;
+};
+
+// ── settings ─────────────────────────────────────────────────────────────────
+async function drawConfig() {
+  if (!cfg) cfg = await (await api('/api/config')).json();
+  const list = v => (v || []).join('\n');
+  $('cfgform').innerHTML = `
+    <div class="field"><label>Job titles, one per line</label>
+      <textarea id="c_titles">${esc(list(cfg.titles_include))}</textarea>
+      <div class="hint">Matched whole-word first, then a looser pass that
+        accepts the same words in another order.</div></div>
+    <div class="field"><label>Never show these titles</label>
+      <textarea id="c_exclude" style="min-height:3.5rem">${esc(list(cfg.titles_exclude))}</textarea></div>
+    <div class="field"><label>Where you are</label>
+      <input id="c_anchor" value="${esc(cfg.anchor)}" style="width:22rem"
+        placeholder="Chicago, IL or Makati, Philippines"></div>
+    <div class="field"><label>Radius</label>
+      <input id="c_radius" value="${esc(cfg.radius)}" style="width:6rem">
+      <select id="c_units">${['mi','km'].map(u =>
+        `<option${u === cfg.units ? ' selected' : ''}>${u}</option>`).join('')}</select>
+      <div class="hint">"exact" matches the city only. Remote job posts skip the
+        radius, because distance means nothing for a job with no office.</div></div>
+    <div class="field"><label>Countries (ISO codes, comma separated)</label>
+      <input id="c_countries" value="${esc((cfg.countries || []).join(', '))}" style="width:14rem">
+      <div class="hint">Empty accepts everywhere.</div></div>
+    <div class="field"><label>Arrangements to keep</label>
+      ${MODES.map(m => `<label style="display:inline-block;margin-right:1rem;color:var(--fg)">
+        <input type="checkbox" class="c_mode" value="${m}"
+          ${(cfg.work_modes || []).includes(m) ? 'checked' : ''}> ${m}</label>`).join('')}
+      <div class="hint">None ticked keeps all three. A posting that states no
+        arrangement is kept whatever you choose. About 60% state none.</div></div>
+    <div class="field"><label>Salary floor</label>
+      <input id="c_floor" value="${cfg.salary_floor ?? ''}" style="width:9rem" placeholder="none">
+      <input id="c_currency" value="${esc(cfg.currency)}" style="width:5rem">
+      <div class="hint">Only a published figure can hide a job post. About 12% of
+        postings state one; the rest show as "unconfirmed".</div></div>`;
+}
+
+$('save').onclick = async () => {
+  const lines = id => $(id).value.split('\n').map(s => s.trim()).filter(Boolean);
+  const r = await api('/api/config', {method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      titles_include: lines('c_titles'), titles_exclude: lines('c_exclude'),
+      anchor: $('c_anchor').value.trim(), radius: $('c_radius').value.trim(),
+      units: $('c_units').value,
+      countries: $('c_countries').value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean),
+      work_modes: [...document.querySelectorAll('.c_mode:checked')].map(c => c.value),
+      salary_floor: $('c_floor').value.trim() || null,
+      currency: $('c_currency').value.trim()})});
+  const msg = $('savemsg');
+  if (r.ok) { cfg = await r.json(); msg.className = 'saved'; msg.textContent = 'saved'; loadRoles(); }
+  else { msg.className = 'err'; msg.textContent = await r.text(); }
+  setTimeout(() => { msg.textContent = ''; }, 6000);
+};
+
+// ── résumé ───────────────────────────────────────────────────────────────────
+async function drawResume() {
+  if (!cfg) cfg = await (await api('/api/config')).json();
+  $('resumeinfo').innerHTML = cfg.resume_path
+    ? `<p class="hint">Currently: <code>${esc(cfg.resume_path)}</code></p>`
+    : `<p class="hint">None set. Job posts are still found and filtered; they are
+       just not ranked by how well they fit you, and drafting is unavailable.</p>`;
+}
+
+$('btn-upload').onclick = async () => {
+  const file = $('resume-file').files[0];
+  const msg = $('resumemsg');
+  if (!file) { msg.className = 'err'; msg.textContent = 'choose a file first'; return; }
+  msg.className = 'hint'; msg.textContent = 'uploading…';
+  const r = await api('/api/resume', {method: 'POST',
+    headers: {'X-Filename': file.name, 'Content-Type': 'application/octet-stream'},
+    body: file});
+  if (!r.ok) { msg.className = 'err'; msg.textContent = await r.text(); return; }
+  const d = await r.json();
+  cfg = null;
+  msg.className = 'saved'; msg.textContent = 'saved';
+  $('resumeinfo').innerHTML =
+    `<p class="hint">Stored at <code>${esc(d.path)}</code></p>
+     <p class="hint">${d.chars.toLocaleString()} characters read, ${d.years} years claimed,
+       ${d.skills.length} skills recognised.</p>
+     <div class="flags">${d.skills.map(s => `<span class="flag">${esc(s)}</span>`).join('')}</div>`;
+};
+
+// ── sources ──────────────────────────────────────────────────────────────────
+async function drawSources() {
+  const d = await (await api('/api/sources')).json();
+  $('sourceinfo').innerHTML = `
+    <p class="hint">Active sources run on every scan. A dormant one says why it
+      will not, rather than silently finding nothing.</p>
+    <table><tr><th>Source</th><th>State</th></tr>
+    ${d.active.map(s => `<tr><td>${esc(s)}</td><td class="saved">active</td></tr>`).join('')}
+    ${d.dormant.map(s => `<tr><td>${esc(s.name)}</td><td class="hint">${esc(s.why)}</td></tr>`).join('')}
+    </table>
+    <h2 style="margin-top:1.25rem">Employer boards (${d.companies.length})</h2>
+    <p class="hint">These give full advert text, which aggregators do not.
+      Add one from Tools.</p>
+    <table><tr><th>Company</th><th>Platform</th><th>Token</th></tr>
+    ${d.companies.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.platform)}</td>
+      <td class="uid">${esc(c.token)}</td></tr>`).join('') ||
+      '<tr><td colspan="3" class="hint">none yet</td></tr>'}</table>`;
+}
+
+// ── nav: theme and rail ──────────────────────────────────────────────────────
+// Per-browser conveniences, so localStorage; the page works without it.
+const store = {
+  get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private window */ } },
+};
+const systemDark = matchMedia('(prefers-color-scheme: dark)');
+function isDark() {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === 'dark' : systemDark.matches;
+}
+function paintTheme() {
+  $('theme-state').textContent = isDark() ? 'ON' : 'OFF';
+  $('theme-switch').classList.toggle('on', isDark());
+}
+function setTheme(t) {
+  if (t) document.documentElement.dataset.theme = t;
+  else delete document.documentElement.dataset.theme;
+  paintTheme();
+}
+$('theme').onclick = () => { const t = isDark() ? 'light' : 'dark'; store.set('jobdork-theme', t); setTheme(t); };
+systemDark.addEventListener('change', paintTheme);
+setTheme(store.get('jobdork-theme'));
+
+// ── setup explanations ───────────────────────────────────────────────────────
+// One floating tip, positioned beside the item: inside the nav it would be
+// clipped by the nav's own scrolling. Hover the ⓘ, or tab to the item.
+const navtip = document.createElement('div');
+navtip.className = 'navtip'; navtip.hidden = true;
+document.body.appendChild(navtip);
+function showTip(item) {
+  if (document.querySelector('.shell').classList.contains('rail')) return;
+  navtip.innerHTML = `<b>${esc(item.dataset.label)}</b>${esc(item.dataset.info)}`;
+  navtip.hidden = false;
+  const r = item.getBoundingClientRect();
+  const top = Math.min(r.top, innerHeight - navtip.offsetHeight - 12);
+  navtip.style.left = (r.right + 12) + 'px';
+  navtip.style.top = Math.max(8, top) + 'px';
+  navtip.style.setProperty('--arrow', (r.top - Math.max(8, top) + r.height / 2 - 5) + 'px');
+}
+document.querySelectorAll('nav .item[data-info]').forEach(item => {
+  const info = item.querySelector('.info');
+  info.addEventListener('mouseenter', () => showTip(item));
+  info.addEventListener('mouseleave', () => navtip.hidden = true);
+  item.addEventListener('focus', () => item.matches(':focus-visible') && showTip(item));
+  item.addEventListener('blur', () => navtip.hidden = true);
+});
+
+function setRail(on) {
+  document.querySelector('.shell').classList.toggle('rail', on);
+  // Names on hover only when the names are hidden; expanded, a native title
+  // would pile on top of the explanation.
+  document.querySelectorAll('nav .item[data-view]').forEach(b =>
+    b.title = on ? (b.dataset.label || b.querySelector('.label').textContent) : '');
+  $('fold').title = on ? 'Expand menu' : 'Collapse menu';
+  $('fold').setAttribute('aria-label', $('fold').title);
+}
+$('fold').onclick = () => {
+  const on = !document.querySelector('.shell').classList.contains('rail');
+  store.set('jobdork-rail', on ? '1' : ''); setRail(on);
+};
+setRail(store.get('jobdork-rail') === '1');
+
+connect(); loadRoles(); refreshState(); pollActivity(); loadMetrics();
+</script></body></html>

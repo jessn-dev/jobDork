@@ -16,10 +16,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from jobdork import geo, screen
-from jobdork.config import Config, Locations, Salary
+from jobdork.core.config import Config, Locations, Salary
+from jobdork.db.store import Role
 from jobdork.fetch import adzuna, usajobs, workable
-from jobdork.store import Role
+from jobdork.search import geo, screen
 
 
 def _cfg(anchor: str, countries: list[str], radius=25, units="") -> Config:

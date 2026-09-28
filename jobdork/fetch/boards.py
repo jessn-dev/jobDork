@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 
-from ..store import Role
+from ..db.store import Role
 from . import SourceResult
 
 # Compensation intervals, however each platform spells them.

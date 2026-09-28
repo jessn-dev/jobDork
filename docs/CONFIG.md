@@ -12,7 +12,8 @@ about a career you did not have. Both fail loudly instead.
 
 **Credentials never go in this file.** They are read from `.env`. A key found
 in the YAML is used, but earns a warning, because YAML files get committed and
-pasted into issues.
+pasted into issues. An AI key is stricter: `llm.key`, `llm.api_key` or
+`llm.token` in the file stops the load (see [llm](#llm)).
 
 ---
 
@@ -342,6 +343,36 @@ at once; it does not make any single board answer faster.
 
 ---
 
+## llm
+
+The AI reader. Off unless `provider` is set. The dashboard's AI page writes
+this section for you.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `llm.provider` | string | empty (off) | `ollama`, `anthropic` (Claude), `gemini` or `openai` (ChatGPT) |
+| `llm.model` | string | empty | The model's name, e.g. `gemma4:26b`; the AI page lists what is available |
+| `llm.ollama_url` | URL | `http://localhost:11434` | Where Ollama answers. Must be `http(s)://host:port` |
+| `llm.judge_on_scan` | bool | `false` | After each scan, judge the best job posts not yet judged |
+| `llm.judge_top` | int | `25` | How many a judging run reads, 1 to 500. Bounds what a scan can spend on a paid API |
+| `llm.read_pages` | bool | `false` | When checking postings, ask the model about pages that do not say whether the job is open |
+| `llm.guard` | bool | `true` | Check each verdict and draft for claims the résumé and the advert do not support. Two more model calls per output |
+
+**Keys are never read from this file.** `llm.key`, `llm.api_key` or
+`llm.token` stops the load with an error rather than a warning. Type a key on
+the AI page, where it is held in memory only and wiped when the server stops,
+or set it in the environment for the terminal (see [Environment](#environment)).
+Ollama needs no key.
+
+**Judging needs a résumé and at least 200 characters of advert.** A post with
+less is skipped and counted, not guessed at. The verdict is shown beside the
+rule-based score and never replaces it.
+
+**With `guard` off**, verdicts and drafts are still recorded, unchecked; the
+Dashboard's hallucination coverage says how many that is.
+
+---
+
 ## db
 
 | Key | Type | Default |
@@ -377,10 +408,11 @@ is worth more than one next door that does not.
 ## Statuses
 
 ```
-new → interested → applied → submitted → interviewing → offer
+new → viewed → interested → applied → submitted → interviewing → offer
 ```
 
-plus `rejected`, `withdrawn`, `skipped`, `closed`.
+plus `rejected`, `withdrawn`, `skipped`, `closed`. `viewed` is set for you when
+you open a post on the dashboard.
 
 **Those last four are hidden from results** rather than shown again. Use
 `list --all` to see them.
@@ -388,6 +420,13 @@ plus `rejected`, `withdrawn`, `skipped`, `closed`.
 **A status you set outranks a filter change.** `rescreen --remove` deletes
 roles that no longer match your config, but never one you have acted on: that
 status is a decision you made and a rule change does not overrule it.
+
+**A status belongs to the job, not the link.** Copies of one job posted in
+several places share it, and `check` closes the job only when every copy is
+gone.
+
+**`prune` never deletes a job you are pursuing:** applied, submitted,
+interviewing and offer are kept whatever their age.
 
 ---
 
@@ -400,7 +439,10 @@ always wins over the YAML.
 |---|---|
 | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna |
 | `USAJOBS_API_KEY`, `USAJOBS_EMAIL` | USAJOBS — the email must be the address you registered, and is sent as the User-Agent |
-| `RESEND_API_KEY`, `RESEND_FROM` | Email digests from the dork generator |
+| `RESEND_API_KEY`, `RESEND_FROM` | Email: `scan --email`, `digest`, and the dork generator |
+| `ANTHROPIC_API_KEY` | Claude, from the terminal (the dashboard takes keys on its AI page) |
+| `GEMINI_API_KEY` or `GOOGLE_API_KEY` | Gemini, from the terminal |
+| `OPENAI_API_KEY` | ChatGPT, from the terminal |
 | `JOBDORK_CONFIG` | Config path override |
 
 ---

@@ -1,6 +1,6 @@
 """
-jobdork.gates
-=============
+jobdork.writing.gates
+=====================
 Mechanical checks on a generated document.
 
 These are scripts, not judgement. A model asked to re-read its own draft will
@@ -81,7 +81,7 @@ def overlap(draft: str, sibling: str, sibling_name: str = "the CV") -> Gate:
     """
     if not sibling:
         return Gate(name="phrase overlap", passed=True,
-                    detail=f"no {sibling_name} to compare against yet")
+                    detail=f"nothing to compare: {sibling_name} is not drafted yet")
     shared = _ngrams(draft) & _ngrams(sibling)
     return Gate(
         name="phrase overlap",
@@ -174,6 +174,26 @@ def slop(draft: str, linter_path: str = "") -> Gate:
                 items=hits[1:])
 
 
+def ai_tells(draft: str) -> Gate:
+    """Signs of AI writing, by the humanizer rules the draft was written to.
+
+    Every recognised tell is listed with its rule number in the bundled
+    data/humanizer/SKILL.md, so the fix is one lookup away. This replaced
+    counting em dashes alone, and the external linter that was rarely
+    installed and so rarely ran.
+    """
+    from . import humanize
+
+    tells = humanize.find(draft)
+    if not tells:
+        return Gate(name="AI tells", passed=True, detail="none found")
+    rules = sorted({t.rule for t in tells})
+    return Gate(name="AI tells", passed=False,
+                detail=f"{len(tells)} found (humanizer rules "
+                       f"{', '.join(f'§{r}' for r in rules)})",
+                items=[t.line() for t in tells])
+
+
 def run_all(draft: str, kind: str, resume_text: str = "",
             sibling: str = "", sibling_name: str = "the CV") -> list[Gate]:
     """The checks that apply to this kind of document.
@@ -186,11 +206,12 @@ def run_all(draft: str, kind: str, resume_text: str = "",
     read correctly off the posting. Applying a send-time gate to reading notes
     produced a warning that was not only useless but wrong.
     """
-    gates = [not_empty(draft, 200 if kind == "screen" else 400)]
+    # Every draft is read by you, so every draft is checked for AI tells —
+    # a screen included, even though its figures are the advert's own.
+    gates = [not_empty(draft, 200 if kind == "screen" else 400), ai_tells(draft)]
     if kind == "screen":
         return gates
-    gates += [em_dashes(draft), unsupported_figures(draft, resume_text),
-              slop(draft)]
+    gates += [unsupported_figures(draft, resume_text)]
     if kind == "cover_letter":
         gates.append(overlap(draft, sibling, sibling_name))
     return gates

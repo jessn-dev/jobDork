@@ -1,6 +1,6 @@
 """
-config.py
-=========
+jobdork.dork.boards
+===================
 All configuration tables for the Google Dork Job Search Generator.
 
 Edit this file to:

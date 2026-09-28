@@ -26,9 +26,9 @@ state and measures locally; that is what the gazetteer is for.
 
 from __future__ import annotations
 
-from .. import geo
-from ..store import Role
-from ..textutil import to_text
+from ..core.textutil import to_text
+from ..db.store import Role
+from ..search import geo
 from . import SourceResult, register
 
 BASE = "https://jobs.workable.com/api/v1/jobs"

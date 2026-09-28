@@ -1,6 +1,6 @@
 """
-jobdork.migrations
-==================
+jobdork.db.migrations
+=====================
 Schema versioning for the SQLite database.
 
 `CREATE TABLE IF NOT EXISTS` gets a database created, and then quietly stops
@@ -38,11 +38,11 @@ import logging
 import sqlite3
 from collections.abc import Callable
 
-log = logging.getLogger("jobdork.migrations")
+log = logging.getLogger("jobdork.db.migrations")
 
 # The version a fresh database is created at, and the version this code
 # understands. Bumped by adding a step below.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 6
 
 
 class MigrationError(Exception):
@@ -113,9 +113,88 @@ def _v1_to_v2(conn: sqlite3.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_artifacts_kind ON artifacts(kind)")
 
 
+def _v2_to_v3(conn: sqlite3.Connection) -> None:
+    """Store the résumé-fit part of the score on its own.
+
+    A score of 100 said nothing about whether the 100 came from the advert
+    matching your résumé or from the title, distance and salary. NULL until
+    the role is next screened, which is what `rescreen` is for.
+    """
+    _add_column(conn, "roles", "fit", "REAL")
+
+
+def _v3_to_v4(conn: sqlite3.Connection) -> None:
+    """Store how each score was reached, so the dashboard can say why.
+
+    JSON, one entry per rule with its points and a sentence. NULL until the
+    role is next screened.
+    """
+    _add_column(conn, "roles", "score_parts", "TEXT")
+
+
+def _v4_to_v5(conn: sqlite3.Connection) -> None:
+    """A model's verdict on each role, and whether its posting is still up.
+
+    Neither is written by a scan's upsert, so a rescan keeps them.
+    """
+    for column, spec in (("llm_score", "REAL"), ("llm_judgement", "TEXT"),
+                         ("listing_state", "TEXT"), ("listing_note", "TEXT"),
+                         ("listing_checked_at", "TEXT")):
+        _add_column(conn, "roles", column, spec)
+
+
+def _v5_to_v6(conn: sqlite3.Connection) -> None:
+    """Give every copy of a job the same status, now that decisions are grouped.
+
+    Before grouping, a status lived on whichever copy was shown, so copies of
+    one job disagree. Per group the latest real decision wins, for every
+    copy, and its note fills notes that are empty.
+
+    One kind of status is not a decision: `closed` set by the listing check
+    (its note starts "check:") on a copy whose job is still up elsewhere. A
+    job is closed only when every copy is, so those are undone — the group
+    takes its other copies' status instead, or `new`.
+    """
+    from . import grouping
+
+    rows = conn.execute(
+        f"SELECT r.uid, {grouping.key_sql('r')} AS gkey, r.listing_state, "
+        "COALESCE(s.status, 'new') AS status, COALESCE(s.note, '') AS note, "
+        "COALESCE(s.updated_at, '') AS updated_at "
+        "FROM roles r LEFT JOIN role_state s ON s.uid = r.uid").fetchall()
+    groups: dict[str, list] = {}
+    for row in rows:
+        groups.setdefault(row[1], []).append(row)
+
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        every_copy_closed = all(m[2] == "closed" for m in members)
+        decisions = [
+            m for m in members if m[3] != "new"
+            and not (m[3] == "closed" and m[4].startswith("check:")
+                     and not every_copy_closed)
+        ]
+        chosen = max(decisions, key=lambda m: m[5]) if decisions else None
+        status = chosen[3] if chosen else "new"
+        note = chosen[4] if chosen else ""
+        for m in members:
+            keep_note = m[4] if m[4] and not (
+                m[4].startswith("check:") and status != "closed") else note
+            conn.execute(
+                "INSERT INTO role_state(uid, status, note, updated_at) "
+                "VALUES(?, ?, ?, strftime('%Y-%m-%dT%H:%M:%S', 'now', 'localtime')) ON CONFLICT(uid) DO UPDATE SET "
+                "status = excluded.status, note = excluded.note",
+                (m[0], status, keep_note))
+
+
 # Numbered, ordered, append-only. The key is the version a step produces.
 STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     2: _v1_to_v2,
+    3: _v2_to_v3,
+    4: _v3_to_v4,
+    5: _v4_to_v5,
+    6: _v5_to_v6,
 }
 
 

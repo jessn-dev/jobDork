@@ -6,6 +6,977 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-09-28 — list --json, and a connection left open
+
+- **`list --json` and `roles.json` wrote JSON inside JSON.** The verdict, the
+  score parts and the reasons are stored as JSON text and were written out as
+  strings, so a reader had to decode them twice. They are objects and lists
+  now, and a verdict stored before its word followed its score reads as the
+  score says (the rule is one function, `llm.verdict_for`, used when judging,
+  on the dashboard and here).
+- **A refused database left its connection open.** When `Store` could not
+  open a database (one written by a newer version, a failed migration), the
+  connection it had made was never closed. Found by running the tests with
+  every warning as an error, which now pass too.
+
+---
+
+## Fixed — 2026-09-28 — rescreen hung; scans failed writing roles.json
+
+Both found while making the demo screenshots.
+
+- **`rescreen` hung, then failed with "database is locked".** It held one
+  write open over every post and committed at the end, while each progress
+  tick had the run's telemetry write through its own connection and wait up
+  to ten seconds for that very lock, on the job's own thread. 588 posts took
+  over five minutes and then failed; they now take three seconds. Three
+  changes: telemetry never makes the job wait (a flush from the job's thread
+  gives up after a quarter of a second, skips if another flush is writing,
+  and keeps what it could not write for the next one; only the final state
+  waits); the database runs in WAL mode, so a reader never blocks a commit
+  (set on open, kept in the file; `-wal` and `-shm` files appear beside it);
+  and `rescreen` and `enrich` commit as they go. From the dashboard,
+  Re-apply filters had the same problem.
+- **Every scan with `json` output failed at the end**, after storing
+  everything: `IndexError: No item with that key`, which is the failed scan
+  on the Dashboard. `render.rows_to_dicts` iterated `sqlite3.Row` for its
+  keys, but that yields the values. It was `row.keys()` until the last
+  commit, where a lint simplification (ruff's SIM118) rewrote it; it is
+  `dict(row)` now. `out/roles.json` had not been written since 29 August.
+  The writer test only checked each format had a function, never ran one;
+  a test now writes all four from real database rows.
+
+---
+
+## Changed — 2026-09-28 — no personal details in the repository
+
+- **Name and handle.** `LICENSE`, `pyproject.toml` and the changelog now
+  name `jessn-dev`. The project and User-Agent URLs pointed at a
+  `jessengolab/jobDork` that is not this repository; they point at
+  `github.com/jessn-dev/jobDork`. Git history was left as it is: its
+  commits keep their author.
+- **Screenshots from a demo.** All five are taken from a copy of the
+  database with every status, note, draft, AI output, verdict and log line
+  removed, re-scored against a made-up résumé ("Alex Rivera"), and judged
+  with it. The job posts are public listings. Before, the skill chips came
+  from the real résumé and the verdict summarised a real career.
+- **Résumé facts quoted in the docs** (years of experience, the post it was
+  tried on) are replaced with neutral examples, in the README, the
+  changelog and the cover-letter prompt's own example.
+- **Deleted:** `docs/images/generated-cv.jpg` (it showed a name, phone
+  number, email and town; never committed), the dork generator's old CSV
+  exports, results file, log, and a root `__pycache__` for a `config.py`
+  that no longer exists; a second, unused virtualenv (`venv/`, 18 MB); build
+  and tool caches; `.DS_Store`; the stale `out/roles.{csv,json,md}`.
+- **`.gitignore`: `data/` became `/data/`** (and `out/`, `/out/`). The bare
+  pattern also matched `jobdork/data/`, so the dashboard page, the humanizer
+  rules and the gazetteer had never been committed and a clone had no
+  dashboard; the `!jobdork/data/cities.csv` exception could not work inside
+  an ignored directory. Your database stays ignored.
+
+---
+
+## Changed — 2026-09-28 — documentation and screenshots brought up to date
+
+Every doc was read against the code as it now is.
+
+- **Screenshots retaken** (dark, 1440 wide) on the current interface. All
+  five were from 29 August and showed the old "Roles / Scan" pages:
+  `dashboard.jpg` (the Dashboard with its metrics), new `job-posts.jpg` (the
+  list, with match, fit and AI badges), `role-detail.jpg` (a post with the AI
+  verdict open: 20 of 20 claims found), `live-run.jpg` replacing
+  `live-scan.jpg` (a run reporting itself mid-way; local Ollama, so no job
+  board was called), and `static-page.jpg`. All five were taken again the
+  same day from a demo, see "No personal details in the repository" above.
+- **ARCHITECTURE:** the pipeline diagram now shows enrich, check, judging,
+  drafts, the guard between them, and where results go; the database lists
+  all ten tables, not five; grouping replaces "same company and title, best
+  score wins"; new sections on the AI reader and the guard, and on run history
+  and the Dashboard; "What is not built", which contradicted itself, is gone;
+  the test counts are gone too, as they had gone stale twice.
+- **README:** a section on the AI page (providers, keys in memory, judging,
+  page reads, the hallucination check with its HalluLens credit, the résumé
+  review, feedback); `check` and `prune`; the `viewed` status; the Dashboard,
+  Job posts and job post window with their screenshots; draft checks named as
+  they are (humanizer rules, not an em-dash count); "48 tests" gone; the
+  project tree moved out of the dork generator's section. The dork section
+  ran `python main.py` throughout, a file that has not existed since the
+  scanner: it is `jobdork dork`, configured in `jobdork/dork/boards.py`.
+- **CONFIG:** a full `llm` section (it had none), including that a key in the
+  file stops the load; the AI keys in the environment table; Resend is used by
+  `scan --email` and `digest`, not only the dork generator; `viewed`; a status
+  is per job, and what `prune` never deletes.
+- **`config.example.yaml`** had no `llm` block; it has one, which loads.
+- **PLATFORMS:** "Not yet implemented: enrich, discover", both shipped months
+  ago, is now what they do; Adzuna duplicates are grouped, not collapsed; the
+  Lever fallback is no longer described as North American only.
+- **SOURCES** and the docs index: `jobdork dork --list-sites`; the new
+  screenshots and a pointer to the AI setup.
+- Every relative link and anchor in the docs was checked by script.
+
+Also fixed, found on the new screenshots: the Dashboard's run cards said "just
+now" for anything under an hour (a judging run 23 minutes old); they say
+"23 min ago".
+
+---
+
+## Changed — 2026-09-28 — modules grouped into packages
+
+`jobdork/` was 28 modules side by side. They now sit by what they are for:
+
+| Package | Modules |
+|---|---|
+| `core/` | `config`, `telemetry`, `textutil` |
+| `db/` | `store`, `migrations`, `grouping` |
+| `search/` | `scan`, `screen`, `enrich`, `discover`, `listing`, `geo`, `resume` |
+| `ai/` | `llm`, `judging`, `guard`, `writer` |
+| `writing/` | `generate`, `gates`, `humanize` |
+| `web/` | `serve`, `api`, `live`, `session` |
+| `output/` | `render`, `digest` |
+
+`cli.py`, `fetch/`, `dork/` and `data/` stay where they were. Nothing
+outside `web/` (and `cli.py`) imports from `web/`.
+
+- Every import was rewritten by script, relative as before; module titles
+  and logger names follow (`jobdork.ai.llm`, not `jobdork.llm`). Tracked
+  files were moved with `git mv`, so their history follows them.
+- `data/` is found from the package root in `search/geo.py`,
+  `web/serve.py` and `writing/humanize.py`.
+- `pyproject.toml` lists the new packages; `pip install -e .`,
+  `jobdork --version`, `./run.sh`, `python -m jobdork.dork`, the dashboard
+  and `tests/run_all.py` were each run from the new layout.
+- No compatibility aliases at the old paths: `from jobdork.store import
+  Store` is now `from jobdork.db.store import Store`. Only the tests
+  imported by path, and they are updated.
+- Docs: ARCHITECTURE's module table is now per package. The README's
+  "Project structure" still showed the original `main.py` and `config.py`,
+  which have not existed since the scanner; it shows the real tree now.
+  SOURCES pointed at a `config.py` for both the source lists (now
+  `core/config.py`) and the dork board table (`dork/boards.py`, whose own
+  title still said `config.py`). The package docstring said "for North
+  America", untrue since 0.3.0.
+- A doubled `# noqa` in `fetch/__init__.py` is single again.
+
+---
+
+## Fixed — 2026-09-28 — loose ends from the guardrail work
+
+- **The verdict word follows the score.** gemma scored a post 30 and
+  called it "possible", so the badge showed a 30 in amber. The word is now
+  set by the prompt's own bands (80+ strong, 50+ possible, else weak), and
+  verdicts stored before this are corrected when read, without rewriting
+  them: that post now shows 30, weak.
+- **Last AI judging** said "recorded before run history · just now" on the
+  day a post was judged, because the card skipped single-post runs and fell
+  back to a stamp it then described wrongly. A full run is still preferred;
+  when single posts are all there has been, the card shows the latest one,
+  marked "one job post only". The same applies to Last check.
+- **The 90-day metrics could undercount.** Run history kept the last 200
+  runs, so a busy quarter lost its oldest. Runs and their model calls are
+  now kept for 120 days whatever their number; only the per-run logs, which
+  are the bulk, are still limited to the last 200 runs.
+- **The thumbs beside the AI badge** said only "Useful"; they now say what
+  they rate ("Useful (Was the AI verdict useful)") on hover and to screen
+  readers.
+- **The feedback chart's lower axis** read "5" for five thumbs down; its
+  ticks read ↑5 and ↓5.
+
+Tests in `tests/test_ai.py` and `tests/test_telemetry.py`.
+
+---
+
+## Added — 2026-09-28 — feedback buttons, and the AI letter and review on the page
+
+Last part of the guardrail plan.
+
+- **Thumbs up / down** on every AI output the page shows: beside the AI
+  badge in a job post's window (the verdict), under each cover letter,
+  résumé review and `claude -p` draft tab ("Was this cover letter
+  useful?"), and on the Tools page's résumé review. Pressing the pressed one
+  clears it. Ratings feed the Dashboard's feedback chart. A draft made with
+  the guard off can be rated too: its output row is kept in the artifact
+  under a hidden `_output` key, which the page never shows as a gate.
+- **Job post window:** **Write cover letter (AI)** and **Review résumé for
+  this post** beside Ask AI. Each runs as a normal run, and the window opens
+  on the new tab when it finishes. The tab shows the checks, with the claims
+  the guard flagged listed, then the text.
+- **Tools → Résumé review:** **Review my résumé** runs the general review;
+  the newest one is shown there whenever Tools is opened, with the model,
+  the time, how many of its claims were found in your résumé, and anything
+  flagged.
+- Reviews are shown with their headings and lists rather than as raw
+  Markdown. The text is escaped first, so nothing in it becomes markup.
+- The review capitalises each point; gemma writes them in lower case.
+- Tabs read "résumé review" and "CV" rather than `resume_review` and `cv`.
+
+Checked in Chrome: the buttons in the window and the tabs, a thumb pressed
+and pressed again (stored as 1, then cleared), and a real general review
+from the Tools page (gemma4:26b, 18 of 18 claims found in the résumé). Tests
+in `tests/test_guard_wiring.py`.
+
+---
+
+## Added — 2026-09-28 — metrics at the top of the Dashboard
+
+Fifth part of the guardrail plan. Above "Last runs", scoped by a **7 / 30 /
+90 days** switch (`GET /api/metrics?days=`):
+
+- **Tiles.** Runs; errored runs (failed, died or stopped, with their share
+  of runs); AI calls and how many failed; **P50 AI latency** with P95 under
+  it; and the **hallucination** rate: unsupported claims over checked
+  claims, with coverage (checked outputs over all AI outputs). Hover or
+  focus the hallucination tile for the split by kind: verdicts, page reads,
+  cover letters, résumé reviews, claude drafts.
+- **Runs by tool, per day.** Stacked columns in a fixed tool order (scan,
+  check, AI judging, AI writing, enrich, other), so a tool keeps its colour
+  whatever ran. A job started in the terminal and one started here count as
+  the same tool.
+- **Feedback on AI output, per day.** Thumbs up above the line, thumbs down
+  below, with approval in the heading, counted on the day the output was
+  written (when a rating was given is not stored).
+- Both charts have a legend with totals, a tooltip listing every series for
+  the day under the pointer, and **Show as table**. Colours are the dataviz
+  reference palette, validated for colour-blind separation against this
+  page's own backgrounds in both themes; three light-theme hues are under 3:1
+  contrast, which is what the legend and the table view are for.
+- The numbers reload when the Dashboard is opened, when a run finishes, and
+  when the period changes; the previous numbers stay (dimmed) while they
+  load.
+
+On this database, 30 days: 22 runs, 1 failed (4.5%); 21 AI calls, P50
+5.3 s, P95 12.4 s; 20 of 143 claims unsupported (14%) over 7 outputs, all
+checked. Model calls and AI outputs are only recorded from today, and a tile
+says so ("recorded from 2026-09-28") when that is later than the period's
+start. Runs come from run history, which keeps the last 200 runs.
+
+Checked in Chrome at full width with the nav open and folded, in both
+themes: tooltips, table view, and the hallucination breakdown, which at
+first ran off the right edge and now opens leftwards. The axis rounds a peak
+of 22 up to 25 rather than 50. Tests in `tests/test_metrics.py`.
+
+---
+
+## Added — 2026-09-28 — the guard checks verdicts, page reads and drafts
+
+Fourth part of the guardrail plan. Every piece of text a model writes here is
+now an `ai_outputs` row, and with the new **`llm.guard`** setting on (the
+default; AI page: "Check each verdict and draft…") it is checked against the
+advert and your résumé.
+
+- **AI judging.** After each verdict, its summary, reasons and concerns go
+  through `guard.check`. The result is kept inside the verdict (`guard`,
+  `ai_output_id`). The AI badge's tip lists claims neither source supports,
+  struck out, under **Not in the advert or résumé**, and ends with "N of M
+  claims found in the advert or résumé" (or "claims not checked"). The score
+  is left as the model gave it. The run summary counts verdicts with such a
+  claim, and so does the run's Outcomes bar ("unsupported claims").
+- **Abstaining.** The judge answers `enough_evidence`. When it says no, the
+  badge shows **?** and "Not enough to judge" instead of a score. Verdicts
+  stored before this read as having had enough.
+- **Page reads.** Each time the model reads an unclear posting page, the
+  answer is recorded as a `page_read` output. Its check is the quote rule it
+  already had: "open" or "closed" is one claim, supported when its quote is
+  on the page; "unknown" claims nothing. No extra model call.
+- **`claude -p` drafts** (screen, CV, cover letter). When a model is set on
+  the AI page, the draft is checked too and gets a **hallucination check**
+  gate. Drafts are recorded as `draft` outputs whether or not they were
+  checked, so the Dashboard's coverage counts the unchecked ones.
+  `generate.record` does the recording for the terminal and the dashboard
+  alike.
+- **Failed gates list their items** in the job-post dialog (the flagged
+  claims, the unsupported figures), not only a count.
+- The AI letter and review honour `llm.guard` as well.
+
+The cost: two more model calls per verdict and per draft. On a 26B local
+model that is roughly twice the judging time; the AI page says so. Turning
+the guard off still records every output, unchecked.
+
+`guard.advert_source(row)` (title, employer, location, then the advert) and
+`guard.settings_for(cfg)` are shared by judging, drafts and `writer.py`.
+`cli.gates_summary` is gone; `generate.record` replaced it. Tests in
+`tests/test_guard_wiring.py`.
+
+---
+
+## Added — 2026-09-28 — AI cover letter and résumé review (`writer.py`)
+
+Third part of the guardrail plan. Both use the model set on the AI page
+(local Ollama included), not `claude -p`.
+
+- **`jobdork letter UID`** (dashboard: `POST /api/letter`). At most four
+  short paragraphs, facts from the résumé and advert only, humanizer rules in
+  the prompt and `humanize.clean` after. Gated like a `claude -p` letter
+  (length, AI tells, unsupported figures, overlap with `CV.md`) plus a
+  **hallucination check** gate from `guard.check`. Saved as
+  `cover-letter-ai.md` in the job folder, so a `claude -p` `cover-letter.md`
+  is never overwritten, and recorded as a `cover_letter` artifact, so it
+  shows in the job-post dialog as the other drafts do. A new or viewed post
+  moves to interested, as with any draft.
+- **`jobdork review [UID]`** (`POST /api/review`). Without a post: the
+  résumé's own problems, each quoting the line it is about. With one: also
+  what the advert asks for that the résumé does not show, what to move up,
+  and lines to reword. A suggestion quoting text that is not in the résumé
+  is dropped by script and the review says how many were. When the model
+  says the evidence is too thin, the review opens by saying so. Against a
+  post it is saved as `resume-review.md` and a `resume_review` artifact; a
+  general review lives in `ai_outputs` only (`GET /api/review/latest`).
+- Both record an `ai_outputs` row with the guard result; the artifact's
+  hallucination-check gate carries its `output_id`. `GET /api/ai_output`
+  reads one, and `POST /api/feedback {output_id, value}` sets 👍 (1), 👎 (-1)
+  or clears (0). The buttons come with the UI step.
+- A letter or review needs at least 200 characters of advert, as judging
+  does.
+
+Guard fixes found on the first live run (gemma4:26b, one job post):
+
+- A claim built from several places ("worked with Spring Boot, React and
+  PostgreSQL", each in a different section) failed for want of one quote.
+  The verifier may now join excerpts with ` ... `, and every excerpt must be
+  found. The extractor splits lists into one claim per item.
+- "The candidate is applying for the position" is the letter describing
+  itself; such claims are dropped by script, since the model kept writing
+  them.
+- The advert source now includes the title and employer.
+
+After the fixes the same letter went from 6 of 25 claims flagged to 1 of 25,
+and the one left is a real stretch: Docker attached to an employer the
+résumé does not tie it to. The first letter had claimed the résumé's total years of
+experience for each language separately; the letter
+prompt now says a number of years belongs to what the résumé attaches it to.
+
+Also: the overlap gate read "no the CV to compare against yet"; it now reads
+"nothing to compare: the CV is not drafted yet".
+
+Tests in `tests/test_writer.py` and `tests/test_guard.py`.
+
+---
+
+## Added — 2026-09-28 — tables for AI outputs and model calls
+
+Second part of the guardrail plan. Two tables, created on open like
+`activity` (no migration step, since new tables need none):
+
+- **`ai_outputs`** — one row per text a model wrote (verdict, page read,
+  cover letter, résumé review, draft): kind, job post, model, the run it came
+  from, the text, the guard report with its claim and unsupported counts,
+  whether the check ran, and thumbs up/down. `Store.add_ai_output`,
+  `ai_output`, `set_feedback` (1, -1 or cleared).
+- **`llm_calls`** — one row per model call inside a recorded run: model,
+  purpose, seconds, ok. No prompt or answer text. Needed for P50/P95 latency;
+  the per-model totals on `activity` cannot give percentiles. Pruned with the
+  run it belongs to.
+
+`llm.complete_json` takes a `purpose` (judge, page_read, test,
+guard_extract, guard_verify), and `telemetry.current_id()` gives the run an
+output belongs to. Nothing writes `ai_outputs` yet; that comes with the
+guard wiring. Tests in `tests/test_telemetry.py`.
+
+---
+
+## Added — 2026-09-28 — hallucination guardrail module (first part)
+
+`jobdork/guard.py` implements the HalluLens method (LongWiki task) with our
+own prompts: extract atomic claims from an AI output, verify each against
+the known source (résumé, advert), and count unsupported claims. A model's
+"supported" only counts when its quote is found in the named source by
+script. A failed check returns `checked=False` and never blocks the output.
+Tests in `tests/test_guard.py`.
+
+Not yet wired in. Still to build, per the approved plan: the `ai_outputs`
+and `llm_calls` tables, the AI cover-letter and résumé-review tools
+(`writer.py`), guard checks on judging, page reads and drafts, feedback
+buttons, and the observability metrics on the Dashboard.
+
+---
+
+## Changed — 2026-09-28 — the Dashboard is the home page, at full width
+
+- **Home.** The page opens on the Dashboard, and Dashboard is first in the
+  nav, above Job posts.
+- **Width.** Page content was capped at 1060px, so on a wide screen the
+  Dashboard sat in the left part of the window whether the nav was open or
+  folded to the rail. The Dashboard now fills the space beside the nav in
+  both states. Job posts and the Setup pages keep the 1060px measure, which
+  is easier to read for lists and forms.
+- **What it shows first.** With nothing picked and nothing running, the
+  panels show the latest run over the whole list, not a one-post check
+  started from a dialog.
+
+---
+
+## Changed — 2026-09-28 — "Last runs" instead of a history table
+
+The Dashboard's **Recent jobs** table listed 25 past runs and called out
+nothing, while the one thing it was for went unnoticed for a month: the
+Aug 29 scan got 0 from Adzuna. It is replaced by a **Last runs** strip at
+the top of the Dashboard, one card each for the last scan, the last check
+and the last AI judging: when (hover for the exact time), the result, and
+in amber whatever went wrong. The scan card reads the scan history itself,
+so scans from before run history count, and warns when:
+
+- the last scan is over 15 days old;
+- a source returned 0 job posts;
+- a source that returned posts before did not run at all;
+- a scan started and never finished.
+
+On this database it shows all four. Check and judge cards skip single-post
+runs from a dialog, and show a run's failure if it failed or died; click one
+to show that run above. The full list is folded into **All runs** at the
+bottom. "Job" in the sense of a background task is now "run" on this page,
+so it no longer reads like a job post.
+
+---
+
+## Added — 2026-09-28 — clean up old and settled job posts
+
+A **Clean up job posts** panel at the bottom of the Dashboard, and
+`jobdork prune` in the terminal.
+
+- **By age:** first seen more than 15 or 30 days ago (`--older-than DAYS`),
+  whatever the status, except jobs you are pursuing: applied, submitted,
+  interviewing and offer are never removed this way. Offer was added to the
+  three asked for, since losing one would be worse than losing the others.
+  Age is when jobdork first found the post; many posts carry no date of
+  their own.
+- **By status:** any of rejected, withdrawn, skipped and closed (ticked in
+  the panel, `--status` in the terminal).
+
+Deleting takes two steps. **Preview** shows how many of how many, split by
+status, with examples, and warns when that is every post you have. The red
+**Delete N job posts** button sends that N, and the server refuses if the
+number has changed since (a scan finished, a status changed). It also
+refuses while a job is running. `prune` only previews unless given `--yes`.
+
+Before every delete the database is copied to
+`data/backups/jobdork-<time>-before-cleanup.db` (the last ten are kept). A
+deleted post is recorded in a new `deleted` table, and scans leave it out;
+otherwise a post still listed by its source would come back as new with
+your decision gone. The scan report counts how many it left out. Status,
+notes, AI verdicts and document records go with the post; draft files in
+Documents stay on disk.
+
+---
+
+## Changed — 2026-09-28 — charcoal nav in dark mode
+
+The dark nav was navy (`#0b1a2e`) against a near-black page (`#0b0b0d`). It
+is now a neutral charcoal, `#151518`: a step lighter than the page, so the
+two separate without a colour cast. Hover (`#202025`), the active pill
+(`#34343c`, white text) and the count badge moved to the same family.
+`#101010` was considered and is too close to the page to see.
+
+Also: the AI-tells check skipped text between backticks as code, which is
+right for Markdown drafts but hid every JavaScript template string in the
+dashboard. `humanize.find(markdown=False)` now reads them, and it found nine
+more dashed strings ("advert 500 chars — too short to screen" and others),
+now reworded.
+
+---
+
+## Added — 2026-09-28 — humanizer: no signs of AI writing
+
+[humanizer](https://github.com/blader/humanizer) (SKILL.md v3.1.0, MIT) is
+bundled at `jobdork/data/humanizer/` with its licence, and applied to every
+kind of text a model writes here, including the app's own wording.
+
+- **Drafts (screen, CV, cover letter).** The full guide is written into each
+  job folder as `writing-style.md`, and the prompt tells Claude to write by
+  it. It governs how to write, never what to claim; the rules on facts and
+  figures still hold. Every draft, screens included, then goes through a new
+  **AI tells** gate, which lists each tell found with its rule number
+  (§1 "not X but Y", §8 dashes, §12 stock AI words, §19 bold labels,
+  §22 chatbot residue, and more). It replaces the em-dash count and the
+  external linter that was rarely installed.
+- **AI verdicts.** The local or cloud model gets a condensed version of the
+  rules. Its summary, reasons and concerns are then cleaned of the two tells
+  with one right answer (connector dashes and curly quotes), and verdicts
+  stored earlier are cleaned the same way when shown. Anything in quotation
+  marks is left as written, because it quotes the advert.
+- **Page quotes** from the still-open check are never rewritten: they must
+  match the page word for word.
+- **The app's own wording.** Every message, label, hint, error, report line
+  and email subject was written by a model too, and about 90 used a dash as
+  a connector; they are rewritten ("Title at Company", "no credential. Get a
+  free key at ...", "Server stopped. Reconnecting..."). The Markdown
+  report's bold-label list is plain. A test now fails if a tell reappears
+  in any string the app shows. Two dashes stay because they are data: the
+  gate that counts dashes, and the address parser that splits on them.
+
+`humanize.find()` catches the patterns with fixed wording. Triads, closers
+that restate a point, and sentences that add nothing still need a reader.
+
+---
+
+## Changed — 2026-09-28 — duplicate job posts are grouped, not hidden
+
+Copies of one job — an aggregator reposting it, or the same job on an
+aggregator and the employer's board — were collapsed on display by company
+and title. Three things were wrong with that, and `grouping.py` fixes them.
+
+- **Different places were merged.** "Software Engineer" at one company in
+  Chicago and in Austin became one post, and the other vanished. The group
+  key now includes the place: resolved city and state, "remote", or the
+  location text when it could not be resolved. On this database that
+  brings back **25 job posts** that were hidden.
+- **Decisions stayed on one copy.** Mark the shown copy applied, and when
+  another copy became the shown one (its advert grew), the job came back as
+  new. `set_status` now writes every copy in the group.
+- **A dead link closed a live job.** The listing check closed a job when one
+  copy was gone. Now it closes only when **every** copy is; the last copy
+  found closed is the one that closes it. **10** copies had been closed
+  while their job was still up elsewhere.
+
+Every copy is kept. The list shows one per group — one not known to be
+closed, then the fullest advert, then the best score — with a **+N copies**
+chip; the job's dialog lists **Also posted at** with each copy's link and
+its own listing state, so a dead link has a working fallback. The counter
+adds "· N duplicates grouped".
+
+Schema v6 unifies statuses already split across copies (the latest real
+decision wins, its note fills empty notes) and reopens copies the check had
+closed while another copy was live.
+
+---
+
+## Changed — 2026-09-28 — quieter status, and what each Setup page is for
+
+- **Connection status only when it matters.** The permanent "live" line is
+  gone. When the page loses the server (stopped, crashed, terminal closed)
+  an amber **Server stopped — reconnecting…** appears above the theme
+  switch, and disappears once it is back. The running-job name under it is
+  gone too; the Dashboard dot already says that.
+- **ⓘ on every Setup item.** Hover it — or tab to the item — for a short
+  explanation of that page (Search, Résumé, Sources, AI, Tools). The tip
+  floats beside the nav so the nav's scrolling cannot clip it. Native hover
+  titles now appear only in the collapsed rail, where the names are hidden.
+
+Caught while testing: the new status notice briefly reused the id `status`,
+already taken by the Job posts status filter — the filter's options went
+into the notice and the list asked for status "undefined". Renamed, and the
+page now has no duplicate ids.
+
+---
+
+## Changed — 2026-09-28 — a new nav, and "job posts" everywhere
+
+### Navigation
+
+The side nav is rebuilt: a logo and name at the top, a solid icon beside
+every item, and the page you are on as a filled pill — pale blue with blue
+text in light mode, slate with white text in dark, on a deep navy panel.
+**Job posts** carries a badge counting new posts; **Dashboard** a dot while
+a job runs. At the bottom: connection status, and a **Dark mode** switch
+that overrides the system setting in either direction (remembered in this
+browser). The chevron beside the logo folds the nav to an icon rail (also
+remembered); below 760px wide it is always the rail. Theme tokens now
+follow the toggle, so every page, not just the nav, switches.
+
+### "Roles" is "job posts" in everything you read
+
+The dashboard, terminal help and output, error messages, the digest email
+(subject included) and the HTML and Markdown reports now say "job post".
+Unchanged, on purpose: output file names (`roles.json`, `roles.md`,
+`roles.csv`), which scripts may read; the `roles` database table; API paths;
+code identifiers, comments; and prompts sent to models.
+
+---
+
+## Changed — 2026-09-28 — "Job posts", and Tools under Setup
+
+The nav's **Roles** is now **Job posts** (with "open job posts" in its
+filter and "AI: judge top job posts" on the Dashboard). **Tools** moved
+under Setup, after AI, leaving the top of the nav to the two pages used
+daily: Job posts and Dashboard.
+
+---
+
+## Changed — 2026-09-28 — Scan and Activity are one Dashboard page
+
+Two pages showed the same jobs twice: Scan had the buttons and a live log,
+Activity had the progress, hosts, AI calls and a second log. They are now
+one **Dashboard** page (nav: Roles, Dashboard, Tools): the job buttons on
+top — run a scan, fetch missing adverts, re-apply filters, check still
+open, AI judge — and the activity dashboard below, for any job started here
+or in the terminal. One log, read from the database; a job started from the
+page appears on it at once. A refused start (another job running, no model
+set up) shows beside the buttons. The nav dot for a running job moved to
+Dashboard. Tools keeps its own log for discover and digest.
+
+`check` no longer prints a line per listed or maybe-gone role — they come
+in hundreds and say the same thing; the summary counts them.
+
+---
+
+## Fix — 2026-09-28 — dead Adzuna links were marked "listed"
+
+Opening many Adzuna roles gave "page not found", while the check called all
+652 of them listed. Two causes:
+
+- **Re-scoring counted as seeing.** `rescreen`, `enrich` and a pasted advert
+  all went through `upsert`, which set `last_seen` to now — so after any
+  rescreen every role looked freshly listed. `upsert(role, seen=False)` now
+  leaves `last_seen` alone; only a scan or `add` (a source actually listing
+  the role) moves it.
+- **A month-old scan vouched for its ads.** The only Adzuna scan that
+  returned anything ran 2026-08-28; Adzuna ads mostly expire within about a
+  month. Now, for **every source**: when the last scan that returned roles
+  from it is over **15 days** old, its roles are `stale`, shown as **maybe
+  gone**, with the source, the scan's date and its age on hover. Direct
+  evidence read during the check itself — the posting page open or closed,
+  or missing from a fresh scan — still wins, because it is newer than any
+  scan. After a fresh scan, roles missing from it are `unlisted` as before;
+  the timestamps the old bug left behind are older than any new scan, so
+  they read correctly without being rewritten.
+
+`jobdork check --platform adzuna` checks one platform only.
+
+---
+
+## Added — 2026-09-28 — Activity page: every job, from any process
+
+The dashboard's live log only ever saw jobs the dashboard started; a scan or
+check run from the terminal was invisible to it. Jobs now record themselves
+in the database (`telemetry.py`, tables `activity` and `activity_events`),
+and the new **Activity** page reads from there, whoever started the job.
+
+- **Header** — job, state (running / done / failed / stopped, plus *quiet*
+  when the heartbeat is over 20s old and *died* when its process is gone),
+  where it was started, pid, and its latest line.
+- **Tiles** — progress (done / total, %), rate per minute, time left or
+  time taken, requests (with rate-limited count), AI calls with average time.
+- **Outcomes** — a stacked bar of the job's counters (closed / still open /
+  maybe gone for a check; strong / possible / weak for judging; kept /
+  dropped for a scan), status colours always paired with their labels.
+- **Network, by host** — requests, 2xx/3xx, 4xx, 429, failures, average and
+  slowest time. **AI calls** — per model: calls, failures, average, slowest.
+- **Postings, by listing state** — counted from the roles themselves, with
+  how many were checked in the last ten minutes, so work from a process that
+  records no telemetry still shows.
+- **Log** — the job's last 120 lines. **Recent jobs** — click one to inspect
+  it.
+
+Refreshes every 2s while open, every 10s otherwise (to light a dot on the
+nav item while anything runs). Recorded: counts, hosts and timings only —
+never request bodies, page text, adverts or keys. Writes are batched (one
+per second plus a 5s heartbeat) on their own connection, and a telemetry
+failure never stops the job. `scan`, `enrich`, `check`, `judge`,
+`rescreen` and `generate` are recorded from the terminal too. The last 200
+jobs are kept.
+
+Also: `[hidden]` now always hides — `.dot`'s `display` rule had been
+overriding it.
+
+---
+
+## Added — 2026-09-28 — an AI reader, and checking postings are still up
+
+### AI page — local or cloud model
+
+New **AI** page under Setup. Pick **Ollama (local)**, **Claude**, **Gemini**
+or **ChatGPT**; the model list is read live from the provider (Ollama's
+from `/api/tags`, the others from their models endpoints with your key).
+**Save and test** makes a one-line round trip. Settings go to the `llm:`
+section of the config — provider, model, Ollama address, and two opt-ins:
+
+- **After each scan, judge the top N roles** not yet judged (default 25).
+- **When checking postings, read pages that do not say** whether the job is
+  open.
+
+What the model does: reads the full advert against your résumé and returns
+a 0-100 verdict (strong / possible / weak) with a summary, reasons for and
+concerns against. It shows as a third badge, `AI 85`, beside match and fit,
+with the reasoning on hover. It never drops or hides a role. **Ask AI** in
+the role dialog judges one role; **AI: judge top roles** on the Scan page
+runs the batch; `jobdork judge` does it from the terminal. A role is judged
+again when its advert grows (pasted or enriched).
+
+Adverts are fenced as untrusted data, answers are constrained to a JSON
+schema where the provider supports it, and every field is clamped and
+clipped before storing. Thinking models on Ollama (gemma4) are asked not to
+think — otherwise they spend the token budget reasoning and are cut off
+mid-answer.
+
+### API keys — memory only
+
+A key typed on the AI page is held in the server's memory as bytes
+(`llm.VAULT`) and never written to the config, database or a log, and never
+sent back to the page. It is overwritten and dropped when jobdork stops
+(Ctrl-C or `kill`), when you click **Forget**, and after no dashboard tab
+has been open for 60 seconds (a running job keeps it until it finishes).
+A key put in `config.yaml` under `llm:` is refused at load. The terminal
+commands use `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` / `GOOGLE_API_KEY` or
+`OPENAI_API_KEY`. Claude needs `pip install -e '.[ai]'` (the Anthropic
+SDK); the others use `requests`.
+
+### Checking a posting is still up
+
+**Check still open** on the Scan page, **Check if still open** in the role
+dialog, `jobdork check` in the terminal. Evidence decides, not guesses:
+
+| Evidence | Result |
+|---|---|
+| HTTP 404 or 410 (Workable answers 410) | closed |
+| redirect to `?error=true` (Greenhouse's closed-job redirect) | closed |
+| schema.org `validThrough` in the past (USAJOBS) | closed |
+| the page says it: "no longer accepting applications", "position has been filled" | closed |
+| gone from the employer's Ashby board API | closed |
+| page still carries the JobPosting, or still on the Ashby board | open |
+| page loads and says nothing | the AI reads it, if allowed — its "closed" counts only with a quote found on the page |
+
+The wording is tight on purpose: every open USAJOBS posting says it "will
+no longer be available once the announcement has closed".
+
+A role found closed, and still `new`, `viewed` or `interested`, moves to
+`closed` with the evidence as its note; one you applied to or are
+interviewing for keeps its status. **Adzuna cannot be checked** — its
+pages refuse scripts — so its roles are only `listed` or `unlisted`
+(missing from Adzuna's latest results), shown as **maybe gone**, never
+closed automatically. Results show on the card (`closed`, `maybe gone`)
+and in the dialog, with the evidence on hover. A role checked in the last
+12 hours is skipped unless forced.
+
+Schema v5: `roles.llm_score`, `llm_judgement`, `listing_state`,
+`listing_note`, `listing_checked_at`, none of which a rescan overwrites.
+
+---
+
+## Added — 2026-09-28 — hover match or fit to see why
+
+Match and fit were two differently styled bits of text with a generic
+tooltip. They are now a matched pair of badges — `MATCH 80`, `FIT 5 / 25`,
+same size and weight, small-caps label, bold figure — and hovering or
+tabbing to either opens a card that explains that role's number:
+
+- **match** lists every rule with its points and the reason: which
+  `titles.include` term matched, the arrangement, the distance against your
+  radius with the formula (and, at 0 mi, that the posting only gave a city
+  so it was measured to the city centre), what the salary was compared
+  with, any soft dealbreakers, and résumé fit — totalled at the bottom.
+- **fit** says how many of the advert's skills you have and how that became
+  the number, including when a short advert was counted out of 5, then
+  lists the skills on your résumé in green and the ones asked for but
+  missing.
+
+Screening now records these as `roles.score_parts` (JSON, schema v4). A
+role not screened since shows "Tools → Re-apply filters fills this in".
+
+---
+
+## Fix — 2026-09-28 — the score is labelled "match"
+
+A bare number beside `fit 5/25` read as a second, unexplained score. It is
+now `match 80` on cards, in the role dialog and in the HTML and Markdown
+reports, with a tooltip naming what it adds up: title, arrangement,
+distance, salary and résumé fit. CSV keeps its `score` column name so
+existing spreadsheets still line up.
+
+---
+
+## Fix — 2026-09-28 — fit shown beside the score, and teasers stop scoring 100
+
+Three Adzuna roles sat at exactly 100. Not a cap — every part of the sum had
+maxed: title 30, arrangement 10, distance 30 (Adzuna says "Chicago,
+Illinois", which resolves to the anchor itself, so 0.0 mi), salary 5 (no
+floor set), and résumé fit 25 of 25 — because the 500-character teaser named
+one skill, and one of one is 100%.
+
+### Changed
+
+- **Fit is stored and shown on its own.** New `roles.fit` column (schema
+  v3), shown as `fit N/25` next to the score on each card, in the role
+  dialog, and in the HTML, Markdown and CSV reports (`fit` is appended as
+  the last CSV column so existing column positions hold). A role with no
+  résumé or no advert shows `–`, not 0.
+- **A thin advert cannot score full fit.** The share is taken of at least
+  `MIN_SKILLS` (5) skills, so a teaser naming only "java" scores 5 of 25, not
+  25. A full advert you match entirely still scores 25.
+
+### Fixed
+
+- **A rescan overwrote fuller adverts with the teaser.** Scan screened, and
+  stored, whatever the source sent this time — so an advert recovered by
+  `enrich` went back to 500 characters on the next Adzuna run. Scan now uses
+  the stored advert when it is longer, for screening and storage both.
+- **`rescreen` skipped duplicate copies.** It walked the list with
+  duplicates collapsed, so 127 hidden copies kept their old scores, and
+  because the collapse ranks by score, a stale 100 then outranked the
+  re-screened 80 and became the copy shown. It now re-screens every row.
+
+### Added — paste the advert
+
+Adzuna cannot be enriched: the API caps adverts at 500 characters, and its
+pages answer scripts with a CloudFront `403 Request blocked` (re-checked
+today, `robots.txt` included), which this tool does not work around. The
+browser can read the page, so the role dialog now has a **Paste the full
+advert** box — open by default when the stored advert is 600 characters or
+fewer — that stores the text and re-screens the role on it
+(`POST /api/advert`). A role that no longer passes is marked skipped with
+the reason, as `enrich` does.
+
+---
+
+## Fix — 2026-09-28 — set a role's status from its detail view
+
+The role dialog showed the advert but no way to act on it, so you had to
+close it and use the card's dropdown. Its header now carries one button per
+status you decide — interested, applied, submitted, interviewing, offer,
+rejected, withdrawn, skipped, closed — with the current one filled in its
+colour. `new` and `viewed` are left out: those are recorded for you. The
+dialog also no longer calls `showModal()` on itself while already open,
+which it did every time a status changed with it showing.
+
+A status change keeps the dialog on the tab you were reading — a drafted CV
+stays a drafted CV instead of snapping back to the advert. And acting on a
+card no longer reopens that role's dialog after you have closed it.
+
+---
+
+## Fix — 2026-09-28 — `run.sh` points at the package
+
+`run.sh` still ran `main.py`, which the package layout removed, so it died
+with `can't open file '.../main.py'`. It now runs `python -m jobdork "$@"`,
+and with no arguments it runs `serve`, so `./run.sh` opens the dashboard.
+
+---
+
+## 0.15.0 — 2026-08-30 — the page can do everything the terminal can
+
+Eight commands existed only in the terminal, so the dashboard was a viewer
+with four buttons. It is now a front end over the same functions — not a
+second implementation, the same `scan`, `enrich`, `discover`, `generate`,
+`digest` and `add` that `cli.py` calls — so there is nothing to drift.
+
+### Added — every command, in the page
+
+| | |
+|---|---|
+| **Scan** | already there, now beside enrich and rescreen |
+| **Enrich** | fetch the full advert where only a summary arrived |
+| **Re-apply filters** | `rescreen`, after changing your search |
+| **Add a posting** | paste a link you found yourself |
+| **Discover** | find an employer's board and add it, reading the token off their page |
+| **Digest** | mail the list, with the CSV attachment option |
+| **Generate** | screen, CV and cover letter, per role |
+| **Sources** | what runs, what does not, and why |
+
+Every long one reports over the event stream, so drafting a CV is watched
+rather than waited for. Still one job at a time, and a refusal now names what
+is holding the runner.
+
+### Added — a role detail view
+
+Clicking a title opens the advert in full, with tabs for anything generated
+for it. **A document drafted in the terminal is readable in the page**, with
+its gate results beside it — which is the parity the two front ends were
+supposed to have and did not.
+
+The draft buttons are disabled, with a reason, when the `claude` CLI is not on
+PATH. Everything else keeps working; the feature that needs a tool you do not
+have says so rather than failing when clicked.
+
+### Added — `viewed`
+
+A new status, between `new` and `interested`, set when you open a role.
+Without it a role you have read and not decided on is indistinguishable from
+one you never opened, which is the exact thing a scanner is supposed to
+remember for you.
+
+### Added — résumé upload
+
+Drop a `.pdf`, `.docx`, `.md` or `.txt` in the page; it is parsed immediately
+and reports back how many characters, years and skills it found, so a résumé
+that cannot be read is caught at upload rather than silently scoring every
+role at zero.
+
+**The browser's filename is used for exactly one thing — reading its
+extension.** The file is written to a name and directory this code chooses.
+Verified: an upload claiming to be `../../../.ssh/authorized_keys` is refused
+on its extension, and nothing is ever written outside the data directory.
+
+### Security
+
+- **A generated document is fetched by artifact id, never by path.** Only
+  files this tool recorded writing can be read, so a bug in the front end
+  cannot turn the dashboard into a file browser. A non-numeric id is 400, an
+  unknown one 404, and a recorded file that has since been deleted is 410
+  rather than a blank page.
+- Every new endpoint is behind the same token and Host checks as the rest.
+
+---
+
+## 0.14.0 — 2026-08-30 — a live dashboard, and localhost is not a boundary
+
+Groundwork for whichever way this gets packaged. Every route — a desktop app,
+a container, or just running it here — needs this and none of it is wasted.
+
+### Fixed — the server had no authentication at all
+
+`serve` validated the Host header and nothing else. That stops a web page
+reaching it under DNS rebinding; it does nothing about another program on the
+same machine. **Any process running as you could `curl 127.0.0.1:8765/api/roles`
+and read every role, note and status, or POST changes to them.** It was
+described as "local only" as though local meant safe.
+
+A token is now minted per run, printed once as part of the URL, held in memory
+by the page and sent as a header afterwards, and compared in constant time. It
+is not stored and it dies with the process. Verified live: no token 401, wrong
+token 401, right token 200.
+
+### Fixed — a hardcoded port
+
+8765 collides, with another jobdork or with anything else that liked the
+number. The port is asked for rather than assumed: the preferred one is tried,
+a free one is taken if it is busy, and the actual port is printed so a parent
+process can read it instead of guessing.
+
+### Added — a scan you can watch
+
+A scan takes minutes, which is exactly when it is worth watching: a rate limit
+or a dead board shows up in the middle, not at the end. It now runs on a
+background thread and reports through server-sent events — plain HTTP, no
+library, no websocket.
+
+```
+[status  ] scan started
+[progress] ashby: 109 roles, 1 requests
+[progress] adzuna: 818 roles, 25 requests
+```
+
+**One at a time, refused rather than queued.** Two scans racing would double
+every request to hosts that are deliberately paced, and the second would earn
+the rate limit the first was avoiding. A second trigger answers
+`a scan is already running`.
+
+A subscriber that has stopped reading — a closed tab the server has not
+noticed — fills its queue and is dropped, rather than blocking the scan that
+is trying to report progress.
+
+### Added — settings in the page
+
+Titles, location, radius, units, countries, arrangements, salary floor and
+résumé path, edited without opening YAML. The file is written, then re-read
+through the normal loader; **an edit that would not survive `jobdork scan`
+cannot be saved**, and a rejected edit is rolled back to the file that was
+there before. Credentials are not in the payload and are not touched.
+
+### Added — the advert cap, made visible
+
+A role whose advert is 500 characters now says so in the list: *advert 500
+chars — too short to screen*. Dealbreakers and fit scoring both read the body,
+so that number is the difference between a screened role and a guess.
+
+### Also
+
+- Body limits are per endpoint. A status change is a uid, a word and a note;
+  a config save carries every title. Letting the config's limit apply to
+  actions meant accepting a quarter-megabyte note, which a test caught.
+- A Content-Security-Policy of `default-src 'none'` with `connect-src 'self'`,
+  so a script injected through a job title still cannot phone home.
+- 21 tests for the server, covering the token, the port, the stream, the
+  one-scan rule and config rollback. 142 in total.
+
+---
+
 ## 0.13.1 — 2026-08-29 — Workable is back
 
 ### Resolved
@@ -492,7 +1463,7 @@ one by name, and a filter is not a better judge of that than you are.
 ### LICENSE
 
 MIT, matching what `README.md` and `pyproject.toml` already declared.
-Copyright Jesse Ngolab, taken from the repository's own git author.
+Copyright held under the GitHub handle `jessn-dev`.
 
 ---
 
@@ -785,8 +1756,8 @@ and a section that has to be re-invented is a section that gets skipped.
 - **SmartRecruiters answers 200 with `totalFound: 0`** for a throttle and for
   a board that is not there alike. An empty answer from it proves nothing
   either way.
-- **Uncommitted:** 0.6.0 through 0.13.0 exist only in the working tree.
-  `f550183` carries 0.2.0 through 0.5.0.
+- **Uncommitted:** 0.6.0 through 0.13.0, and every dated entry above, exist
+  only in the working tree. `684b7c9` is the last commit.
 
 ---
 

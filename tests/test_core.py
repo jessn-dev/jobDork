@@ -17,10 +17,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from jobdork import geo, screen, textutil
-from jobdork.config import Config, Dealbreaker, Locations, Salary
+from jobdork.core import textutil
+from jobdork.core.config import Config, Dealbreaker, Locations, Salary
+from jobdork.db.store import Role, canonical_url, make_uid
 from jobdork.fetch.boards import annualise
-from jobdork.store import Role, canonical_url, make_uid
+from jobdork.search import geo, screen
 
 
 def _cfg(**kwargs) -> Config:
@@ -325,12 +326,41 @@ def test_tags_do_not_hide_a_dealbreaker_match():
 
 def test_every_accepted_format_has_a_writer():
     """A format that validates and then writes nothing is a silent failure."""
-    from jobdork import render
-    from jobdork.config import OUTPUT_FORMATS
+    from jobdork.core.config import OUTPUT_FORMATS
+    from jobdork.output import render
     writers = {"html": render.to_html, "json": render.to_json,
                "md": render.to_markdown, "csv": render.to_csv}
     for canonical in set(OUTPUT_FORMATS.values()):
         assert canonical in writers, f"{canonical!r} validates but has no writer"
+
+
+def test_every_writer_writes_real_database_rows():
+    """roles.json failed on every scan once `row.keys()` became `row`."""
+    import tempfile
+
+    from jobdork.db.store import Role, Store
+    from jobdork.output import render
+    with tempfile.TemporaryDirectory() as tmp:
+        with Store(Path(tmp) / "t.db") as store:
+            store.upsert(Role(platform="greenhouse", company="Acme", title="Engineer",
+                              url="https://boards.greenhouse.io/acme/jobs/1",
+                              description="Build things."))
+            store.conn.commit()
+            rows = store.list_roles()
+        for name, writer in (("index.html", render.to_html), ("roles.json", render.to_json),
+                             ("roles.md", render.to_markdown), ("roles.csv", render.to_csv)):
+            path = writer(rows, Path(tmp) / name)
+            assert Path(path).read_text(encoding="utf-8"), name
+        dumped = render.rows_to_dicts(rows)[0]
+        assert dumped["company"] == "Acme" and "description" not in dumped
+
+        # JSON columns come out as JSON, and a stored verdict follows its score.
+        with Store(Path(tmp) / "t.db") as store:
+            store.set_judgement(rows[0]["uid"], {"score": 30, "verdict": "possible"})
+            row = store.list_roles()[0]
+        dumped = render.rows_to_dicts([row])[0]
+        assert dumped["llm_judgement"]["verdict"] == "weak"
+        assert isinstance(dumped["score_parts"], (list, type(None)))
 
 
 def test_markdown_alias_normalises_to_md():
@@ -338,7 +368,7 @@ def test_markdown_alias_normalises_to_md():
     import os
     import tempfile
 
-    from jobdork import config
+    from jobdork.core import config
     with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
         fh.write("titles: {include: [engineer]}\n"
                  "locations: {anchor: 'Chicago, IL', radius: exact}\n"
@@ -355,8 +385,8 @@ def test_unknown_format_is_refused():
     import os
     import tempfile
 
-    from jobdork import config
-    from jobdork.config import ConfigError
+    from jobdork.core import config
+    from jobdork.core.config import ConfigError
     with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
         fh.write("titles: {include: [engineer]}\n"
                  "locations: {anchor: 'Chicago, IL', radius: exact}\n"
@@ -377,7 +407,7 @@ def test_unknown_format_is_refused():
 
 def _seeded_store(tmpdir):
     """A store with one finished run, and roles seen before and during it."""
-    from jobdork.store import Role, Store
+    from jobdork.db.store import Role, Store
     store = Store(Path(tmpdir) / "d.db")
 
     # An older role, stored before any run was recorded.
@@ -415,7 +445,7 @@ def test_digest_renders_without_credentials():
     """Building a digest must never need a key; only sending does."""
     import tempfile
 
-    from jobdork import digest
+    from jobdork.output import digest
     with tempfile.TemporaryDirectory() as tmp:
         store = _seeded_store(tmp)
         try:
@@ -429,14 +459,14 @@ def test_digest_renders_without_credentials():
 
 
 def test_digest_reports_an_empty_result_rather_than_pretending():
-    from jobdork import digest
+    from jobdork.output import digest
     built = digest.build([], _cfg(), new_only=True)
     assert built.empty
     assert "nothing new" in built.subject.lower()
 
 
 def test_digest_refuses_a_bad_address_before_touching_the_network():
-    from jobdork import digest
+    from jobdork.output import digest
     built = digest.build([], _cfg())
     for bad in ("", "not-an-email", "a@b", "@example.com"):
         try:
@@ -453,7 +483,7 @@ def test_digest_csv_matches_the_normal_writer():
     import io
     import tempfile
 
-    from jobdork import digest, render
+    from jobdork.output import digest, render
     with tempfile.TemporaryDirectory() as tmp:
         store = _seeded_store(tmp)
         try:
@@ -471,7 +501,7 @@ def test_digest_csv_matches_the_normal_writer():
 # ── discover ───────────────────────────────────────────────────────────────────
 
 def test_a_name_is_refused_because_guessing_a_domain_is_guessing():
-    from jobdork import discover
+    from jobdork.search import discover
     report = discover.discover("Acme Corporation", fetcher=None)
     assert report.error and "not a domain" in report.error
     assert not report.found
@@ -479,14 +509,14 @@ def test_a_name_is_refused_because_guessing_a_domain_is_guessing():
 
 def test_tokens_are_read_from_the_page_not_invented():
     """Vectra's Greenhouse token is `vectranetworks`, not `vectra`."""
-    from jobdork.discover import _extract
+    from jobdork.search.discover import _extract
     html = '<script src="https://boards.greenhouse.io/embed/job_board/js?for=vectranetworks"></script>'
     supported, _ = _extract(html, "https://vectra.ai/careers")
     assert [(f.platform, f.token) for f in supported] == [("greenhouse", "vectranetworks")]
 
 
 def test_every_supported_board_shape_is_recognised():
-    from jobdork.discover import _extract
+    from jobdork.search.discover import _extract
     cases = {
         'href="https://job-boards.greenhouse.io/acme/jobs/1"': ("greenhouse", "acme"),
         'href="https://jobs.ashbyhq.com/primer.io/abc"': ("ashby", "primer.io"),
@@ -501,7 +531,7 @@ def test_every_supported_board_shape_is_recognised():
 
 
 def test_url_furniture_is_not_mistaken_for_a_token():
-    from jobdork.discover import _extract
+    from jobdork.search.discover import _extract
     supported, _ = _extract(
         'https://boards.greenhouse.io/embed/job_board?for=realtoken',
         "https://x.test/careers")
@@ -512,7 +542,7 @@ def test_url_furniture_is_not_mistaken_for_a_token():
 
 def test_platforms_without_an_adapter_are_named_not_hidden():
     """'No adapter' and 'nothing found' are different statements."""
-    from jobdork.discover import _extract
+    from jobdork.search.discover import _extract
     _, unsupported = _extract(
         'href="https://acme.wd5.myworkdayjobs.com/careers"',
         "https://acme.test/careers")
@@ -521,7 +551,7 @@ def test_platforms_without_an_adapter_are_named_not_hidden():
 
 def test_an_unverified_board_is_never_addable():
     """Banking a guess is worse than leaving it out."""
-    from jobdork.discover import Found
+    from jobdork.search.discover import Found
     for status in ("empty", "unread", "blocked"):
         assert not Found(platform="greenhouse", token="x", status=status).addable
     assert Found(platform="greenhouse", token="x", status="verified").addable
@@ -532,7 +562,7 @@ def test_an_unverified_board_is_never_addable():
 def test_add_preserves_comments_and_appends():
     import tempfile
 
-    from jobdork import discover
+    from jobdork.search import discover
     example = Path(__file__).resolve().parent.parent / "config.example.yaml"
     with tempfile.TemporaryDirectory() as tmp:
         target = Path(tmp) / "config.yaml"
@@ -549,7 +579,7 @@ def test_add_preserves_comments_and_appends():
         assert text.count("#") == before, "comments must survive the rewrite"
         assert "token: vectranetworks" in text and "token: ramp" in text
 
-        from jobdork import config
+        from jobdork.core import config
         cfg = config.load(str(target))
         assert {(c.name, c.token) for c in cfg.sources.companies} == {
             ("Vectra", "vectranetworks"), ("Ramp", "ramp")}
@@ -571,7 +601,7 @@ def test_country_override_moves_units_and_adzuna_together():
     """--country DE must not leave miles and the American index behind."""
     import tempfile
 
-    from jobdork import config
+    from jobdork.core import config
     from jobdork.fetch import adzuna
     with tempfile.TemporaryDirectory() as tmp:
         cfg = config.load(_base_config_file(tmp))
@@ -585,7 +615,7 @@ def test_country_override_moves_units_and_adzuna_together():
 def test_a_km_override_is_converted_not_taken_literally():
     import tempfile
 
-    from jobdork import config
+    from jobdork.core import config
     with tempfile.TemporaryDirectory() as tmp:
         cfg = config.load(_base_config_file(tmp))
         config.apply_overrides(cfg, countries=["DE"], anchor="Berlin, Germany",
@@ -597,8 +627,8 @@ def test_overrides_are_validated_like_the_file():
     """An override must not be a looser way in than the config it replaces."""
     import tempfile
 
-    from jobdork import config
-    from jobdork.config import ConfigError
+    from jobdork.core import config
+    from jobdork.core.config import ConfigError
     with tempfile.TemporaryDirectory() as tmp:
         path = _base_config_file(tmp)
         for bad in ({"countries": ["ZZ"]},
@@ -629,7 +659,7 @@ def test_every_subcommand_accepts_the_overrides():
 # ── enrich ─────────────────────────────────────────────────────────────────────
 
 def test_a_jobposting_description_is_read_from_json_ld():
-    from jobdork import enrich
+    from jobdork.search import enrich
     html = """<html><head>
     <script type="application/ld+json">
     {"@context":"https://schema.org","@type":"JobPosting",
@@ -644,7 +674,7 @@ def test_a_jobposting_description_is_read_from_json_ld():
 
 def test_the_longest_description_wins():
     """A page may carry a teaser block and a full one."""
-    from jobdork import enrich
+    from jobdork.search import enrich
     html = ("""<script type="application/ld+json">
             {"@type":"JobPosting","description":"short"}</script>"""
             """<script type="application/ld+json">
@@ -653,7 +683,7 @@ def test_the_longest_description_wins():
 
 
 def test_nested_json_ld_shapes_are_found():
-    from jobdork import enrich
+    from jobdork.search import enrich
     for html in (
         '<script type="application/ld+json">[{"@type":"JobPosting",'
         '"description":"in a list"}]</script>',
@@ -664,7 +694,7 @@ def test_nested_json_ld_shapes_are_found():
 
 
 def test_a_page_with_no_jobposting_yields_nothing():
-    from jobdork import enrich
+    from jobdork.search import enrich
     assert enrich.extract_description("<html>no structured data</html>") == ""
     assert enrich.extract_description(
         '<script type="application/ld+json">{"@type":"Organization",'
@@ -675,13 +705,13 @@ def test_a_page_with_no_jobposting_yields_nothing():
 
 def test_adzuna_is_never_fetched():
     """Its links answer 403 from bot protection, which is not worked around."""
-    from jobdork import enrich
+    from jobdork.search import enrich
     assert "adzuna" in enrich.UNREACHABLE
     assert "403" in enrich.UNREACHABLE["adzuna"]
 
 
 def test_platforms_that_already_send_full_adverts_are_not_refetched():
-    from jobdork import enrich
+    from jobdork.search import enrich
     for platform in ("workable", "greenhouse", "ashby", "lever", "usajobs"):
         assert platform in enrich.ALREADY_FULL
 
@@ -731,7 +761,7 @@ def test_the_fuller_advert_wins_a_duplicate_not_the_higher_score():
     """
     import tempfile
 
-    from jobdork.store import Role, Store
+    from jobdork.db.store import Role, Store
     with tempfile.TemporaryDirectory() as tmp:
         store = Store(Path(tmp) / "dupes.db")
         try:
@@ -759,7 +789,7 @@ def test_score_still_decides_between_equally_full_adverts():
     """Bucketed by thousands: 4,700 and 4,900 characters are one advert."""
     import tempfile
 
-    from jobdork.store import Role, Store
+    from jobdork.db.store import Role, Store
     with tempfile.TemporaryDirectory() as tmp:
         store = Store(Path(tmp) / "dupes.db")
         try:
@@ -781,7 +811,7 @@ def test_score_still_decides_between_equally_full_adverts():
 
 def test_blockers_can_be_overridden():
     """The default list encodes a judgement about one job market."""
-    from jobdork.config import Screening
+    from jobdork.core.config import Screening
     cfg = _cfg(titles_include=["engineering manager"])
     assert not screen.title_verdict("Engineering Program Manager", cfg)[0]
 
@@ -791,7 +821,7 @@ def test_blockers_can_be_overridden():
 
 
 def test_loose_gap_is_configurable():
-    from jobdork.config import Screening
+    from jobdork.core.config import Screening
     cfg = _cfg(titles_include=["head of engineering"])
     title = "Head of Global Platform and Site Reliability Engineering"
     cfg.screening = Screening(loose_gap=0)
@@ -802,7 +832,7 @@ def test_loose_gap_is_configurable():
 
 def test_extra_arrangement_patterns_add_to_the_defaults():
     """Adding one must not silently lose the built-in ones."""
-    from jobdork.config import Screening
+    from jobdork.core.config import Screening
     cfg = _cfg()
     cfg.screening = Screening(office_patterns=[r"in the (?:Chicago )?office"])
 
@@ -819,8 +849,8 @@ def test_a_broken_screening_pattern_stops_the_run():
     import os
     import tempfile
 
-    from jobdork import config
-    from jobdork.config import ConfigError
+    from jobdork.core import config
+    from jobdork.core.config import ConfigError
     with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
         fh.write("titles: {include: [engineer]}\n"
                  "locations: {anchor: 'Chicago, IL', radius: exact}\n"
@@ -838,6 +868,142 @@ def test_a_broken_screening_pattern_stops_the_run():
 
 
 # ── keep this block LAST ───────────────────────────────────────────────────────
+
+# ── résumé fit and thin adverts ───────────────────────────────────────────────
+
+def test_a_teaser_naming_one_skill_is_not_a_perfect_fit():
+    """Adzuna's 500 characters named "java" and scored 25 of 25 on it."""
+    from jobdork.search.resume import MIN_SKILLS, Resume, fit
+
+    cv = Resume(text="java", skills={"java", "python", "sql", "react", "docker"})
+    thin = fit(cv, "We need a Java developer in Chicago.")
+    assert thin.matched == ["java"]
+    assert thin.score == round(25.0 / MIN_SKILLS, 1), thin.score
+
+    full = fit(cv, "Java, Python, SQL, React and Docker, daily.")
+    assert full.score == 25.0, "a full advert you match entirely still scores full"
+
+
+def test_screening_records_fit_apart_from_the_score():
+    from jobdork.search.resume import Resume
+
+    cfg = Config(titles_include=["software engineer"],
+                 locations=Locations(anchor="", radius="any", countries=[]),
+                 salary=Salary())
+    cv = Resume(text="python", skills={"python"})
+    role = Role(platform="workable", title="Software Engineer", url="https://x.test/f",
+                work_mode="remote", description="Python services.")
+    screen.screen(role, cfg, geo.resolve_anchor(""), cv)
+    assert role.fit is not None and 0 < role.fit < role.score
+
+    bare = Role(platform="workable", title="Software Engineer", url="https://x.test/g",
+                work_mode="remote")
+    screen.screen(bare, cfg, geo.resolve_anchor(""), cv)
+    assert bare.fit is None, "no advert is not a fit of 0"
+
+
+def test_a_rescan_does_not_replace_a_fuller_advert_with_a_teaser():
+    """The next scan sent Adzuna's 500 characters back over a pasted advert."""
+    import tempfile
+
+    from jobdork import fetch
+    from jobdork.db.store import Store
+    from jobdork.search import scan
+
+    full = "Software engineer. " * 100
+    teaser = "Software engineer, short."
+    url = "https://x.test/teaser"
+
+    def adapter(_fetcher, _cfg, **_kw):
+        return fetch.SourceResult(source="fake", roles=[Role(
+            platform="adzuna", title="Software Engineer", url=url,
+            work_mode="remote", description=teaser)])
+
+    cfg = Config(titles_include=["software engineer"],
+                 locations=Locations(anchor="", radius="any", countries=[]),
+                 salary=Salary())
+    original_jobs, original_get = scan._jobs_for, fetch.get
+    scan._jobs_for = lambda _cfg: [("fake", {})]
+    fetch.get = lambda _name: adapter
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg.db_path = str(Path(tmp) / "t.db")
+            with Store(cfg.db_path) as store:
+                store.upsert(Role(platform="adzuna", title="Software Engineer",
+                                  url=url, description=full))
+                store.conn.commit()
+                report = scan.run(cfg, store)
+                assert report.kept == 1, "the role must pass for this to test anything"
+                assert store.stored_description(make_uid("adzuna", url)) == full
+    finally:
+        scan._jobs_for, fetch.get = original_jobs, original_get
+
+def test_every_point_of_the_score_is_explained():
+    """The dashboard's hover card must add up to the number beside it."""
+    from jobdork.search.resume import Resume
+
+    cfg = Config(titles_include=["software engineer"],
+                 locations=Locations(anchor="", radius="any", countries=[]),
+                 salary=Salary())
+    cv = Resume(text="python", skills={"python"})
+    role = Role(platform="workable", title="Software Engineer", url="https://x.test/p",
+                work_mode="remote", description="Python and Go services.")
+    screen.screen(role, cfg, geo.resolve_anchor(""), cv)
+    names = [p["part"] for p in role.score_parts]
+    assert names[:2] == ["title", "arrangement"] and names[-1] == "résumé fit", names
+    assert abs(sum(p["points"] for p in role.score_parts) - role.score) < 0.5
+    assert all(p["why"] for p in role.score_parts), "every part says why"
+    fit = role.score_parts[-1]
+    assert fit["has"] == ["python"] and "go" in fit["wants"]
+
+
+def test_rescreen_reaches_the_duplicate_copies_the_list_hides():
+    """A hidden copy left on its old score outranked the re-screened one."""
+    import tempfile
+
+    from jobdork.db.store import Store
+    from jobdork.search import scan
+
+    cfg = Config(titles_include=["software engineer"],
+                 locations=Locations(anchor="", radius="any", countries=[]),
+                 salary=Salary())
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg.db_path = str(Path(tmp) / "t.db")
+        with Store(cfg.db_path) as store:
+            for n in (1, 2):
+                role = Role(platform="adzuna", company="Acme",
+                            title="Software Engineer", work_mode="remote",
+                            url=f"https://x.test/copy{n}")
+                role.score = 999.0
+                store.upsert(role)
+            store.conn.commit()
+            checked, _, _ = scan.rescreen(cfg, store)
+            assert checked == 2
+            scores = [r[0] for r in store.conn.execute("SELECT score FROM roles")]
+            assert 999.0 not in scores, scores
+
+
+def test_rescreening_is_not_seeing_the_role_again():
+    """rescreen bumped last_seen, so month-old ads looked freshly listed."""
+    import tempfile
+
+    from jobdork.db.store import Store
+    from jobdork.search import scan
+
+    cfg = Config(titles_include=["software engineer"],
+                 locations=Locations(anchor="", radius="any", countries=[]),
+                 salary=Salary())
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg.db_path = str(Path(tmp) / "t.db")
+        with Store(cfg.db_path) as store:
+            store.upsert(Role(platform="adzuna", title="Software Engineer",
+                              work_mode="remote", url="https://x.test/old"))
+            store.conn.execute("UPDATE roles SET last_seen = '2026-01-01T00:00:00'")
+            store.conn.commit()
+            scan.rescreen(cfg, store)
+            seen = store.conn.execute("SELECT last_seen FROM roles").fetchone()[0]
+            assert seen == "2026-01-01T00:00:00", seen
+
 
 if __name__ == "__main__":
     failures = 0

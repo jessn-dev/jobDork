@@ -11,22 +11,29 @@ the way they are.
 config.yaml ──┐
               ▼
          ┌─────────┐   one adapter per source, run concurrently
-         │  fetch  │   fetch/*.py  →  SourceResult(roles, errors, suspect)
+         │  fetch  │   fetch/*.py         →  SourceResult(roles, errors, suspect)
          └────┬────┘
               ▼
          ┌─────────┐   title → work mode → location → salary → dealbreakers
-         │ screen  │   screen.py   →  Verdict(keep, reasons, flags, score)
+         │ screen  │   search/screen.py   →  Verdict(keep, reasons, flags, score)
          └────┬────┘
               ▼
          ┌─────────┐   upsert by uid; first_seen never moves
-         │  store  │   store.py    →  data/jobdork.db
+         │  store  │   db/store.py        →  data/jobdork.db
          └────┬────┘
-              ▼
-      ┌───────┴───────┐
-      ▼               ▼
-   render.py       cli.py
-   out/index.html  list / applied / show / rescreen
+   ┌──────────┼──────────────┬─────────────────┬──────────────────┐
+   ▼          ▼              ▼                 ▼                  ▼
+ enrich     check          judge             draft              read it
+ search/    search/        ai/               writing/generate   output/ (page,
+ enrich.py  listing.py     judging.py        ai/writer.py       email), cli.py,
+                             │                 │                web/ (dashboard)
+                             └──── ai/guard.py ┘
+                        every claim checked against résumé and advert
 ```
+
+Every run, from the terminal or the dashboard, records itself through
+`core/telemetry.py` into the same database, which is how the Dashboard shows a
+run it did not start.
 
 Every stage is independent and testable on its own. `screen` never makes a
 network call; `fetch` never decides whether a role is wanted; `store` never
@@ -36,33 +43,44 @@ filters.
 
 ## Modules
 
-| Module | Lines | Responsibility |
+Grouped by what they are for. A package imports from `core/` and `db/`
+freely; `search/`, `ai/` and `writing/` import each other only where one
+genuinely uses the other (judging reads the résumé, drafts are guarded), and
+nothing below imports from `web/`.
+
+| Package | Lines | Modules |
 |---|---|---|
-| `config.py` | 494 | Load and validate YAML, read secrets from the environment |
-| `store.py` | 486 | SQLite schema, upsert, status, resolution by uid/url/name |
-| `geo.py` | 626 | Gazetteer, haversine, state/metro/country normalisation |
-| `screen.py` | 360 | Every filtering rule and the scoring |
-| `cli.py` | 389 | Argument parsing and the commands |
-| `fetch/http.py` | 266 | Pacing, retries, circuit breaker — the only networking |
-| `scan.py` | 205 | Orchestration, threading, rescreen |
-| `render.py` | 196 | Static HTML and JSON |
-| `resume.py` | 163 | Résumé parsing, skill extraction, fit scoring |
-| `textutil.py` | 77 | HTML → text for advert bodies |
-| `migrations.py` | 150 | Numbered, forwards-only schema steps |
-| `dork/` | ~1,100 | The original Google query generator, moved not rewritten |
-| `fetch/*.py` | ~900 | Eight source adapters plus shared board helpers |
+| `cli.py` | ~990 | Argument parsing and every command |
+| `core/` | ~1,080 | `config` (YAML, secrets from the environment), `telemetry` (what a running job is doing, readable from any process), `textutil` (HTML → text) |
+| `db/` | ~1,090 | `store` (schema, upsert, status, AI outputs), `migrations` (numbered, forwards-only), `grouping` (copies of one job) |
+| `fetch/` | ~1,640 | `http` (pacing, retries, circuit breaker — the only networking), one adapter per source, shared board helpers |
+| `search/` | ~3,020 | `scan` (orchestration, rescreen), `screen` (every filter and the score), `enrich` (full adverts), `discover` (an employer's board), `listing` (is it still open), `geo` (gazetteer, distance), `resume` (skills, fit) |
+| `ai/` | ~1,340 | `llm` (providers, keys in memory), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, résumé review) |
+| `writing/` | ~850 | `generate` (`claude -p` drafts), `gates` (scripted checks), `humanize` (signs of AI writing) |
+| `web/` | ~2,110 | `serve` (HTTP), `api` (every command for the page, metrics), `live` (runs and events), `session` (token, port) |
+| `output/` | ~615 | `render` (static HTML and JSON), `digest` (email) |
+| `dork/` | ~1,190 | The original Google query generator, moved not rewritten |
+| `data/` | | `cities.csv`, `dashboard.html`, the humanizer rules |
 
 ---
 
 ## The database
 
 ```sql
-roles       -- what was found
-role_state  -- where it sits in your pipeline
-artifacts   -- documents produced for it
-runs        -- what each scan did
-meta        -- schema version
+roles            -- what was found, with its score, AI verdict and listing state
+role_state       -- where it sits in your pipeline (shared by copies of one job)
+artifacts        -- documents produced for it, with their gate results
+runs             -- what each scan did, per source
+deleted          -- posts you deleted, so a scan does not bring them back
+activity         -- every run, from any process: progress, hosts, AI, heartbeat
+activity_events  -- each run's log lines (the last 200 runs)
+ai_outputs       -- every text a model wrote, its guard result and your rating
+llm_calls        -- every model call inside a run: purpose, seconds, ok
+meta             -- schema version
 ```
+
+A new table is created by `CREATE TABLE IF NOT EXISTS` on open; a change to an
+existing one is a numbered step in `db/migrations.py`, forwards only.
 
 ### Why state and artifacts are separate tables
 
@@ -183,32 +201,56 @@ caught, logged, and recorded as that source's error.
 **By uid, at store time.** Same platform and same canonical URL is the same
 posting. This is exact and safe.
 
-**By employer and title, at read time.** Aggregators republish one vacancy under
-six or seven distinct posting ids. Those are legitimately different uids and
-merging them at store time risks discarding the only copy, so the collapse
-happens on the way out: same company, same title, best score wins.
+**By employer, title and place, at read time** (`db/grouping.py`).
+Aggregators republish one vacancy under six or seven distinct posting ids, and
+an employer's own board carries the job an aggregator does. Those are
+legitimately different uids and merging them at store time risks discarding
+the working link, so copies are grouped instead: one post on screen, one
+status for the group, closed only when every copy is. Place is part of the key,
+or a company hiring the same title in two cities would lose one.
 `list --duplicates` shows them all.
 
 ---
 
-## What is not built
+## The AI reader, and the guard
 
-**Document generation** — shipped in 0.11.0. Screen, CV and cover letter, each
-spawning headless `claude -p` and writing results back as `artifacts` rows.
-Every invocation costs tokens, so nothing generates without a click.
-Quality gates are mechanical: phrase overlap between CV and cover letter,
-em-dash count, and any figure or scale word in a draft that is not in the
-résumé.
+Optional, and never a filter: a verdict sits beside the rule-based score and
+never hides a post.
 
-If that is built, job descriptions must be treated as hostile input. They come
-from thousands of third-party servers, anyone can post a job, and that text
-would land in both a prompt and the working directory of a subprocess that can
-write files. Fence and label the advert, strip the fence markers from it first,
-scope the subprocess to one job's folder, and scheme-check every URL — apply
-links are employer-supplied on several platforms.
+**One entry point for every provider.** `ai/llm.py` asks for one JSON object
+matching a schema, from Ollama, Claude, Gemini or ChatGPT, and records the
+call (`llm_calls`, with its purpose). Keys live in memory in the server
+process and nowhere else.
 
-Nothing. `discover` shipped in 0.5.0, `serve` in 0.6.0, `enrich` in 0.8.0 and
-`generate` in 0.11.0.
+**The advert is hostile input**, as it is for `claude -p`: fenced, fence
+markers stripped from the text first, and the prompt says everything inside
+is data.
+
+**Every output is guarded** (`ai/guard.py`), by the HalluLens method with our
+own prompts: extract single claims, verify each against the known sources
+(résumé, advert, page), and count the unsupported ones. The model's
+"supported" is not trusted on its own: it must give a quote, and a script
+checks the quote is in the source it named. A check that fails is recorded as
+unchecked; it never blocks the output. Page reads are checked by the quote rule
+alone, with no extra call.
+
+Each output is an `ai_outputs` row with its guard counts and your rating, which
+is what the Dashboard's hallucination rate, coverage and feedback are counted
+from.
+
+---
+
+## Runs, and the Dashboard
+
+`core/telemetry.py` records whatever job is running (scan, check, judge,
+letter…) in `activity`: progress, per-host request counts, AI calls, a
+heartbeat every five seconds, and log lines. It writes through its own
+connection, at most once a second, and a failure to write never fails the job.
+A run whose heartbeat stops and whose process is gone is shown as died.
+
+`web/api.py` reads that for the Dashboard: the running job, the last scan,
+check and judging with what went wrong, and `metrics` over 7, 30 or 90 days.
+Runs and model calls are kept 120 days; log lines for the last 200 runs.
 
 ---
 
@@ -232,7 +274,10 @@ Two details that matter:
   `SystemExit` would otherwise end the run mid-file with no failure line and no
   summary.
 
-The 30 tests cover the rules that fail quietly: unstated salary being shown,
+The tests cover the rules that fail quietly: unstated salary being shown,
 unresolvable locations being kept, blocker words refusing a loose title match,
 day rates being annualised, `gh_jid` surviving canonicalisation, escaped HTML
-being unescaped before tags are stripped.
+being unescaped before tags are stripped, a model's "supported" not counting
+without a quote found in its source, and a run's metrics counting only its
+period. No test calls a real model or a real site: model answers are
+scripted.

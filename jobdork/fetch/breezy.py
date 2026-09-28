@@ -18,8 +18,8 @@ taken from one field.
 
 from __future__ import annotations
 
-from ..store import Role
-from ..textutil import to_text
+from ..core.textutil import to_text
+from ..db.store import Role
 from . import SourceResult, register
 from .boards import _result_for, clean
 

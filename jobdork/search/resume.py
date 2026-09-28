@@ -1,6 +1,6 @@
 """
-jobdork.resume
-==============
+jobdork.search.resume
+=====================
 Reads your resume once and uses it to sort the list, offline.
 
 This costs nothing and needs no `claude` CLI. It is deliberately the smaller
@@ -143,7 +143,7 @@ def _read_pdf(path: Path) -> str:
         raise ResumeError(
             f"{path} yielded only {len(text.strip())} characters of text. It is "
             "probably a scan or an image-based export, and scoring against it "
-            "would quietly rate every role a zero. Export a text-based copy."
+            "would quietly rate every job post a zero. Export a text-based copy."
         )
     return text
 
@@ -186,6 +186,13 @@ def years_claimed(text: str) -> int:
                default=0)
 
 
+# An advert naming fewer skills than this is scored as though it named this
+# many. A 500-character teaser that mentions only "java" is not a perfect fit
+# for anyone who knows Java; it is an advert too short to judge, and scoring
+# it 1 of 1 put snippets above full adverts that matched 8 of 10.
+MIN_SKILLS = 5
+
+
 @dataclass
 class Fit:
     score: float = 0.0            # 0-25, folded into the role's total
@@ -207,8 +214,9 @@ def fit(resume: Resume, description: str, title: str = "") -> Fit:
     """How much of what this advert asks for is already on your resume.
 
     Scored on the share of the advert's named skills you have, not on the
-    count: an advert listing three technologies you all know is a better fit
-    than one listing twenty where you know eight.
+    count: an advert listing five technologies you all know is a better fit
+    than one listing twenty where you know eight. Below MIN_SKILLS the share
+    is taken of MIN_SKILLS instead, so a thin advert cannot score full marks.
     """
     if not resume.loaded or not description:
         return Fit()
@@ -219,5 +227,5 @@ def fit(resume: Resume, description: str, title: str = "") -> Fit:
 
     matched = sorted(wanted & resume.skills)
     missing = sorted(wanted - resume.skills)
-    share = len(matched) / len(wanted)
+    share = len(matched) / max(len(wanted), MIN_SKILLS)
     return Fit(score=round(25.0 * share, 1), matched=matched, missing=missing)

@@ -161,7 +161,7 @@ def setup_logging(log_file: str = "") -> Path:
         handler.setFormatter(fmt)
         LOGGER.addHandler(handler)
 
-    LOGGER.info("Logging initialized — %s", log_path.resolve())
+    LOGGER.info("Logging initialized: %s", log_path.resolve())
     return log_path.resolve()
 
 
@@ -422,7 +422,7 @@ def send_email(to_addr: str, csv_path: Path, job_config: dict) -> None:
         print("  Docs: https://resend.com/api-keys")
         sys.exit(1)
     if not from_addr:
-        print("\n[ERROR] RESEND_FROM is missing — set it in .env.")
+        print("\n[ERROR] RESEND_FROM is missing. Set it in .env.")
         print('  Example: RESEND_FROM="Job Dork <jobs@yourdomain.com>"')
         print("  Docs: https://resend.com/domains")
         sys.exit(1)
@@ -432,7 +432,7 @@ def send_email(to_addr: str, csv_path: Path, job_config: dict) -> None:
 
     raw_bytes = csv_path.read_bytes()
     if len(raw_bytes) > 30 * 1024 * 1024:
-        print("[ERROR] CSV exceeds 30 MB — too large to attach. Send manually.")
+        print("[ERROR] CSV exceeds 30 MB, too large to attach. Send it manually.")
         sys.exit(1)
 
     resend.api_key = api_key
@@ -501,7 +501,7 @@ def setup_email_wizard() -> None:
         print("[ERROR] RESEND_API_KEY is required.")
         sys.exit(1)
     if not api_key.startswith("re_"):
-        print("  [WARN] Keys usually start with re_ — double-check.\n")
+        print("  [WARN] Keys usually start with re_. Check this one.\n")
 
     frm = input("From address (e.g. Job Dork <jobs@yourdomain.com>) : ").strip()
     if not frm:
@@ -509,7 +509,7 @@ def setup_email_wizard() -> None:
         sys.exit(1)
 
     _write_private_env([
-        f"# {SCRIPT_NAME} — Resend credentials (keep private)",
+        f"# {SCRIPT_NAME}: Resend credentials (keep private)",
         f'RESEND_API_KEY="{api_key}"',
         f'RESEND_FROM="{frm}"',
     ])
@@ -518,9 +518,9 @@ def setup_email_wizard() -> None:
     if input("\nSend a test email now? [y/N]: ").strip().lower() == "y":
         to = input("Recipient email: ").strip()
         if not to:
-            print("  Skipped — no recipient entered.")
+            print("  Skipped: no recipient entered.")
         elif not _looks_like_email(to):
-            print(f"  Skipped — invalid address: {to!r}")
+            print(f"  Skipped: invalid address {to!r}")
         else:
             _load_dotenv()
             tmp_path: Path | None = None
@@ -710,7 +710,7 @@ def run_interactive() -> dict:
     open_b = input("Open in browser?      [y/N]: ").strip().lower() == "y"
 
     # Recurring — blank = no
-    print(f"\nSchedule options: {', '.join(CRON_SCHEDULES)} — or leave blank")
+    print(f"\nSchedule options: {', '.join(CRON_SCHEDULES)}, or leave blank")
     cron_in = input("Recurring search      (leave blank = skip): ").strip().lower()
     cron = cron_in if cron_in in CRON_SCHEDULES else ""
 
@@ -891,7 +891,7 @@ def main() -> None:
                    metavar="|".join(DATE_FILTERS),
                    help=f"Recency filter via tbs= (default: {DEFAULT_DATE_FILTER})")
     g.add_argument("--after", default="", metavar="YYYY-MM-DD",
-                   help="Add after: operator — restrict results to after this date")
+                   help="Add an after: operator to restrict results to after this date")
 
     o = parser.add_argument_group("Output options")
     o.add_argument("--open",     action="store_true", help="Open query URLs in browser tabs")
@@ -932,7 +932,7 @@ def main() -> None:
             op = SITE_DORKS[k][0]
             print(f"  {k:20s}  {op or '(open web)'}")
         opt_in = [k for k in ALL_SITES if k not in DEFAULT_SITES]
-        print(f"\nOpt-in strategies ({len(opt_in)}) — pass via --sites:")
+        print(f"\nOpt-in strategies ({len(opt_in)}), passed with --sites:")
         for k in opt_in:
             op = SITE_DORKS[k][0]
             print(f"  {k:20s}  {op}")

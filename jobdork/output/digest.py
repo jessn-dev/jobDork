@@ -1,6 +1,6 @@
 """
-jobdork.digest
-==============
+jobdork.output.digest
+=====================
 Mails what a scan found, so the roles come to you instead of you going to a
 dashboard.
 
@@ -37,7 +37,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-log = logging.getLogger("jobdork.digest")
+log = logging.getLogger("jobdork.output.digest")
 
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
 
@@ -116,12 +116,12 @@ def build(rows: list[sqlite3.Row], cfg, new_only: bool = True) -> Digest:
     """Render the mail. Does not send, and does not need a credential."""
     units = getattr(getattr(cfg, "locations", None), "units", "mi") or "mi"
     stamp = time.strftime("%a %d %b %Y")
-    scope = "new roles" if new_only else "open roles"
+    scope = "new job posts" if new_only else "open job posts"
 
     digest = Digest(rows=list(rows))
     digest.subject = (
-        f"jobdork — {len(rows)} {scope}, {stamp}" if rows
-        else f"jobdork — nothing new, {stamp}"
+        f"jobdork: {len(rows)} {scope}, {stamp}" if rows
+        else f"jobdork: nothing new, {stamp}"
     )
 
     # ── plain text: the version that always renders ────────────────────────────
@@ -139,7 +139,7 @@ def build(rows: list[sqlite3.Row], cfg, new_only: bool = True) -> Digest:
     for row in rows:
         score = "-" if row["score"] is None else f"{row['score']:.0f}"
         lines += [
-            f"[{score}] {row['title']} — {row['company']}",
+            f"[{score}] {row['title']} at {row['company']}",
             f"       {' · '.join(_meta(row, units))}",
         ]
         for flag in _flags(row):
@@ -148,7 +148,7 @@ def build(rows: list[sqlite3.Row], cfg, new_only: bool = True) -> Digest:
     lines += [
         "---",
         "Salary reads 'unconfirmed' where the employer published no figure,",
-        "which is most of them. Only a published number can hide a role.",
+        "which is most of them. Only a published number can hide a job post.",
         "",
         "jobdork applied <uid> -s applied    to record what you did",
     ]
@@ -195,7 +195,7 @@ def build(rows: list[sqlite3.Row], cfg, new_only: bool = True) -> Digest:
         "<p style='color:#71717a;font-size:12px;border-top:1px solid #e4e4e7;"
         "padding-top:12px;margin-top:20px'>Salary reads &ldquo;unconfirmed&rdquo; "
         "where the employer published no figure, which is most of them. Only a "
-        "published number can hide a role.</p></div>"
+        "published number can hide a job post.</p></div>"
     )
     digest.html = "\n".join(parts)
     return digest
@@ -275,7 +275,7 @@ def send(digest: Digest, to_address: str) -> str:
     except ResendError as exc:
         detail = f"{exc.error_type}: {exc.message}"
         if exc.suggested_action:
-            detail += f" — {exc.suggested_action.strip()}"
+            detail += f". {exc.suggested_action.strip()}"
         raise DigestError(f"Resend refused the message ({detail})") from exc
     except Exception as exc:
         raise DigestError(f"could not send: {exc}") from exc

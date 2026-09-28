@@ -1,6 +1,6 @@
 """
-jobdork.store
-=============
+jobdork.db.store
+================
 The SQLite database every other module reads and writes.
 
 A scanner that forgets shows you the same job every week. This is the part
@@ -31,7 +31,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .config import SETTLED_STATUSES, STATUSES
+from ..core.config import SETTLED_STATUSES, STATUSES
+from . import grouping
 from .migrations import SCHEMA_VERSION, migrate
 
 # Tracking parameters that change per click and would otherwise mint a new
@@ -74,6 +75,13 @@ CREATE TABLE IF NOT EXISTS roles (
     first_seen       TEXT NOT NULL,
     last_seen        TEXT NOT NULL,
     score            REAL,
+    fit              REAL,
+    score_parts      TEXT,
+    llm_score        REAL,
+    llm_judgement    TEXT,
+    listing_state    TEXT,
+    listing_note     TEXT,
+    listing_checked_at TEXT,
     flags            TEXT,
     reasons          TEXT
 );
@@ -106,6 +114,78 @@ CREATE TABLE IF NOT EXISTS meta (
     key    TEXT PRIMARY KEY,
     value  TEXT
 );
+
+-- What running and recent jobs did, from any process (telemetry.py).
+-- New tables need no migration step: this script runs on every open.
+CREATE TABLE IF NOT EXISTS activity (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    job           TEXT NOT NULL,
+    origin        TEXT NOT NULL,
+    pid           INTEGER,
+    started_at    TEXT NOT NULL,
+    heartbeat_at  TEXT NOT NULL,
+    finished_at   TEXT,
+    state         TEXT NOT NULL DEFAULT 'running',
+    done          INTEGER NOT NULL DEFAULT 0,
+    total         INTEGER,
+    counters      TEXT,
+    hosts         TEXT,
+    ai            TEXT,
+    last_line     TEXT,
+    summary       TEXT
+);
+
+CREATE TABLE IF NOT EXISTS activity_events (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_id  INTEGER NOT NULL,
+    at           TEXT NOT NULL,
+    level        TEXT,
+    text         TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_activity ON activity_events(activity_id);
+
+-- Job posts you deleted. A scan skips these, or a deleted post still listed
+-- by its source would come straight back as new.
+CREATE TABLE IF NOT EXISTS deleted (
+    uid         TEXT PRIMARY KEY,
+    deleted_at  TEXT NOT NULL,
+    reason      TEXT
+);
+
+-- One row per piece of text a model wrote: a verdict, a page read, a cover
+-- letter, a résumé review, a draft. What the hallucination score, its
+-- coverage and the feedback trend are counted from (guard.py).
+-- `checked` is 0 when the guard could not run; `feedback` is 1, -1 or NULL.
+CREATE TABLE IF NOT EXISTS ai_outputs (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind         TEXT NOT NULL,
+    uid          TEXT,
+    model        TEXT,
+    created_at   TEXT NOT NULL,
+    activity_id  INTEGER,
+    text         TEXT,
+    guard_json   TEXT,
+    claims       INTEGER NOT NULL DEFAULT 0,
+    unsupported  INTEGER NOT NULL DEFAULT 0,
+    checked      INTEGER NOT NULL DEFAULT 0,
+    feedback     INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_ai_outputs_created ON ai_outputs(created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_outputs_uid     ON ai_outputs(uid);
+
+-- One row per model call inside a recorded job, for latency percentiles.
+-- Written by telemetry.py; no prompt or answer text.
+CREATE TABLE IF NOT EXISTS llm_calls (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    at           TEXT NOT NULL,
+    activity_id  INTEGER,
+    model        TEXT,
+    purpose      TEXT,
+    seconds      REAL NOT NULL,
+    ok           INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_llm_calls_at ON llm_calls(at);
 
 CREATE INDEX IF NOT EXISTS idx_roles_first_seen ON roles(first_seen);
 CREATE INDEX IF NOT EXISTS idx_roles_company    ON roles(company);
@@ -147,6 +227,11 @@ class Role:
     salary_period: str = ""        # year | month | day | hour
     salary_stated: bool = False
     score: float | None = None
+    # The résumé-fit part of `score`, 0-25. None when there was no résumé or
+    # no advert to compare it with, which is not the same as a fit of 0.
+    fit: float | None = None
+    # How `score` was reached: [{part, points, max, why, ...}], one per rule.
+    score_parts: list[dict] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
 
@@ -201,6 +286,20 @@ class Store:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(self.path)
+        try:
+            self._open()
+        except BaseException:
+            # A refused database (newer than this code, a failed migration)
+            # must not leave its connection open: it leaked, and on Windows
+            # would keep the file locked.
+            self.conn.close()
+            raise
+
+    def _open(self) -> None:
+        # WAL: a reader (the dashboard, a run's telemetry) never blocks this
+        # connection's commit, and a commit never blocks a reader. Kept in the
+        # file once set; -wal and -shm files appear beside it.
+        self.conn.execute("PRAGMA journal_mode = WAL")
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.executescript(SCHEMA)
@@ -253,11 +352,16 @@ class Store:
 
     # ── roles ──────────────────────────────────────────────────────────────────
 
-    def upsert(self, role: Role) -> bool:
+    def upsert(self, role: Role, seen: bool = True) -> bool:
         """Store a role. Returns True if this is the first time it was seen.
 
         An existing row keeps its `first_seen`: that is the date the tool
         learned about the job, and a later scan does not make it newer.
+
+        `seen` is False when the role is only being re-scored or re-read —
+        rescreen, enrich, a pasted advert. `last_seen` means "a source listed
+        it", and the listing check reads it that way: bumping it on every
+        rescreen made month-old Adzuna ads look listed today.
         """
         uid = role.uid
         now = _now()
@@ -274,8 +378,8 @@ class Store:
                 city, state, country, lat, lon, distance_mi, work_mode,
                 salary_min, salary_max, salary_currency, salary_period,
                 salary_stated, description, posted_at, first_seen, last_seen,
-                score, flags, reasons
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                score, fit, score_parts, flags, reasons
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(uid) DO UPDATE SET
                 company         = excluded.company,
                 title           = excluded.title,
@@ -296,8 +400,11 @@ class Store:
                 -- one an earlier fetch managed to read.
                 description     = COALESCE(NULLIF(excluded.description, ''), roles.description),
                 posted_at       = COALESCE(NULLIF(excluded.posted_at, ''), roles.posted_at),
-                last_seen       = excluded.last_seen,
+                last_seen       = CASE WHEN ? THEN excluded.last_seen
+                                       ELSE roles.last_seen END,
                 score           = excluded.score,
+                fit             = excluded.fit,
+                score_parts     = excluded.score_parts,
                 flags           = excluded.flags,
                 reasons         = excluded.reasons
             """,
@@ -307,8 +414,10 @@ class Store:
                 role.country, role.lat, role.lon, role.distance_mi, role.work_mode,
                 role.salary_min, role.salary_max, role.salary_currency,
                 role.salary_period, int(role.salary_stated), role.description,
-                role.posted_at, first_seen, now, role.score,
+                role.posted_at, first_seen, now, role.score, role.fit,
+                json.dumps(role.score_parts) if role.score_parts else None,
                 json.dumps(role.flags), json.dumps(role.reasons),
+                int(seen),
             ),
         )
         if is_new:
@@ -318,6 +427,11 @@ class Store:
                 (uid, now),
             )
         return is_new
+
+    def stored_description(self, uid: str) -> str:
+        row = self.conn.execute(
+            "SELECT description FROM roles WHERE uid = ?", (uid,)).fetchone()
+        return (row["description"] or "") if row else ""
 
     def upsert_many(self, roles: Iterable[Role]) -> tuple[int, int]:
         """Returns (stored, newly_seen)."""
@@ -390,12 +504,20 @@ class Store:
         throwing away a posting that might be the only copy. It is collapsed
         on the way out instead: same employer, same title, best score wins.
         """
+        group_key = grouping.key_sql()
         sql = [
             "SELECT r.*, COALESCE(s.status, 'new') AS status, s.note, s.updated_at,",
             "  (SELECT COUNT(*) FROM artifacts a WHERE a.uid = r.uid AND a.kind = 'cv') AS has_cv,",
             "  (SELECT COUNT(*) FROM artifacts a WHERE a.uid = r.uid AND a.kind = 'cover_letter') AS has_letter,",
-            "  (SELECT COUNT(*) FROM artifacts a WHERE a.uid = r.uid AND a.kind = 'screen') AS has_screen",
+            "  (SELECT COUNT(*) FROM artifacts a WHERE a.uid = r.uid AND a.kind = 'screen') AS has_screen,",
+            "  g.copies",
             "FROM roles r LEFT JOIN role_state s ON s.uid = r.uid",
+            # Every copy's place in its group: how many copies, and which one
+            # is shown. See grouping.py.
+            f"JOIN (SELECT uid, COUNT(*) OVER (PARTITION BY {group_key}) AS copies,",
+            f"        ROW_NUMBER() OVER (PARTITION BY {group_key}",
+            f"                           ORDER BY {grouping.representative_order()}) AS rn",
+            "      FROM roles) g ON g.uid = r.uid",
         ]
         where: list[str] = []
         params: list[Any] = []
@@ -426,28 +548,10 @@ class Store:
                 )""")
 
         if collapse_duplicates:
-            # Ordering matters more than it looks. Ranking by score alone kept
-            # the WORSE copy: the same Vectra role arrived from an aggregator
-            # truncated to 500 characters and from the employer's own board at
-            # 4,701, and the truncated one scored higher — it had a tidier
-            # location string, and it could not lose points on advert content
-            # it did not contain. So the fuller advert wins first, and score
-            # only breaks ties between copies that say as much as each other.
-            #
-            # Bucketed rather than compared exactly, because two adverts of
-            # 4,700 and 4,900 characters are the same advert and the score
-            # should decide between them.
-            where.append("""r.uid IN (
-                SELECT uid FROM (
-                    SELECT uid, ROW_NUMBER() OVER (
-                        PARTITION BY lower(trim(COALESCE(company, ''))),
-                                     lower(trim(COALESCE(title, '')))
-                        ORDER BY LENGTH(COALESCE(description, '')) / 1000 DESC,
-                                 score DESC, first_seen ASC, uid ASC
-                    ) AS rn
-                    FROM roles
-                ) WHERE rn = 1
-            )""")
+            # One copy per group. Ranking by score alone once kept the WORSE
+            # copy — a 500-character teaser out-scored the employer's own
+            # 4,701-character advert — so the order is in grouping.py.
+            where.append("g.rn = 1")
 
         if where:
             sql.append("WHERE " + " AND ".join(where))
@@ -458,25 +562,109 @@ class Store:
 
         return self.conn.execute("\n".join(sql), params).fetchall()
 
+    def copies(self, uid: str) -> list[sqlite3.Row]:
+        """The other copies of this job, for "also posted at"."""
+        others = [u for u in grouping.uids(self.conn, uid) if u != uid]
+        if not others:
+            return []
+        marks = ",".join("?" for _ in others)
+        return self.conn.execute(
+            "SELECT uid, platform, url, listing_state, listing_note, last_seen, "
+            f"LENGTH(COALESCE(description, '')) AS advert_chars FROM roles "
+            f"WHERE uid IN ({marks}) ORDER BY platform", others).fetchall()
+
     def delete(self, uid: str) -> None:
         self.conn.execute("DELETE FROM roles WHERE uid = ?", (uid,))
         self.conn.commit()
 
+    # ── cleanup ────────────────────────────────────────────────────────────────
+
+    def cleanup_candidates(self, older_than_days: int = 0,
+                           statuses: Iterable[str] = ()) -> list[sqlite3.Row]:
+        """Job posts a cleanup would delete, newest first.
+
+        By age: first seen more than N days ago and not being pursued
+        (PURSUING_STATUSES), whatever else their status. By status: every
+        post whose status is one of `statuses`. Exactly one of the two.
+        """
+        from ..core.config import PURSUING_STATUSES
+
+        base = ("SELECT r.uid, r.title, r.company, r.first_seen, "
+                "COALESCE(s.status, 'new') AS status FROM roles r "
+                "LEFT JOIN role_state s ON s.uid = r.uid WHERE ")
+        if older_than_days:
+            cutoff = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(
+                time.time() - older_than_days * 86400))
+            marks = ",".join("?" for _ in PURSUING_STATUSES)
+            return self.conn.execute(
+                base + f"r.first_seen < ? AND COALESCE(s.status, 'new') "
+                f"NOT IN ({marks}) ORDER BY r.first_seen DESC",
+                (cutoff, *PURSUING_STATUSES)).fetchall()
+        wanted = [s for s in statuses if s in SETTLED_STATUSES]
+        if not wanted:
+            return []
+        marks = ",".join("?" for _ in wanted)
+        return self.conn.execute(
+            base + f"COALESCE(s.status, 'new') IN ({marks}) "
+            "ORDER BY r.first_seen DESC", wanted).fetchall()
+
+    def delete_many(self, uids: Iterable[str], reason: str) -> int:
+        """Delete job posts and remember them, so a scan does not re-add them.
+
+        Their status, notes, AI verdicts and document records go with them
+        (foreign keys cascade). Draft files on disk are not touched.
+        """
+        uids = list(uids)
+        now = _now()
+        with self.conn:
+            self.conn.executemany(
+                "INSERT INTO deleted(uid, deleted_at, reason) VALUES(?,?,?) "
+                "ON CONFLICT(uid) DO UPDATE SET deleted_at = excluded.deleted_at, "
+                "reason = excluded.reason", [(u, now, reason) for u in uids])
+            self.conn.executemany("DELETE FROM roles WHERE uid = ?",
+                                  [(u,) for u in uids])
+        return len(uids)
+
+    def deleted_uids(self) -> set[str]:
+        return {r[0] for r in self.conn.execute("SELECT uid FROM deleted")}
+
     # ── state ──────────────────────────────────────────────────────────────────
 
     def set_status(self, uid: str, status: str, note: str = "") -> None:
+        """Record a decision — for every copy of the job, not just this one.
+
+        A decision about a job is about the job. Set on one copy only, it was
+        lost the moment another copy became the one shown (see grouping.py).
+        """
         if status not in STATUSES:
             raise ValueError(
                 f"{status!r} is not a status. Accepted: {', '.join(STATUSES)}"
             )
-        self.conn.execute(
+        now = _now()
+        self.conn.executemany(
             "INSERT INTO role_state(uid, status, note, updated_at) VALUES(?,?,?,?) "
             "ON CONFLICT(uid) DO UPDATE SET "
             "  status = excluded.status, "
             "  note = COALESCE(NULLIF(excluded.note, ''), role_state.note), "
             "  updated_at = excluded.updated_at",
-            (uid, status, note, _now()),
+            [(member, status, note, now)
+             for member in grouping.uids(self.conn, uid)],
         )
+        self.conn.commit()
+
+    def set_judgement(self, uid: str, judgement: dict) -> None:
+        """A model's verdict on a role. Kept apart from the rule score."""
+        self.conn.execute(
+            "UPDATE roles SET llm_score = ?, llm_judgement = ? WHERE uid = ?",
+            (judgement["score"], json.dumps(judgement), uid))
+        self.conn.commit()
+
+    def set_listing(self, uid: str, state: str, note: str) -> None:
+        """Whether the posting is still up: open | closed | unlisted | unknown."""
+        self.conn.execute(
+            "UPDATE roles SET listing_state = ?, listing_note = ?, "
+            "listing_checked_at = ? WHERE uid = ?",
+            (state, note, _now(), uid))
         self.conn.commit()
 
     def has_acted(self, uid: str) -> bool:
@@ -524,6 +712,44 @@ class Store:
         return self.conn.execute(
             "SELECT * FROM artifacts WHERE uid = ? ORDER BY created_at DESC", (uid,)
         ).fetchall()
+
+    # ── AI outputs ─────────────────────────────────────────────────────────────
+
+    def add_ai_output(self, kind: str, text: str, uid: str = "",
+                      model: str = "", guard: dict | None = None,
+                      activity_id: int | None = None) -> int:
+        """Record text a model wrote, with the guard's report on it.
+
+        `guard` is `GuardReport.to_dict()`; None means no check was tried,
+        which counts the same as a failed one: not covered.
+        """
+        guard = guard or {}
+        if activity_id is None:
+            from ..core import telemetry
+            activity_id = telemetry.current_id()
+        cur = self.conn.execute(
+            "INSERT INTO ai_outputs(kind, uid, model, created_at, activity_id, "
+            "text, guard_json, claims, unsupported, checked) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (kind, uid or None, model, _now(), activity_id, text,
+             json.dumps(guard) if guard else None,
+             int(guard.get("claims") or 0), int(guard.get("unsupported") or 0),
+             1 if guard.get("checked") else 0))
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def ai_output(self, output_id: int) -> sqlite3.Row | None:
+        return self.conn.execute(
+            "SELECT * FROM ai_outputs WHERE id = ?", (output_id,)).fetchone()
+
+    def set_feedback(self, output_id: int, value: int | None) -> bool:
+        """Thumbs up (1), down (-1) or cleared (None). False if no such output."""
+        if value not in (1, -1, None):
+            raise ValueError(f"feedback is 1, -1 or None, not {value!r}")
+        cur = self.conn.execute(
+            "UPDATE ai_outputs SET feedback = ? WHERE id = ?", (value, output_id))
+        self.conn.commit()
+        return cur.rowcount > 0
 
     # ── runs ───────────────────────────────────────────────────────────────────
 

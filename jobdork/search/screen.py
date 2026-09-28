@@ -1,6 +1,6 @@
 """
-jobdork.screen
-==============
+jobdork.search.screen
+=====================
 Decides whether a fetched role is one you should see, and why.
 
 Every rule here answers to one principle: only a positive statement by the
@@ -22,16 +22,15 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from . import geo
-
 # Defaults, used when a config does not override them. The live values come
 # from `cfg.screening`, because these encode a judgement about one job market
 # — "program" changes an engineering manager into a different job in the US
 # and may not elsewhere — and a judgement baked into source is one nobody can
 # disagree with.
-from .config import DEFAULT_BLOCKERS as BLOCKERS
-from .config import Config
-from .store import Role
+from ..core.config import DEFAULT_BLOCKERS as BLOCKERS
+from ..core.config import Config
+from ..db.store import Role
+from . import geo
 
 LOOSE_GAP = 2
 
@@ -62,6 +61,15 @@ class Verdict:
     reasons: list[str] = field(default_factory=list)   # why it was dropped
     flags: list[str] = field(default_factory=list)     # what to know if kept
     score: float = 0.0
+    # How `score` was reached, one entry per rule, for the dashboard to show
+    # on hover. A number nobody can take apart is a number nobody trusts.
+    parts: list[dict] = field(default_factory=list)
+
+    def add(self, part: str, points: float, most: float, why: str,
+            **extra) -> None:
+        self.score += points
+        self.parts.append({"part": part, "points": round(points, 1),
+                           "max": most, "why": why, **extra})
 
 
 # ── Titles ─────────────────────────────────────────────────────────────────────
@@ -291,7 +299,7 @@ def salary_verdict(role: Role, cfg: Config) -> tuple[bool, str, float, list[str]
     if role.salary_currency and role.salary_currency != cfg.salary.currency:
         # Never converted. A wrong exchange rate drops real jobs quietly.
         flags.append(
-            f"salary in {role.salary_currency}, floor is {cfg.salary.currency} — "
+            f"salary in {role.salary_currency}, floor is {cfg.salary.currency}; "
             "not compared"
         )
         return True, "", 0.0, flags
@@ -323,7 +331,7 @@ def dealbreaker_verdict(role: Role, cfg: Config) -> tuple[bool, str, float, list
     penalty = 0.0
     if not role.description:
         if cfg.dealbreakers:
-            flags.append("no advert text — dealbreakers not checked")
+            flags.append("no advert text, so dealbreakers were not checked")
         return True, "", 0.0, flags
 
     for rule in cfg.dealbreakers:
@@ -334,6 +342,73 @@ def dealbreaker_verdict(role: Role, cfg: Config) -> tuple[bool, str, float, list
             penalty += 8.0
 
     return True, "", -penalty, flags
+
+
+# ── Explaining the points ──────────────────────────────────────────────────────
+# The verdict functions return points and, on a drop, a reason. A kept role
+# gets no reason, so these say in words what the points were for.
+
+def _explain_location(role: Role, cfg: Config, anchor: geo.Resolved,
+                      mode: str, points: float) -> str:
+    where = cfg.locations.anchor or "your anchor"
+    units = cfg.locations.units or "mi"
+    if mode == "remote":
+        return "remote, so distance does not apply: flat 20"
+    if cfg.locations.radius == "exact":
+        if points:
+            return f"{role.location_raw or 'location'} is {where}: 25"
+        return f"could not place {role.location_raw or 'the location'} against {where}: 0"
+    radius = cfg.radius_miles()
+    if radius is None:
+        return "no radius set, so distance is not scored: 0"
+    if not anchor.located:
+        return f"{where} could not be placed on a map: 0"
+    if role.distance_mi is None:
+        return f"could not place {role.location_raw or 'the location'} on a map: 0"
+    shown = geo.from_miles(role.distance_mi, units)
+    limit = geo.from_miles(radius, units)
+    why = (f"{shown:.0f} {units} from {where}, inside your {limit:.0f} {units} "
+           f"radius; nearer scores more: 25 × (1 − {shown:.0f}/{limit:.0f}) + 5")
+    if role.distance_mi < 1 and role.city:
+        # The case that looked like a bug: "Chicago, Illinois" is the centre
+        # of Chicago, which is the anchor, so 0 miles and full points.
+        why += (f". Measured to the centre of {role.city}; "
+                "the posting gives no street address")
+    return why
+
+
+def _explain_salary(role: Role, cfg: Config) -> str:
+    if not role.salary_stated:
+        return "no salary published: 0"
+    if cfg.salary.floor is None:
+        return "salary published, but no salary.floor is set to compare it with: flat 5"
+    if role.salary_currency and role.salary_currency != cfg.salary.currency:
+        return (f"paid in {role.salary_currency}, floor is in "
+                f"{cfg.salary.currency}; not converted: 0")
+    top = role.salary_max if role.salary_max is not None else role.salary_min
+    if top is None:
+        return "salary stated without a figure: 0"
+    headroom = min((top - cfg.salary.floor) / max(cfg.salary.floor, 1.0), 1.0)
+    return (f"pays up to {top:,.0f} against a floor of {cfg.salary.floor:,.0f} "
+            f"({headroom:.0%} above, capped at 100%): 10 + 10 × {headroom:.2f}")
+
+
+def _explain_fit(match, resume, description: str) -> str:
+    from .resume import MIN_SKILLS
+
+    if resume is None or not getattr(resume, "loaded", False):
+        return "no résumé loaded, so fit is not scored"
+    if not description:
+        return "no advert text to compare with your résumé"
+    wanted = len(match.matched) + len(match.missing)
+    if not wanted:
+        return "the advert names none of the skills jobdork recognises: 0"
+    why = (f"you have {len(match.matched)} of the {wanted} "
+           f"skill{'' if wanted == 1 else 's'} the advert names")
+    if wanted < MIN_SKILLS:
+        why += (f"; fewer than {MIN_SKILLS} named, so it is counted out of "
+                f"{MIN_SKILLS}, so a short advert cannot earn full fit")
+    return why + f": 25 × {len(match.matched)}/{max(wanted, MIN_SKILLS)}"
 
 
 # ── The whole screen ───────────────────────────────────────────────────────────
@@ -365,7 +440,8 @@ def screen(
         verdict.keep = False
         verdict.reasons.append(why)
         return verdict
-    verdict.score += points
+    verdict.add("title", points, 30, why + (
+        ": 30" if points == 30 else ": 18, since a loose match scores less than an exact one"))
 
     mode, mode_flags = detect_work_mode(role, cfg)
     role.work_mode = mode
@@ -376,6 +452,8 @@ def screen(
         # reading "we cannot tell" as "not remote" hides more real remote
         # roles than it removes office ones.
         verdict.flags.append("arrangement not stated")
+        verdict.add("arrangement", 0.0, 10,
+                    "the posting does not say remote, hybrid or office: 0")
     elif cfg.locations.work_modes and mode not in cfg.locations.work_modes:
         verdict.keep = False
         verdict.reasons.append(
@@ -384,7 +462,7 @@ def screen(
         )
         return verdict
     else:
-        verdict.score += 10.0
+        verdict.add("arrangement", 10.0, 10, f"{mode}, which you accept: 10")
 
     keep, why, points, flags = location_verdict(role, cfg, anchor, mode)
     verdict.flags.extend(flags)
@@ -392,7 +470,8 @@ def screen(
         verdict.keep = False
         verdict.reasons.append(why)
         return verdict
-    verdict.score += points
+    verdict.add("location", points, 30,
+                _explain_location(role, cfg, anchor, mode, points))
 
     keep, why, points, flags = salary_verdict(role, cfg)
     verdict.flags.extend(flags)
@@ -400,7 +479,7 @@ def screen(
         verdict.keep = False
         verdict.reasons.append(why)
         return verdict
-    verdict.score += points
+    verdict.add("salary", points, 20, _explain_salary(role, cfg))
 
     keep, why, points, flags = dealbreaker_verdict(role, cfg)
     verdict.flags.extend(flags)
@@ -408,19 +487,31 @@ def screen(
         verdict.keep = False
         verdict.reasons.append(why)
         return verdict
-    verdict.score += points
+    if points:
+        soft = [f.split(": ", 1)[1] for f in flags
+                if f.startswith("dealbreaker (soft): ")]
+        verdict.add("dealbreakers", points, 0,
+                    f"soft dealbreaker{'s' if len(soft) > 1 else ''} in the advert: "
+                    f"{', '.join(soft)}: −8 each")
 
     if role.description and _NO_SPONSORSHIP.search(role.description):
         verdict.flags.append("states it will not sponsor a visa")
 
+    role.fit = None
     if resume is not None and getattr(resume, "loaded", False):
         from .resume import fit as resume_fit
         match = resume_fit(resume, role.description, role.title)
-        verdict.score += match.score
+        role.fit = match.score if role.description else None
+        verdict.add("résumé fit", match.score, 25,
+                    _explain_fit(match, resume, role.description),
+                    has=match.matched, wants=match.missing)
         if match.summary():
             verdict.flags.append(f"fit: {match.summary()}")
+    else:
+        verdict.add("résumé fit", 0.0, 25, _explain_fit(None, resume, ""))
 
     role.score = round(verdict.score, 1)
+    role.score_parts = verdict.parts
     role.flags = list(dict.fromkeys(verdict.flags))
     role.reasons = list(verdict.reasons)
     return verdict

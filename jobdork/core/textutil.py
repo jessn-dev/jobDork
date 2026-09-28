@@ -1,6 +1,6 @@
 """
-jobdork.textutil
-================
+jobdork.core.textutil
+=====================
 Turning board HTML into text a regex can be trusted against.
 
 Dealbreakers are read against the job description, and a description that is

@@ -59,7 +59,8 @@ cp config.example.yaml config.yaml     # then edit two lines
 ```
 
 The two lines are your job titles and where you live. Everything else has a
-default.
+default. For the AI reader, add `'.[ai]'` to use Claude; a local Ollama, Gemini
+and ChatGPT need nothing extra.
 
 ```yaml
 titles:
@@ -243,7 +244,15 @@ jobdork list --new                                  # only what is new
 jobdork applied <url|company|uid> -s interviewing --note "call booked"
 jobdork show <uid>                                  # the full advert
 jobdork rescreen --remove                           # re-apply your config
+jobdork check                                       # which postings are gone
+jobdork prune --older-than 30                       # preview; --yes deletes
 ```
+
+`check` asks each posting whether the job is still up, and closes the ones
+that are gone. A copy of a job posted in several places closes only when every
+copy has. `prune` clears out old or settled posts, never one you are pursuing
+(applied, submitted, interviewing, offer): it previews first, backs the
+database up, and a deleted post does not come back on the next scan.
 
 ### Or have it mailed to you
 
@@ -265,9 +274,10 @@ An empty digest is not sent unless you ask for it with `--even-if-empty`. A
 mail that says "nothing new" every morning trains you to ignore the one that
 says something.
 
-Statuses run `new → interested → applied → submitted → interviewing → offer`,
-plus `rejected`, `withdrawn`, `skipped` and `closed`. **The four settled ones
-are hidden** rather than shown again.
+Statuses run `new → viewed → interested → applied → submitted → interviewing →
+offer`, plus `rejected`, `withdrawn`, `skipped` and `closed`. `viewed` is set
+for you when you open a post. **The four settled ones are hidden** rather than
+shown again.
 
 A status you set outranks a filter change: `rescreen --remove` deletes roles
 that no longer match your config, but never one you have acted on. That status
@@ -302,9 +312,12 @@ of the advert, because postings are pulled the moment they are filled.
 
 Every draft is checked by scripts rather than re-read by a model: any figure or
 scale word not in your résumé, any six-word run shared between the CV and the
-cover letter, em-dash count. Nothing is redrafted for you — a failed gate is a
-thing to read before you send it. A screen is exempt: it is notes to yourself
-and it is supposed to quote the advert.
+cover letter, and signs of AI writing by the bundled
+[humanizer](https://github.com/blader/humanizer) rules (em dashes, "not X but
+Y", stock words), each named with its rule. With a model set up on the AI page,
+a **hallucination check** is added: see below. Nothing is redrafted for you — a
+failed gate is a thing to read before you send it. A screen is exempt from the
+figure check: it is notes to yourself and it is supposed to quote the advert.
 
 A real screen, on a role with a full advert:
 
@@ -329,16 +342,79 @@ The advert is treated as hostile input: fenced with its own markers stripped
 out first, labelled as a claim rather than an instruction, and the subprocess
 scoped to that one folder.
 
+### A second reader: the AI page
+
+A model can read what the rules cannot: the whole advert against your whole
+résumé. It is optional, and it never hides a job post.
+
+```bash
+jobdork judge                 # the best job posts, read against your résumé
+jobdork letter <uid>          # a cover letter from your résumé and the advert
+jobdork review [<uid>]        # what to fix in your résumé, or against one post
+```
+
+- **Any of four providers:** Ollama running locally (free), Claude, Gemini or
+  ChatGPT. **Keys are held in memory only**: typed on the AI page, never
+  written to the config, the database or a log, and wiped when the server
+  stops or you click Forget. The terminal reads them from the environment.
+- **Judging** gives a score, a verdict and its reasons beside the rule-based
+  match score. When the advert or résumé is too thin, it says so and shows
+  **?** rather than a guess.
+- **Reading posting pages** that do not say plainly whether the job is open
+  (`llm.read_pages`). Its "closed" only counts when it quotes words that are
+  really on the page.
+- **Every output is checked for hallucination.** Following the
+  [HalluLens](https://github.com/facebookresearch/HalluLens) method, the text
+  is split into single claims and each is looked up in the résumé and the
+  advert; a claim only counts as supported when its quote is found there by
+  script. Unsupported claims are listed, struck out on a verdict and flagged
+  on a letter, so "ten years of Java" where the résumé says ten
+  years overall does not reach an employer unread. The check costs two model
+  calls per output and can be turned off (`llm.guard`).
+- **A résumé review** quotes the line each point is about, and drops any
+  point quoting something not in your résumé. Against a post it also lists
+  what the advert asks for that the résumé does not show.
+- **Thumbs up or down** on any AI output, counted on the Dashboard.
+
 ### Or with buttons
 
 ```bash
 jobdork serve        # http://127.0.0.1:8765
 ```
 
+The page opens on the **Dashboard**: runs, errored runs, AI calls, AI latency
+(P50 and P95) and the hallucination rate with its coverage, for the last 7, 30
+or 90 days; runs by tool and feedback per day; and a card for the last scan,
+check and AI judging that says in amber what went wrong (a source that
+returned nothing, a scan that never finished, a scan over 15 days old).
+
 ![The dashboard](docs/images/dashboard.jpg)
 
-The same list, except what you click sticks. It reads and writes the same
-database the CLI does, so the two cannot disagree.
+**Job posts** is the list, where what you click sticks. It reads and writes the
+same database the CLI does, so the two cannot disagree. Copies of one job
+posted in several places show as one post.
+
+![Job posts](docs/images/job-posts.jpg)
+
+Open one for the advert, drafts, the AI verdict and its reasons, and the
+buttons to ask the AI, write a cover letter, review your résumé against it,
+or check it is still open:
+
+![A job post, with the AI verdict](docs/images/role-detail.jpg)
+
+Every run reports itself while it runs, whether it was started on the page or
+in the terminal, rather than leaving you with a frozen terminal:
+
+![A run reporting itself](docs/images/live-run.jpg)
+
+Settings are editable there too — titles, location, radius, countries, salary
+floor, the AI provider and model. The file is written and then re-read through the normal loader, so an
+edit that would not survive a scan cannot be saved.
+
+**It prints a URL with a token in it, and that token is required.** Loopback
+is not a security boundary: without one, any program running as you could read
+your whole job search and change it. The token is minted per run and dies with
+the process. The port is asked for rather than assumed, so it does not collide.
 
 Local only, and deliberately hard to make otherwise: it binds to loopback and
 there is no `--host`; the `Host` header is checked against the address it
@@ -449,15 +525,46 @@ catches `BaseException` rather than `Exception` for the same reason: a test
 raising `SystemExit` would otherwise end the run mid-file with no failure line
 and no summary.
 
-The 48 tests cover the rules that fail quietly — unstated salary being shown,
+The tests cover the rules that fail quietly — unstated salary being shown,
 unresolvable locations being kept, blocker words refusing a loose title match,
-day rates being annualised, `gh_jid` surviving canonicalisation, and a US
-posting being out of scope for a Manila reader exactly as a Berlin one is for
-a Chicago reader.
+day rates being annualised, `gh_jid` surviving canonicalisation, a US posting
+being out of scope for a Manila reader exactly as a Berlin one is for a
+Chicago reader, and a model's "supported" not counting without a quote found
+in the source. None of them calls a real model or a real site.
+
+---
+
+## Project structure
+
+```
+.
+├── run.sh                 # shell wrapper (auto-detects the venv)
+├── config.example.yaml    # copy to config.yaml
+├── jobdork/
+│   ├── cli.py             # every command
+│   ├── core/              # config, run telemetry, text helpers
+│   ├── db/                # SQLite store, migrations, grouping copies of a job
+│   ├── fetch/             # one adapter per source, and the paced HTTP client
+│   ├── search/            # scan, screen, enrich, discover, listing check, geo, résumé
+│   ├── ai/                # the model, judging, the hallucination guard, AI letter and review
+│   ├── writing/           # claude -p drafts and the checks every draft gets
+│   ├── web/               # the dashboard server and its API
+│   ├── output/            # the static HTML/JSON page and the email digest
+│   ├── dork/              # the original Google query generator (boards.py holds its tables)
+│   └── data/              # cities gazetteer, dashboard page, humanizer rules
+├── tests/                 # python tests/run_all.py
+├── docs/
+└── data/jobdork.db        # your database (created on first run)
+```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for what each part does.
 
 ---
 
 ## The dork generator
+
+The original tool, moved into `jobdork/dork/` rather than rewritten. It runs as
+`jobdork dork` (or `python -m jobdork.dork`) and takes its own flags.
 
 Results are always saved to a plain-text file. Optionally export a named CSV, email it, open every query in your browser, or schedule the whole thing to run automatically.
 
@@ -490,34 +597,6 @@ site:boards.greenhouse.io
 
 ---
 
-## Project structure
-
-```
-.
-├── main.py          # application logic
-├── config.py        # all configuration tables (edit this to customise)
-├── run.sh           # shell wrapper (auto-detects venv)
-├── requirements.txt # Python dependencies (resend)
-├── .env             # Resend credentials — create via --setup-email
-├── logs/
-│   └── job_dork.log
-├── dork_results.txt                        # plain-text results (always written)
-└── data_engineer_1w_20260327_1430.csv      # timestamped CSV (with --csv)
-```
-
----
-
-## Requirements
-
-- Python 3.10+
-- `resend` package (only needed for email delivery)
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
 ## Quick start
 
 ### Interactive mode
@@ -525,9 +604,7 @@ pip install -r requirements.txt
 Run with no arguments to step through a guided prompt:
 
 ```bash
-./run.sh
-# or
-python main.py
+jobdork dork
 ```
 
 Every prompt defaults to a sensible value — just press Enter to accept it.
@@ -536,7 +613,7 @@ Blank answers for export, email, and recurring search always mean **no**.
 ### CLI mode
 
 ```bash
-python main.py \
+jobdork dork \
   --title "software engineer | developer | SWE" \
   --location "Austin, TX" \
   --level "mid | senior" \
@@ -603,10 +680,10 @@ Each group is expanded into a Google boolean OR clause in every query.
 ### Info flags
 
 ```bash
-python main.py --list-sites    # all boards (standard + opt-in)
-python main.py --list-levels   # role levels and their keyword expansions
-python main.py --list-dates    # date filter options
-python main.py --list-cron     # cron schedule options
+jobdork dork --list-sites    # all boards (standard + opt-in)
+jobdork dork --list-levels   # role levels and their keyword expansions
+jobdork dork --list-dates    # date filter options
+jobdork dork --list-cron     # cron schedule options
 ```
 
 ---
@@ -668,7 +745,7 @@ search_1w_20260327_1800.csv          # when no title is provided
 
 ### Standard boards (searched by default)
 
-Run `python main.py --list-sites` for the full list. Covers:
+Run `jobdork dork --list-sites` for the full list. Covers:
 
 - **Aggregators** — LinkedIn, Indeed, Glassdoor, Builtin, Dice, ZipRecruiter, Monster, CareerBuilder, FlexJobs, Wellfound, YC's Work at a Startup
 - **ATS portals** — Lever, Greenhouse, Workday, Ashby, Workable, SmartRecruiters, iCIMS, Breezy, Rippling
@@ -688,18 +765,18 @@ Pass these via `--sites` to unlock additional search modes:
 
 ```bash
 # Search hidden market alongside standard boards
-python main.py --title "product manager" \
+jobdork dork --title "product manager" \
   --sites linkedin greenhouse lever google_docs google_sheets
 
 # Surface hiring managers for direct outreach
-python main.py --title "machine learning engineer" \
+jobdork dork --title "machine learning engineer" \
   --sites hiring_manager linkedin_posts --open
 
 # Study how others in your field format their resumes
-python main.py --title "data scientist" --sites pdf_resumes --open
+jobdork dork --title "data scientist" --sites pdf_resumes --open
 
 # Everything at once
-python main.py --title "backend engineer" --sites all
+jobdork dork --title "backend engineer" --sites all
 ```
 
 ---
@@ -711,7 +788,7 @@ python main.py --title "backend engineer" --sites all
 Combine `--since` (Google's `tbs` param) with `--after` (the `after:` operator) for maximum precision:
 
 ```bash
-python main.py --title "frontend engineer" --since 1m --after 2026-03-01
+jobdork dork --title "frontend engineer" --since 1m --after 2026-03-01
 ```
 
 ### Filter by benefits
@@ -719,7 +796,7 @@ python main.py --title "frontend engineer" --since 1m --after 2026-03-01
 Add quoted benefit phrases to every query:
 
 ```bash
-python main.py --title "software engineer" \
+jobdork dork --title "software engineer" \
   --benefits "visa sponsorship | relocation assistance | 4-day work week"
 ```
 
@@ -734,7 +811,7 @@ Add minus-sign phrases directly to `--title` or add them manually to a query. Fo
 ### macOS / Linux (cron)
 
 ```bash
-python main.py \
+jobdork dork \
   --title "backend engineer | platform engineer" \
   --level "senior" --arrangement remote \
   --since 1w --csv --cron 1w
@@ -762,7 +839,7 @@ Remove: `schtasks /Delete /TN "JobDorkSearch" /F`
 ### 2. Configure credentials
 
 ```bash
-python main.py --setup-email
+jobdork dork --setup-email
 ```
 
 Or create `.env` manually:
@@ -777,14 +854,15 @@ RESEND_FROM="Job Dork <jobs@yourdomain.com>"
 ### 3. Send results
 
 ```bash
-python main.py --title "data engineer" --csv --email you@example.com
+jobdork dork --title "data engineer" --csv --email you@example.com
 ```
 
 ---
 
 ## Customising the tool
 
-All configuration lives in **`config.py`** — no need to touch `main.py`:
+All of its configuration lives in **`jobdork/dork/boards.py`** — no need to
+touch `generator.py`:
 
 | Table | What to edit |
 |---|---|
@@ -802,7 +880,7 @@ All configuration lives in **`config.py`** — no need to touch `main.py`:
 
 | File | Description |
 |---|---|
-| `dork_results.txt` | Plain-text list of every query and URL (always written) |
+| `dork_results.txt` | Plain-text list of every query and URL, in the directory you ran it from (always written) |
 | `<role>_<since>_<ts>.csv` | Structured export — produced with `--csv` or `--email` |
 | `logs/job_dork.log` | Timestamped run log |
 
@@ -812,33 +890,33 @@ All configuration lives in **`config.py`** — no need to touch `main.py`:
 
 ```bash
 # Senior remote Python roles posted in the last 3 days, open in browser
-python main.py \
+jobdork dork \
   --title "python engineer | backend engineer" \
   --level senior --arrangement remote --since 3d --open
 
 # Mid or senior data roles in NYC, export CSV
-python main.py \
+jobdork dork \
   --title "data engineer | analytics engineer" \
   --level "mid | senior" --location "New York, NY" --since 1w --csv
 
 # Product managers on ATS portals only
-python main.py \
+jobdork dork \
   --title "product manager | PM | product lead" \
   --level mid --sites greenhouse lever ashby workable --csv
 
 # Weekly email digest — remote senior engineering roles
-python main.py \
+jobdork dork \
   --title "software engineer | SWE | backend engineer" \
   --level senior --arrangement remote \
   --since 1w --csv --email you@example.com --cron 1w
 
 # Hidden job market — Google Docs/Sheets + social posts
-python main.py \
+jobdork dork \
   --title "growth marketer | growth manager" \
   --sites google_docs google_sheets linkedin_posts --open
 
 # Roles with visa sponsorship posted after March 1st
-python main.py \
+jobdork dork \
   --title "software engineer" \
   --benefits "visa sponsorship" \
   --after 2026-03-01 --since 1m --csv

@@ -1,6 +1,6 @@
 """
-jobdork.discover
-================
+jobdork.search.discover
+=======================
 Finds an employer's job board, by reading it off their own site.
 
 Board tokens are not company names. `mymoose` is Rapid7, `evergreenix` is
@@ -32,8 +32,8 @@ import re
 import urllib.parse
 from dataclasses import dataclass, field
 
-from . import fetch as fetch_pkg
-from .fetch.http import Fetcher
+from .. import fetch as fetch_pkg
+from ..fetch.http import Fetcher
 
 # Where a careers page usually lives. Tried in order, and the first that
 # answers with something board-shaped wins.
@@ -271,7 +271,7 @@ def _verify(fetcher: Fetcher, item: Found) -> Found:
         item.note = result.errors[0]
     else:
         item.status = "empty"
-        item.note = ("answered 200 with no jobs — on this platform that is "
+        item.note = ("answered 200 with no jobs; on this platform that is "
                      "also what throttling looks like, so it is unknown "
                      "rather than 'not hiring'")
     return item
@@ -283,8 +283,8 @@ def discover(employer: str, fetcher: Fetcher, max_pages: int = 6) -> Report:
     bases = _normalise(employer)
     if not bases:
         report.error = (
-            f"{employer!r} is not a domain. Give the employer's website — "
-            "`jobdork discover stripe.com` — because guessing a domain from a "
+            f"{employer!r} is not a domain. Give the employer's website, as in "
+            "`jobdork discover stripe.com`, because guessing a domain from a "
             "company name is the same mistake as guessing a board token from "
             "one."
         )

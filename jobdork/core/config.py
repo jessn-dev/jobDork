@@ -1,6 +1,6 @@
 """
-jobdork.config
-==============
+jobdork.core.config
+===================
 Loads and validates `config.yaml`.
 
 Rules this file exists to enforce:
@@ -40,7 +40,7 @@ DEFAULT_BLOCKERS = ("product", "business", "program", "programme", "project",
 # region: a reader in Manila, Munich or Melbourne configures their own
 # countries and everything else follows from that.
 def _known_countries() -> tuple[str, ...]:
-    from .geo import ALL_COUNTRY_CODES
+    from ..search.geo import ALL_COUNTRY_CODES
     return tuple(sorted(ALL_COUNTRY_CODES))
 
 
@@ -61,11 +61,17 @@ OUTPUT_FORMATS = {
 
 # Statuses a role can hold. The last four are settled: a role in one of them
 # is hidden from results rather than shown again.
+# The pipeline, in order. `viewed` sits between new and interested because
+# "I have read this and not decided" is a real state: without it, a role you
+# have looked at is indistinguishable from one you have never opened, which is
+# the whole thing a scanner is supposed to remember for you.
 STATUSES = (
-    "new", "interested", "applied", "submitted", "interviewing", "offer",
-    "rejected", "withdrawn", "skipped", "closed",
+    "new", "viewed", "interested", "applied", "submitted", "interviewing",
+    "offer", "rejected", "withdrawn", "skipped", "closed",
 )
 SETTLED_STATUSES = ("rejected", "withdrawn", "skipped", "closed")
+# Never removed by an age cleanup: these are jobs you are pursuing.
+PURSUING_STATUSES = ("applied", "submitted", "interviewing", "offer")
 
 # Sources that need no credential. These are what a fresh install runs.
 KEYLESS_SOURCES = (
@@ -221,9 +227,27 @@ class Fetch:
     timeout: int = 20
     retries: int = 2
     user_agent: str = (
-        "jobdork/0.2 (+https://github.com/jessengolab/jobDork) "
+        "jobdork/0.2 (+https://github.com/jessn-dev/jobDork) "
         "personal job search"
     )
+
+
+@dataclass
+class Llm:
+    """Which model reads adverts, and when. Never a key: keys stay in memory.
+
+    Empty `provider` means off. Both uses are opt-in, and `judge_top` bounds
+    what a scan can spend on a paid API.
+    """
+    provider: str = ""              # ollama | anthropic | gemini | openai
+    model: str = ""
+    ollama_url: str = "http://localhost:11434"
+    judge_on_scan: bool = False     # judge the best new roles after each scan
+    judge_top: int = 25
+    read_pages: bool = False        # ask it about posting pages that are unclear
+    # Check each verdict and draft for claims its sources do not support
+    # (guard.py). Two more model calls per output.
+    guard: bool = True
 
 
 @dataclass
@@ -238,6 +262,7 @@ class Config:
     sources: Sources = field(default_factory=Sources)
     output: Output = field(default_factory=Output)
     fetch: Fetch = field(default_factory=Fetch)
+    llm: Llm = field(default_factory=Llm)
     db_path: str = "data/jobdork.db"
     path: str = ""          # where this config was read from
 
@@ -252,7 +277,7 @@ class Config:
         """
         if self.locations.radius == "exact":
             return None
-        from .geo import to_miles
+        from ..search.geo import to_miles
         return to_miles(float(self.locations.radius), self.locations.units)
 
     def country_prefs(self) -> tuple[str, ...]:
@@ -359,7 +384,7 @@ def apply_overrides(cfg: Config, **overrides: Any) -> Config:
     if overrides.get("countries"):
         cfg.locations.countries = [c.upper() for c in overrides["countries"]]
         if not overrides.get("units"):
-            from .geo import default_units
+            from ..search.geo import default_units
             cfg.locations.units = default_units(cfg.locations.countries)
         # A pinned `adzuna_countries` in the file would otherwise beat the
         # override, so `--country DE` would search Germany with the American
@@ -480,6 +505,25 @@ def _build(raw: dict[str, Any]) -> Config:
         user_agent=str(fet.get("user_agent") or Fetch().user_agent),
     )
 
+    ai = raw.get("llm") or {}
+    if not isinstance(ai, dict):
+        raise ConfigError("llm must be a mapping")
+    for secret in ("key", "api_key", "token"):
+        if ai.get(secret):
+            raise ConfigError(
+                f"llm.{secret} is set in the config. API keys are never read "
+                "from a file: type it on the dashboard's AI page (held in "
+                "memory only) or set it in the environment.")
+    cfg.llm = Llm(
+        provider=str(ai.get("provider") or "").strip().lower(),
+        model=str(ai.get("model") or "").strip(),
+        ollama_url=str(ai.get("ollama_url") or Llm().ollama_url).strip(),
+        judge_on_scan=bool(ai.get("judge_on_scan", False)),
+        judge_top=int(ai.get("judge_top", 25)),
+        read_pages=bool(ai.get("read_pages", False)),
+        guard=bool(ai.get("guard", True)),
+    )
+
     cfg.db_path = str(raw.get("db") or "data/jobdork.db")
     return cfg
 
@@ -505,7 +549,7 @@ def _apply_env_secrets(cfg: Config) -> None:
         elif yaml_value and attr.endswith(("_key", "_id")):
             cfg.warnings.append(
                 f"sources.{attr} is set in {cfg.path or 'config.yaml'}. "
-                f"Move it to .env as {env_name} — YAML files get committed."
+                f"Move it to .env as {env_name}. YAML files get committed."
             )
 
 
@@ -550,7 +594,7 @@ def _validate(cfg: Config) -> None:
             f"locations.units is {loc.units!r}. Accepted: {', '.join(UNITS)}."
         )
     if not loc.units:
-        from .geo import default_units
+        from ..search.geo import default_units
         loc.units = default_units(loc.countries)
     for mode in loc.work_modes:
         if mode not in WORK_MODES:
@@ -614,7 +658,7 @@ def _validate(cfg: Config) -> None:
         if not company.name or not company.platform or not company.token:
             raise ConfigError(
                 f"sources.companies[{i}] needs name, platform and token. "
-                "Use `jobdork discover <employer>` to find the token — board "
+                "Use `jobdork discover <employer>` to find the token; board "
                 "tokens rarely match company names."
             )
         if company.platform not in KEYLESS_SOURCES:
@@ -649,6 +693,16 @@ def _validate(cfg: Config) -> None:
         raise ConfigError("fetch.timeout must be at least 1 second")
     if cfg.fetch.retries < 0:
         raise ConfigError("fetch.retries cannot be negative")
+
+    from ..ai.llm import PROVIDERS
+    if cfg.llm.provider and cfg.llm.provider not in PROVIDERS:
+        raise ConfigError(
+            f"llm.provider is {cfg.llm.provider!r}. Accepted: "
+            f"{', '.join(PROVIDERS)}, or empty for off.")
+    if not re.match(r"https?://[^\s/]+", cfg.llm.ollama_url):
+        raise ConfigError("llm.ollama_url must be an http(s) address")
+    if not 1 <= cfg.llm.judge_top <= 500:
+        raise ConfigError("llm.judge_top must be between 1 and 500")
 
 
 def _str_list(value: Any, field_name: str) -> list[str]:
