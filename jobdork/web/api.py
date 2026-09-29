@@ -16,7 +16,7 @@ to watch rather than wait blindly for.
 
 Two things are handled carefully because they take input from a browser:
 
-  **The résumé upload.** The filename is never trusted: the extension is
+  **The resume upload.** The filename is never trusted: the extension is
   checked against a short list and the file is written to a name this code
   chooses, in a directory this code chooses. A browser can suggest
   `../../.ssh/authorized_keys` and it will land as `resume.pdf`.
@@ -34,9 +34,11 @@ import re
 import time
 from pathlib import Path
 
+from ..core.textutil import platform_name
+
 log = logging.getLogger("jobdork.web.api")
 
-# Formats the résumé reader understands. Anything else is refused by name
+# Formats the resume reader understands. Anything else is refused by name
 # rather than accepted and silently unread.
 RESUME_SUFFIXES = (".pdf", ".docx", ".md", ".markdown", ".txt")
 MAX_RESUME_BYTES = 10 * 1024 * 1024
@@ -167,6 +169,141 @@ def _gates(raw: str) -> tuple[dict, int | None]:
     return {k: v for k, v in gates.items() if not k.startswith("_")}, output_id
 
 
+# The files a cover letter is written as: the AI page's, and claude -p's.
+LETTER_FILES = ("cover-letter-ai.md", "cover-letter.md")
+
+
+def list_letters(cfg) -> dict:
+    """Every cover letter recorded, newest first, with its job post."""
+    from ..core import storage
+    from ..db.store import Store
+
+    with Store(cfg.db_path) as store:
+        rows = store.conn.execute(
+            "SELECT a.id, a.uid, a.path, a.created_at, r.title, r.company "
+            "FROM artifacts a LEFT JOIN roles r ON r.uid = a.uid "
+            "WHERE a.kind = 'cover_letter' ORDER BY a.created_at DESC, a.id DESC"
+        ).fetchall()
+    return {"temporary": storage.temp_root() is not None,
+            "letters": [{"id": r["id"], "uid": r["uid"], "title": r["title"] or "",
+                         "company": r["company"] or "", "created_at": r["created_at"],
+                         "exists": bool(r["path"]) and Path(r["path"]).is_file()}
+                        for r in rows]}
+
+
+def delete_letter(cfg, artifact_id: int) -> dict:
+    """Delete a cover letter now: its file, its record, and its text.
+
+    Only a file this tool recorded writing, under a cover letter's own name,
+    is removed; the page passes an id, never a path. The AI's copy of the text
+    is blanked too, so nothing of the letter is left, but its claim counts
+    stay, because the hallucination chart is built from them.
+    """
+    from ..db.store import Store
+
+    with Store(cfg.db_path) as store:
+        row = store.conn.execute(
+            "SELECT id, path, gates_json FROM artifacts "
+            "WHERE id = ? AND kind = 'cover_letter'", (int(artifact_id),)).fetchone()
+        if row is None:
+            raise ApiError("no such cover letter", 404)
+        path = Path(row["path"] or "")
+        if path.name in LETTER_FILES and path.is_file():
+            path.unlink()
+        _, output_id = _gates(row["gates_json"])
+        if output_id:
+            store.conn.execute("UPDATE ai_outputs SET text = '' WHERE id = ?",
+                               (int(output_id),))
+        store.conn.execute("DELETE FROM artifacts WHERE id = ?", (row["id"],))
+        store.conn.commit()
+    return {"deleted": True, "id": int(artifact_id)}
+
+
+def forget_temporary(cfg) -> int:
+    """Empty the temporary folder and forget what was in it.
+
+    Documents whose files were there lose their record and their text, as a
+    Delete would; the resume setting is cleared if it pointed there. Returns
+    how many files were removed. Does nothing outside a container.
+    """
+    from ..core import storage
+    from ..db.store import Store
+
+    if storage.temp_root() is None:
+        return 0
+    removed = storage.wipe()
+    with Store(cfg.db_path) as store:
+        rows = store.conn.execute(
+            "SELECT id, path, gates_json FROM artifacts").fetchall()
+        for row in rows:
+            if storage.is_temporary(row["path"] or ""):
+                _, output_id = _gates(row["gates_json"])
+                if output_id:
+                    store.conn.execute("UPDATE ai_outputs SET text = '' WHERE id = ?",
+                                       (int(output_id),))
+                store.conn.execute("DELETE FROM artifacts WHERE id = ?", (row["id"],))
+        store.conn.commit()
+    if storage.is_temporary(cfg.resume_path):
+        cfg.resume_path = ""
+    return removed
+
+
+def resume_view(cfg) -> dict:
+    """The resume as the tools read it: its text, and the skills found in it.
+
+    This is what a scan scores against and what a model is given, so it is
+    what to check when a fit score or a draft looks wrong.
+    """
+    from ..search import resume as resume_mod
+
+    if not cfg.resume_path:
+        raise ApiError("no resume is set", 404)
+    try:
+        parsed = resume_mod.load(cfg.resume_path)
+    except resume_mod.ResumeError as exc:
+        raise ApiError(str(exc), 410) from exc
+    return {"name": Path(cfg.resume_path).name, "text": parsed.text,
+            "chars": len(parsed.text),
+            "skills": [resume_mod.skill_name(s) for s in sorted(parsed.skills)],
+            "years": resume_mod.years_claimed(parsed.text)}
+
+
+RESUME_TYPES = {".pdf": "application/pdf", ".md": "text/markdown; charset=utf-8",
+                ".markdown": "text/markdown; charset=utf-8",
+                ".txt": "text/plain; charset=utf-8",
+                ".docx": "application/vnd.openxmlformats-officedocument."
+                         "wordprocessingml.document"}
+
+
+def resume_file(cfg) -> tuple[bytes, str, str]:
+    """The configured resume's own bytes, for Download. Only that one file."""
+    if not cfg.resume_path:
+        raise ApiError("no resume is set", 404)
+    path = Path(cfg.resume_path)
+    if not path.is_file():
+        raise ApiError("the resume file is gone", 410)
+    return (path.read_bytes(),
+            RESUME_TYPES.get(path.suffix.lower(), "application/octet-stream"),
+            path.name)
+
+
+def delete_resume(cfg) -> dict:
+    """Stop using the resume, and delete it if it was uploaded here.
+
+    A resume you pointed the config at yourself is your file, somewhere of
+    your choosing: it is only unset, never deleted.
+    """
+    from ..core import storage
+
+    path = cfg.resume_path
+    if not path:
+        raise ApiError("no resume is set")
+    uploaded = storage.is_uploaded_resume(path, cfg)
+    if uploaded:
+        Path(path).expanduser().unlink(missing_ok=True)
+    return {"deleted": uploaded, "path": path}
+
+
 def artifact_text(cfg, artifact_id: int) -> dict:
     """Read a generated document.
 
@@ -278,7 +415,7 @@ def sources_report(cfg) -> dict:
 
 
 def save_resume(cfg, filename: str, payload: bytes) -> dict:
-    """Store an uploaded résumé and point the config at it.
+    """Store an uploaded resume and point the config at it.
 
     The browser's filename is used for one thing only — reading its extension.
     The file is written to a name and a directory chosen here, so a suggested
@@ -294,15 +431,16 @@ def save_resume(cfg, filename: str, payload: bytes) -> dict:
     suffix = Path(filename or "").suffix.lower()
     if suffix not in RESUME_SUFFIXES:
         raise ApiError(
-            f"{suffix or 'that'} is not a format the résumé reader "
+            f"{suffix or 'that'} is not a format the resume reader "
             f"understands. Use {', '.join(RESUME_SUFFIXES)}.")
 
-    target_dir = (Path(cfg.path).parent if cfg.path else Path.cwd()) / "data"
+    from ..core import storage
+    target_dir = storage.resume_dir(cfg)
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / f"resume{suffix}"
     target.write_bytes(payload)
 
-    # Read it straight back. A résumé that cannot be parsed is worse than none:
+    # Read it straight back. A resume that cannot be parsed is worse than none:
     # it would score every role at zero while looking configured.
     from ..search import resume as resume_mod
     try:
@@ -310,6 +448,12 @@ def save_resume(cfg, filename: str, payload: bytes) -> dict:
     except resume_mod.ResumeError as exc:
         target.unlink(missing_ok=True)
         raise ApiError(f"saved nothing: {exc}") from exc
+
+    # One uploaded resume at a time: a .docx replacing a .pdf must not leave
+    # the old one behind for Delete to miss. Only once the new one has read.
+    for old in target_dir.glob(f"{storage.RESUME_STEM}.*"):
+        if old != target:
+            old.unlink(missing_ok=True)
 
     return {
         "path": str(target),
@@ -466,17 +610,17 @@ def _last_scan(conn) -> dict:
                         f"then may be gone.")
     for source, n in sorted(sources.items()):
         if not n:
-            warnings.append(f"{source} returned 0 job posts.")
+            warnings.append(f"{platform_name(source)} returned 0 job posts.")
     # A source that returned posts before and did not run at all this time.
     before = {s for r in done[1:] for s, n in
               (json.loads(r["counts_json"] or "{}").get("sources") or {}).items() if n}
     for source in sorted(before - set(sources)):
-        warnings.append(f"{source} did not run in the last scan.")
+        warnings.append(f"{platform_name(source)} did not run in the last scan.")
     unfinished = [r for r in runs if not r["finished_at"] and r["id"] > last["id"]]
     if unfinished:
         warnings.append(f"A scan started {unfinished[0]['started_at'][:16].replace('T', ' ')} "
                         "never finished.")
-    per = ", ".join(f"{s} {n}" for s, n in sorted(sources.items()))
+    per = ", ".join(f"{platform_name(s)} {n}" for s, n in sorted(sources.items()))
     return {"kind": "scan", "when": last["started_at"], "ago": _ago(last["started_at"]),
             "summary": f"{counts.get('fetched', 0):,} fetched, {counts.get('kept', 0):,} kept, "
                        f"{counts.get('new', 0):,} new ({per})",
@@ -493,12 +637,14 @@ def _last_job(conn, kind: str, fallback_sql: str) -> dict:
     names = _JOB_NAMES[kind]
     marks = ",".join("?" for _ in names)
     row = conn.execute(
-        f"SELECT * FROM activity WHERE job IN ({marks}) AND COALESCE(total, 2) > 1 "
+        # Safe: only ? placeholders are interpolated.
+        f"SELECT * FROM activity WHERE job IN ({marks}) AND COALESCE(total, 2) > 1 "  # nosec B608
         "ORDER BY id DESC LIMIT 1", names).fetchone()
     single = row is None
     if single:
         row = conn.execute(
-            f"SELECT * FROM activity WHERE job IN ({marks}) ORDER BY id DESC LIMIT 1",
+            # Safe: only ? placeholders are interpolated.
+            f"SELECT * FROM activity WHERE job IN ({marks}) ORDER BY id DESC LIMIT 1",  # nosec B608
             names).fetchone()
     if row is not None:
         run = _activity_row(row)
@@ -572,25 +718,28 @@ def activity_report(cfg, job_id: int = 0) -> dict:
 # ── metrics ───────────────────────────────────────────────────────────────────
 
 METRIC_DAYS = (7, 30, 90)
+MAX_MODELS = 6            # lines on the hallucination chart, by model
 # Fixed order: it is the chart's colour order, so a tool keeps its colour
 # whichever tools ran in the period.
 TOOLS = ("scan", "check", "AI judging", "AI writing", "enrich", "other")
 OUTPUT_KINDS = {"judge": "verdicts", "page_read": "page reads",
-                "cover_letter": "cover letters", "resume_review": "résumé reviews",
-                "draft": "claude drafts"}
+                "cover_letter": "cover letters", "resume_review": "resume reviews",
+                "draft": "Claude drafts", "resume_edits": "tailored resume edits",
+                "highlight": "skills to highlight", "feedback": "recruiter feedback",
+                "revise": "revisions", "keywords": "ATS keywords"}
 
 
 def _tool(job: str) -> str:
     """A run's job name, from the terminal or the dashboard, as one of TOOLS."""
     job = (job or "").lower()
-    if job == "scan":
+    if job in ("scan", "fresh scan"):
         return "scan"
     if job in ("check", "checking postings"):
         return "check"
     if job in ("judge", "ai judging"):
         return "AI judging"
     if job in ("letter", "review", "generate", "screen", "cv", "cover letter",
-               "cover letter (ai)", "résumé review"):
+               "cover letter (ai)", "resume review") or job.startswith("ai tool"):
         return "AI writing"
     if job == "enrich":
         return "enrich"
@@ -636,9 +785,16 @@ def metrics(cfg, days: int = 30) -> dict:
             "SELECT seconds, ok FROM llm_calls WHERE at >= ?", (since,)).fetchall()
         first_call = conn.execute("SELECT MIN(at) FROM llm_calls").fetchone()[0] or ""
         outputs = conn.execute(
-            "SELECT kind, substr(created_at, 1, 10) AS day, claims, unsupported, "
+            "SELECT kind, COALESCE(NULLIF(model, ''), 'unknown model') AS model, "
+            "substr(created_at, 1, 10) AS day, claims, unsupported, "
             "checked, feedback FROM ai_outputs WHERE created_at >= ?",
             (since,)).fetchall()
+        # Every model that has had output checked, in the order first used.
+        # That order is the colour order, so a model keeps its colour when
+        # another is added; it is taken over all time for the same reason.
+        models = [r[0] for r in conn.execute(
+            "SELECT COALESCE(NULLIF(model, ''), 'unknown model'), MIN(created_at) "
+            "FROM ai_outputs WHERE checked = 1 GROUP BY 1 ORDER BY 2")]
         first_output = conn.execute(
             "SELECT MIN(created_at) FROM ai_outputs").fetchone()[0] or ""
 
@@ -666,6 +822,21 @@ def metrics(cfg, days: int = 30) -> dict:
     for k in kinds.values():
         k["rate"] = k["unsupported"] / k["claims"] if k["claims"] else None
 
+    # Per day and kind, from checked outputs only: a day with nothing checked
+    # has no rate, which is not the same as a rate of 0.
+    # The same split by model. Past MAX_MODELS the rest fold into "other":
+    # more lines than colours is noise, and a colour must not be reused.
+    shown = models[:MAX_MODELS] if len(models) <= MAX_MODELS else models[:MAX_MODELS - 1]
+    claims_by_day = {d: {} for d in dates}
+    claims_by_model = {d: {} for d in dates}
+    for o in checked:
+        if o["day"] in claims_by_day and o["claims"]:
+            model = o["model"] if o["model"] in shown else "other models"
+            for split, key in ((claims_by_day, o["kind"]), (claims_by_model, model)):
+                k = split[o["day"]].setdefault(key, {"claims": 0, "unsupported": 0})
+                k["claims"] += o["claims"]
+                k["unsupported"] += o["unsupported"]
+
     feedback = {d: {"up": 0, "down": 0} for d in dates}
     for o in outputs:
         if o["feedback"] and o["day"] in feedback:
@@ -691,7 +862,11 @@ def metrics(cfg, days: int = 30) -> dict:
                           "recorded_since": first_output[:10]},
         "feedback": {"up": ups, "down": downs,
                      "approval": ups / (ups + downs) if ups + downs else None},
-        "per_day": [{"date": d, "runs": by_day[d], **feedback[d]} for d in dates],
+        "kinds": [{"kind": k, "label": v} for k, v in OUTPUT_KINDS.items()],
+        "models": [{"kind": m, "label": m} for m in shown]
+        + ([{"kind": "other models", "label": "other models"}] if len(shown) < len(models) else []),
+        "per_day": [{"date": d, "runs": by_day[d], "claims": claims_by_day[d],
+                     "claims_by_model": claims_by_model[d], **feedback[d]} for d in dates],
     }
 
 
@@ -746,8 +921,6 @@ def cleanup_run(cfg, days=0, statuses=(), expect: int = -1) -> dict:
     moved the number since, nothing is deleted and the page previews again:
     you confirmed a number, and you get that number or nothing.
     """
-    import sqlite3
-
     from ..db.store import Store
 
     days, statuses, reason = _cleanup_args(days, statuses)
@@ -758,19 +931,77 @@ def cleanup_run(cfg, days=0, statuses=(), expect: int = -1) -> dict:
                            "since the preview; preview again", 409)
         if not rows:
             return {"deleted": 0, "backup": ""}
-
-        folder = Path(cfg.db_path).parent / "backups"
-        folder.mkdir(parents=True, exist_ok=True)
-        backup = folder / f"jobdork-{time.strftime('%Y%m%d-%H%M%S')}-before-cleanup.db"
-        target = sqlite3.connect(backup)
-        with target:
-            store.conn.backup(target)
-        target.close()
-        for old in sorted(folder.glob("jobdork-*-before-cleanup.db"))[:-BACKUPS_KEPT]:
-            old.unlink(missing_ok=True)
-
+        backup = _backup(cfg, store, "cleanup")
         deleted = store.delete_many((r["uid"] for r in rows), reason)
     return {"deleted": deleted, "backup": str(backup), "reason": reason}
+
+
+def _backup(cfg, store, label: str) -> Path:
+    """Copy the database aside before a delete; keep the last BACKUPS_KEPT."""
+    import sqlite3
+
+    folder = Path(cfg.db_path).parent / "backups"
+    folder.mkdir(parents=True, exist_ok=True)
+    backup = folder / f"jobdork-{time.strftime('%Y%m%d-%H%M%S')}-before-{label}.db"
+    target = sqlite3.connect(backup)
+    with target:
+        store.conn.backup(target)
+    target.close()
+    for old in sorted(folder.glob(f"jobdork-*-before-{label}.db"))[:-BACKUPS_KEPT]:
+        old.unlink(missing_ok=True)
+    return backup
+
+
+# ── fresh scan ────────────────────────────────────────────────────────────────
+
+
+def fresh_preview(cfg) -> dict:
+    """What a fresh scan would delete. Deletes nothing."""
+    from ..core.config import PURSUING_STATUSES
+    from ..db.store import Store
+
+    with Store(cfg.db_path) as store:
+        count = store.scanned_count()
+        by_status = dict(store.conn.execute(
+            "SELECT COALESCE(s.status, 'new'), COUNT(*) FROM roles r "
+            "LEFT JOIN role_state s ON s.uid = r.uid WHERE r.origin = 'scan' "
+            "GROUP BY 1").fetchall())
+        by_hand = store.conn.execute(
+            "SELECT COUNT(*) FROM roles WHERE origin <> 'scan'").fetchone()[0]
+    return {"count": count, "by_status": by_status, "kept_by_hand": by_hand,
+            "pursuing": sum(n for s, n in by_status.items() if s in PURSUING_STATUSES)}
+
+
+def fresh_scan_job(cfg, expect):
+    """Back up, delete every scanned job post, then scan from scratch.
+
+    `expect` is the count the preview showed, checked now and again when the
+    run starts: you confirmed a number, and you get that number or nothing.
+    """
+    from ..db.store import Store
+
+    try:
+        expect = int(expect)
+    except (TypeError, ValueError):
+        raise ApiError("preview first") from None
+    with Store(cfg.db_path) as store:
+        now = store.scanned_count()
+    if now != expect:
+        raise ApiError(f"the count changed from {expect} to {now} since the "
+                       "preview; preview again", 409)
+    scan = scan_job(cfg)
+
+    def work(progress):
+        with Store(cfg.db_path) as store:
+            if store.scanned_count() != expect:
+                raise ApiError("the job posts changed before the run started; "
+                               "nothing was deleted", 409)
+            backup = _backup(cfg, store, "fresh-scan")
+            deleted = store.clear_scanned()
+        progress(f"backed up to {backup}")
+        progress(f"deleted {deleted} job posts; scanning from scratch")
+        return f"fresh scan: deleted {deleted} · " + scan(progress)
+    return work
 
 
 # ── the model ─────────────────────────────────────────────────────────────────
@@ -855,12 +1086,7 @@ def scan_job(cfg):
             summary = " · ".join(report.lines())
             if cfg.llm.judge_on_scan:
                 summary += " · " + _judge_after_scan(cfg, store, progress)
-            rows = store.list_roles()
-            out = Path(cfg.output.dir)
-            if "html" in cfg.output.formats:
-                render.to_html(rows, out / "index.html", cfg, report)
-            if "json" in cfg.output.formats:
-                render.to_json(rows, out / "roles.json")
+            render.write_all(store.list_roles(), cfg, report)
         return summary
     return work
 
@@ -873,7 +1099,7 @@ def _judge_after_scan(cfg, store, progress) -> str:
     if problem:
         progress(f"AI judging skipped: {problem}")
         return "AI judging skipped"
-    progress(f"AI reading the top {cfg.llm.judge_top} job posts against your résumé")
+    progress(f"AI reading the top {cfg.llm.judge_top} job posts against your resume")
     try:
         report = judging.run(cfg, store, progress=progress)
     except llm.LLMError as exc:
@@ -967,6 +1193,8 @@ def discover_job(cfg, employer: str, add: bool = False, name: str = ""):
                                                  addable)
             for item in written:
                 progress(f"added {item.platform} / {item.token} to your config")
+            if not written:
+                return "already in your config; nothing added"
             return f"{len(written)} board(s) added"
         if addable:
             return f"{len(addable)} verified board(s) found"
@@ -1033,8 +1261,63 @@ def letter_job(cfg, uid: str):
     return work
 
 
+MAX_TOOL_TEXT = 8_000       # a pasted bullet, paragraph or whole letter
+
+
+def tool_job(cfg, uid: str, kind: str, text: str = ""):
+    """One of the AI tools (ai/tools.py) for one job post."""
+    from ..ai import tools
+
+    if not UID.match(uid or ""):
+        raise ApiError("not a job post id")
+    if kind not in tools.TOOLS:
+        raise ApiError("unknown tool")
+    if kind == "revise" and not (text or "").strip():
+        raise ApiError("paste a bullet or a paragraph to revise")
+    if len(text or "") > MAX_TOOL_TEXT:
+        raise ApiError(f"over {MAX_TOOL_TEXT:,} characters; paste less")
+
+    def work(progress):
+        from ..ai import llm
+        from ..db.store import Store
+
+        with Store(cfg.db_path) as store:
+            try:
+                result = tools.run(cfg, store, uid, kind, text, progress=progress)
+            except llm.LLMError as exc:
+                raise ApiError(str(exc)) from exc
+        g = result.guard
+        return (f"{tools.TOOLS[kind]} ready"
+                + (f"; {len(g.unsupported)} of {len(g.claims)} claims not supported"
+                   if g.checked and g.unsupported else ""))
+    return work
+
+
+def latest_tools(cfg, uid: str) -> dict:
+    """The newest result of each AI tool for one job post."""
+    from ..ai import tools
+    from ..db.store import Store
+
+    if not UID.match(uid or ""):
+        raise ApiError("not a job post id")
+    out = {}
+    with Store(cfg.db_path) as store:
+        for kind in tools.TOOLS:
+            row = store.conn.execute(
+                "SELECT id, path, created_at FROM artifacts WHERE uid = ? AND kind = ? "
+                "ORDER BY created_at DESC, id DESC LIMIT 1", (uid, kind)).fetchone()
+            if row is None or not Path(row["path"] or "").is_file():
+                continue
+            try:
+                data = json.loads(Path(row["path"]).read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            out[kind] = {**data, "id": row["id"], "created_at": row["created_at"]}
+    return {"tools": out, "labels": tools.TOOLS}
+
+
 def review_job(cfg, uid: str = ""):
-    """A résumé review: general, or against one job post."""
+    """A resume review: general, or against one job post."""
     if uid and not UID.match(uid):
         raise ApiError("not a job post id")
 
@@ -1048,7 +1331,7 @@ def review_job(cfg, uid: str = ""):
             except llm.LLMError as exc:
                 raise ApiError(str(exc)) from exc
         g = result.guard
-        return (f"{len(result.health)} résumé point(s)"
+        return (f"{len(result.health)} resume point(s)"
                 + (f", {len(result.alignment['reword'])} line(s) to reword"
                    if result.alignment else "")
                 + (f"; {len(g.unsupported)} of {len(g.claims)} claims not supported"
@@ -1058,7 +1341,7 @@ def review_job(cfg, uid: str = ""):
 
 
 def ai_output(cfg, output_id: int) -> dict:
-    """One recorded AI output, for the page (a general résumé review has no file)."""
+    """One recorded AI output, for the page (a general resume review has no file)."""
     from ..db.store import Store
 
     with Store(cfg.db_path) as store:
@@ -1072,7 +1355,7 @@ def ai_output(cfg, output_id: int) -> dict:
 
 
 def latest_review(cfg) -> dict:
-    """The newest general résumé review, or an empty answer."""
+    """The newest general resume review, or an empty answer."""
     from ..db.store import Store
 
     with Store(cfg.db_path) as store:

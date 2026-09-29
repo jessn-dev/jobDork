@@ -18,6 +18,7 @@ proposal.md
 !requirements.txt
 # The gazetteer is data the tool ships with, not output.
 !jobdork/data/cities.csv
+!jobdork/data/regions.csv
 
 # Your search is yours. None of this belongs in a repository.
 # Anchored with a leading slash: a bare `data/` also matched jobdork/data/,

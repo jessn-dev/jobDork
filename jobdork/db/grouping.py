@@ -60,7 +60,8 @@ def representative_order() -> str:
 def uids(conn, uid: str) -> list[str]:
     """Every copy in `uid`'s group, `uid` first. Just `uid` if it has none."""
     rows = conn.execute(
-        f"SELECT uid FROM roles WHERE {key_sql()} = "
+        # Safe: key_sql() is a fixed SQL fragment; uid is a ? parameter.
+        f"SELECT uid FROM roles WHERE {key_sql()} = "  # nosec B608
         f"(SELECT {key_sql()} FROM roles WHERE uid = ?) ORDER BY uid = ? DESC",
         (uid, uid)).fetchall()
     return [r[0] for r in rows] or [uid]
@@ -71,6 +72,7 @@ def all_closed(conn, members: Iterable[str]) -> bool:
     members = list(members)
     marks = ",".join("?" for _ in members)
     open_left = conn.execute(
-        f"SELECT COUNT(*) FROM roles WHERE uid IN ({marks}) "
+        # Safe: only ? placeholders are interpolated.
+        f"SELECT COUNT(*) FROM roles WHERE uid IN ({marks}) "  # nosec B608
         "AND COALESCE(listing_state, '') <> 'closed'", members).fetchone()[0]
     return open_left == 0

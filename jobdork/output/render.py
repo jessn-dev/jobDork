@@ -21,6 +21,10 @@ import sqlite3
 import time
 from pathlib import Path
 
+from ..core.textutil import cap, platform_name
+from ..search.geo import distance_label
+from ..search.resume import flag_label
+
 # Written by to_csv, in this order. Stable on purpose: a spreadsheet or a
 # script pointed at yesterday's export should still work against today's.
 CSV_COLUMNS = (
@@ -195,11 +199,11 @@ def to_markdown(rows: list[sqlite3.Row], path: Path, cfg=None,
         radius = (cfg.locations.radius if cfg.locations.radius == "exact"
                   else f"{cfg.locations.radius} {units}")
         lines += [
-            f"- anchor: {cfg.locations.anchor or 'anywhere'}",
-            f"- radius: {radius}",
-            f"- countries: {', '.join(cfg.locations.countries) or 'any'}",
-            f"- modes: {', '.join(cfg.locations.work_modes) or 'all'}",
-            f"- salary floor: {floor}",
+            f"- Anchor: {cfg.locations.anchor or 'anywhere'}",
+            f"- Radius: {radius}",
+            f"- Countries: {', '.join(cfg.locations.countries) or 'any'}",
+            f"- Work modes: {', '.join(cfg.locations.work_modes) or 'all'}",
+            f"- Salary floor: {floor}",
             "",
         ]
 
@@ -214,25 +218,19 @@ def to_markdown(rows: list[sqlite3.Row], path: Path, cfg=None,
     if not rows:
         lines.append("_Nothing matched. Widen the radius, or add a title._")
     for row in rows:
-        distance = (f"{row['distance_mi']:.0f} {units}"
-                    if row["distance_mi"] is not None else "")
-        meta = [
-            row["company"], row["location_raw"], distance,
-            row["work_mode"] or "arrangement not stated",
-            _salary(row), row["platform"],
-        ]
+        meta = _meta(row, units)
         score = "-" if row["score"] is None else f"{row['score']:.0f}"
         title = (row["title"] or "").replace("[", "").replace("]", "")
         fit = "–" if row["fit"] is None else f"{row['fit']:.0f}"
-        lines.append(f"### match {score} · fit {fit}/25 · [{title}]({row['url']})")
+        lines.append(f"### Match {score} · fit {fit}/25 · [{title}]({row['url']})")
         lines.append("")
         lines.append(" · ".join(str(m) for m in meta if m))
         lines.append("")
-        lines.append(f"`{row['uid']}` · **{row['status'] or 'new'}**")
+        lines.append(f"`{row['uid']}` · **{cap(row['status'] or 'new')}**")
         flags = _flags(row)
         if flags:
             lines.append("")
-            lines += [f"- {flag}" for flag in flags]
+            lines += [f"- {flag_label(flag)}" for flag in flags]
         lines.append("")
 
     notes = []
@@ -256,28 +254,37 @@ def to_markdown(rows: list[sqlite3.Row], path: Path, cfg=None,
     return path
 
 
+def _meta(row: sqlite3.Row, units: str) -> list[str]:
+    """Company, place, distance, arrangement, pay and source, as shown.
+
+    The distance is stored in miles and converted to the reader's units: it
+    was printed as miles with "km" after it, or always as "mi".
+    """
+    return [
+        row["company"], row["location_raw"],
+        distance_label(row["distance_mi"], units),
+        cap(row["work_mode"] or "arrangement not stated"),
+        cap(_salary(row)), platform_name(row["platform"]),
+    ]
+
+
 def to_html(rows: list[sqlite3.Row], path: Path, cfg=None,
             report=None) -> Path:
+    units = getattr(getattr(cfg, "locations", None), "units", "mi") or "mi"
     parts: list[str] = []
     for row in rows:
         status = row["status"] or "new"
         colour = STATUS_COLOURS.get(status, "#6b7280")
-        distance = (f"{row['distance_mi']:.0f} mi"
-                    if row["distance_mi"] is not None else "")
-        meta = [
-            row["company"], row["location_raw"], distance,
-            row["work_mode"] or "arrangement not stated",
-            _salary(row), row["platform"],
-            f"first seen {row['first_seen'][:10]}" if row["first_seen"] else "",
-        ]
+        meta = [*_meta(row, units),
+                f"First seen {row['first_seen'][:10]}" if row["first_seen"] else ""]
         flags = "".join(
-            f'<span class="flag">{_e(f)}</span>' for f in _flags(row)
+            f'<span class="flag">{_e(flag_label(f))}</span>' for f in _flags(row)
         )
         parts.append(f"""
       <div class="role">
         <div class="role-head">
-          <span class="score" title="title, arrangement, distance, salary and résumé fit, added up">match {'-' if row['score'] is None else f"{row['score']:.0f}"}</span>
-          <span class="uid" title="résumé fit, out of 25">fit {'–' if row['fit'] is None else f"{row['fit']:.0f}"}/25</span>
+          <span class="score" title="Title, arrangement, distance, salary and resume fit, added up">Match {'-' if row['score'] is None else f"{row['score']:.0f}"}</span>
+          <span class="uid" title="Resume fit, out of 25">Fit {'–' if row['fit'] is None else f"{row['fit']:.0f}"}/25</span>
           <span class="title"><a href="{_e(row['url'])}" rel="noopener noreferrer"
             target="_blank">{_e(row['title'])}</a></span>
           <span class="pill" style="background:{colour}">{_e(status)}</span>
@@ -291,18 +298,19 @@ def to_html(rows: list[sqlite3.Row], path: Path, cfg=None,
 
     stats = []
     if cfg:
-        stats.append(f"anchor <b>{_e(cfg.locations.anchor or 'anywhere')}</b>")
-        stats.append(f"radius <b>{_e(cfg.locations.radius)}</b>"
-                     + (" mi" if cfg.locations.radius != "exact" else ""))
-        stats.append("modes <b>"
+        stats.append(f"Anchor <b>{_e(cfg.locations.anchor or 'anywhere')}</b>")
+        # The reader's units: this said "mi" to a reader in kilometres.
+        stats.append(f"Radius <b>{_e(cfg.locations.radius)}</b>"
+                     + (f" {_e(units)}" if cfg.locations.radius != "exact" else ""))
+        stats.append("Work modes <b>"
                      + _e(", ".join(cfg.locations.work_modes) or "all") + "</b>")
         floor = (f"{cfg.salary.floor:,.0f} {cfg.salary.currency}"
                  if cfg.salary.floor else "none")
-        stats.append(f"floor <b>{_e(floor)}</b>")
+        stats.append(f"Salary floor <b>{_e(floor)}</b>")
     if report:
-        stats.append(f"fetched <b>{report.fetched}</b>")
-        stats.append(f"new <b>{report.newly_seen}</b>")
-    stats.append(f"showing <b>{len(rows)}</b>")
+        stats.append(f"Fetched <b>{report.fetched}</b>")
+        stats.append(f"New <b>{report.newly_seen}</b>")
+    stats.append(f"Showing <b>{len(rows)}</b>")
 
     notes = []
     if report:
@@ -336,3 +344,28 @@ which is most of them.</p>
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(page, encoding="utf-8")
     return path
+
+
+def write_all(rows: list[sqlite3.Row], cfg, report=None) -> list[Path]:
+    """Every format in `output.formats`, to `output.dir`. Returns the paths.
+
+    One function for the terminal and the dashboard: the dashboard's scan
+    wrote only html and json, so md and csv went stale when you scanned from
+    the page.
+    """
+    out = Path(cfg.output.dir)
+    writers = {
+        "html": lambda: to_html(rows, out / "index.html", cfg, report),
+        "json": lambda: to_json(rows, out / "roles.json"),
+        "md":   lambda: to_markdown(rows, out / "roles.md", cfg, report),
+        "csv":  lambda: to_csv(rows, out / "roles.csv"),
+    }
+    written = []
+    for fmt in cfg.output.formats:
+        write = writers.get(fmt)
+        if write is None:
+            # Unreachable: the config validator rejects unknown formats. Kept
+            # so a format added there and not here fails loudly.
+            raise ValueError(f"no writer for output format {fmt!r}")
+        written.append(Path(write()))
+    return written

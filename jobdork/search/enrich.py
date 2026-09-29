@@ -4,7 +4,7 @@ jobdork.search.enrich
 Fetches the full advert for roles that arrived with only a summary.
 
 Dealbreakers read the advert body. So does work-mode detection, and so does
-résumé fit scoring. A role stored with 200 characters of teaser has not been
+resume fit scoring. A role stored with 200 characters of teaser has not been
 screened so much as waved through, and the flags on it are guesses.
 
 The reader is schema.org `JobPosting` JSON-LD, which posting pages publish for

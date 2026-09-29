@@ -10,6 +10,7 @@ Keep the `__main__` block at the END of this file.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import sys
 import tempfile
@@ -77,8 +78,8 @@ def test_an_old_database_is_upgraded_without_losing_anything():
         _v1_database(path)
 
         with Store(path) as store:
-            assert store.applied_migrations == [2, 3, 4, 5, 6], store.applied_migrations
-            assert migrations.current_version(store.conn) == 6
+            assert store.applied_migrations == [2, 3, 4, 5, 6, 7], store.applied_migrations
+            assert migrations.current_version(store.conn) == 7
             assert {"fit", "score_parts", "llm_score", "listing_state"} \
                 <= migrations._columns(store.conn, "roles")
 
@@ -94,7 +95,7 @@ def test_migrating_twice_does_nothing_the_second_time():
         path = Path(tmp) / "old.db"
         _v1_database(path)
         with Store(path) as store:
-            assert store.applied_migrations == [2, 3, 4, 5, 6]
+            assert store.applied_migrations == [2, 3, 4, 5, 6, 7]
         with Store(path) as store:
             assert store.applied_migrations == [], "already at the version"
 
@@ -179,6 +180,26 @@ def test_the_store_still_works_after_a_migration():
                               location_raw="Chicago, Illinois"))
             store.conn.commit()
             assert len(store.list_roles(include_settled=True)) == 2
+
+
+def test_resume_loses_its_accents_in_what_jobdork_wrote_but_not_in_adverts():
+    """The score part "résumé fit" is a key the page looks up; an old row
+    must still find it. An advert is somebody else's words and is left."""
+    with tempfile.TemporaryDirectory() as tmp:
+        conn = sqlite3.connect(Path(tmp) / "x.db")
+        conn.executescript(
+            "CREATE TABLE roles(uid TEXT, score_parts TEXT, description TEXT);"
+            "CREATE TABLE activity(job TEXT, last_line TEXT, summary TEXT);")
+        conn.execute("INSERT INTO roles VALUES('a', ?, 'Send your résumé')",
+                     (json.dumps([{"part": "résumé fit", "why": "Résumé loaded"}]),))
+        conn.execute("INSERT INTO activity VALUES('résumé review', '4 résumé points', '')")
+        migrations._v6_to_v7(conn)
+        parts, advert = conn.execute("SELECT score_parts, description FROM roles").fetchone()
+        assert json.loads(parts) == [{"part": "resume fit", "why": "Resume loaded"}]
+        assert advert == "Send your résumé"
+        assert conn.execute("SELECT job, last_line FROM activity").fetchone() == (
+            "resume review", "4 resume points")
+        conn.close()
 
 
 # ── keep this block LAST ───────────────────────────────────────────────────────

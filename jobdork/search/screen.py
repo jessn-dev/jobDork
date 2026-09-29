@@ -397,9 +397,9 @@ def _explain_fit(match, resume, description: str) -> str:
     from .resume import MIN_SKILLS
 
     if resume is None or not getattr(resume, "loaded", False):
-        return "no résumé loaded, so fit is not scored"
+        return "no resume loaded, so fit is not scored"
     if not description:
-        return "no advert text to compare with your résumé"
+        return "no advert text to compare with your resume"
     wanted = len(match.matched) + len(match.missing)
     if not wanted:
         return "the advert names none of the skills jobdork recognises: 0"
@@ -502,13 +502,13 @@ def screen(
         from .resume import fit as resume_fit
         match = resume_fit(resume, role.description, role.title)
         role.fit = match.score if role.description else None
-        verdict.add("résumé fit", match.score, 25,
+        verdict.add("resume fit", match.score, 25,
                     _explain_fit(match, resume, role.description),
                     has=match.matched, wants=match.missing)
         if match.summary():
             verdict.flags.append(f"fit: {match.summary()}")
     else:
-        verdict.add("résumé fit", 0.0, 25, _explain_fit(None, resume, ""))
+        verdict.add("resume fit", 0.0, 25, _explain_fit(None, resume, ""))
 
     role.score = round(verdict.score, 1)
     role.score_parts = verdict.parts

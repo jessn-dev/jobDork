@@ -28,7 +28,8 @@ locations:
   # anywhere else. A bare region works too. Used as the centre of the radius,
   # and sent to the sources that can filter on it themselves.
   #   "Chicago, IL"   "Makati, Philippines"   "Berlin, Germany"   "Sydney, NSW"
-  anchor: "Chicago, IL"
+  # Left out altogether, it is "Naperville, IL", and countries is [US].
+  anchor: "Naperville, IL"
 
   # "exact", or a distance in `units` below.
   #   exact   the posting's city and region must match the anchor

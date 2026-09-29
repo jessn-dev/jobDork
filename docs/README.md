@@ -6,6 +6,7 @@
 | [PLATFORMS.md](PLATFORMS.md) | Each source's endpoint, quirks, rate limits and verification status |
 | [SOURCES.md](SOURCES.md) | Where coverage comes from, board tokens, the gazetteer, what is out of reach |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the pipeline fits together and why, the package layout, the AI guard and run history |
+| [DEPLOY.md](DEPLOY.md) | Running it on a NAS or home server: Docker, Tailscale, Ollama on a separate AI machine, and opening it from anywhere |
 | [CHANGELOG.md](CHANGELOG.md) | What changed, and every bug found on the way |
 
 ---
@@ -14,9 +15,9 @@
 
 | | |
 |---|---|
-| ![dashboard](images/dashboard.jpg) | `jobdork serve` opens on the Dashboard: runs, AI calls and latency, the hallucination rate, what went wrong in the last scan |
+| ![dashboard](images/dashboard.jpg) | `jobdork serve` opens on the Dashboard: runs by tool and the hallucination rate by kind of output over time, AI calls and latency, what went wrong in the last scan, and Run fresh scan |
 | ![job posts](images/job-posts.jpg) | Job posts: the list with buttons, match, fit and AI scores, copies of one job grouped |
-| ![a job post](images/role-detail.jpg) | One post: the advert, drafts, and the AI verdict with how many of its claims were found in your résumé and the advert |
+| ![a job post](images/role-detail.jpg) | One post: the advert, drafts, and the AI verdict with how many of its claims were found in your resume and the advert |
 | ![a run](images/live-run.jpg) | A run reporting itself, from the page or the terminal |
 | ![static page](images/static-page.jpg) | `out/index.html` — the list, self-contained, written by every scan |
 
@@ -57,7 +58,7 @@ leaves the rest visible, marked `unconfirmed salary`.
 `work_modes` says.
 
 **Adzuna truncates every advert to 500 characters.** Dealbreakers, work-mode
-detection and résumé fit scoring all read the advert body, so Adzuna roles
+detection and resume fit scoring all read the advert body, so Adzuna roles
 cannot really be screened — it is a discovery-and-salary source. See
 [the 500-character cap](PLATFORMS.md#the-500-character-cap).
 

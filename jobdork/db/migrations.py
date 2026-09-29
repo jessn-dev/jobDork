@@ -42,7 +42,7 @@ log = logging.getLogger("jobdork.db.migrations")
 
 # The version a fresh database is created at, and the version this code
 # understands. Bumped by adding a step below.
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 class MigrationError(Exception):
@@ -114,10 +114,10 @@ def _v1_to_v2(conn: sqlite3.Connection) -> None:
 
 
 def _v2_to_v3(conn: sqlite3.Connection) -> None:
-    """Store the résumé-fit part of the score on its own.
+    """Store the resume-fit part of the score on its own.
 
     A score of 100 said nothing about whether the 100 came from the advert
-    matching your résumé or from the title, distance and salary. NULL until
+    matching your resume or from the title, distance and salary. NULL until
     the role is next screened, which is what `rescreen` is for.
     """
     _add_column(conn, "roles", "fit", "REAL")
@@ -158,7 +158,8 @@ def _v5_to_v6(conn: sqlite3.Connection) -> None:
     from . import grouping
 
     rows = conn.execute(
-        f"SELECT r.uid, {grouping.key_sql('r')} AS gkey, r.listing_state, "
+        # Safe: key_sql() is a fixed SQL fragment.
+        f"SELECT r.uid, {grouping.key_sql('r')} AS gkey, r.listing_state, "  # nosec B608
         "COALESCE(s.status, 'new') AS status, COALESCE(s.note, '') AS note, "
         "COALESCE(s.updated_at, '') AS updated_at "
         "FROM roles r LEFT JOIN role_state s ON s.uid = r.uid").fetchall()
@@ -188,6 +189,35 @@ def _v5_to_v6(conn: sqlite3.Connection) -> None:
                 (m[0], status, keep_note))
 
 
+
+def _v6_to_v7(conn: sqlite3.Connection) -> None:
+    """Spell it "resume", without the accents, in what jobdork wrote itself.
+
+    The score's part name ("résumé fit") is a key the page looks up, so rows
+    scored before the change would lose their fit tip. Run names, run logs
+    and the text of AI outputs are changed too, so the dashboard does not
+    mix both spellings. Adverts and your notes are not: those are someone
+    else's words. `score_parts` is JSON written with ASCII escapes, so there
+    the accent is the six characters \\u00e9.
+    """
+    tables = {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table'")}
+    plain = [("activity", "job"), ("activity", "last_line"), ("activity", "summary"),
+             ("activity_events", "text"), ("ai_outputs", "text")]
+    for table, column in plain:
+        if table in tables and column in _columns(conn, table):
+            conn.execute(
+                # Safe: table and column come from the hard-coded list above.
+                f"UPDATE {table} SET {column} = REPLACE(REPLACE({column}, "  # nosec B608
+                f"'résumé', 'resume'), 'Résumé', 'Resume') "
+                f"WHERE {column} LIKE '%sum%'")
+    if "roles" in tables and "score_parts" in _columns(conn, "roles"):
+        conn.execute(
+            "UPDATE roles SET score_parts = REPLACE(REPLACE(score_parts, "
+            "'r\\u00e9sum\\u00e9', 'resume'), 'R\\u00e9sum\\u00e9', 'Resume') "
+            "WHERE score_parts LIKE '%sum%'")
+
+
 # Numbered, ordered, append-only. The key is the version a step produces.
 STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     2: _v1_to_v2,
@@ -195,6 +225,7 @@ STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     4: _v3_to_v4,
     5: _v4_to_v5,
     6: _v5_to_v6,
+    7: _v6_to_v7,
 }
 
 

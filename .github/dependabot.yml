@@ -1,0 +1,20 @@
+# Proposes updates as pull requests, which then pass the same tests and scans
+# as any change before anything is published.
+version: 2
+updates:
+  # The actions, pinned to commits in the workflow.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  # The base image's digest in the Dockerfile.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+  # Python dependencies. requirements.lock carries their checksums; after an
+  # update, regenerate it inside the base image (the command is at its top).
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly

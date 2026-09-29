@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS deleted (
 );
 
 -- One row per piece of text a model wrote: a verdict, a page read, a cover
--- letter, a résumé review, a draft. What the hallucination score, its
+-- letter, a resume review, a draft. What the hallucination score, its
 -- coverage and the feedback trend are counted from (guard.py).
 -- `checked` is 0 when the guard could not run; `feedback` is 1, -1 or NULL.
 CREATE TABLE IF NOT EXISTS ai_outputs (
@@ -227,7 +227,7 @@ class Role:
     salary_period: str = ""        # year | month | day | hour
     salary_stated: bool = False
     score: float | None = None
-    # The résumé-fit part of `score`, 0-25. None when there was no résumé or
+    # The resume-fit part of `score`, 0-25. None when there was no resume or
     # no advert to compare it with, which is not the same as a fit of 0.
     fit: float | None = None
     # How `score` was reached: [{part, points, max, why, ...}], one per rule.
@@ -269,7 +269,8 @@ def canonical_url(url: str) -> str:
 def make_uid(platform: str, url: str) -> str:
     """Stable id for a posting. Short enough to type on the command line."""
     basis = f"{platform.lower()}|{canonical_url(url)}"
-    return hashlib.sha1(basis.encode("utf-8")).hexdigest()[:12]
+    # An id, not a security measure: collisions are merely unlikely, not guarded.
+    return hashlib.sha1(basis.encode("utf-8"), usedforsecurity=False).hexdigest()[:12]
 
 
 def _now() -> str:
@@ -569,7 +570,8 @@ class Store:
             return []
         marks = ",".join("?" for _ in others)
         return self.conn.execute(
-            "SELECT uid, platform, url, listing_state, listing_note, last_seen, "
+            # Safe: only ? placeholders are interpolated.
+            "SELECT uid, platform, url, listing_state, listing_note, last_seen, "  # nosec B608
             f"LENGTH(COALESCE(description, '')) AS advert_chars FROM roles "
             f"WHERE uid IN ({marks}) ORDER BY platform", others).fetchall()
 
@@ -624,6 +626,23 @@ class Store:
             self.conn.executemany("DELETE FROM roles WHERE uid = ?",
                                   [(u,) for u in uids])
         return len(uids)
+
+    def scanned_count(self) -> int:
+        """Job posts a fresh scan would delete: every one a scan found."""
+        return self.conn.execute(
+            "SELECT COUNT(*) FROM roles WHERE origin = 'scan'").fetchone()[0]
+
+    def clear_scanned(self) -> int:
+        """Delete every job post a scan found, for a scan from scratch.
+
+        Their statuses, notes, AI verdicts and document records go with them
+        (foreign keys cascade). Unlike `delete_many`, nothing is remembered:
+        the next scan is meant to find them again. Posts you deleted before
+        stay deleted, and posts added by hand (`jobdork add`) are kept.
+        """
+        with self.conn:
+            cur = self.conn.execute("DELETE FROM roles WHERE origin = 'scan'")
+        return cur.rowcount
 
     def deleted_uids(self) -> set[str]:
         return {r[0] for r in self.conn.execute("SELECT uid FROM deleted")}

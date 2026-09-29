@@ -61,7 +61,7 @@ def test_the_numbers_count_only_the_period_asked_for():
     assert (h["outputs"], h["checked"], h["claims"], h["unsupported"]) == (4, 3, 31, 5)
     assert abs(h["rate"] - 5 / 31) < 1e-9 and abs(h["coverage"] - 0.75) < 1e-9
     assert [k["label"] for k in h["by_kind"]] == ["verdicts", "page reads",
-                                                  "cover letters", "claude drafts"]
+                                                  "cover letters", "Claude drafts"]
     assert m["feedback"] == {"up": 2, "down": 1, "approval": 2 / 3}
 
 
@@ -74,6 +74,36 @@ def test_every_day_is_present_and_runs_are_grouped_by_tool():
     assert yesterday["runs"]["AI judging"] == 1 and yesterday["runs"]["AI writing"] == 1
     assert m["per_day"][-4]["runs"]["other"] == 1
     assert (today["up"], yesterday["up"], yesterday["down"]) == (1, 1, 1)
+
+
+def test_claims_are_split_by_day_and_kind_and_unchecked_days_have_none():
+    """What the hallucination chart plots: a gap is not a rate of 0."""
+    with tempfile.TemporaryDirectory() as tmp:
+        m = api.metrics(_seed(tmp), 7)
+    today, yesterday = m["per_day"][-1]["claims"], m["per_day"][-2]["claims"]
+    assert today == {"judge": {"claims": 10, "unsupported": 1},
+                     "page_read": {"claims": 1, "unsupported": 0}}
+    assert yesterday == {"cover_letter": {"claims": 20, "unsupported": 4}}  # draft unchecked
+    assert m["per_day"][-3]["claims"] == {}
+    assert [k["kind"] for k in m["kinds"]][:2] == ["judge", "page_read"]
+
+
+def test_claims_are_split_by_model_in_the_order_models_were_first_used():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _seed(tmp)
+        with Store(cfg.db_path) as store:
+            for i, model in enumerate(["B", "A", "B"] + [f"M{j}" for j in range(6)]):
+                store.conn.execute(
+                    "INSERT INTO ai_outputs(kind, model, created_at, claims, unsupported, "
+                    "checked) VALUES('judge', ?, ?, 4, 1, 1)", (model, _day(0, f"0{i % 10}:30:00")))
+            store.conn.commit()
+        m = api.metrics(cfg, 7)
+    labels = [x["label"] for x in m["models"]]
+    assert labels[:3] == ["unknown model", "B", "A"]       # seeded rows had no model
+    assert len(labels) == api.MAX_MODELS and labels[-1] == "other models"
+    today = m["per_day"][-1]["claims_by_model"]
+    assert today["B"] == {"claims": 8, "unsupported": 2}
+    assert today["other models"]["claims"] > 0
 
 
 def test_ninety_days_reaches_back_and_other_periods_are_refused():

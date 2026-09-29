@@ -1,0 +1,3 @@
+# High or critical findings in the image that have been looked at and do not
+# apply. One ID per line, each with the reason and the date it was checked.
+# Empty: the image scanned clean on 2026-09-29.

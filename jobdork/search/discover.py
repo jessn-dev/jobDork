@@ -350,20 +350,32 @@ def add_to_config(config_path: str, name: str, items: list[Found]) -> list[Found
 
     path = Path(config_path)
     text = path.read_text(encoding="utf-8")
-    addable = [item for item in items if item.addable]
+    # A board already listed is not added twice: looking an employer up
+    # again, from the dashboard or the terminal, would otherwise duplicate it.
+    import yaml
+    listed = ((yaml.safe_load(text) or {}).get("sources") or {}).get("companies") or []
+    have = {(str(c.get("platform", "")).lower(), str(c.get("token", "")))
+            for c in listed if isinstance(c, dict)}
+    addable = [item for item in items
+               if item.addable and (item.platform, item.token) not in have]
     if not addable:
         return []
 
-    entries = "".join(
-        f"    - name: {name}\n"
-        f"      platform: {item.platform}\n"
-        f"      token: {item.token}\n"
-        for item in addable
-    )
+    def entries(dash: str) -> str:
+        """The new items, at the indent of the `- ` that starts each one."""
+        body = " " * (len(dash) + 2)
+        return "".join(
+            f"{dash}- name: {name}\n"
+            f"{body}platform: {item.platform}\n"
+            f"{body}token: {item.token}\n"
+            for item in addable
+        )
 
     empty = re.search(r"^(\s*)companies:\s*\[\s*\]\s*$", text, re.M)
     if empty:
-        text = text[: empty.start()] + "  companies:\n" + entries + text[empty.end() + 1:]
+        indent = empty.group(1)
+        text = (text[: empty.start()] + f"{indent}companies:\n"
+                + entries(indent + "  ") + text[empty.end() + 1:])
     else:
         listed = re.search(r"^(\s*)companies:\s*$", text, re.M)
         if not listed:
@@ -371,8 +383,14 @@ def add_to_config(config_path: str, name: str, items: list[Found]) -> list[Found
                 "could not find `companies:` under `sources:` in "
                 f"{config_path}. Add the entries by hand."
             )
+        # Match the items already there. A hand-written file indents them
+        # under `companies:`; a YAML dump (the dashboard saves one) puts the
+        # dash level with it. Mixing the two is a parse error that stops
+        # every later scan from loading the config.
         insert = listed.end() + 1
-        text = text[:insert] + entries + text[insert:]
+        first = re.match(r"(?:[ \t]*(?:#.*)?\n)*([ \t]*)- ", text[insert:])
+        dash = first.group(1) if first else listed.group(1) + "  "
+        text = text[:insert] + entries(dash) + text[insert:]
 
     path.write_text(text, encoding="utf-8")
     return addable

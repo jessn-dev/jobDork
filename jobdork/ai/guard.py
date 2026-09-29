@@ -9,7 +9,7 @@ whether the source supports it. The rate is unsupported claims over checked
 claims. HalluLens is an offline benchmark that retrieves from Wikipedia; its
 code and prompts are not bundled. The prompts below are our own.
 
-Every output in jobdork has a known source (your résumé, the advert, the
+Every output in jobdork has a known source (your resume, the advert, the
 posting page), so verification is grounded. A model saying "supported" is
 not enough: it must give a quote, and a script checks the quote is really in
 the source it named. An unbacked "supported" counts as unsupported.

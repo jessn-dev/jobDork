@@ -28,7 +28,7 @@ config.yaml ──┐
  enrich.py  listing.py     judging.py        ai/writer.py       email), cli.py,
                              │                 │                web/ (dashboard)
                              └──── ai/guard.py ┘
-                        every claim checked against résumé and advert
+                        every claim checked against resume and advert
 ```
 
 Every run, from the terminal or the dashboard, records itself through
@@ -45,7 +45,7 @@ filters.
 
 Grouped by what they are for. A package imports from `core/` and `db/`
 freely; `search/`, `ai/` and `writing/` import each other only where one
-genuinely uses the other (judging reads the résumé, drafts are guarded), and
+genuinely uses the other (judging reads the resume, drafts are guarded), and
 nothing below imports from `web/`.
 
 | Package | Lines | Modules |
@@ -55,12 +55,12 @@ nothing below imports from `web/`.
 | `db/` | ~1,090 | `store` (schema, upsert, status, AI outputs), `migrations` (numbered, forwards-only), `grouping` (copies of one job) |
 | `fetch/` | ~1,640 | `http` (pacing, retries, circuit breaker — the only networking), one adapter per source, shared board helpers |
 | `search/` | ~3,020 | `scan` (orchestration, rescreen), `screen` (every filter and the score), `enrich` (full adverts), `discover` (an employer's board), `listing` (is it still open), `geo` (gazetteer, distance), `resume` (skills, fit) |
-| `ai/` | ~1,340 | `llm` (providers, keys in memory), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, résumé review) |
+| `ai/` | ~1,340 | `llm` (providers, keys in memory), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, resume review) |
 | `writing/` | ~850 | `generate` (`claude -p` drafts), `gates` (scripted checks), `humanize` (signs of AI writing) |
 | `web/` | ~2,110 | `serve` (HTTP), `api` (every command for the page, metrics), `live` (runs and events), `session` (token, port) |
 | `output/` | ~615 | `render` (static HTML and JSON), `digest` (email) |
 | `dork/` | ~1,190 | The original Google query generator, moved not rewritten |
-| `data/` | | `cities.csv`, `dashboard.html`, the humanizer rules |
+| `data/` | | `cities.csv` (places, with each one's region), `regions.csv` (region and country names), `dashboard.html`, the humanizer rules |
 
 ---
 
@@ -228,7 +228,7 @@ is data.
 
 **Every output is guarded** (`ai/guard.py`), by the HalluLens method with our
 own prompts: extract single claims, verify each against the known sources
-(résumé, advert, page), and count the unsupported ones. The model's
+(resume, advert, page), and count the unsupported ones. The model's
 "supported" is not trusted on its own: it must give a quote, and a script
 checks the quote is in the source it named. A check that fails is recorded as
 unchecked; it never blocks the output. Page reads are checked by the quote rule
@@ -249,7 +249,9 @@ connection, at most once a second, and a failure to write never fails the job.
 A run whose heartbeat stops and whose process is gone is shown as died.
 
 `web/api.py` reads that for the Dashboard: the running job, the last scan,
-check and judging with what went wrong, and `metrics` over 7, 30 or 90 days.
+check and judging with what went wrong, and `metrics` over 7, 30 or 90 days,
+including each day's checked claims per kind of output for the hallucination
+chart.
 Runs and model calls are kept 120 days; log lines for the last 200 runs.
 
 ---

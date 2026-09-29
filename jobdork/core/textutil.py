@@ -75,3 +75,27 @@ def squash(text: str, limit: int = 0) -> str:
     if limit and len(out) > limit:
         out = out[: limit - 1].rstrip() + "…"
     return out
+
+
+# ── labels ────────────────────────────────────────────────────────────────────
+
+# Platforms by their own spelling, for anything a person reads.
+PLATFORM_NAMES = {
+    "greenhouse": "Greenhouse", "ashby": "Ashby", "lever": "Lever",
+    "breezy": "Breezy", "smartrecruiters": "SmartRecruiters",
+    "workable": "Workable", "adzuna": "Adzuna", "usajobs": "USAJOBS",
+}
+
+
+def cap(text: str) -> str:
+    """Sentence case for a label: the first letter up, the rest as written.
+
+    "AI judging" and "resume fit" keep their own case. Never used on company
+    names, which are spelled as the company spells them.
+    """
+    text = str(text or "")
+    return text[:1].upper() + text[1:]
+
+
+def platform_name(platform: str) -> str:
+    return PLATFORM_NAMES.get(platform or "", cap(platform))

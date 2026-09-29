@@ -1,5 +1,5 @@
 """
-The AI cover letter and résumé review: facts from the sources only, quotes
+The AI cover letter and resume review: facts from the sources only, quotes
 checked by script, every output guarded and recorded. No live model: the
 model's answers are scripted.
 
@@ -102,7 +102,7 @@ def test_a_letter_is_humanized_gated_guarded_and_recorded():
         assert "—" not in draft.text                       # humanize.clean
         assert draft.path.name == writer.LETTER_FILE and draft.path.is_file()
         by_name = {g.name: g for g in draft.gates}
-        assert not by_name["unsupported figures"].passed   # 300% is not in the résumé
+        assert not by_name["unsupported figures"].passed   # 300% is not in the resume
         assert by_name[writer.GUARD_GATE].passed
         assert (output["kind"], output["uid"], output["checked"]) == \
             ("cover_letter", uid, 1)
@@ -144,7 +144,7 @@ def test_review_quotes_not_in_the_resume_are_dropped():
                     "reword": [
                         {"quote": "Ran the Kubernetes platform for 40 services at Acme.",
                          "suggestion": "Lead with the production path."},
-                        {"quote": "Managed AWS spend", "suggestion": "Not in the résumé."}]},
+                        {"quote": "Managed AWS spend", "suggestion": "Not in the resume."}]},
             }, *GUARD_OK), Store(cfg.db_path) as store:
                 result = writer.review(cfg, store, uid, root=tmp)
                 artifact = store.artifacts(uid, "resume_review")[0]

@@ -52,7 +52,7 @@ def test_a_supported_claim_needs_a_quote_found_in_the_source():
 
 
 def test_support_from_several_places_is_quoted_in_parts():
-    """Skills listed in different sections of a résumé are still supported,
+    """Skills listed in different sections of a resume are still supported,
     but every excerpt must be found."""
     original = guard.complete_json
     guard.complete_json = _fake([
