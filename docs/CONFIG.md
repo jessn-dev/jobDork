@@ -7,7 +7,7 @@ The config is read from `config.local.yaml` if present, otherwise
 
 **The config is validated when it loads, and a bad value stops the run.** A
 broken dealbreaker pattern left alone would match nothing and look like a
-clean scan; a résumé path that no longer resolves would produce a document
+clean scan; a resume path that no longer resolves would produce a document
 about a career you did not have. Both fail loudly instead.
 
 **Credentials never go in this file.** They are read from `.env`. A key found
@@ -74,7 +74,7 @@ Pass one is worth 30 points, pass two 18. Everything else adds to that; see
 
 ```yaml
 locations:
-  anchor: "Chicago, IL"       # or "Makati, Philippines", "Berlin, Germany"
+  anchor: "Naperville, IL"    # or "Makati, Philippines", "Berlin, Germany"
   radius: 25
   units: mi                   # blank picks by country
   countries: [US]
@@ -84,12 +84,27 @@ locations:
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `locations.anchor` | string | `""` | `City, ST`, `City, Country`, or a bare region |
+| `locations.anchor` | string | `"Naperville, IL"` | `City, ST`, `City, Region, Country`, `City, Country`, or a bare region |
 | `locations.radius` | `exact` or a number | `25` | Distance in `locations.units` |
 | `locations.units` | `mi` \| `km` | by country | Blank picks miles for US/UK, km elsewhere |
-| `locations.countries` | list | `[]` | Any ISO 3166-1 alpha-2 code; empty accepts everywhere |
+| `locations.countries` | list | `[US]` | Any ISO 3166-1 alpha-2 code; `[]` accepts everywhere |
 | `locations.work_modes` | list | `[]` | Allow-list of `remote`, `hybrid`, `office` |
 | `locations.exclude` | list of strings | `[]` | Region, country, city, metro name, or a substring |
+
+On the dashboard, **Where you are** is a picker: a country, then its first
+level of region under that country's own name for it (State in the US,
+Province in Canada, Region in the Philippines, Prefecture in Japan, hidden
+where there is none, such as Singapore), then a city suggested from the
+bundled place list as you type. It saves the anchor as `City, Region,
+Country` (`Baguio, Cordillera, Philippines`; `Austin, TX, United States`), and
+refuses a city that is not in the list, because an anchor that cannot be
+placed turns the radius off. A region named in the anchor picks between
+same-named cities in a country: `San Fernando, Ilocos` and `San Fernando,
+Central Luzon` are 180 km apart. A trailing "City" is tried without it, so
+`Baguio City` finds Baguio.
+
+The defaults apply only to a key that is missing: `anchor: ""` is no anchor,
+and `countries: []` keeps job posts from every country.
 
 A numeric `radius` with no `anchor` is refused — a radius needs somewhere to
 measure from. A country code the geocoder does not know is refused by name
@@ -213,7 +228,7 @@ resume:
 |---|---|---|
 | `resume.path` | path | `""` |
 
-`~` is expanded. **The path is checked on every config load**, so a résumé you
+`~` is expanded. **The path is checked on every config load**, so a resume you
 moved fails loudly rather than quietly scoring every role at zero.
 
 `.docx`, `.md` and `.txt` are read with the standard library. `.pdf` needs the
@@ -222,8 +237,8 @@ and says why scoring is off. A PDF that extracts fewer than 200 characters is
 refused — it is a scan or an image export, and scoring against it would rate
 every role zero while looking like it worked.
 
-The résumé is used offline, costs nothing, and **only ever adds points**. A
-skill you have not listed is a gap in the résumé as often as a gap in you, and
+The resume is used offline, costs nothing, and **only ever adds points**. A
+skill you have not listed is a gap in the resume as often as a gap in you, and
 neither is grounds for hiding a job.
 
 Fit is scored on the *share* of the advert's named skills you have, not the
@@ -259,6 +274,67 @@ A soft match costs 8 points and flags the role. A role with no advert text
 cannot be checked, and says so: `no advert text — dealbreakers not checked`.
 Note that some sources truncate adverts — see
 [PLATFORMS.md](PLATFORMS.md) — and a dealbreaker cannot find what was cut off.
+
+On the dashboard they are on the Search page: a table you remove rows from,
+and a form that adds one. The form has samples, and a box that tries a pattern
+against a sentence you paste.
+
+### Writing a pattern
+
+A pattern is a Python regular expression, matched anywhere in the advert with
+capitals ignored. Plain words are a pattern already: `polygraph` finds
+"Polygraph" in any sentence. A few symbols cover almost every dealbreaker:
+
+| Write | Means | Example | Finds | Does not find |
+|---|---|---|---|---|
+| `\|` | Or | `TS/SCI\|top secret` | "TS/SCI", "Top Secret" | "Secret Santa" |
+| `.` | Any one character | `on.call` | "on-call", "on call" | "oncall" |
+| `?` | The thing before it is optional | `on.?call` | "on-call", "on call", "oncall" | "on the call" |
+| `\b` | Edge of a word | `\bC2C\b` | "C2C only" | "B2C2C" |
+| `\d` | Any digit | `\d\d%` | "50%" | "5%" |
+| `{2}` | Exactly that many of the thing before | `\d{2}%` | "25%" | "5%" |
+| `(?:a\|b)` | A group, to put an "or" inside words | `unpaid (?:trial\|project)` | "unpaid trial", "unpaid project" | "unpaid leave" |
+| `\s?` | An optional space | `\d{2}\s?%` | "25%", "25 %" | |
+
+To match one of `. ? | ( ) [ ] { } + * ^ $ \` itself, put a backslash before
+it: `C\+\+` finds "C++". In YAML, wrap a pattern in double quotes and double
+every backslash (`"\\bC2C\\b"`), or use single quotes and write it as is
+(`'\bC2C\b'`).
+
+Samples, the same ones the dashboard offers:
+
+```yaml
+dealbreakers:
+  - name: Security clearance
+    pattern: 'security clearance|TS/SCI|top secret|polygraph'
+    hard: true
+  - name: Relocation required
+    pattern: 'must relocate|relocation (?:is )?required'
+    hard: true
+  - name: Heavy travel
+    pattern: 'travel up to \d{2}\s?%|(?:extensive|frequent) travel'
+    hard: false
+  - name: On-call
+    pattern: 'on.?call|24/7 support|pager ?duty'
+    hard: false
+  - name: Contract or agency
+    pattern: '\bC2C\b|corp.?to.?corp|staffing (?:agency|firm)'
+    hard: false
+  - name: Unpaid take-home
+    pattern: 'take.?home (?:test|project|assignment)|unpaid (?:trial|project)'
+    hard: false
+  - name: Sales quota
+    pattern: '\bquota\b|commission.?only'
+    hard: false
+```
+
+To learn more, Python's own
+[Regular Expression HOWTO](https://docs.python.org/3/howto/regex.html) is a
+gentle introduction, and the
+[syntax reference](https://docs.python.org/3/library/re.html#regular-expression-syntax)
+lists everything. [regex101](https://regex101.com/?flavor=python&flags=i)
+tests a pattern against a whole advert and explains each part; choose the
+Python flavour, which is what a scan uses.
 
 ---
 
@@ -348,6 +424,13 @@ at once; it does not make any single board answer faster.
 The AI reader. Off unless `provider` is set. The dashboard's AI page writes
 this section for you.
 
+**What a hosted model is sent.** Claude, Gemini and ChatGPT get every prompt
+with email addresses, phone numbers and LinkedIn, GitHub and GitLab profile
+links removed (`llm.redact`). Year ranges, figures and standards such as
+"NIST 800-53" are left alone. A local Ollama model gets the text as it is,
+because nothing leaves the machine. A street address is not removed; leave
+it off a resume you use with a hosted model if that matters to you.
+
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `llm.provider` | string | empty (off) | `ollama`, `anthropic` (Claude), `gemini` or `openai` (ChatGPT) |
@@ -356,7 +439,7 @@ this section for you.
 | `llm.judge_on_scan` | bool | `false` | After each scan, judge the best job posts not yet judged |
 | `llm.judge_top` | int | `25` | How many a judging run reads, 1 to 500. Bounds what a scan can spend on a paid API |
 | `llm.read_pages` | bool | `false` | When checking postings, ask the model about pages that do not say whether the job is open |
-| `llm.guard` | bool | `true` | Check each verdict and draft for claims the résumé and the advert do not support. Two more model calls per output |
+| `llm.guard` | bool | `true` | Check each verdict and draft for claims the resume and the advert do not support. Two more model calls per output |
 
 **Keys are never read from this file.** `llm.key`, `llm.api_key` or
 `llm.token` stops the load with an error rather than a warning. Type a key on
@@ -364,7 +447,7 @@ the AI page, where it is held in memory only and wiped when the server stops,
 or set it in the environment for the terminal (see [Environment](#environment)).
 Ollama needs no key.
 
-**Judging needs a résumé and at least 200 characters of advert.** A post with
+**Judging needs a resume and at least 200 characters of advert.** A post with
 less is skipped and counted, not guessed at. The verdict is shown beside the
 rule-based score and never replaces it.
 
@@ -397,7 +480,7 @@ Points, so you can tell why one role is above another.
 | Within radius | 5 to 30, nearer is higher |
 | Salary stated, no floor set | 5 |
 | Salary above floor | 10 to 20, by headroom |
-| Résumé skill overlap | 0 to 25 |
+| Resume skill overlap | 0 to 25 |
 | Soft dealbreaker | −8 each |
 
 Nearness is worth only a few points on purpose: a role 24 miles away that fits

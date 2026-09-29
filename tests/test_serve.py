@@ -265,6 +265,28 @@ def test_the_token_may_arrive_in_the_url_once():
     _with_server(check)
 
 
+
+def test_a_token_in_the_url_cannot_change_anything():
+    """The query is for the first page load only. A POST carrying it there,
+    as a form on another site could, is refused: only a header counts."""
+    def check(run):
+        code, _ = run.post(f"/api/action?t={run.token}",
+                           {"uid": run.uid, "status": "applied"}, token=None)
+        assert code == 401
+        with Store(run.cfg.db_path) as store:
+            assert store.get(run.uid)["status"] == "new"
+    _with_server(check)
+
+
+def test_the_page_refuses_to_be_framed():
+    def check(run):
+        request = urllib.request.Request(f"{run.base}/?t={run.token}")
+        with urllib.request.urlopen(request, timeout=5) as response:
+            assert response.headers["X-Frame-Options"] == "DENY"
+            assert "frame-ancestors 'none'" in response.headers[
+                "Content-Security-Policy"]
+    _with_server(check)
+
 def test_tokens_differ_between_runs_and_are_compared_in_constant_time():
     first, second = new_session(), new_session()
     assert first.token != second.token
@@ -284,6 +306,68 @@ def test_a_busy_port_is_stepped_over_rather_than_failing():
         assert session.port != busy, "a busy port must not be handed back"
     assert new_session("127.0.0.1", preferred_port=0).port > 0
 
+
+def test_only_a_container_binds_beyond_loopback():
+    """The variable alone must not open the socket: it needs the marker too."""
+    import os
+    saved_env = os.environ.pop(serve_mod.CONTAINER_ENV, None)
+    saved_markers = serve_mod.CONTAINER_MARKERS
+    with tempfile.TemporaryDirectory() as tmp:
+        marker = Path(tmp) / ".dockerenv"
+        try:
+            serve_mod.CONTAINER_MARKERS = (str(marker),)
+            os.environ[serve_mod.CONTAINER_ENV] = "1"
+            assert serve_mod.bind_address() == "127.0.0.1", "variable alone"
+            marker.touch()
+            assert serve_mod.bind_address() == "0.0.0.0"
+            del os.environ[serve_mod.CONTAINER_ENV]
+            assert serve_mod.bind_address() == "127.0.0.1", "marker alone"
+        finally:
+            serve_mod.CONTAINER_MARKERS = saved_markers
+            os.environ.pop(serve_mod.CONTAINER_ENV, None)
+            if saved_env is not None:
+                os.environ[serve_mod.CONTAINER_ENV] = saved_env
+
+
+def test_named_addresses_may_open_the_dashboard_and_nothing_else():
+    """A NAS: opened from a Mac by its address, on whatever port it published.
+    The token is still required, and a wildcard is refused."""
+    import os
+    saved = os.environ.get(serve_mod.ALLOW_ENV)
+    os.environ[serve_mod.ALLOW_ENV] = "192.168.1.50, nas.local:9000, *, 0.0.0.0"
+    try:
+        assert serve_mod.allowed_extra_hosts() == ["192.168.1.50", "nas.local:9000"]
+        assert serve_mod.bind_address() == "0.0.0.0"
+
+        def check(run):
+            assert run.get("/api/roles", host="192.168.1.50:41902")[0] == 200
+            assert run.get("/api/roles", host="192.168.1.50")[0] == 200
+            assert run.get("/api/roles", host="nas.local:9000")[0] == 200
+            assert run.get("/api/roles", host="nas.local:9001")[0] == 421
+            assert run.get("/api/roles", host="evil.example")[0] == 421
+            assert run.get("/api/roles", host="192.168.1.50", token=None)[0] == 401
+        _with_server(check)
+    finally:
+        if saved is None:
+            os.environ.pop(serve_mod.ALLOW_ENV, None)
+        else:
+            os.environ[serve_mod.ALLOW_ENV] = saved
+
+
+def test_ollama_is_asked_for_room_for_the_whole_prompt():
+    """Ollama cuts a prompt that does not fit, silently; so jobdork says how
+    much room to use, the same on every call, from llm.context."""
+    from jobdork.ai import llm
+    sent = {}
+    saved = llm._post
+    llm._post = lambda url, body, headers, timeout: sent.update(body) or {"message": {"content": "{}"}}
+    try:
+        llm._ollama(llm.Settings("ollama", "qwen2.5:3b"), "sys", "user", {"type": "object"}, 100)
+        assert sent["options"]["num_ctx"] == llm.DEFAULT_CONTEXT
+        llm._ollama(llm.Settings("ollama", "m", context=8192), "sys", "user", {"type": "object"}, 100)
+        assert sent["options"]["num_ctx"] == 8192
+    finally:
+        llm._post = saved
 
 # ── live scan ──────────────────────────────────────────────────────────────────
 
@@ -371,6 +455,204 @@ def test_a_config_edit_that_would_not_load_is_rejected_and_rolled_back():
     _with_server(check)
 
 
+def _post_json(run, path, payload):
+    request = urllib.request.Request(
+        f"{run.base}{path}", data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json", "X-Jobdork-Token": run.token})
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.status, json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read().decode()
+
+
+def test_dealbreakers_are_saved_from_the_page_and_a_broken_pattern_is_refused():
+    def check(run):
+        code, saved = _post_json(run, "/api/config", {"dealbreakers": [
+            {"name": "Clearance", "pattern": "security clearance|TS/SCI", "hard": True},
+            {"name": "Travel", "pattern": "travel \\d+%", "hard": False}]})
+        assert code == 200, saved
+        assert [(d["name"], d["hard"]) for d in saved["dealbreakers"]] == [
+            ("Clearance", True), ("Travel", False)]
+        assert run.cfg_now.dealbreakers[0].regex.search("Needs TS/SCI")
+
+        before = Path(run.config_path).read_text(encoding="utf-8")
+        code, body = _post_json(run, "/api/config", {"dealbreakers": [
+            {"name": "Broken", "pattern": "(unclosed", "hard": True}]})
+        assert code == 400 and "broken pattern" in body, body
+        assert Path(run.config_path).read_text(encoding="utf-8") == before
+    _with_server(check)
+
+
+def test_boards_are_removed_from_the_page_and_an_unknown_type_is_refused():
+    def check(run):
+        code, saved = _post_json(run, "/api/config", {"companies": [
+            {"name": "Acme", "platform": "ashby", "token": "acme"},
+            {"name": "Beta", "platform": "lever", "token": "beta"}]})
+        assert code == 200, saved
+        code, saved = _post_json(run, "/api/config", {"companies": [
+            {"name": "Beta", "platform": "lever", "token": "beta"}]})
+        assert [c["name"] for c in saved["companies"]] == ["Beta"]
+        code, body = _post_json(run, "/api/config", {"companies": [
+            {"name": "Nope", "platform": "myspace", "token": "x"}]})
+        assert code == 400, body
+        assert [c.name for c in run.cfg_now.sources.companies] == ["Beta"]
+    _with_server(check)
+
+
+def test_a_config_changed_on_disk_is_picked_up_by_the_next_request():
+    """`Look and add` writes the file from a job; the page must see it."""
+    def check(run):
+        import os
+        path = Path(run.config_path)
+        path.write_text(path.read_text(encoding="utf-8").replace(
+            "software engineer", "platform engineer"), encoding="utf-8")
+        later = path.stat().st_mtime + 5
+        os.utime(path, (later, later))
+        code, body = run.get("/api/config")
+        assert code == 200
+        assert json.loads(body)["titles_include"] == ["platform engineer"]
+    _with_server(check)
+
+
+def test_every_pattern_sample_on_the_page_compiles_in_python():
+    """The samples fill the Add form; a scan reads them with Python's re,
+    not the browser's, so each must compile there and find its example."""
+    import re
+    page = serve_mod.PAGE_PATH.read_text(encoding="utf-8")
+    block = page[page.index("const DEAL_SAMPLES = ["):]
+    block = block[:block.index("];")]
+    patterns = [p.replace("\\\\", "\\")
+                for p in re.findall(r"pattern: '((?:[^'\\\\]|\\\\.)*)'", block)]
+    assert len(patterns) >= 5, patterns
+    examples = ["an active TS/SCI clearance", "You must relocate to Austin",
+                "Travel up to 25% of the time", "Joins the on-call rotation",
+                "C2C only", "A take-home project", "Carries a quota"]
+    for pattern, example in zip(patterns, examples, strict=True):
+        assert re.compile(pattern, re.IGNORECASE).search(example), (pattern, example)
+
+
+def test_where_you_are_is_saved_from_the_picker_and_must_resolve():
+    def check(run):
+        code, body = run.get("/api/places/cities?country=PH&q=bagu")
+        assert code == 200 and "Baguio" in json.loads(body)["cities"]
+        code, saved = _post_json(run, "/api/config", {"anchor_pick": {
+            "country": "PH", "region": "15", "city": "Baguio"}})
+        assert code == 200, saved
+        assert saved["anchor"] == "Baguio, Cordillera, Philippines"
+        assert saved["anchor_place"]["located"] and saved["anchor_place"]["region"] == "15"
+        code, body = _post_json(run, "/api/config", {"anchor_pick": {
+            "country": "PH", "region": "", "city": "Atlantis"}})
+        assert code == 400 and "suggestions" in body, body
+        assert run.cfg_now.locations.anchor == "Baguio, Cordillera, Philippines"
+    _with_server(check)
+
+
+def test_countries_are_saved_as_a_list_from_the_page():
+    def check(run):
+        code, saved = _post_json(run, "/api/config", {"countries": ["PH", "US"]})
+        assert code == 200 and saved["countries"] == ["PH", "US"], saved
+        code, saved = _post_json(run, "/api/config", {"countries": ["US"]})
+        assert saved["countries"] == ["US"]
+        assert run.cfg_now.locations.countries == ["US"]
+    _with_server(check)
+
+
+def _letter(run, folder: Path) -> tuple[int, int, Path]:
+    """Record a cover letter as writer.letter would: file, output, artifact."""
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / "cover-letter-ai.md"
+    path.write_text("Dear team,\n\nI would like the job.\n", encoding="utf-8")
+    with Store(run.cfg.db_path) as store:
+        out = store.add_ai_output("cover_letter", "Dear team, I would like the job.",
+                                  uid=run.uid, model="test")
+        art = store.add_artifact(run.uid, "cover_letter", str(path),
+                                 gates={"guard": {"output_id": out}})
+        store.conn.commit()
+    return art, out, path
+
+
+def test_a_cover_letter_is_listed_viewed_and_deleted_at_once():
+    def check(run):
+        art, out, path = _letter(run, Path(run.tmp.name) / "docs" / "job")
+        code, body = run.get("/api/letters")
+        letters = json.loads(body)["letters"]
+        assert code == 200 and [x["id"] for x in letters] == [art]
+        assert letters[0]["company"] == "Acme" and letters[0]["exists"]
+        code, body = run.get(f"/api/artifact?id={art}")
+        assert code == 200 and "would like the job" in json.loads(body)["text"]
+
+        code, body = run.post("/api/letters/delete", {"id": art})
+        assert code == 200, body
+        assert not path.exists()
+        with Store(run.cfg.db_path) as store:
+            assert store.conn.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0] == 0
+            # The text is gone; the claim counts the chart is built from stay.
+            assert store.conn.execute("SELECT text FROM ai_outputs WHERE id = ?",
+                                      (out,)).fetchone()[0] == ""
+        assert json.loads(run.get("/api/letters")[1])["letters"] == []
+    _with_server(check)
+
+
+def test_an_uploaded_resume_is_deleted_but_your_own_file_is_only_unset():
+    def check(run):
+        request = urllib.request.Request(
+            f"{run.base}/api/resume", data=b"# Me\n\nPython, SQL, Docker, AWS, Linux, Git\n" * 20,
+            headers={"X-Filename": "cv.md", "X-Jobdork-Token": run.token,
+                     "Content-Type": "application/octet-stream"})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            uploaded = Path(json.loads(response.read())["path"])
+        assert uploaded.is_file() and uploaded.name == "resume.md"
+        code, body = run.post("/api/resume/delete", {})
+        assert code == 200 and json.loads(body)["deleted"] is True, body
+        assert not uploaded.exists() and run.cfg_now.resume_path == ""
+
+        mine = Path(run.tmp.name) / "my-own-cv.md"
+        mine.write_text("# Me\n\nPython\n", encoding="utf-8")
+        code, _ = _post_json(run, "/api/config", {"resume_path": str(mine)})
+        assert code == 200
+        code, body = run.post("/api/resume/delete", {})
+        assert code == 200 and json.loads(body)["deleted"] is False, body
+        assert mine.is_file(), "a file you chose must never be deleted"
+        assert run.cfg_now.resume_path == ""
+    _with_server(check)
+
+
+def test_the_temporary_folder_is_emptied_and_forgotten():
+    """In a container, nothing personal outlives a run: files and records."""
+    import os
+
+    from jobdork.core import config, storage
+    from jobdork.web import api
+    def check(run):
+        temp = Path(run.tmp.name) / "temp"
+        saved = os.environ.get(storage.TEMP_ENV)
+        os.environ[storage.TEMP_ENV] = str(temp)
+        try:
+            _, _, path = _letter(run, temp / "job-applications" / "job")
+            resume = temp / "resume" / "resume.md"
+            resume.parent.mkdir(parents=True)
+            resume.write_text("# Me\n\nPython\n", encoding="utf-8")
+            run.cfg.resume_path = str(resume)
+            assert api.forget_temporary(run.cfg) == 2
+            assert not path.exists() and not resume.exists()
+            assert run.cfg.resume_path == ""
+            with Store(run.cfg.db_path) as store:
+                assert store.conn.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0] == 0
+
+            # A config still naming the vanished resume loads, with a warning.
+            cfg_file = Path(run.config_path)
+            cfg_file.write_text(cfg_file.read_text() + f"resume: {{path: '{resume}'}}\n")
+            loaded = config.load(str(cfg_file))
+            assert loaded.resume_path == "" and any("temporary" in w for w in loaded.warnings)
+        finally:
+            if saved is None:
+                os.environ.pop(storage.TEMP_ENV, None)
+            else:
+                os.environ[storage.TEMP_ENV] = saved
+    _with_server(check)
+
+
 # ── keep this block LAST ───────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -412,7 +694,7 @@ def test_an_empty_or_oversized_advert_is_refused():
 def test_an_api_key_goes_in_and_never_comes_back_out():
     from jobdork.ai.llm import VAULT
 
-    secret = "sk-test-never-echo-0123456789"
+    secret = "sk-test-never-echo-0123456789"  # gitleaks:allow (a fake key the test sends)
 
     def check(run):
         code, body = run.post("/api/llm/key", {"provider": "openai", "key": secret})

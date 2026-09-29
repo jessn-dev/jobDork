@@ -15,7 +15,7 @@ not ask for. The results are recorded against the document either way.
 The most important one is `unsupported_figures`. A tailored CV is the easiest
 place in a job search to end up with a number nobody can back up, and a model
 writing prose about your career will reach for one. Any figure or scale word in
-a draft that is not in your résumé is surfaced.
+a draft that is not in your resume is surfaced.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 # Six is long enough that a shared run is reuse rather than coincidence.
 NGRAM = 6
 
-# Words that assert a magnitude. A draft may only use one your résumé used.
+# Words that assert a magnitude. A draft may only use one your resume used.
 SCALE_WORDS = (
     "million", "billion", "thousand", "hundreds", "dozens", "doubled",
     "tripled", "quadrupled", "halved", "fold", "%", "percent",
@@ -93,7 +93,7 @@ def overlap(draft: str, sibling: str, sibling_name: str = "the CV") -> Gate:
 
 
 def unsupported_figures(draft: str, resume_text: str) -> Gate:
-    """Every number and scale word in the draft must appear in the résumé.
+    """Every number and scale word in the draft must appear in the resume.
 
     This is the gate that matters. A tailored CV is the easiest place in a job
     search to acquire a statistic nobody can back up, and a model writing about
@@ -102,7 +102,7 @@ def unsupported_figures(draft: str, resume_text: str) -> Gate:
     """
     if not resume_text:
         return Gate(name="unsupported figures", passed=True,
-                    detail="no résumé to check against")
+                    detail="no resume to check against")
 
     resume_numbers = set(re.findall(r"\d[\d,.]*", resume_text))
     resume_lower = resume_text.lower()
@@ -131,8 +131,8 @@ def unsupported_figures(draft: str, resume_text: str) -> Gate:
     return Gate(
         name="unsupported figures",
         passed=not unique,
-        detail=(f"{len(unique)} not found in your résumé"
-                if unique else "every figure appears in your résumé"),
+        detail=(f"{len(unique)} not found in your resume"
+                if unique else "every figure appears in your resume"),
         items=unique,
     )
 
@@ -199,7 +199,7 @@ def run_all(draft: str, kind: str, resume_text: str = "",
     """The checks that apply to this kind of document.
 
     A screen gets almost none of them, and that is the point. These gates
-    guard documents you SEND — a figure in a CV that is not in your résumé is
+    guard documents you SEND — a figure in a CV that is not in your resume is
     a claim nobody can back up. A screen is notes to yourself, and it is
     *supposed* to quote the advert: the first live run flagged
     "$140,000 - $170,000" as unsupported when that was the advertised salary,

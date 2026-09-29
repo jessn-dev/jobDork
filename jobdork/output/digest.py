@@ -37,6 +37,9 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ..core.textutil import cap
+from ..search.resume import flag_label
+
 log = logging.getLogger("jobdork.output.digest")
 
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
@@ -103,12 +106,13 @@ def _salary(row: sqlite3.Row) -> str:
 
 
 def _meta(row: sqlite3.Row, units: str) -> list[str]:
-    distance = (f"{row['distance_mi']:.0f} {units}"
-                if row["distance_mi"] is not None else "")
+    from ..core.textutil import platform_name
+    from ..search.geo import distance_label
     return [str(part) for part in (
-        row["company"], row["location_raw"], distance,
-        row["work_mode"] or "arrangement not stated",
-        _salary(row), row["platform"],
+        row["company"], row["location_raw"],
+        distance_label(row["distance_mi"], units),   # stored in miles
+        cap(row["work_mode"] or "arrangement not stated"),
+        cap(_salary(row)), platform_name(row["platform"]),
     ) if part]
 
 
@@ -130,7 +134,7 @@ def build(rows: list[sqlite3.Row], cfg, new_only: bool = True) -> Digest:
         radius = (cfg.locations.radius if cfg.locations.radius == "exact"
                   else f"{cfg.locations.radius} {units}")
         lines += [
-            f"{cfg.locations.anchor or 'anywhere'} · within {radius} · "
+            f"{cfg.locations.anchor or 'Anywhere'} · within {radius} · "
             f"{', '.join(cfg.locations.countries) or 'any country'}",
             "",
         ]
@@ -143,7 +147,7 @@ def build(rows: list[sqlite3.Row], cfg, new_only: bool = True) -> Digest:
             f"       {' · '.join(_meta(row, units))}",
         ]
         for flag in _flags(row):
-            lines.append(f"       · {flag}")
+            lines.append(f"       · {flag_label(flag)}")
         lines += [f"       {row['url']}", ""]
     lines += [
         "---",
@@ -177,7 +181,7 @@ def build(rows: list[sqlite3.Row], cfg, new_only: bool = True) -> Digest:
         score = "-" if row["score"] is None else f"{row['score']:.0f}"
         flags = "".join(
             f"<span style='background:#fef3c7;color:#92400e;font-size:12px;"
-            f"padding:1px 6px;border-radius:4px;margin-right:4px'>{esc(f)}</span>"
+            f"padding:1px 6px;border-radius:4px;margin-right:4px'>{esc(flag_label(f))}</span>"
             for f in _flags(row)
         )
         parts.append(

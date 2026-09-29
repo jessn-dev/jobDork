@@ -1,0 +1,267 @@
+name: Test, scan and publish
+
+# Every push and pull request: tests, security scans, and the image built,
+# scanned and checked. A release is a version tag (v1.2.3): only a tag
+# publishes, only after every check passes, and only once you approve it in
+# the `release` environment. The published image is signed and carries a
+# record of how and where it was built, and the release gets a GitHub Release
+# page naming the exact image. See SECURITY.md.
+#
+# Needs, in the repository settings:
+#   variable DOCKERHUB_USERNAME   the Docker Hub account the image goes to
+#   secret   DOCKERHUB_TOKEN      in the `release` environment: a Docker Hub
+#                                 personal access token with the Read & Write
+#                                 scope (not Delete), used for nothing else
+# The account name is a variable rather than a secret: it is part of the
+# image name, which a secret would mask in the logs and blank out on pull
+# requests from forks.
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+
+# The token can read the repository and nothing else, unless a job says so.
+permissions:
+  contents: read
+
+env:
+  # The scanners run from their official images, pinned by digest, rather
+  # than through third-party actions, which are one more thing to trust.
+  TRIVY: aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
+  GITLEAKS: zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+  HADOLINT: hadolint/hadolint:v2.15.1@sha256:32dac94127fd60b7b7e3fbfc65e1383b9b5e25c9bfd7b8536de7a539fe68a12d
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 3.10 is the oldest supported; 3.14 is what the image runs.
+        python-version: ['3.10', '3.14']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: pip install -e '.[dev,pdf,ai]'
+
+      - name: Lint
+        run: ruff check jobdork tests scripts
+
+      - name: Test
+        run: pytest
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (the whole history, for the secret scan)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.14'
+
+      - name: Install the scanners
+        run: pip install pip-audit==2.10.1 bandit==1.9.4
+
+      # Every dependency the image installs, against the public advisories.
+      - name: Dependencies have no known vulnerabilities
+        run: pip-audit -r requirements.lock --require-hashes --disable-pip --strict
+
+      # Medium severity and up, medium confidence and up. A finding judged
+      # safe is marked in the code with its reason (`# nosec` and a comment).
+      - name: Code scan
+        run: bandit -r jobdork -ll -ii -q
+
+      # Every commit ever made, not only the latest: a key committed once and
+      # deleted later is still in the history. .gitleaksignore lists the one
+      # known false finding, by exact commit and line.
+      - name: No secrets in the history
+        run: >
+          docker run --rm -v "$PWD:/repo:ro"
+          -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/repo
+          "$GITLEAKS" git /repo --redact --no-banner --gitleaks-ignore-path /repo/.gitleaksignore
+
+      - name: Dockerfile lint
+        run: docker run --rm -i "$HADOLINT" < Dockerfile
+
+  image:
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          load: true
+          tags: jobdork:check
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # High and critical, fixed or not: a finding with no fix yet still
+      # blocks the release until it is looked at. One that has been, and does
+      # not apply, goes in .trivyignore with the reason.
+      - name: Scan the image (vulnerabilities, secrets, misconfiguration)
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          -v "$PWD:/src:ro" "$TRIVY" image --quiet --exit-code 1
+          --scanners vuln,secret,misconfig --severity HIGH,CRITICAL
+          --ignorefile /src/.trivyignore jobdork:check
+
+      - name: Check what is in the image and how it behaves
+        run: scripts/check_image.sh jobdork:check
+
+  publish:
+    needs: image
+    # A version tag, and nothing else: a push to main is built and checked
+    # above, but not published.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # Waits for your approval (SECURITY.md). The Docker Hub token lives in
+    # this environment, so it is only handed to a run you approved.
+    environment: release
+    outputs:
+      image: ${{ vars.DOCKERHUB_USERNAME }}/jobdork
+      digest: ${{ steps.push.outputs.digest }}
+    permissions:
+      contents: read
+      id-token: write        # signs the image with GitHub's identity; no key to steal
+      attestations: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      # QEMU lets the amd64 runner build the arm64 image (Apple Silicon Macs).
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # For the Git tag v1.2.3: 1.2.3, 1.2, latest and sha-abc1234.
+      # `latest` is always the newest release.
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ vars.DOCKERHUB_USERNAME }}/jobdork
+          flavor: |
+            latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+            type=sha,format=short
+
+      # With a provenance record (what source, which workflow, which commit)
+      # and a software bill of materials (every package inside), both attached
+      # to the image in the registry.
+      - name: Build and push
+        id: push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: mode=max
+          sbom: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      # Keyless signing: the signature says "built by this repository's
+      # workflow, from this commit", checked against GitHub's identity, and is
+      # logged publicly. There is no signing key that could leak. Signed by
+      # digest, which names the exact contents; a tag can be moved.
+      - name: Sign the image
+        env:
+          IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/jobdork@${{ steps.push.outputs.digest }}
+        run: cosign sign --yes "$IMAGE"
+
+      - name: Verify the signature, as a user would
+        env:
+          IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/jobdork@${{ steps.push.outputs.digest }}
+        run: >
+          cosign verify "$IMAGE"
+          --certificate-identity-regexp "^https://github.com/${{ github.repository }}/\.github/workflows/docker\.yml@"
+          --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+      - name: Record the digest
+        run: echo "Published ${{ vars.DOCKERHUB_USERNAME }}/jobdork@${{ steps.push.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+
+  # A GitHub Release page for the version: the exact image, how to verify it,
+  # and what changed. A separate job, because it needs to write to the
+  # repository and publishing must not.
+  release-page:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          IMAGE: ${{ needs.publish.outputs.image }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+          REPO: ${{ github.repository }}
+        run: |
+          version="${TAG#v}"
+          {
+            echo "## Image"
+            echo
+            echo "\`$IMAGE:$version\`, which is exactly:"
+            echo
+            echo "\`\`\`"
+            echo "$IMAGE@$DIGEST"
+            echo "\`\`\`"
+            echo
+            echo "Built, scanned, checked and signed by this repository's workflow after approval."
+            echo "Verify it before you run it, then pull it by that digest:"
+            echo
+            echo "\`\`\`bash"
+            echo "cosign verify $IMAGE@$DIGEST \\"
+            echo "  --certificate-identity-regexp '^https://github.com/$REPO/\\.github/workflows/docker\\.yml@' \\"
+            echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+            echo "\`\`\`"
+            echo
+            echo "What changed in detail: [CHANGELOG](https://github.com/$REPO/blob/$TAG/docs/CHANGELOG.md)."
+          } > notes.md
+          gh release create "$TAG" --repo "$REPO" --title "jobdork $version" \
+            --notes-file notes.md --generate-notes --verify-tag

@@ -15,7 +15,14 @@ Three things it refuses to do, all deliberate:
 
   **It does not bind to 0.0.0.0.** There is no `--host`. A dashboard listing
   where you are applying is not a thing to put on a network, and an option to
-  do it is an option somebody uses.
+  do it is an option somebody uses. The one exception is inside a container,
+  where 127.0.0.1 is the container's own loopback and a published port cannot
+  reach it: `JOBDORK_IN_CONTAINER=1` *and* a container marker file together
+  bind 0.0.0.0, so the variable alone does nothing on a bare host. The host
+  then publishes it to its own loopback, `-p 127.0.0.1:8765:8765`. The
+  other is `JOBDORK_ALLOW_HOSTS`, which names the exact addresses another
+  machine may open it by (a NAS's, say): those join the Host check, and the
+  token is required as ever. It names addresses; it cannot say "anything".
 
   **It validates the Host header against the address it actually bound to**,
   rather than trusting Origin. Under DNS rebinding a page on an attacker's
@@ -33,6 +40,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import os
 import re
 import signal
 import threading
@@ -46,6 +54,8 @@ from ..ai.llm import VAULT
 from ..core.config import SETTLED_STATUSES, STATUSES, WORK_MODES
 from ..db.store import Store
 from ..output.render import STATUS_COLOURS
+from ..search import geo
+from ..search.resume import SKILL_NAMES
 from . import api as api_mod
 from .live import Runner
 from .session import Session, new_session
@@ -54,6 +64,51 @@ log = logging.getLogger("jobdork.web.serve")
 
 DEFAULT_PORT = 8765
 HOST = "127.0.0.1"
+
+# Inside a container, 127.0.0.1 is the container's own loopback: a port
+# published with `docker run -p` arrives on its network interface and finds
+# nothing listening. The variable is set by the Dockerfile; the marker file
+# is set by the runtime. Both are required, so exporting the variable on a
+# bare host changes nothing.
+CONTAINER_ENV = "JOBDORK_IN_CONTAINER"
+CONTAINER_MARKERS = ("/.dockerenv", "/run/.containerenv")
+
+# Opening the dashboard from another machine, such as a Mac reaching a NAS,
+# takes naming the address it is opened by: "192.168.1.50" or "nas.local".
+# Those names join the Host check (any port, since a NAS may publish the
+# dashboard on a port of its own), and the server listens on every interface.
+# The token is still required on every request. Nothing is allowed by default,
+# and a wildcard is refused: the Host check is the defence against DNS
+# rebinding, and "any host" would switch it off.
+ALLOW_ENV = "JOBDORK_ALLOW_HOSTS"
+_HOSTNAME = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:\d{1,5})?$")
+
+
+def allowed_extra_hosts() -> list[str]:
+    """The addresses named in JOBDORK_ALLOW_HOSTS, lower-cased, checked."""
+    names = []
+    for raw in os.environ.get(ALLOW_ENV, "").split(","):
+        name = raw.strip().lower()
+        if not name:
+            continue
+        # Safe: "0.0.0.0" is refused here, never bound.
+        if name in ("*", "0.0.0.0") or not _HOSTNAME.match(name):  # nosec B104
+            log.warning("%s: %r is not an address; ignored", ALLOW_ENV, raw.strip())
+            continue
+        names.append(name)
+    return names
+
+
+def bind_address() -> str:
+    """Where the socket listens. Not where the browser goes: that is HOST."""
+    if (os.environ.get(CONTAINER_ENV) == "1"
+            and any(Path(m).exists() for m in CONTAINER_MARKERS)):
+        # Safe: deliberate, only inside a container.
+        return "0.0.0.0"  # nosec B104
+    if allowed_extra_hosts():
+        # Safe: deliberate, only for addresses named in JOBDORK_ALLOW_HOSTS.
+        return "0.0.0.0"  # nosec B104
+    return HOST
 
 PAGE_PATH = Path(__file__).resolve().parent.parent / "data" / "dashboard.html"
 
@@ -88,8 +143,8 @@ def _row_to_dict(row, units: str) -> dict:
         "url": row["url"] or "",
         "note": row["note"] or "",
         "location": row["location_raw"] or "",
-        "distance": (f"{row['distance_mi']:.0f} {units}"
-                     if row["distance_mi"] is not None else ""),
+        # Stored in miles; shown in the reader's units, converted.
+        "distance": geo.distance_label(row["distance_mi"], units),
         "work_mode": row["work_mode"] or "arrangement not stated",
         "salary": salary,
         "platform": row["platform"] or "",
@@ -99,12 +154,22 @@ def _row_to_dict(row, units: str) -> dict:
     }
 
 
+def _anchor_place(cfg) -> dict:
+    """The anchor as the picker shows it: country, region and city, if placed."""
+    where = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
+    if not where.located:
+        return {"located": False, "note": where.note}
+    return {"located": True, "country": where.country, "city": where.city,
+            "region": geo.region_at(where)}
+
+
 def _config_payload(cfg) -> dict:
     """The settings the page may edit. Credentials are never included."""
     return {
         "titles_include": cfg.titles_include,
         "titles_exclude": cfg.titles_exclude,
         "anchor": cfg.locations.anchor,
+        "anchor_place": _anchor_place(cfg),
         "radius": cfg.locations.radius,
         "units": cfg.locations.units,
         "countries": cfg.locations.countries,
@@ -122,12 +187,20 @@ def _config_payload(cfg) -> dict:
 
 def make_handler(cfg_holder: dict, session: Session, runner: Runner):
     """`cfg_holder` is a one-key dict so a config edit can swap it in place."""
+    # The file as loaded counts as seen: only a later change reloads it, so
+    # the overrides given to `serve` on the command line hold until then.
+    with contextlib.suppress(OSError, TypeError):
+        cfg_holder.setdefault("mtime", Path(cfg_holder["cfg"].path).stat().st_mtime)
     allowed_hosts = {
         f"{session.host}:{session.port}",
         f"localhost:{session.port}",
         session.host,
         "localhost",
     }
+    # Named with a port: that exact pair. Named alone: that host on any port.
+    extra = allowed_extra_hosts()
+    allowed_hosts |= {h for h in extra if ":" in h}
+    any_port = {h for h in extra if ":" not in h}
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "jobdork"
@@ -137,7 +210,10 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
 
         def _host_ok(self) -> bool:
             host = (self.headers.get("Host") or "").strip().lower()
-            return host in allowed_hosts
+            if host in allowed_hosts:
+                return True
+            name, _, port = host.partition(":")
+            return name in any_port and (not port or port.isdigit())
 
         def _token_ok(self) -> bool:
             """Header first; the query is only for the initial page load.
@@ -150,14 +226,17 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             header = (self.headers.get("X-Jobdork-Token") or "").strip()
             if session.matches(header):
                 return True
-            supplied = parse_qs(urlsplit(self.path).query).get("t", [""])[0]
-            return session.matches(supplied)
+            if self.command == "GET":
+                supplied = parse_qs(urlsplit(self.path).query).get("t", [""])[0]
+                return session.matches(supplied)
+            return False
 
         def _reject(self, code: int, message: str) -> None:
             payload = message.encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
+            self.send_header("X-Frame-Options", "DENY")
             self.end_headers()
             self.wfile.write(payload)
 
@@ -166,6 +245,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
             self.send_header("Referrer-Policy", "no-referrer")
             # The page loads nothing from anywhere. Saying so means a script
             # injected through a job title still cannot phone home.
@@ -173,7 +253,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 "Content-Security-Policy",
                 "default-src 'none'; style-src 'unsafe-inline'; "
                 "script-src 'unsafe-inline'; connect-src 'self'; "
-                "form-action 'none'; base-uri 'none'")
+                "form-action 'none'; base-uri 'none'; frame-ancestors 'none'")
             self.end_headers()
             self.wfile.write(body)
 
@@ -194,9 +274,36 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
 
         # ── routes ─────────────────────────────────────────────────────────────
 
+        def _sync_config(self) -> None:
+            """Pick up a config file changed behind this server's back.
+
+            `Look and add` writes the file from a job, and a person may edit it
+            by hand while the dashboard is open. Either way the next request
+            sees the file as it is now, so a scan does not run on a list of
+            boards the page no longer shows. A file that no longer loads is
+            left alone and the last good config kept, with a warning.
+            """
+            from ..core import config as config_mod
+
+            path = cfg_holder["cfg"].path
+            if not path:
+                return
+            try:
+                mtime = Path(path).stat().st_mtime
+            except OSError:
+                return
+            if mtime == cfg_holder.get("mtime"):
+                return
+            try:
+                cfg_holder["cfg"] = config_mod.load(path)
+            except Exception as exc:
+                log.warning("config changed on disk but does not load: %s", exc)
+            cfg_holder["mtime"] = mtime
+
         def do_GET(self) -> None:
             if not self._guarded():
                 return
+            self._sync_config()
             path = urlsplit(self.path).path
             if path == "/":
                 return self._page()
@@ -204,6 +311,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 return self._roles()
             if path == "/api/config":
                 return self._json(200, _config_payload(cfg_holder["cfg"]))
+            if path.startswith("/api/places/"):
+                return self._places(path.rsplit("/", 1)[1])
             if path == "/api/state":
                 ai = api_mod.llm_state(cfg_holder["cfg"])
                 return self._json(200, {
@@ -232,6 +341,19 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             if path == "/api/role":
                 uid = parse_qs(urlsplit(self.path).query).get("uid", [""])[0]
                 return self._wrap(api_mod.role_detail, cfg_holder["cfg"], uid)
+            if path == "/api/resume/view":
+                return self._wrap(api_mod.resume_view, cfg_holder["cfg"])
+            if path == "/api/resume/file":
+                try:
+                    body, kind, _name = api_mod.resume_file(cfg_holder["cfg"])
+                except api_mod.ApiError as exc:
+                    return self._reject(exc.status, str(exc))
+                return self._send(200, body, kind)
+            if path == "/api/letters":
+                return self._wrap(api_mod.list_letters, cfg_holder["cfg"])
+            if path == "/api/tools":
+                uid = parse_qs(urlsplit(self.path).query).get("uid", [""])[0]
+                return self._wrap(api_mod.latest_tools, cfg_holder["cfg"], uid)
             if path == "/api/artifact":
                 raw = parse_qs(urlsplit(self.path).query).get("id", [""])[0]
                 if not raw.isdigit():
@@ -253,15 +375,45 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
         def do_POST(self) -> None:
             if not self._guarded():
                 return
+            self._sync_config()
             path = urlsplit(self.path).path
             if path == "/api/action":
                 return self._action()
             if path == "/api/scan":
                 return self._scan()
+            if path == "/api/scan/fresh/preview":
+                return self._wrap(api_mod.fresh_preview, cfg_holder["cfg"])
+            if path == "/api/scan/fresh":
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                try:
+                    work = api_mod.fresh_scan_job(cfg_holder["cfg"], form.get("expect"))
+                except api_mod.ApiError as exc:
+                    return self._reject(exc.status, str(exc))
+                started, why = runner.start("fresh scan", work)
+                if not started:
+                    return self._reject(409, why)
+                return self._json(202, {"started": True, "job": "fresh scan"})
             if path == "/api/config":
                 return self._save_config()
             if path == "/api/resume":
                 return self._resume()
+            if path == "/api/resume/delete":
+                try:
+                    gone = api_mod.delete_resume(cfg_holder["cfg"])
+                    self._write_config({"resume_path": ""})
+                except api_mod.ApiError as exc:
+                    return self._reject(exc.status, str(exc))
+                except Exception as exc:
+                    return self._reject(400, f"not removed: {exc}")
+                return self._json(200, gone)
+            if path == "/api/letters/delete":
+                form = self._body()
+                raw = str((form or {}).get("id") or "")
+                if not raw.isdigit():
+                    return self._reject(400, "not a cover letter id")
+                return self._wrap(api_mod.delete_letter, cfg_holder["cfg"], int(raw))
             if path == "/api/add":
                 return self._add()
             if path == "/api/advert":
@@ -292,7 +444,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                                   form.get("output_id"), form.get("value"))
             if path in ("/api/enrich", "/api/rescreen", "/api/discover",
                         "/api/generate", "/api/digest", "/api/judge",
-                        "/api/check", "/api/letter", "/api/review"):
+                        "/api/check", "/api/letter", "/api/review", "/api/tool"):
                 return self._job(path.rsplit("/", 1)[1])
             return self._reject(404, "no such path")
 
@@ -413,8 +565,13 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                     name = "cover letter (AI)"
                     work = api_mod.letter_job(cfg, str(form.get("uid") or ""))
                 elif which == "review":
-                    name = "résumé review"
+                    name = "resume review"
                     work = api_mod.review_job(cfg, str(form.get("uid") or ""))
+                elif which == "tool":
+                    kind = str(form.get("kind") or "")
+                    name = f"AI tool: {kind.replace('_', ' ')}"
+                    work = api_mod.tool_job(cfg, str(form.get("uid") or ""), kind,
+                                            str(form.get("text") or ""))
                 else:
                     email = str(form.get("email") or "").strip()
                     if not email:
@@ -437,7 +594,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             html = (html
                     .replace("__STATUSES__", json.dumps(list(STATUSES)))
                     .replace("__COLOURS__", json.dumps(STATUS_COLOURS))
-                    .replace("__WORK_MODES__", json.dumps(list(WORK_MODES))))
+                    .replace("__WORK_MODES__", json.dumps(list(WORK_MODES)))
+                    .replace("__SKILL_NAMES__", json.dumps(SKILL_NAMES)))
             self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
 
         def _roles(self) -> None:
@@ -534,26 +692,29 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             self._json(200, {"ok": True, "uid": uid})
 
         def _scan(self) -> None:
-            from ..output import render
-            from ..search import scan as scan_mod
-
-            cfg = cfg_holder["cfg"]
-
-            def work(progress):
-                with Store(cfg.db_path) as store:
-                    report = scan_mod.run(cfg, store, progress=progress)
-                    rows = store.list_roles()
-                    out_dir = Path(cfg.output.dir)
-                    if "html" in cfg.output.formats:
-                        render.to_html(rows, out_dir / "index.html", cfg, report)
-                    if "json" in cfg.output.formats:
-                        render.to_json(rows, out_dir / "roles.json")
-                return " · ".join(report.lines())
-
-            started, why = runner.start("scan", work)
+            # api.scan_job, as every other run: this had its own copy, which
+            # skipped judging after the scan and every format but html/json.
+            started, why = runner.start("scan", api_mod.scan_job(cfg_holder["cfg"]))
             if not started:
                 return self._reject(409, why)
             self._json(202, {"started": True})
+
+        def _places(self, what: str) -> None:
+            """Country, region and city lists for the Where you are picker."""
+            q = parse_qs(urlsplit(self.path).query)
+            arg = lambda k: (q.get(k, [""])[0] or "")[:80]    # noqa: E731
+            if what == "countries":
+                # A currency is offered only where a salary floor can use it.
+                from ..core.config import CURRENCIES
+                return self._json(200, {"countries": [
+                    {**c, "currency": c["currency"] if c["currency"] in CURRENCIES else ""}
+                    for c in geo.picker_countries()], "currencies": list(CURRENCIES)})
+            if what == "regions":
+                return self._json(200, geo.picker_regions(arg("country")))
+            if what == "cities":
+                return self._json(200, {"cities": geo.picker_cities(
+                    arg("country"), arg("region"), arg("q"))})
+            return self._reject(404, "no such path")
 
         def _save_config(self) -> None:
             """Write config.yaml from the page, validating before replacing it.
@@ -594,6 +755,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 path.write_text(original, encoding="utf-8")   # put it back
                 raise
             cfg_holder["cfg"] = fresh
+            cfg_holder["mtime"] = path.stat().st_mtime
             return fresh
 
         def log_message(self, fmt: str, *args) -> None:
@@ -624,6 +786,23 @@ def _rewrite_config(original: str, payload: dict) -> str:
                              if str(t).strip()]
 
     locations = data.setdefault("locations", {})
+    if "anchor_pick" in payload:
+        # The picker's three choices, written as text resolve() reads back.
+        # A city not in the gazetteer is refused rather than saved unplaced,
+        # which would quietly turn the radius off.
+        pick = payload["anchor_pick"] or {}
+        city = str(pick.get("city") or "").strip()
+        country = str(pick.get("country") or "").strip().upper()
+        region = str(pick.get("region") or "").strip().upper()
+        if not city or not country:
+            raise ValueError("choose a country and a city")
+        anchor = geo.picker_anchor(city, region, country)
+        where = geo.resolve_anchor(anchor, (country,))
+        if (not where.located or where.country != country
+                or (region and geo.region_at(where) != region)):
+            raise ValueError(f"{city!r} is not in the place list for that "
+                             "country and region; choose one from the suggestions")
+        payload = {**payload, "anchor": anchor}
     for key, field in (("anchor", "anchor"), ("radius", "radius"),
                        ("units", "units"), ("countries", "countries"),
                        ("work_modes", "work_modes")):
@@ -636,6 +815,22 @@ def _rewrite_config(original: str, payload: dict) -> str:
         salary["floor"] = None if floor in (None, "", "null") else float(floor)
     if "currency" in payload:
         salary["currency"] = str(payload["currency"]).upper()
+
+    # Whole lists, as the page's tables hold them after an add or a delete.
+    # Named fields only; the loader then refuses a broken pattern, a missing
+    # token or an unknown board type, and the file is put back.
+    if "dealbreakers" in payload:
+        data["dealbreakers"] = [
+            {"name": str(d.get("name") or "").strip(),
+             "pattern": str(d.get("pattern") or ""),
+             "hard": str(d.get("hard")).lower() in ("1", "true", "yes", "on")}
+            for d in payload["dealbreakers"] or [] if isinstance(d, dict)]
+    if "companies" in payload:
+        data.setdefault("sources", {})["companies"] = [
+            {"name": str(c.get("name") or "").strip(),
+             "platform": str(c.get("platform") or "").strip().lower(),
+             "token": str(c.get("token") or "").strip()}
+            for c in payload["companies"] or [] if isinstance(c, dict)]
 
     if "resume_path" in payload:
         data.setdefault("resume", {})["path"] = payload["resume_path"]
@@ -668,22 +863,45 @@ def _rewrite_config(original: str, payload: dict) -> str:
 def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
           token: str = "") -> int:
     """Run until Ctrl-C. Returns an exit code."""
+    # The session keeps HOST either way: it is the address in the printed URL
+    # and the one the Host check accepts, and in a container the browser
+    # still reaches it as 127.0.0.1 through the published port.
+    bind = bind_address()
     session = new_session(HOST, preferred_port=port, token=token)
     cfg_holder = {"cfg": cfg}
     runner = Runner(db_path=lambda: cfg_holder["cfg"].db_path)
+    # In a container the resume and documents live in a temporary folder
+    # that does not outlive a run: emptied now, and again on the way out.
+    cleared = api_mod.forget_temporary(cfg)
+    if cleared:
+        print(f"emptied the temporary folder: {cleared} file(s) from the last run")
 
     try:
         server = ThreadingHTTPServer(
-            (session.host, session.port),
+            (bind, session.port),
             make_handler(cfg_holder, session, runner))
     except OSError as exc:
-        print(f"cannot listen on {session.host}:{session.port}: {exc}")
+        print(f"cannot listen on {bind}:{session.port}: {exc}")
         return 1
 
     if session.port != port:
         print(f"port {port} was busy; using {session.port}")
     print(f"jobdork dashboard: {session.url}")
-    print("Local only, token expires with this process, Ctrl-C to stop.")
+    extra = allowed_extra_hosts()
+    if extra:
+        # A port named with the host is how that address reaches it (a NAS
+        # may publish 8765 as another port); a bare name uses this one.
+        for name in extra:
+            where = name if ":" in name else f"{name}:{session.port}"
+            print(f"  also at: http://{where}/?t={session.token}")
+        print(f"Open to {', '.join(extra)} on your network ({ALLOW_ENV}); "
+              "the token is still required. Ctrl-C to stop.")
+    elif bind != HOST:
+        print(f"In a container, listening on {bind}. Publish it to the host's "
+              f"loopback only: -p 127.0.0.1:{session.port}:{session.port}, "
+              f"or set {ALLOW_ENV} to open it from another machine.")
+    else:
+        print("Local only, token expires with this process, Ctrl-C to stop.")
     if open_browser:
         threading.Timer(0.4, lambda: webbrowser.open(session.url)).start()
 
@@ -703,6 +921,10 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
         burned = VAULT.wipe()
         if burned:
             print(f"forgot API keys: {', '.join(burned)}")
+        with contextlib.suppress(Exception):
+            cleared = api_mod.forget_temporary(cfg_holder["cfg"])
+            if cleared:
+                print(f"emptied the temporary folder: {cleared} file(s)")
         server.server_close()
     return 0
 

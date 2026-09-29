@@ -145,6 +145,13 @@ class Dealbreaker:
     regex: re.Pattern | None = None
 
 
+# Where a config that does not say is taken to be. Only a missing key takes
+# these: an anchor written as "" is no anchor, and countries written as [] is
+# every country, as the docs promise.
+DEFAULT_ANCHOR = "Naperville, IL"
+DEFAULT_COUNTRIES = ("US",)
+
+
 @dataclass
 class Locations:
     anchor: str = ""                                # "Chicago, IL", "Makati, Philippines"
@@ -248,6 +255,9 @@ class Llm:
     # Check each verdict and draft for claims its sources do not support
     # (guard.py). Two more model calls per output.
     guard: bool = True
+    # Tokens an Ollama model may use per call (llm.DEFAULT_CONTEXT). Ignored
+    # by hosted models, which size themselves.
+    context: int = 16_384
 
 
 @dataclass
@@ -419,10 +429,12 @@ def _build(raw: dict[str, Any]) -> Config:
     cfg.titles_exclude = _str_list(titles.get("exclude"), "titles.exclude")
 
     loc = raw.get("locations") or {}
-    countries = [c.upper() for c in
-                 _str_list(loc.get("countries"), "locations.countries")]
+    countries = ([c.upper() for c in
+                  _str_list(loc.get("countries"), "locations.countries")]
+                 if "countries" in loc else list(DEFAULT_COUNTRIES))
     cfg.locations = Locations(
-        anchor=str(loc.get("anchor") or "").strip(),
+        anchor=(str(loc.get("anchor") or "").strip()
+                if "anchor" in loc else DEFAULT_ANCHOR),
         radius=loc.get("radius", 25),
         units=str(loc.get("units") or "").strip().lower(),
         countries=countries,
@@ -522,10 +534,26 @@ def _build(raw: dict[str, Any]) -> Config:
         judge_top=int(ai.get("judge_top", 25)),
         read_pages=bool(ai.get("read_pages", False)),
         guard=bool(ai.get("guard", True)),
+        context=_context(ai.get("context")),
     )
 
     cfg.db_path = str(raw.get("db") or "data/jobdork.db")
     return cfg
+
+
+def _context(value) -> int:
+    """`llm.context`: a whole number of tokens between 4,096 and 131,072."""
+    if value in (None, ""):
+        return Llm().context
+    try:
+        tokens = int(value)
+    except (TypeError, ValueError):
+        raise ConfigError(f"llm.context is {value!r}; give a number of tokens, "
+                          "such as 16384") from None
+    if not 4_096 <= tokens <= 131_072:
+        raise ConfigError(f"llm.context is {tokens}; use 4096 to 131072. Too small "
+                          "and Ollama drops the start of a long prompt.")
+    return tokens
 
 
 def _apply_env_secrets(cfg: Config) -> None:
@@ -639,13 +667,22 @@ def _validate(cfg: Config) -> None:
     # Checked on every load on purpose: a resume you moved should fail loudly
     # rather than quietly producing a document about a career you did not have.
     if cfg.resume_path:
+        from . import storage
         p = Path(cfg.resume_path).expanduser()
-        if not p.is_file():
+        if not p.is_file() and storage.is_temporary(p):
+            # A resume uploaded into the temporary folder is meant to go when
+            # the container stops. That is not a mistake to stop the run for.
+            cfg.warnings.append(
+                "the resume was in the temporary folder and is gone; "
+                "upload it again on the Resume page")
+            cfg.resume_path = ""
+        elif not p.is_file():
             raise ConfigError(
                 f"resume.path points at {p}, which is not a file. "
                 "Fix the path or clear the setting."
             )
-        cfg.resume_path = str(p)
+        else:
+            cfg.resume_path = str(p)
 
     for name in cfg.sources.keyless:
         if name not in ALL_SOURCES:

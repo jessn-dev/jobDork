@@ -34,6 +34,7 @@ from .core.config import STATUSES, ConfigError
 from .db.store import Store, canonical_url
 from .output import render
 from .search import scan as scan_mod
+from .search.resume import flag_label
 
 
 def _log(verbose: bool) -> None:
@@ -122,7 +123,7 @@ def _print_roles(rows, show_flags: bool = False) -> None:
             except (json.JSONDecodeError, TypeError):
                 flags = []
             for flag in flags:
-                print(f"      · {flag}")
+                print(f"      · {flag_label(flag)}")
         print(f"      {row['url']}")
 
 
@@ -130,6 +131,8 @@ def _print_roles(rows, show_flags: bool = False) -> None:
 
 def cmd_scan(args) -> int:
     cfg = _load(args)
+    if args.fresh and not _fresh_start(cfg, args.yes):
+        return 2
     with Store(cfg.db_path) as store:
         report = scan_mod.run(
             cfg, store, limit=args.limit,
@@ -140,23 +143,14 @@ def cmd_scan(args) -> int:
             print(line)
         _summary(report)
 
-        out_dir = Path(cfg.output.dir)
-        rows = store.list_roles()
-        writers = {
-            "html": lambda: render.to_html(rows, out_dir / "index.html", cfg, report),
-            "json": lambda: render.to_json(rows, out_dir / "roles.json"),
-            "md":   lambda: render.to_markdown(rows, out_dir / "roles.md", cfg, report),
-            "csv":  lambda: render.to_csv(rows, out_dir / "roles.csv"),
-        }
-        for fmt in cfg.output.formats:
-            write = writers.get(fmt)
-            if write is None:
-                # Unreachable: the config validator rejects unknown formats.
-                # Kept so that adding one to that list and forgetting to add
-                # it here fails loudly rather than writing nothing.
-                print(f"no writer for output format {fmt!r}", file=sys.stderr)
-                continue
-            print(f"wrote {write()}")
+        # Judged before the files are written, so they carry the verdicts; the
+        # dashboard's scan did this and the terminal's did not.
+        if cfg.llm.judge_on_scan:
+            from .web.api import _judge_after_scan
+            print(_judge_after_scan(cfg, store, _say))
+
+        for path in render.write_all(store.list_roles(), cfg, report):
+            print(f"wrote {path}")
 
         if args.email:
             # Deliberately after the files are written: a mail that fails
@@ -285,6 +279,30 @@ def cmd_applied(args) -> int:
         if args.note:
             print(f"  note: {args.note}")
     return 0
+
+
+def _fresh_start(cfg, yes: bool) -> bool:
+    """`scan --fresh`: preview, or back up and delete every scanned job post."""
+    from .web import api
+
+    preview = api.fresh_preview(cfg)
+    n = preview["count"]
+    print(f"A fresh scan deletes all {n} job posts found by scans, with their "
+          "statuses, notes, AI verdicts and document records, then scans again.")
+    if preview["pursuing"]:
+        print(f"That includes {preview['pursuing']} you are pursuing "
+              "(applied, submitted, interviewing, offer).")
+    if preview["kept_by_hand"]:
+        print(f"{preview['kept_by_hand']} added by hand are kept.")
+    if not yes:
+        print("Nothing was deleted. Re-run with --yes to do it; the database is "
+              "backed up first.")
+        return False
+    with Store(cfg.db_path) as store:
+        backup = api._backup(cfg, store, "fresh-scan")
+        deleted = store.clear_scanned()
+    print(f"backed up to {backup}\ndeleted {deleted} job posts\n")
+    return True
 
 
 def cmd_rescreen(args) -> int:
@@ -473,6 +491,8 @@ def cmd_discover(args) -> int:
         return 1
     for item in written:
         print(f"\nadded to {cfg.path}: {item.platform} / {item.token}")
+    if not written:
+        print(f"\nalready in {cfg.path}; nothing added")
     return 0
 
 
@@ -573,7 +593,7 @@ def cmd_check(args) -> int:
 
 
 def cmd_judge(args) -> int:
-    """Have the configured model read the best roles against your résumé."""
+    """Have the configured model read the best roles against your resume."""
     from .ai import judging
     from .ai.llm import LLMError
 
@@ -625,7 +645,7 @@ def cmd_letter(args) -> int:
 
 
 def cmd_review(args) -> int:
-    """A résumé review: general, or against one job post with its uid."""
+    """A resume review: general, or against one job post with its uid."""
     from .ai import writer
     from .ai.llm import LLMError
 
@@ -644,7 +664,7 @@ def cmd_review(args) -> int:
     print(result.text)
     if result.path:
         print(result.path)
-    _summary_text(f"{len(result.health)} résumé point(s) (output {result.output_id})")
+    _summary_text(f"{len(result.health)} resume point(s) (output {result.output_id})")
     return 0
 
 
@@ -796,6 +816,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="attach the job posts as CSV to that mail")
     p.add_argument("--even-if-empty", action="store_true",
                    help="send the mail even when nothing is new")
+    p.add_argument("--fresh", action="store_true",
+                   help="delete every scanned job post first (previews unless --yes)")
+    p.add_argument("--yes", action="store_true", help="with --fresh: really delete")
     p.add_argument("-q", "--quiet", action="store_true")
     p.set_defaults(func=cmd_scan)
 
@@ -893,7 +916,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_check)
 
     p = subs.add_parser("judge", parents=[over],
-                        help="AI reads top job posts against your résumé (llm: in "
+                        help="AI reads top job posts against your resume (llm: in "
                              "config; keys from the environment)")
     p.add_argument("--limit", type=int, default=0,
                    help="how many job posts (default llm.judge_top)")
@@ -905,7 +928,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = subs.add_parser("letter", parents=[over],
                         help="AI cover letter for one job post, checked against "
-                             "your résumé and the advert")
+                             "your resume and the advert")
     p.add_argument("uid", help="the job post's uid, URL or company")
     p.add_argument("--dir", default="", help="job folders root "
                                               "(default ~/Documents/job-applications)")
@@ -913,7 +936,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_letter)
 
     p = subs.add_parser("review", parents=[over],
-                        help="AI résumé review; give a job post id to compare with it")
+                        help="AI resume review; give a job post id to compare with it")
     p.add_argument("uid", nargs="?", default="", help="compare with this job post")
     p.add_argument("--dir", default="", help="job folders root "
                                               "(default ~/Documents/job-applications)")

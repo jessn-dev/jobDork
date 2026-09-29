@@ -5,7 +5,7 @@ Screens a role, and drafts a CV or a cover letter, by spawning headless
 `claude -p`.
 
 The Claude Code CLI is used rather than the API on purpose: the agent can read
-your résumé off disk, write the draft, and be checked by scripts afterwards.
+your resume off disk, write the draft, and be checked by scripts afterwards.
 Through a bare API call all of that would have to be reassembled out of prompt
 text, and the drafting quality lives in the reading and writing, not the
 wording of a request.
@@ -94,8 +94,14 @@ def documents_dir() -> Path:
 
 
 def default_root() -> str:
-    """Where generated documents go, unless `--dir` says otherwise."""
-    return str(documents_dir() / "job-applications")
+    """Where generated documents go, unless `--dir` says otherwise.
+
+    In a container that is the temporary folder (see core.storage), so a
+    letter lasts as long as the run; otherwise ~/Documents/job-applications.
+    """
+    from ..core import storage
+    temp = storage.documents_root()
+    return str(temp if temp else documents_dir() / "job-applications")
 
 
 # Kept as a name for callers that want the literal default without resolving.
@@ -239,11 +245,11 @@ _STYLE = (
 
 PROMPTS = {
     "screen": _PREAMBLE + (
-        "Read the advert and the reader's résumé at `{resume}` in this folder.\n\n"
+        "Read the advert and the reader's resume at `{resume}` in this folder.\n\n"
         "Write `screen.md`: a short verdict on whether this role is worth\n"
         "applying to. Cover, briefly:\n\n"
         "- what the role actually is, in one sentence\n"
-        "- how it matches the résumé, and where it does not\n"
+        "- how it matches the resume, and where it does not\n"
         "- anything in the advert that would put a candidate off: a take-home\n"
         "  exercise, an on-call rotation, a clearance requirement, a salary\n"
         "  well under market, a title that does not match the work\n"
@@ -251,24 +257,24 @@ PROMPTS = {
         "- a one-line recommendation: apply, maybe, or skip, and why\n\n"
         "Be blunt and short. This is read before anything expensive happens,\n"
         "so its job is to save the reader from drafting a CV for a role they\n"
-        "would not take. Do not invent anything the advert or résumé does not\n"
+        "would not take. Do not invent anything the advert or resume does not\n"
         "say.\n\n" + _STYLE + "Write only `screen.md`."
     ),
     "cv": _PREAMBLE + (
-        "Read the advert and the reader's résumé at `{resume}` in this folder.\n\n"
-        "Write `CV.md`: their résumé, reordered and reworded to suit this\n"
+        "Read the advert and the reader's resume at `{resume}` in this folder.\n\n"
+        "Write `CV.md`: their resume, reordered and reworded to suit this\n"
         "advert.\n\n"
         "Hard rules:\n"
-        "- Every fact must come from the résumé. Do not add an employer, a\n"
+        "- Every fact must come from the resume. Do not add an employer, a\n"
         "  role, a date, a technology or an achievement that is not already\n"
         "  there.\n"
         "- Do not invent numbers. Every figure and every scale word must\n"
-        "  already appear in the résumé; a script checks this afterwards.\n"
+        "  already appear in the resume; a script checks this afterwards.\n"
         "- You may cut, reorder, retitle and rephrase. You may not add.\n\n"
         + _STYLE + "Write only `CV.md`."
     ),
     "cover_letter": _PREAMBLE + (
-        "Read the advert, the reader's résumé at `{resume}` in this folder, and `CV.md` in\n"
+        "Read the advert, the reader's resume at `{resume}` in this folder, and `CV.md` in\n"
         "this folder.\n\n"
         "Write `cover-letter.md`: at most four short paragraphs.\n\n"
         "The CV carries the facts. This carries judgement: why this person,\n"
@@ -276,7 +282,7 @@ PROMPTS = {
         "more consecutive words may appear in both, and a script checks that.\n"
         "Assume the reader has the CV open in the next tab.\n\n"
         "Hard rules:\n"
-        "- Every claim must be supported by the résumé.\n"
+        "- Every claim must be supported by the resume.\n"
         "- Do not invent numbers.\n"
         "- No flattery about the company that the advert does not support.\n\n"
         + _STYLE + "Write only `cover-letter.md`."
@@ -303,7 +309,7 @@ def generate(row, kind: str, resume_path: str, root: str = "",
              timeout: int = TIMEOUT, dry_run: bool = False,
              progress=None, settings=None) -> Result:
     """Draft one document. With `settings` (the AI-page model), the draft is
-    also checked for claims the résumé and advert do not support."""
+    also checked for claims the resume and advert do not support."""
     if kind not in KINDS:
         raise GenerateError(f"{kind!r} is not one of {', '.join(KINDS)}")
     if not resume_path:
@@ -313,13 +319,13 @@ def generate(row, kind: str, resume_path: str, root: str = "",
             "than tailoring one.")
     resume = Path(resume_path).expanduser()
     if not resume.is_file():
-        raise GenerateError(f"résumé not found at {resume}")
+        raise GenerateError(f"resume not found at {resume}")
 
     folder = write_job_folder(row, root)
     result = Result(kind=kind, folder=folder)
 
-    # The résumé is copied in rather than reached out to. `--add-dir` names
-    # this folder and nothing else, so a résumé left at ~/Documents is simply
+    # The resume is copied in rather than reached out to. `--add-dir` names
+    # this folder and nothing else, so a resume left at ~/Documents is simply
     # unreadable — the first live run came back "file access was not granted"
     # and screened nothing. Widening the sandbox to reach it would undo the
     # point of having one, so the file comes to the sandbox instead.
@@ -327,7 +333,7 @@ def generate(row, kind: str, resume_path: str, root: str = "",
     try:
         shutil.copyfile(resume, local_resume)
     except OSError as exc:
-        raise GenerateError(f"could not copy the résumé into {folder}: {exc}") from exc
+        raise GenerateError(f"could not copy the resume into {folder}: {exc}") from exc
 
     if kind == "cover_letter" and not (folder / FILENAMES["cv"]).is_file():
         # The letter is checked against the CV, so the CV has to exist for the
@@ -424,5 +430,5 @@ def _resume_text(path: Path) -> str:
     try:
         return resume_mod.load(str(path)).text
     except resume_mod.ResumeError as exc:
-        log.warning("résumé not readable for gate checking: %s", exc)
+        log.warning("resume not readable for gate checking: %s", exc)
         return ""

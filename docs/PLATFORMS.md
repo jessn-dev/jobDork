@@ -258,7 +258,7 @@ there and the `app_id`/`app_key` pair is issued.
 roles: average 500.0, maximum 500.
 
 This is the most consequential limitation in the whole tool. Dealbreakers read
-the advert body. Work-mode detection reads the advert body. Résumé fit scoring
+the advert body. Work-mode detection reads the advert body. Resume fit scoring
 reads the advert body. On the same run, **517 of 653 Adzuna roles had no
 detectable arrangement, against 0 of 200 on Workable.**
 

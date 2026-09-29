@@ -32,6 +32,7 @@ from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"      # jobdork/data
 GAZETTEER = DATA_DIR / "cities.csv"
+REGIONS_FILE = DATA_DIR / "regions.csv"   # country, code, name: the picker's list
 
 EARTH_RADIUS_MI = 3958.7613
 KM_PER_MILE = 1.609344
@@ -464,10 +465,12 @@ class Place:
     country: str
     lat: float
     lon: float
+    region: str = ""    # first-level region code, every country (see REGIONS_FILE)
 
 
 _INDEX: dict[tuple[str, str], Place] | None = None
 _BY_CITY: dict[str, list[Place]] | None = None
+_ALL: list[Place] = []      # every row, most-populous first: the picker's list
 
 
 def _load_gazetteer() -> tuple[dict[tuple[str, str], Place], dict[str, list[Place]]]:
@@ -478,12 +481,16 @@ def _load_gazetteer() -> tuple[dict[tuple[str, str], Place], dict[str, list[Plac
 
     index: dict[tuple[str, str], Place] = {}
     by_city: dict[str, list[Place]] = {}
+    _ALL.clear()
 
-    def add(city: str, state: str, country: str, lat: str, lon: str) -> None:
+    def add(city: str, state: str, country: str, lat: str, lon: str,
+            region: str = "") -> None:
         try:
-            place = Place(city, state.upper(), country.upper(), float(lat), float(lon))
+            place = Place(city, state.upper(), country.upper(), float(lat), float(lon),
+                          region.upper())
         except ValueError:
             return
+        _ALL.append(place)
         key = (_key(city), place.state)
         # First entry wins. The builder writes most-populous first, so a
         # collision resolves to the city people actually mean.
@@ -501,7 +508,7 @@ def _load_gazetteer() -> tuple[dict[tuple[str, str], Place], dict[str, list[Plac
         with GAZETTEER.open(encoding="utf-8", newline="") as fh:
             for row in csv.reader(fh):
                 if len(row) >= 5 and not row[0].startswith("#"):
-                    add(*row[:5])
+                    add(*row[:6])
     else:
         for line in _FALLBACK.strip().splitlines():
             add(*line.split(","))
@@ -903,9 +910,17 @@ def resolve(location: str, prefer: tuple[str, ...] = ()) -> Resolved:
     # A city with a country but no region: "Makati, Philippines", already
     # stripped to "Makati" with the country in hand.
     if country_hint:
+        # "San Fernando, Central Luzon, Philippines": a named region picks
+        # between cities that share a name. Only parts after the first are
+        # read as a region, so "Tokyo, Tokyo" keeps its city.
+        region = next((code for part in parts[1:]
+                       if (code := region_code(country_hint, part))), "")
         for part in parts:
-            matches = [p for p in by_city.get(_key(part), [])
+            matches = [p for p in _city_matches(part, by_city)
                        if p.country == country_hint]
+            inside = [p for p in matches if region and p.region == region]
+            if inside:
+                matches = inside
             if len(matches) == 1:
                 p = matches[0]
                 return Resolved(p.city, p.state, p.country, p.lat, p.lon)
@@ -926,7 +941,7 @@ def resolve(location: str, prefer: tuple[str, ...] = ()) -> Resolved:
 
     # A bare city, if it is unambiguous.
     for part in parts:
-        matches = by_city.get(_key(part), [])
+        matches = _city_matches(part, by_city)
         narrowed = [p for p in matches if p.country in prefer] if prefer else []
         if len(narrowed) == 1:
             p = narrowed[0]
@@ -948,6 +963,162 @@ def resolve(location: str, prefer: tuple[str, ...] = ()) -> Resolved:
                             note=f"{part!r} is ambiguous ({len(matches)} places)")
 
     return Resolved(country=country_hint, note=f"could not read {raw!r}")
+
+
+def _city_matches(part: str, by_city: dict[str, list[Place]]) -> list[Place]:
+    """Places called `part`, trying it without a trailing "City" too.
+
+    GeoNames files Baguio as "Baguio" and Quezon City as "Quezon City"; people
+    write "Baguio City" and "Quezon City" alike. The name as given is tried
+    first, so a place whose name really ends in "City" is never shortened.
+    """
+    key = _key(part)
+    found = by_city.get(key, [])
+    if not found and key.endswith(" city"):
+        found = by_city.get(key[: -len(" city")].strip(), [])
+    return found
+
+
+# ── Regions and the dashboard's place picker ───────────────────────────────────
+
+_REGIONS: dict[str, list[tuple[str, str]]] | None = None     # country -> [(code, name)]
+_COUNTRY_NAMES: dict[str, str] | None = None                 # from regions.csv
+_CURRENCIES: dict[str, str] = {}                             # country -> ISO 4217
+
+# What a country calls its first-level regions, for the picker's label.
+# Anywhere not listed says "Region".
+REGION_LABELS = {
+    **dict.fromkeys(("US", "AU", "IN", "MX", "BR", "DE", "AT", "MY", "NG",
+                     "VE", "SS", "SD", "FM", "PW"), "State"),
+    **dict.fromkeys(("CA", "CN", "ZA", "AR", "NL", "IE", "KR", "PK", "TR",
+                     "IR", "ID", "TH", "VN", "KE", "CU", "DO", "EC", "PA",
+                     "LK", "SA", "AF", "MZ", "AO", "ZM", "ZW"), "Province"),
+    **dict.fromkeys(("JP",), "Prefecture"),
+    # England, Scotland, Wales and Northern Ireland are the UK's constituent
+    # countries; the picker's first box is already "Country", so the second
+    # says "Constituent".
+    **dict.fromkeys(("GB",), "Constituent"),
+    **dict.fromkeys(("FR", "IT", "ES", "PH", "BE", "CL", "PE", "PL", "CZ",
+                     "SK", "DK", "SE", "NO", "FI", "PT", "GR", "NZ"), "Region"),
+    **dict.fromkeys(("CH",), "Canton"),
+    **dict.fromkeys(("RU",), "Federal subject"),
+}
+
+
+def _load_regions() -> tuple[dict[str, list[tuple[str, str]]], dict[str, str]]:
+    global _REGIONS, _COUNTRY_NAMES
+    if _REGIONS is not None and _COUNTRY_NAMES is not None:
+        return _REGIONS, _COUNTRY_NAMES
+    regions: dict[str, list[tuple[str, str]]] = {}
+    names: dict[str, str] = {}
+    if REGIONS_FILE.is_file():
+        with REGIONS_FILE.open(encoding="utf-8", newline="") as fh:
+            for row in csv.reader(fh):
+                if len(row) < 3 or row[0].startswith("#"):
+                    continue
+                country, code, name = row[0].upper(), row[1].upper(), row[2]
+                if code:
+                    regions.setdefault(country, []).append((code, name))
+                else:
+                    names[country] = name       # a country's own row
+                    if len(row) > 3 and row[3]:
+                        _CURRENCIES[country] = row[3].upper()
+    _REGIONS, _COUNTRY_NAMES = regions, names
+    return regions, names
+
+
+def region_code(country: str, text: str) -> str:
+    """"Cordillera" or "15" in the Philippines -> "15". Blank when not one."""
+    regions, _ = _load_regions()
+    folded = _key(text)
+    for code, name in regions.get((country or "").upper(), []):
+        if folded in (_key(name), _key(code)):
+            return code
+    return ""
+
+
+def region_name(country: str, code: str) -> str:
+    regions, _ = _load_regions()
+    for c, name in regions.get((country or "").upper(), []):
+        if c == (code or "").upper():
+            return name
+    return ""
+
+
+def picker_countries() -> list[dict]:
+    """Every country the gazetteer has a place in, by English name."""
+    _, names = _load_regions()
+    _, by_city = _load_gazetteer()
+    codes = {p.country for bucket in by_city.values() for p in bucket}
+    rows = [{"code": c, "name": names.get(c) or country_name(c),
+             "currency": _CURRENCIES.get(c, "")} for c in codes]
+    return sorted(rows, key=lambda r: _key(r["name"]))
+
+
+def picker_regions(country: str) -> dict:
+    """A country's regions, and what that country calls them."""
+    country = (country or "").upper()
+    regions, _ = _load_regions()
+    listed = sorted(regions.get(country, []), key=lambda r: _key(r[1]))
+    return {"label": REGION_LABELS.get(country, "Region"),
+            "regions": [{"code": c, "name": n} for c, n in listed]}
+
+
+def picker_cities(country: str, region: str = "", query: str = "",
+                  limit: int = 30) -> list[str]:
+    """City names in a country (and region), biggest first, matching `query`.
+
+    Most-populous first is the gazetteer's own order; a name is listed once
+    however many aliases or same-named places share it.
+    """
+    country, region = (country or "").upper(), (region or "").upper()
+    folded = _key(query)
+    _load_gazetteer()
+    seen: set[str] = set()
+    spots: set[tuple[float, float]] = set()
+    out: list[str] = []
+    for place in _ALL:
+        if place.country != country or (region and place.region != region):
+            continue
+        key = _key(place.city)
+        spot = (round(place.lat, 3), round(place.lon, 3))
+        # An alias ("Makati" beside "Makati City") is the same spot: one entry.
+        if key in seen or spot in spots or (folded and not key.startswith(folded)
+                                            and f" {folded}" not in f" {key}"):
+            continue
+        seen.add(key)
+        spots.add(spot)
+        out.append(place.city)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def region_at(where: Resolved) -> str:
+    """The region code of a resolved place, found by its coordinates."""
+    if not where.located:
+        return ""
+    _, by_city = _load_gazetteer()
+    for place in by_city.get(_key(where.city), []):
+        if (place.country == where.country and abs(place.lat - where.lat) < 1e-4
+                and abs(place.lon - where.lon) < 1e-4):
+            return place.region
+    return ""
+
+
+def picker_anchor(city: str, region: str, country: str) -> str:
+    """The anchor text the picker saves, in a form resolve() reads back.
+
+    "Austin, TX, United States" where a region code is what postings use, and
+    "Baguio, Cordillera, Philippines" everywhere else.
+    """
+    country = (country or "").upper()
+    _, names = _load_regions()
+    where = names.get(country) or country_name(country)
+    if region and country in ("US", "CA", "AU"):
+        return f"{city}, {region.upper()}, {where}"
+    named = region_name(country, region)
+    return ", ".join(x for x in (city, named, where) if x)
 
 
 def resolve_anchor(anchor: str, prefer: tuple[str, ...] = ()) -> Resolved:
@@ -994,6 +1165,14 @@ def to_miles(value: float, units: str) -> float:
 def from_miles(miles: float, units: str) -> float:
     """Back to the reader's own units, for anything they will actually read."""
     return miles if (units or "mi").startswith("mi") else miles * KM_PER_MILE
+
+
+def distance_label(miles: float | None, units: str) -> str:
+    """A stored distance (always miles) as the reader's own units: "16 km"."""
+    if miles is None:
+        return ""
+    units = units or "mi"
+    return f"{from_miles(miles, units):.0f} {units}"
 
 
 def default_units(countries: tuple[str, ...] | list[str]) -> str:

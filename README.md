@@ -18,7 +18,7 @@ salary — not as links.
 
 Neither replaces the other, and the second one is why this stopped being a
 query generator. A Google result is a thing you have to open to evaluate. A
-row is a thing that can be filtered, scored, ranked against your résumé, and
+row is a thing that can be filtered, scored, ranked against your resume, and
 struck off when you have dealt with it.
 
 ```
@@ -37,7 +37,7 @@ roles were dropped on the title alone**, and the tool says so rather than
 quietly handing you 660 and letting you assume that was everything there was.
 Every drop has a reason and the reasons are counted.
 
-Works anywhere. It ships a gazetteer of 69,933 places across 245 countries, so
+Works anywhere. It ships a gazetteer of 70,026 places across 245 countries, so
 a reader in Manila, Munich, Melbourne or Chicago configures their own countries
 and everything else follows — including whether the radius is stated in miles
 or kilometres.
@@ -79,6 +79,56 @@ builds every country. Without it the tool falls back to about 125 bundled
 metros and still works in the places most postings name.
 
 ---
+
+### Running in Docker
+
+```bash
+docker build -t jobdork .
+docker run --rm -p 127.0.0.1:8765:8765 \
+  -v "$PWD/config.yaml:/app/config.yaml" \
+  -v "$PWD/.env:/app/.env:ro" \
+  -v "$PWD/data:/app/data" -v "$PWD/out:/app/out" jobdork
+```
+
+Open the URL it prints. It runs as a non-root user, and the dashboard is
+published to your own machine only.
+
+**On a NAS or a home server,** follow [docs/DEPLOY.md](docs/DEPLOY.md):
+installing Docker and Tailscale, running the AI on a separate computer, and
+opening the dashboard from anywhere. In short, name the address you will open
+it by, and publish the port to your network rather than to the NAS alone:
+
+```bash
+docker run -d --restart unless-stopped -p 8765:8765 \
+  -e JOBDORK_ALLOW_HOSTS=192.168.1.50 \
+  -v /volume1/docker/jobdork/config.yaml:/app/config.yaml \
+  -v /volume1/docker/jobdork/data:/app/data jobdork
+```
+
+`JOBDORK_ALLOW_HOSTS` takes addresses separated by commas (`192.168.1.50`,
+`nas.local`), on any port, or `address:port` for one port only. Nothing else
+is let in, and a wildcard is refused. The container's log prints the full URL
+with its access token; every request still needs that token, and a new one is
+made each time the container starts. Keep it on your home network: do not
+forward the port on your router.
+
+Set the AI page's Ollama address to the computer that runs Ollama, by its
+Tailscale name (`http://my-mac.tail1234.ts.net:11434`); inside the container,
+`localhost` is the container itself. A NAS processor is too slow for a model:
+on an 8 GB NAS one AI verdict took 8 minutes at 100% load. `llm.context`
+(default 16,384 tokens) is how much text jobdork asks Ollama to make room for
+on each call.
+
+**Your resume and cover letters are temporary in Docker.** An uploaded resume
+and every document written from it go to a folder inside the container that
+is emptied when the dashboard starts and when it stops. Upload the resume
+again after a restart, and use **Download** on a cover letter you want to
+keep. Scan results and settings, in `data/` and `config.yaml`, are kept. On
+your own machine nothing is temporary: the resume is kept in `data/` and
+documents in `~/Documents/job-applications`.
+
+Either way, the Resume page lists every cover letter, with **View** to read
+one and **Delete** to remove its file and text at once.
 
 ## Where the jobs come from
 
@@ -207,7 +257,7 @@ jobdork list --title "penetration tester" --work-mode remote --salary-floor 1500
 `--country` carries units and the Adzuna index with it, so a German search is
 in kilometres against the `de` index without your having to say so.
 
-**It ranks against your résumé, offline and free.** `.docx`, `.md`, `.txt`,
+**It ranks against your resume, offline and free.** `.docx`, `.md`, `.txt`,
 and `.pdf` with the optional `pypdf` extra. Skill overlap sorts the list and
 names the gaps. No model, no tokens, no network.
 
@@ -246,6 +296,7 @@ jobdork show <uid>                                  # the full advert
 jobdork rescreen --remove                           # re-apply your config
 jobdork check                                       # which postings are gone
 jobdork prune --older-than 30                       # preview; --yes deletes
+jobdork scan --fresh                                # preview; --yes starts over
 ```
 
 `check` asks each posting whether the job is still up, and closes the ones
@@ -253,6 +304,12 @@ that are gone. A copy of a job posted in several places closes only when every
 copy has. `prune` clears out old or settled posts, never one you are pursuing
 (applied, submitted, interviewing, offer): it previews first, backs the
 database up, and a deleted post does not come back on the next scan.
+
+`scan --fresh` (**Run fresh scan** on the Dashboard) starts over: it deletes
+every job post a scan found, with its status, notes and AI verdict, and scans
+again from nothing. It says how many it will delete, and how many of those you
+are pursuing, before anything goes; the database is backed up first. Posts you
+deleted before stay deleted, and posts added by hand are kept.
 
 ### Or have it mailed to you
 
@@ -311,7 +368,7 @@ Documents land in `~/Documents/job-applications/<date>-<company>-<role>/` with a
 of the advert, because postings are pulled the moment they are filled.
 
 Every draft is checked by scripts rather than re-read by a model: any figure or
-scale word not in your résumé, any six-word run shared between the CV and the
+scale word not in your resume, any six-word run shared between the CV and the
 cover letter, and signs of AI writing by the bundled
 [humanizer](https://github.com/blader/humanizer) rules (em dashes, "not X but
 Y", stock words), each named with its rule. With a model set up on the AI page,
@@ -345,12 +402,12 @@ scoped to that one folder.
 ### A second reader: the AI page
 
 A model can read what the rules cannot: the whole advert against your whole
-résumé. It is optional, and it never hides a job post.
+resume. It is optional, and it never hides a job post.
 
 ```bash
-jobdork judge                 # the best job posts, read against your résumé
-jobdork letter <uid>          # a cover letter from your résumé and the advert
-jobdork review [<uid>]        # what to fix in your résumé, or against one post
+jobdork judge                 # the best job posts, read against your resume
+jobdork letter <uid>          # a cover letter from your resume and the advert
+jobdork review [<uid>]        # what to fix in your resume, or against one post
 ```
 
 - **Any of four providers:** Ollama running locally (free), Claude, Gemini or
@@ -358,22 +415,22 @@ jobdork review [<uid>]        # what to fix in your résumé, or against one pos
   written to the config, the database or a log, and wiped when the server
   stops or you click Forget. The terminal reads them from the environment.
 - **Judging** gives a score, a verdict and its reasons beside the rule-based
-  match score. When the advert or résumé is too thin, it says so and shows
+  match score. When the advert or resume is too thin, it says so and shows
   **?** rather than a guess.
 - **Reading posting pages** that do not say plainly whether the job is open
   (`llm.read_pages`). Its "closed" only counts when it quotes words that are
   really on the page.
 - **Every output is checked for hallucination.** Following the
   [HalluLens](https://github.com/facebookresearch/HalluLens) method, the text
-  is split into single claims and each is looked up in the résumé and the
+  is split into single claims and each is looked up in the resume and the
   advert; a claim only counts as supported when its quote is found there by
   script. Unsupported claims are listed, struck out on a verdict and flagged
-  on a letter, so "ten years of Java" where the résumé says ten
+  on a letter, so "ten years of Java" where the resume says ten
   years overall does not reach an employer unread. The check costs two model
   calls per output and can be turned off (`llm.guard`).
-- **A résumé review** quotes the line each point is about, and drops any
-  point quoting something not in your résumé. Against a post it also lists
-  what the advert asks for that the résumé does not show.
+- **A resume review** quotes the line each point is about, and drops any
+  point quoting something not in your resume. Against a post it also lists
+  what the advert asks for that the resume does not show.
 - **Thumbs up or down** on any AI output, counted on the Dashboard.
 
 ### Or with buttons
@@ -384,7 +441,8 @@ jobdork serve        # http://127.0.0.1:8765
 
 The page opens on the **Dashboard**: runs, errored runs, AI calls, AI latency
 (P50 and P95) and the hallucination rate with its coverage, for the last 7, 30
-or 90 days; runs by tool and feedback per day; and a card for the last scan,
+or 90 days; runs by tool and the hallucination rate by kind of output over
+time, and feedback per day; and a card for the last scan,
 check and AI judging that says in amber what went wrong (a source that
 returned nothing, a scan that never finished, a scan over 15 days old).
 
@@ -397,7 +455,7 @@ posted in several places show as one post.
 ![Job posts](docs/images/job-posts.jpg)
 
 Open one for the advert, drafts, the AI verdict and its reasons, and the
-buttons to ask the AI, write a cover letter, review your résumé against it,
+buttons to ask the AI, write a cover letter, review your resume against it,
 or check it is still open:
 
 ![A job post, with the AI verdict](docs/images/role-detail.jpg)
@@ -433,7 +491,7 @@ A tool that quietly fails at something looks broken rather than out of scope.
   bundled list of employer boards, so coverage is keyword search plus the
   companies you add. `jobdork dork` covers the rest.
 - **Screening an advert that arrived truncated.** Adzuna caps every advert at
-  exactly 500 characters. Dealbreakers, work-mode detection and résumé
+  exactly 500 characters. Dealbreakers, work-mode detection and resume
   scoring all read the advert body, so on one run **517 of 653 Adzuna roles
   had no detectable arrangement, against 0 of 200 from Workable.** Adzuna is a
   discovery-and-salary source; Workable is the one you can filter on.
@@ -545,7 +603,7 @@ in the source. None of them calls a real model or a real site.
 │   ├── core/              # config, run telemetry, text helpers
 │   ├── db/                # SQLite store, migrations, grouping copies of a job
 │   ├── fetch/             # one adapter per source, and the paced HTTP client
-│   ├── search/            # scan, screen, enrich, discover, listing check, geo, résumé
+│   ├── search/            # scan, screen, enrich, discover, listing check, geo, resume
 │   ├── ai/                # the model, judging, the hallucination guard, AI letter and review
 │   ├── writing/           # claude -p drafts and the checks every draft gets
 │   ├── web/               # the dashboard server and its API

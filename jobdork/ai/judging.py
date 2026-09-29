@@ -1,7 +1,7 @@
 """
 jobdork.ai.judging
 ==================
-Has the configured model read the best roles against your résumé.
+Has the configured model read the best roles against your resume.
 
 Bounded by `llm.judge_top` (or an explicit limit): roles are taken best
 match first, duplicates collapsed, and only those with enough advert to read
@@ -13,7 +13,7 @@ The verdict is stored beside the rule score and never replaces it, and it
 never hides a role.
 
 With `llm.guard` on, each verdict's summary, reasons and concerns are checked
-against the advert and the résumé (guard.py), and the result is stored inside
+against the advert and the resume (guard.py), and the result is stored inside
 the verdict (`guard`) and as an `ai_outputs` row (`ai_output_id`). A claim
 neither source supports is shown struck out; the score is left as the model
 gave it.
@@ -45,7 +45,7 @@ class JudgeReport:
     def lines(self) -> list[str]:
         out = [f"{self.model}: judged {self.judged}"]
         if self.flagged:
-            out.append(f"{self.flagged} with a claim the advert and résumé do "
+            out.append(f"{self.flagged} with a claim the advert and resume do "
                        "not support")
         if self.skipped_thin:
             out.append(f"{self.skipped_thin} skipped, advert too short to judge")
@@ -71,7 +71,7 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
     if problem:
         raise LLMError(problem)
     if not cfg.resume_path:
-        raise LLMError("no résumé configured. Upload one on the Résumé page")
+        raise LLMError("no resume configured. Upload one on the Resume page")
     resume_text = resume_mod.load(cfg.resume_path).text
 
     report = JudgeReport(model=settings.label)

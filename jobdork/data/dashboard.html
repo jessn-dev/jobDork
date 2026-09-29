@@ -106,9 +106,12 @@ nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
 main{padding:1.5rem 1.75rem;min-width:0}
 /* The Dashboard uses the whole width; pages of forms and reading keep a
    measure that is comfortable to read. */
-main > section:not(#view-scan){max-width:1060px}
+main > section:not(#view-scan):not(#view-settings){max-width:1060px}
 h2{font-size:1.05rem;margin:0 0 .35rem}
 .bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+/* The job post search takes the room left on its row, so a typed company
+   name reads in full rather than scrolling inside a narrow box. */
+#q{flex:1 1 22rem;min-width:min(100%,16rem);max-width:40rem}
 select,input,textarea{background:var(--btn);color:var(--fg);
   border:1px solid var(--line);border-radius:6px;padding:.4rem .55rem;
   font:inherit;font-size:.85rem}
@@ -117,6 +120,9 @@ button.act{background:var(--btn);color:var(--fg);border:1px solid var(--line);
   border-radius:6px;padding:.35rem .7rem;font:inherit;font-size:.82rem;cursor:pointer}
 button.act:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
 button.act:disabled{opacity:.4;cursor:default}
+button[data-icon]{display:inline-flex;align-items:center;gap:.35rem}
+svg.bi{width:14px;height:14px;flex:none}
+.linkbtn svg.bi{width:13px;height:13px}
 button.primary{border-color:var(--accent);color:var(--accent);font-weight:600}
 button.spend{border-color:var(--warn);color:var(--warn)}
 .count{color:var(--muted);font-size:.85rem;margin-left:auto}
@@ -143,7 +149,75 @@ button.spend{border-color:var(--warn);color:var(--warn)}
   overflow:auto;white-space:pre-wrap;border:1px solid var(--line)}
 .log .ok{color:#4ade80}.log .bad{color:#f87171}.log .dim{color:#71717a}
 .field{margin-bottom:1rem}
+/* Search page: short lists side by side, the wide ones across the page.
+   Notes keep a readable line length whatever the width. */
+/* The lists, the place picker and the fields under it share one set of
+   columns, so each lines up with the one above it. */
+.sgrid,#cfgform,#view-settings .picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:0 1.75rem;align-items:start}
+@media (max-width:1100px){.sgrid,#cfgform,#view-settings .picker{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){.sgrid,#cfgform,#view-settings .picker{grid-template-columns:1fr}}
+.sgroup{min-width:0}
+.sgroup.wide{grid-column:1/-1}
+#view-settings h3{margin:1.4rem 0 .3rem;font-size:.95rem}
+#view-settings .hint,#view-settings .pathelp p{max-width:75ch}
+#view-settings table.editor{max-width:none}
+#view-settings .pathelp{max-width:none}
+#view-settings .sgroup:not(.wide) .addform{flex-wrap:nowrap}
+#view-settings .sgroup:not(.wide) .addform input,#view-settings .sgroup:not(.wide) .addform select{flex:1 1 auto;min-width:0;max-width:none;width:auto}
+#cfgform .field:first-child{grid-column:1/-1}
+/* Save is for the fields above it only: centred under them, larger than the
+   list buttons, with its message on the line below so it never shifts. */
+.savebar{display:flex;flex-direction:column;align-items:center;gap:.4rem;margin:.75rem 0 1rem}
+.savebar #save{padding:.55rem 2.4rem;font-size:.95rem}
+.savebar #save svg.bi{width:16px;height:16px}
+.field label.mode{display:inline-flex;align-items:center;gap:.4rem;margin:0 1.25rem .25rem 0;
+  color:var(--fg);font-size:.88rem}
+.field label.mode svg{width:16px;height:16px;flex:none;color:var(--muted)}
+.savestate{display:inline-flex;align-items:center;gap:.35rem;font-size:.8rem;color:var(--muted)}
+.savestate.dirty{color:var(--warn)}
+.savestate.err{color:var(--bad)}
+.savestate svg{width:14px;height:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+button.busy svg.bi{animation:spin .8s linear infinite}
+/* A setting changed and not yet saved: a dot on its page in the menu. */
+nav .item.dirty{position:relative}
+nav .item.dirty::after{content:"";position:absolute;top:.45rem;left:1.55rem;width:7px;height:7px;
+  border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--bg)}
+/* Notices: bottom right, one line each, gone after a few seconds. */
+.toasts{position:fixed;right:1rem;bottom:1rem;display:flex;flex-direction:column;gap:.5rem;
+  z-index:50;max-width:min(26rem,calc(100vw - 2rem))}
+.toast{display:flex;align-items:flex-start;gap:.55rem;padding:.6rem .8rem;border-radius:8px;
+  background:var(--card);border:1px solid var(--line);border-left:3px solid var(--ok);
+  box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:.85rem;animation:toastin .18s ease-out}
+.toast.err{border-left-color:var(--bad)}
+.toast svg{width:16px;height:16px;flex:none;margin-top:.1rem}
+.toast.ok svg{color:var(--ok)} .toast.err svg{color:var(--bad)}
+.toast .x{margin-left:auto;background:none;border:0;color:var(--muted);cursor:pointer;padding:0 .1rem}
+@keyframes toastin{from{transform:translateY(.5rem);opacity:0}}
+@media (prefers-reduced-motion:reduce){.toast{animation:none}button.busy svg.bi{animation:none}}
+#view-settings .picker select,#view-settings .picker input{width:100%}
+#view-settings .picker label{margin-bottom:.4rem}
+table.editor{max-width:48rem;margin-bottom:.5rem}
+table.editor code{font-size:.78rem;word-break:break-all}
+table.editor td{vertical-align:top}
+table.editor td:first-child{min-width:10rem}
+table.editor td:nth-last-child(2){white-space:nowrap}
+.addform{margin-bottom:.5rem}
+.pager{display:flex;align-items:center;gap:.5rem;margin:-.2rem 0 .5rem}
+.pager .act{padding:.15rem .5rem;font-size:.75rem}
+button.del{padding:.15rem .55rem;font-size:.75rem}
+.pathelp{max-width:48rem;margin:.25rem 0 .75rem;font-size:.85rem}
+.pathelp summary{cursor:pointer;color:var(--accent);font-size:.85rem}
+.pathelp table{margin:.5rem 0}
+.pathelp td{vertical-align:top}
+.samples{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.5rem}
+.samples .act{font-size:.78rem;padding:.2rem .6rem}
+button.del.armed{color:var(--bad);border-color:var(--bad);font-weight:600}
 .field label{display:block;font-size:.82rem;color:var(--muted);margin-bottom:.25rem}
+.picker{display:flex;flex-wrap:wrap;gap:.6rem}
+.picker label{display:flex;flex-direction:column;gap:.2rem;font-size:.75rem;margin:0}
+.picker select,.picker input{width:14rem;max-width:100%}
 .hint{color:var(--muted);font-size:.78rem;margin-top:.25rem}
 .saved{color:var(--ok);font-size:.85rem}.err{color:var(--bad);font-size:.85rem}
 .dot{width:.5rem;height:.5rem;border-radius:50%;display:inline-block;
@@ -155,6 +229,36 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .dlg-head{padding:1rem 1.25rem;border-bottom:1px solid var(--line);
   display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
 .dlg-body{padding:1rem 1.25rem;max-height:66vh;overflow:auto}
+.toolsnote{font-size:.82rem;line-height:1.5;padding:.6rem .8rem;border:1px solid var(--line);
+  border-left:3px solid var(--accent);border-radius:6px;margin:.2rem 0 .75rem;max-width:75ch}
+.toolbar{flex-wrap:wrap}
+.toolcard{border:1px solid var(--line);border-radius:8px;padding:.75rem .9rem;margin:.75rem 0;font-size:.86rem}
+.toolcard h4{margin:.8rem 0 .3rem;font-size:.85rem}
+.toolcard ul{margin:.2rem 0;padding-left:1.1rem} .toolcard li{margin:.25rem 0}
+.toolhead{display:flex;gap:.6rem;align-items:baseline;margin-bottom:.4rem}
+.chks{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.5rem}
+.chk{font-size:.72rem;padding:.1rem .45rem;border-radius:4px;border:1px solid currentColor}
+.chk.ok{color:var(--ok)} .chk.warn{color:var(--warn)} .chk.bad{color:var(--bad)}
+div.chk{display:inline-block;margin-top:.25rem}
+.flagged{color:var(--bad);font-size:.8rem}
+label.edit{display:flex;gap:.55rem;align-items:flex-start;padding:.45rem 0;border-top:1px solid var(--line)}
+label.edit > span{display:flex;flex-direction:column;gap:.2rem}
+.was{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+p.was{text-decoration:none}
+.now{color:var(--fg)}
+.kw{display:flex;flex-wrap:wrap;gap:.4rem}
+.kwi{padding:.2rem .55rem;border-radius:5px;border:1px solid var(--line);font-size:.8rem}
+.kwi b{font-weight:600;font-size:.7rem;margin-left:.3rem}
+.kwi.yes b{color:var(--ok)} .kwi.no b{color:var(--warn)}
+.ver{display:flex;flex-wrap:wrap;gap:.6rem;align-items:flex-start;padding:.45rem 0;border-top:1px solid var(--line)}
+.ver .chk{flex-basis:100%}
+.ver > span{flex:1}
+q{quotes:"\201C" "\201D";color:var(--muted)}
+.dlg-foot{padding:.75rem 1.25rem;border-top:1px solid var(--line);display:flex;
+  gap:.5rem;justify-content:flex-end}
+table.letters td.acts{white-space:nowrap;text-align:right}
+table.letters td.acts .acts-in{display:flex;gap:.35rem;justify-content:flex-end;align-items:center}
+table.letters td.acts .act{padding:.15rem .55rem;font-size:.75rem}
 .advert{white-space:pre-wrap;font-size:.88rem;line-height:1.6}
 .tabs{display:flex;gap:.3rem;margin-bottom:.75rem;flex-wrap:wrap}
 /* match and fit: one badge style, so the two read as a pair */
@@ -202,6 +306,12 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .seg button{background:var(--btn);color:var(--fg);border:0;border-right:1px solid var(--line);
   padding:.4rem .85rem;font:inherit;font-size:.85rem;cursor:pointer}
 .seg button:last-child{border-right:0}
+#ai-provider button{display:inline-flex;align-items:center;gap:.4rem}
+.plogo{width:15px;height:15px;fill:currentColor;flex:none}
+/* Brand colours where the mark has one; the selected button uses its text
+   colour, so the mark keeps its contrast on the accent background. */
+.seg button:not(.on) .plogo.anthropic{fill:#D97757}
+.seg button:not(.on) .plogo.gemini{fill:#8E75B2}
 .seg button.on{background:var(--accent);color:var(--bg);font-weight:600}
 label.check{display:block;font-size:.88rem;color:var(--fg);margin:.35rem 0}
 /* activity */
@@ -264,6 +374,22 @@ dialog{overflow:visible}
 .lastrun ul{margin:.35rem 0 0;padding-left:1rem;color:var(--warn);font-weight:600}
 .lastrun.pick{cursor:pointer} .lastrun.pick:hover{border-color:var(--accent)}
 .allruns summary{cursor:pointer;font-weight:600;font-size:.9rem}
+/* the fresh-scan warning */
+.warnwrap{position:relative;display:inline-flex}
+.warntip{display:none;position:absolute;top:calc(100% + 8px);left:0;z-index:40;width:21rem;
+  padding:.6rem .75rem;border-radius:8px;background:var(--card);color:var(--fg);
+  border:1px solid color-mix(in srgb, var(--bad) 55%, var(--line));
+  box-shadow:0 10px 28px rgba(0,0,0,.28);font-size:.8rem;line-height:1.45;font-weight:400}
+.warntip b{display:flex;align-items:center;gap:.35rem;color:var(--bad);margin-bottom:.25rem}
+.warntip svg{width:15px;height:15px;fill:currentColor;flex:none}
+.warnwrap:hover .warntip,.warnwrap:has(:focus-visible) .warntip{display:block}
+/* Never over the confirm step it warns about: that panel says it all. */
+.warnwrap.open .warntip{display:none}
+#fresh-confirm:not(:empty){border:1px solid var(--bad);border-radius:8px;padding:.7rem .85rem;
+  margin:.4rem 0 .8rem;background:color-mix(in srgb, var(--bad) 7%, var(--bg));font-size:.86rem}
+#fresh-confirm .bar{margin:.55rem 0 0}
+.seg.small button{padding:.15rem .55rem;font-size:.75rem}
+.legend.lines i{width:.9rem;height:2px;border-radius:1px;vertical-align:.22rem}
 /* feedback on an AI output */
 .fb{display:inline-flex;align-items:center;gap:.2rem;vertical-align:middle}
 .fb .q{font-size:.75rem;color:var(--muted);margin-right:.15rem}
@@ -302,6 +428,10 @@ dialog{overflow:visible}
 .chart{position:relative;margin-top:.45rem}
 .chart svg{display:block;width:100%;height:auto;overflow:visible}
 .chart .hit{fill:transparent;cursor:crosshair}
+.chart .hit:focus{outline:none}
+.chart .hit:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chart .cross line{stroke:var(--axis);stroke-width:1}
+.chart .cross circle,.chart .dot{stroke:var(--bg);stroke-width:2}   /* surface ring */
 .chart .col:hover .seg-mark,.chart .col.on .seg-mark{opacity:.8}
 .chart .tick{fill:var(--muted);font-size:10px;font-variant-numeric:tabular-nums}
 .chart .grid{stroke:var(--grid);stroke-width:1}
@@ -340,10 +470,10 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
   <button class="item" data-view="roles" title="Job posts"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 3h6a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v4H2V8a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 1.8V6h6V4.8H9zM2 13.8h8v.7a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7h8V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.2z"/></svg><span class="label">Job posts</span><span class="count" id="nav-new" title="new since you last looked" hidden></span></button>
   <div class="sec">Setup</div>
   <button class="item" data-view="settings" data-label="Search" data-info="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen." aria-description="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24a1 1 0 0 1-1.42 1.42l-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span class="label">Search</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
-  <button class="item" data-view="resume" data-label="Résumé" data-info="Upload your résumé as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. It stays on this machine." aria-description="Upload your résumé as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Résumé</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
-  <button class="item" data-view="sources" data-label="Sources" data-info="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not." aria-description="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not."><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 8.2C5.6 9.3 8.6 10 12 10s6.4-.7 8-1.8V12c0 1.66-3.6 3-8 3s-8-1.34-8-3V8.2zm0 7c1.6 1.1 4.6 1.8 8 1.8s6.4-.7 8-1.8V19c0 1.66-3.6 3-8 3s-8-1.34-8-3v-3.8z"/></svg><span class="label">Sources</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
-  <button class="item" data-view="ai" data-label="AI" data-info="Choose a model (local through Ollama, or Claude, Gemini or ChatGPT) to judge fit against your résumé and read posting pages that do not say whether a job is open. API keys are held in memory only." aria-description="Choose a model (local through Ollama, or Claude, Gemini or ChatGPT) to judge fit against your résumé and read posting pages that do not say whether a job is open. API keys are held in memory only."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2l1.9 5.6 5.6 1.9-5.6 1.9L11 17l-1.9-5.6-5.6-1.9 5.6-1.9L11 2zm7.5 11l.95 2.55 2.55.95-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95L18.5 13z"/></svg><span class="label">AI</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
-  <button class="item" data-view="tools" data-label="Tools" data-info="One-off helpers: add a posting from a link, find an employer's job board from their own website, and email yourself a digest of what was found." aria-description="One-off helpers: add a posting from a link, find an employer's job board from their own website, and email yourself a digest of what was found."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><rect x="11" y="5.75" width="10" height="2.5" rx="1.25"/><circle cx="18" cy="17" r="3"/><rect x="3" y="15.75" width="10" height="2.5" rx="1.25"/></svg><span class="label">Tools</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="sources" data-label="Sources" data-info="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, and adds or removes employer boards." aria-description="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, and adds or removes employer boards."><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 8.2C5.6 9.3 8.6 10 12 10s6.4-.7 8-1.8V12c0 1.66-3.6 3-8 3s-8-1.34-8-3V8.2zm0 7c1.6 1.1 4.6 1.8 8 1.8s6.4-.7 8-1.8V19c0 1.66-3.6 3-8 3s-8-1.34-8-3v-3.8z"/></svg><span class="label">Sources</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="ai" data-label="AI" data-info="Choose a model (local through Ollama, or Claude, Gemini or ChatGPT) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are held in memory only." aria-description="Choose a model (local through Ollama, or Claude, Gemini or ChatGPT) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are held in memory only."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2l1.9 5.6 5.6 1.9-5.6 1.9L11 17l-1.9-5.6-5.6-1.9 5.6-1.9L11 2zm7.5 11l.95 2.55 2.55.95-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95L18.5 13z"/></svg><span class="label">AI</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="tools" data-label="Tools" data-info="One-off helpers: add a posting from a link, and email yourself a digest of what was found." aria-description="One-off helpers: add a posting from a link, and email yourself a digest of what was found."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><rect x="11" y="5.75" width="10" height="2.5" rx="1.25"/><circle cx="18" cy="17" r="3"/><rect x="3" y="15.75" width="10" height="2.5" rx="1.25"/></svg><span class="label">Tools</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <div class="foot">
     <div class="status" id="net" role="status" hidden><span class="dot"></span><span id="net-text"></span></div>
     <button class="item" id="theme" title="Dark mode"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg><span class="label">Dark mode</span><span class="switch" id="theme-switch"><i></i><span id="theme-state">OFF</span></span></button>
@@ -354,11 +484,11 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
     <div class="bar">
       <select id="status"></select>
       <select id="scope">
-        <option value="open">open job posts</option>
-        <option value="new">new since last scan</option>
-        <option value="all">including settled</option>
+        <option value="open">Open job posts</option>
+        <option value="new">New since last scan</option>
+        <option value="all">Including settled</option>
       </select>
-      <input type="search" id="q" placeholder="filter by title or company">
+      <input type="search" id="q" placeholder="Search" aria-label="Search job posts by title or company">
       <span class="count" id="count"></span>
     </div>
     <div id="list"><p class="empty">Loading…</p></div>
@@ -373,15 +503,27 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
       terminal, shows below. Scans are paced per host on
       purpose: running several in a day is how you earn a rate limit.</p>
     <div class="bar">
-      <button class="act primary" id="run">Run a scan</button>
-      <button class="act" id="btn-enrich">Fetch missing adverts</button>
-      <button class="act" id="btn-rescreen">Re-apply filters</button>
-      <button class="act" id="btn-check" title="Ask each posting whether the job is still up; close the ones that are gone">Check still open</button>
-      <button class="act spend" id="btn-judge" title="The model on the AI page reads the best job posts against your résumé">AI: judge top job posts</button>
+      <button data-icon="play" class="act primary" id="run">Run a scan</button>
+      <span class="warnwrap">
+        <button data-icon="rotate-ccw" class="act danger" id="btn-fresh" aria-describedby="fresh-tip">Run fresh scan</button>
+        <span class="warntip" id="fresh-tip" role="tooltip">
+          <b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.5 21h21L12 2.5zm-1 7h2v6h-2v-6zm0 8h2v2h-2v-2z"/></svg>
+            Deletes all job posts</b>
+          Every job post found by scans is deleted, with its status, notes, AI
+          verdict and document records, then a new scan starts from nothing.
+          Posts you applied to or are interviewing for go too. The database is
+          backed up first, and you confirm the number before anything is deleted.
+        </span>
+      </span>
+      <button data-icon="download" class="act" id="btn-enrich">Fetch missing adverts</button>
+      <button data-icon="filter" class="act" id="btn-rescreen">Re-apply filters</button>
+      <button data-icon="circle-check" class="act" id="btn-check" title="Ask each posting whether the job is still up; close the ones that are gone">Check still open</button>
+      <button data-icon="sparkles" class="act spend" id="btn-judge" title="The model on the AI page reads the best job posts against your resume">AI: judge top job posts</button>
       <span class="count" id="scanstate"></span>
     </div>
     <p class="hint" id="aihint"></p>
     <div id="scanmsg"></div>
+    <div id="fresh-confirm"></div>
 
     <div class="metrics" id="metrics">
       <div class="bar" style="margin:.2rem 0 0">
@@ -393,15 +535,24 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
       <div class="tiles" id="m-tiles"></div>
       <div class="m-grid">
         <div class="panel">
-          <div class="panel-head"><h3>Runs by tool, per day</h3>
-            <button class="linkbtn" data-table="m-runs">Show as table</button></div>
-          <div class="legend" id="m-runs-legend" style="margin-top:.35rem"></div>
+          <div class="panel-head"><h3>Runs by tool, over time</h3>
+            <button data-icon="table-2" class="linkbtn" data-table="m-runs">Show as table</button></div>
+          <div class="legend lines" id="m-runs-legend" style="margin-top:.35rem"></div>
           <div class="chart" id="m-runs"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Hallucination, over time</h3>
+            <span class="sub">Claims not supported</span>
+            <span class="seg small" id="m-hal-by" role="group" aria-label="Split by">
+              <button data-icon="layers" data-by="kind" class="on">By kind</button><button data-icon="cpu" data-by="model">By model</button></span>
+            <button data-icon="table-2" class="linkbtn" data-table="m-hal">Show as table</button></div>
+          <div class="legend lines" id="m-hal-legend" style="margin-top:.35rem"></div>
+          <div class="chart" id="m-hal"></div>
         </div>
         <div class="panel">
           <div class="panel-head"><h3>Feedback on AI output, per day</h3>
             <span class="sub" id="m-fb-sub"></span>
-            <button class="linkbtn" data-table="m-fb">Show as table</button></div>
+            <button data-icon="table-2" class="linkbtn" data-table="m-fb">Show as table</button></div>
           <div class="legend" id="m-fb-legend" style="margin-top:.35rem"></div>
           <div class="chart" id="m-fb"></div>
         </div>
@@ -441,7 +592,7 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
           <option value="30" selected>30 days</option></select>
         <span class="hint">that you are not pursuing (applied, submitted,
           interviewing and offer are always kept)</span>
-        <button class="act" data-mode="age">Preview</button>
+        <button data-icon="eye" class="act" data-mode="age">Preview</button>
       </div>
       <div class="row">
         <span>With status</span>
@@ -449,59 +600,38 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
         <label class="check-inline"><input type="checkbox" value="withdrawn" checked> withdrawn</label>
         <label class="check-inline"><input type="checkbox" value="skipped" checked> skipped</label>
         <label class="check-inline"><input type="checkbox" value="closed" checked> closed</label>
-        <button class="act" data-mode="status">Preview</button>
+        <button data-icon="eye" class="act" data-mode="status">Preview</button>
       </div>
       <div id="cl-result"></div>
     </div>
   </section>
 
   <section id="view-tools" hidden>
-    <h2>Résumé review</h2>
-    <p class="hint">The model on the AI page reads your résumé and lists what to
-      fix, each point quoting the line it is about. A point that quotes something
-      not in your résumé is dropped. To compare it with one job post, use
-      <b>Review résumé for this post</b> in that post's window.</p>
-    <div class="bar">
-      <button class="act spend" id="btn-review">Review my résumé</button>
-      <span class="hint" id="review-state"></span>
-    </div>
-    <div class="review-out" id="review-out"></div>
-
-    <h2 style="margin-top:1.5rem">Add a posting</h2>
+    <h2>Add a posting</h2>
     <p class="hint">Paste a link you found yourself. Google does the finding,
       the adapter reads it into a proper row.</p>
     <div class="bar">
       <input id="add-url" placeholder="https://job-boards.greenhouse.io/acme/jobs/1"
         style="flex:1;min-width:22rem">
-      <input id="add-token" placeholder="board token, if the URL has none" style="width:15rem">
-      <button class="act" id="btn-add">Add</button>
+      <input id="add-token" placeholder="Board token, if the URL has none" style="width:15rem">
+      <button data-icon="plus" class="act" id="btn-add">Add</button>
     </div>
     <div id="addmsg" style="margin-bottom:1.5rem"></div>
 
-    <h2>Find an employer's board</h2>
-    <p class="hint">Reads the board token off their own careers page rather
-      than guessing it. Tokens are rarely the company name.</p>
-    <div class="bar">
-      <input id="disc-domain" placeholder="vectra.ai" style="width:16rem">
-      <input id="disc-name" placeholder="name to record (optional)" style="width:15rem">
-      <button class="act" id="btn-discover">Look</button>
-      <button class="act primary" id="btn-discover-add">Look and add</button>
-    </div>
-
-    <h2 style="margin-top:1.5rem">Email a digest</h2>
+    <h2>Email a digest</h2>
     <p class="hint">Needs RESEND_API_KEY and RESEND_FROM in <code>.env</code>.</p>
     <div class="bar">
       <input id="dig-email" type="email" placeholder="you@example.com" style="width:18rem">
-      <label style="font-size:.85rem"><input type="checkbox" id="dig-all"> everything, not just new</label>
-      <label style="font-size:.85rem"><input type="checkbox" id="dig-csv"> attach CSV</label>
-      <button class="act" id="btn-digest">Send</button>
+      <label style="font-size:.85rem"><input type="checkbox" id="dig-all"> Everything, not just new</label>
+      <label style="font-size:.85rem"><input type="checkbox" id="dig-csv"> Attach CSV</label>
+      <button data-icon="send" class="act" id="btn-digest">Send</button>
     </div>
     <div class="log" id="toolslog" style="height:14rem"><span class="dim">Output appears here.</span></div>
   </section>
 
   <section id="view-ai" hidden>
     <h2>AI reader</h2>
-    <p class="hint">A model reads the full advert against your résumé and gives
+    <p class="hint">A model reads the full advert against your resume and gives
       its own verdict beside the match score, and can read posting pages that
       do not say plainly whether the job is still open. It never hides a job post.
       Local models cost nothing; the others spend tokens on your key.</p>
@@ -515,8 +645,8 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
     <div class="field" id="ai-key-row"><label>API key</label>
       <div class="bar" style="margin:0">
         <input id="ai-key" type="password" autocomplete="off" spellcheck="false"
-          placeholder="paste the key" style="width:22rem">
-        <button class="act" id="ai-key-hold">Hold in memory</button>
+          placeholder="Paste the key" style="width:22rem">
+        <button data-icon="key-round" class="act" id="ai-key-hold">Hold in memory</button>
         <span id="ai-key-state"></span>
       </div>
       <div class="hint">Kept only in this server's memory and never written to the
@@ -527,9 +657,9 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
     <div class="field"><label>Model</label>
       <div class="bar" style="margin:0">
         <input id="ai-model" list="ai-models" style="width:22rem" spellcheck="false"
-          placeholder="choose or type a model name">
+          placeholder="Choose or type a model name">
         <datalist id="ai-models"></datalist>
-        <button class="act" id="ai-load">Load models</button>
+        <button data-icon="refresh-cw" class="act" id="ai-load">Load models</button>
         <span id="ai-load-msg" class="hint"></span>
       </div></div>
 
@@ -540,55 +670,217 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
       <label class="check"><input type="checkbox" id="ai-pages"> When checking
         postings, read pages that do not say whether the job is open</label>
       <label class="check"><input type="checkbox" id="ai-guard"> Check each
-        verdict and draft for claims your résumé and the advert do not
+        verdict and draft for claims your resume and the advert do not
         support</label>
-      <div class="hint">Judging needs a résumé and at least 200 characters of
+      <div class="hint">Judging needs a resume and at least 200 characters of
         advert. A 26B local model takes about a minute per job post, and the
         check adds two more calls to each.</div></div>
 
     <div class="bar">
-      <button class="act primary" id="ai-save">Save</button>
-      <button class="act" id="ai-test">Save and test</button>
+      <button data-icon="save" class="act primary" id="ai-save">Save</button>
+      <button data-icon="flask-conical" class="act" id="ai-test">Save and test</button>
       <span id="ai-msg"></span>
     </div>
   </section>
 
   <section id="view-settings" hidden>
     <h2>What you are looking for</h2>
-    <div id="cfgform"></div>
-    <div class="bar">
-      <button class="act primary" id="save">Save</button>
-      <span id="savemsg"></span>
+    <p class="hint">Lists save as soon as you add or remove a row. Location, work
+      arrangement and pay save with <b>Save changes</b> at the bottom.</p>
+
+    <div class="sgrid">
+      <div class="sgroup">
+      <h3>Job titles</h3>
+      <p class="hint">Matched whole-word first, then a looser pass that accepts the
+        same words in another order.</p>
+      <div id="ed-titles"></div>
+      <form class="bar addform" id="f-titles">
+        <input id="add-title" placeholder="A job title, e.g. Security engineer">
+        <button data-icon="plus" class="act primary">Add</button><span id="msg-titles"></span>
+      </form>
+      </div>
+      <div class="sgroup">
+      <h3>Never show these titles</h3>
+      <p class="hint">A job post whose title contains any of these is dropped when a
+        scan screens it, before its advert is read.</p>
+      <div id="ed-exclude"></div>
+      <form class="bar addform" id="f-exclude">
+        <input id="add-exclude" placeholder="A word or phrase, e.g. Intern">
+        <button data-icon="plus" class="act primary">Add</button><span id="msg-exclude"></span>
+      </form>
+      </div>
+      <div class="sgroup">
+      <h3>Countries to keep job posts from</h3>
+      <p class="hint">Separate from where you are, which is only the centre of the
+        radius. List every country you would work in or for: living in Baguio and
+        open to remote work for US employers is the Philippines and the United
+        States. A job post from anywhere else is dropped, and these also choose
+        which sources search (USAJOBS only runs for the United States). None
+        listed keeps job posts from every country.</p>
+      <div id="ed-countries"></div>
+      <form class="bar addform" id="f-countries">
+        <select id="add-country"></select>
+        <button data-icon="plus" class="act primary">Add</button><span id="msg-countries"></span>
+      </form>
+      </div>
+      <div class="sgroup wide">
+      <h3>Dealbreakers</h3>
+      <p class="hint">A pattern read against the advert, not the title; case is
+        ignored. One that hides the job post drops it; one that costs points keeps
+        it, 8 points lower, with a warning. The pattern is a regular expression:
+        <code>security clearance|TS/SCI</code> matches either.</p>
+      <div id="ed-deal"></div>
+      <form class="bar addform" id="f-deal">
+        <input id="add-deal-name" placeholder="Name, e.g. Clearance" style="width:12rem">
+        <input id="add-deal-pattern" placeholder="Pattern, e.g. security clearance|TS/SCI" style="flex:1 1 20rem">
+        <select id="add-deal-hard"><option value="1">Hides the job post</option>
+          <option value="0">Costs 8 points</option></select>
+        <button data-icon="plus" class="act primary">Add</button><span id="msg-deal"></span>
+      </form>
+      <details class="pathelp">
+        <summary>How to write a pattern, with samples</summary>
+        <p>A pattern is a <i>regular expression</i>: plain words, plus a few symbols
+          for "or", "maybe" and "any number". Plain words alone work: <code>polygraph</code>
+          finds "Polygraph" anywhere in the advert. Capitals never matter.</p>
+        <div class="tbl-wrap"><table class="data">
+          <tr><th>Write</th><th>Means</th><th>Example</th><th>Finds</th><th>Does not find</th></tr>
+          <tr><td><code>|</code></td><td>Or</td><td><code>TS/SCI|top secret</code></td><td>"TS/SCI", "Top Secret"</td><td>"Secret Santa"</td></tr>
+          <tr><td><code>.</code></td><td>Any one character</td><td><code>on.call</code></td><td>"on-call", "on call"</td><td>"oncall"</td></tr>
+          <tr><td><code>?</code></td><td>The thing before it is optional</td><td><code>on.?call</code></td><td>"on-call", "on call", "oncall"</td><td>"on the call"</td></tr>
+          <tr><td><code>\b</code></td><td>Edge of a word</td><td><code>\bC2C\b</code></td><td>"C2C only"</td><td>"B2C2C"</td></tr>
+          <tr><td><code>\d</code></td><td>Any digit</td><td><code>\d\d%</code></td><td>"50%"</td><td>"5%"</td></tr>
+          <tr><td><code>{2}</code></td><td>Exactly that many of the thing before</td><td><code>\d{2}%</code></td><td>"25%"</td><td>"5%"</td></tr>
+          <tr><td><code>(?:a|b)</code></td><td>A group, usually to put an "or" inside words</td><td><code>unpaid (?:trial|project)</code></td><td>"unpaid trial", "unpaid project"</td><td>"unpaid leave"</td></tr>
+          <tr><td><code>\s?</code></td><td>An optional space</td><td><code>\d{2}\s?%</code></td><td>"25%", "25 %"</td><td></td></tr>
+        </table></div>
+        <p>To match one of <code>. ? | ( ) [ ] { } + * ^ $ \</code> itself, put
+          <code>\</code> before it: <code>C\+\+</code> finds "C++".</p>
+        <p><b>Samples.</b> Click one to fill in the form, change it if you like, then Add.</p>
+        <div class="samples" id="deal-samples"></div>
+        <p><b>Try it.</b> Paste a sentence from an advert to see whether the pattern in
+          the form finds it.</p>
+        <div class="bar" style="margin:0">
+          <input id="try-text" placeholder="e.g. This role requires an active TS/SCI clearance." style="flex:1 1 20rem;max-width:34rem">
+          <span id="try-out" class="hint"></span>
+        </div>
+        <p class="hint">The page tries it in your browser; Add checks it again with
+          Python, which is what a scan uses. More: Python's
+          <a href="https://docs.python.org/3/howto/regex.html" target="_blank" rel="noopener noreferrer">Regular Expression HOWTO</a>
+          (a gentle introduction), the
+          <a href="https://docs.python.org/3/library/re.html#regular-expression-syntax" target="_blank" rel="noopener noreferrer">full syntax reference</a>,
+          and <a href="https://regex101.com/?flavor=python&amp;flags=i" target="_blank" rel="noopener noreferrer">regex101</a>
+          to test one against a whole advert (pick the Python flavour).</p>
+      </details>
+      </div>
+      <div class="sgroup wide">
+      <h3>Location, work arrangement and pay</h3>
+      <div id="cfgform"></div>
+      <div class="savebar">
+        <button data-icon="save" class="act primary" id="save" disabled>Save changes</button>
+        <span id="savemsg" class="savestate"></span>
+      </div>
+      </div>
     </div>
-    <p class="hint">Written to your config file. API keys are never stored
-      here; they live in <code>.env</code>.</p>
   </section>
 
   <section id="view-resume" hidden>
-    <h2>Résumé</h2>
+    <h2>Resume</h2>
     <p class="hint">Used to rank job posts by skill overlap, offline and free. It
       is also what every drafted document is built from. Without one, a CV
       would be inventing a career rather than tailoring one.</p>
     <div class="bar">
       <input type="file" id="resume-file" accept=".pdf,.docx,.md,.txt">
-      <button class="act primary" id="btn-upload">Upload</button>
+      <button data-icon="upload" class="act primary" id="btn-upload">Upload</button>
+      <button data-icon="eye" class="act" id="btn-resume-view" hidden>View resume</button>
+      <button data-icon="trash-2" class="act" id="btn-resume-del" hidden>Delete resume</button>
       <span id="resumemsg"></span>
     </div>
     <div id="resumeinfo"></div>
+    <p class="hint temp-note" id="resume-temp" hidden>Running in a container: the resume
+      and the documents below are kept in a temporary folder, emptied when jobdork
+      stops or starts. Upload the resume again after a restart, and download a
+      letter you want to keep.</p>
+
+    <h2 style="margin-top:1.5rem">Resume review</h2>
+    <p class="hint">The model on the AI page reads your resume and lists what to
+      fix, each point quoting the line it is about. A point that quotes something
+      not in your resume is dropped. To compare it with one job post, use
+      <b>Review resume for this post</b> in that post's window.</p>
+    <div class="bar">
+      <button data-icon="file-search" class="act spend" id="btn-review">Review my resume</button>
+      <span class="hint" id="review-state"></span>
+    </div>
+    <div class="log" id="resumelog" style="height:8rem" hidden></div>
+    <div class="review-out" id="review-out"></div>
+
+    <h2 style="margin-top:1.5rem">Cover letters</h2>
+    <p class="hint">Every cover letter written for a job post. Write one from a job
+      post's window with <b>Write cover letter (AI)</b>. Delete removes the file and
+      its text at once.</p>
+    <div id="letters"></div>
   </section>
 
   <section id="view-sources" hidden>
     <h2>Sources</h2>
     <div id="sourceinfo"><p class="empty">Loading…</p></div>
+
+    <h2 style="margin-top:1.25rem" id="boards-head">Employer boards</h2>
+    <p class="hint">These give full advert text, which aggregators do not. A board
+      is added from the employer's own website, which is where its token is read
+      from: tokens are rarely the company name, so they are never guessed.</p>
+    <div id="ed-boards"></div>
+    <form class="bar addform" id="f-boards">
+      <input id="disc-domain" placeholder="Their website, e.g. vectra.ai" style="width:16rem">
+      <input id="disc-name" placeholder="Name to record (optional)" style="width:15rem">
+      <button data-icon="search" class="act" type="button" id="btn-discover">Look</button>
+      <button data-icon="search-check" class="act primary" id="btn-discover-add">Look and add</button>
+      <span id="srcmsg"></span>
+    </form>
+    <div class="log" id="srclog" style="height:9rem" hidden></div>
   </section>
 </main>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 </div>
 
 <dialog id="detail"><div class="dlg-head" id="dlg-head"></div>
   <div class="dlg-body" id="dlg-body"></div></dialog>
+<dialog id="resumedlg" aria-labelledby="resume-title">
+  <div class="dlg-head"><strong id="resume-title"></strong><span class="hint" id="resume-sub"></span></div>
+  <div class="dlg-body">
+    <p class="hint">This is the text the fit score and the AI read. Anything missing here
+      was hidden from the reader by the file's layout, usually a table or a text box.
+      Read it aloud: you should be able to speak to every line in an interview.</p>
+    <div class="flags" id="resume-skills"></div>
+    <div class="advert" id="resume-body" style="margin-top:.6rem"></div>
+  </div>
+  <div class="dlg-foot">
+    <button data-icon="download" class="act" id="resume-dl">Download original</button>
+    <button data-icon="x" class="act primary" id="resume-close">Close</button>
+  </div>
+</dialog>
+<dialog id="letterdlg" aria-labelledby="letter-title">
+  <div class="dlg-head"><strong id="letter-title"></strong><span class="hint" id="letter-sub"></span></div>
+  <div class="dlg-body"><div class="advert md-doc" id="letter-body"></div></div>
+  <div class="dlg-foot">
+    <button data-icon="download" class="act" id="letter-dl">Download</button>
+    <button data-icon="trash-2" class="act" id="letter-del">Delete</button>
+    <button data-icon="x" class="act primary" id="letter-close">Close</button>
+  </div>
+</dialog>
 
 <script>
+const COUNTRIES = {"AE": "United Arab Emirates", "AL": "Albania", "AM": "Armenia", "AR": "Argentina", "AT": "Austria", "AU": "Australia", "AZ": "Azerbaijan", "BA": "Bosnia and Herzegovina", "BD": "Bangladesh", "BE": "Belgium", "BG": "Bulgaria", "BH": "Bahrain", "BN": "Brunei", "BO": "Bolivia", "BR": "Brazil", "BY": "Belarus", "CA": "Canada", "CH": "Switzerland", "CL": "Chile", "CN": "China", "CO": "Colombia", "CR": "Costa Rica", "CY": "Cyprus", "CZ": "Czech Republic", "DE": "Germany", "DK": "Denmark", "DO": "Dominican Republic", "EC": "Ecuador", "EE": "Estonia", "EG": "Egypt", "ES": "Spain", "ET": "Ethiopia", "FI": "Finland", "FR": "France", "GB": "United Kingdom", "GH": "Ghana", "GR": "Greece", "GT": "Guatemala", "HK": "Hong Kong", "HN": "Honduras", "HR": "Croatia", "HU": "Hungary", "ID": "Indonesia", "IE": "Ireland", "IL": "Israel", "IN": "India", "IS": "Iceland", "IT": "Italy", "JM": "Jamaica", "JO": "Jordan", "JP": "Japan", "KE": "Kenya", "KH": "Cambodia", "KR": "South Korea", "KW": "Kuwait", "LA": "Laos", "LB": "Lebanon", "LK": "Sri Lanka", "LT": "Lithuania", "LU": "Luxembourg", "LV": "Latvia", "MA": "Morocco", "MD": "Moldova", "ME": "Montenegro", "MK": "North Macedonia", "MM": "Myanmar", "MN": "Mongolia", "MT": "Malta", "MX": "Mexico", "MY": "Malaysia", "NG": "Nigeria", "NI": "Nicaragua", "NL": "Netherlands", "NO": "Norway", "NP": "Nepal", "NZ": "New Zealand", "OM": "Oman", "PA": "Panama", "PE": "Peru", "PH": "Philippines", "PK": "Pakistan", "PL": "Poland", "PR": "Puerto Rico", "PT": "Portugal", "PY": "Paraguay", "QA": "Qatar", "RO": "Romania", "RS": "Serbia", "RU": "Russia", "RW": "Rwanda", "SA": "Saudi Arabia", "SE": "Sweden", "SG": "Singapore", "SI": "Slovenia", "SK": "Slovakia", "SN": "Senegal", "SV": "El Salvador", "TH": "Thailand", "TN": "Tunisia", "TR": "Türkiye", "TT": "Trinidad and Tobago", "TW": "Taiwan", "TZ": "Tanzania", "UA": "Ukraine", "UG": "Uganda", "US": "United States", "UY": "Uruguay", "VE": "Venezuela", "VN": "Vietnam", "ZA": "South Africa"};
 const STATUSES = __STATUSES__, COLOURS = __COLOURS__, MODES = __WORK_MODES__;
+// resume.SKILL_NAMES: "aws" reads "AWS"; anything unlisted, sentence case.
+const SKILL_NAMES = __SKILL_NAMES__;
+const skillName = t => SKILL_NAMES[t] || cap(t);
+// resume.flag_label: a fit flag was stored with its skills in lower case.
+const flagLabel = f => cap(String(f || '').startsWith('fit: ')
+  ? 'fit: ' + f.slice(5).split('; ').map(p => {
+      const [w, ...rest] = p.split(' '), terms = rest.join(' ');
+      return (w === 'has' || w === 'wants') && terms ? `${w} ${terms.split(', ').map(skillName).join(', ')}` : p;
+    }).join('; ')
+  : f);
 const TOKEN = new URLSearchParams(location.search).get('t') || '';
 if (TOKEN) history.replaceState(null, '', location.pathname);
 const api = (p, o = {}) => fetch(p, {...o,
@@ -601,7 +893,7 @@ const $ = id => document.getElementById(id);
 // nothing to read. Adzuna's cap is 500.
 const THIN_ADVERT = 600;
 // The score is a sum, and fit is the part of it that came from the advert
-// matching your résumé. Shown on its own so a 100 made of title, distance and
+// matching your resume. Shown on its own so a 100 made of title, distance and
 // salary is not mistaken for a 100 made of skills.
 // Hover or focus either badge for how its number was reached. The parts come
 // from screening (roles.score_parts); a role not screened since they were
@@ -613,29 +905,39 @@ const NO_PARTS = `<p class="why">Scored before explanations were kept.
 
 function matchTag(score, parts) {
   const rows = (parts || []).map(p => `<tr>
-    <td><span class="part">${esc(p.part)}</span><span class="why">${esc(p.why)}</span></td>
+    <td><span class="part">${esc(cap(p.part))}</span><span class="why">${esc(cap(p.why))}</span></td>
     <td class="pts">${pts(p.points)}</td></tr>`).join('');
   const tip = rows
-    ? `<table>${rows}<tfoot><tr><td>match</td><td class="pts">${score ?? '-'}</td></tr></tfoot></table>`
+    ? `<table>${rows}<tfoot><tr><td>Match</td><td class="pts">${score ?? '-'}</td></tr></tfoot></table>`
     : NO_PARTS;
-  return `<span class="badge match" tabindex="0"><span class="k">match</span>
+  return `<span class="badge match" tabindex="0"><span class="k">Match</span>
     <span class="v">${score ?? '-'}</span>
     <span class="tip"><h4>Why ${score ?? '-'}: every rule, added up</h4>${tip}</span></span>`;
 }
 
 function fitTag(fit, parts) {
-  const p = (parts || []).find(x => x.part === 'résumé fit');
+  const p = (parts || []).find(x => x.part === 'resume fit');
   const chips = (list, cls) => (list || []).length
-    ? `<div class="skills">${list.map(s => `<span class="sk ${cls}">${esc(s)}</span>`).join('')}</div>` : '';
+    ? `<div class="skills">${list.map(s => `<span class="sk ${cls}">${esc(skillName(s))}</span>`).join('')}</div>` : '';
   const tip = p
-    ? `<p class="why" style="margin:0 0 .45rem">${esc(p.why)}</p>
-       ${(p.has || []).length ? '<b>On your résumé</b>' + chips(p.has, 'has') : ''}
-       ${(p.wants || []).length ? '<b>Asked for, not on your résumé</b>' + chips(p.wants, 'wants') : ''}`
+    ? `<p class="why" style="margin:0 0 .45rem">${esc(cap(p.why))}</p>
+       ${(p.has || []).length ? '<b>On your resume</b>' + chips(p.has, 'has') : ''}
+       ${(p.wants || []).length ? '<b>Asked for, not on your resume</b>' + chips(p.wants, 'wants') : ''}`
     : NO_PARTS;
-  return `<span class="badge fit" tabindex="0"><span class="k">fit</span>
+  return `<span class="badge fit" tabindex="0"><span class="k">Fit</span>
     <span class="v">${fit ?? '-'}</span><span class="of">/ 25</span>
-    <span class="tip"><h4>Résumé fit: the advert's skills you have</h4>${tip}</span></span>`;
+    <span class="tip"><h4>Resume fit: the advert's skills you have</h4>${tip}</span></span>`;
 }
+// Sentence case for text shown as a label: the first letter up and the rest
+// as written, so "AI judging" and "resume fit" keep their own case. Company
+// names are never passed through it: "iManage" and "tastytrade" are theirs.
+const cap = s => { s = String(s ?? ''); return s ? s[0].toUpperCase() + s.slice(1) : s; };
+// The same for HTML that may open with a tag: the first letter of its text.
+const capHtml = h => String(h ?? '').replace(/^((?:\s|<[^>]+>)*)([a-z])/, (_, a, b) => a + b.toUpperCase());
+// Platforms by their own spelling.
+const PLATFORMS = {greenhouse: 'Greenhouse', ashby: 'Ashby', lever: 'Lever', breezy: 'Breezy',
+  smartrecruiters: 'SmartRecruiters', workable: 'Workable', adzuna: 'Adzuna', usajobs: 'USAJOBS'};
+const platformName = p => PLATFORMS[p] || cap(p);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const form = o => new URLSearchParams(o);
@@ -648,16 +950,15 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
       $('view-' + v).hidden = v !== b.dataset.view);
     if (b.dataset.view === 'settings') drawConfig();
     if (b.dataset.view === 'sources') drawSources();
-    if (b.dataset.view === 'resume') drawResume();
+    if (b.dataset.view === 'resume') { drawResume(); drawReview(); drawLetters(); }
     if (b.dataset.view === 'ai') drawAI();
     if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); }
-    if (b.dataset.view === 'tools') drawReview();
   };
 });
 
 // ── roles ────────────────────────────────────────────────────────────────────
-$('status').innerHTML = '<option value="">any status</option>' +
-  STATUSES.map(s => `<option value="${s}">${s}</option>`).join('');
+$('status').innerHTML = '<option value="">Any status</option>' +
+  STATUSES.map(s => `<option value="${s}">${cap(s)}</option>`).join('');
 
 async function loadRoles() {
   const r = await api(`/api/roles?scope=${$('scope').value}` +
@@ -685,15 +986,15 @@ function drawRoles(d) {
 
 function card(r) {
   const colour = COLOURS[r.status] || '#6b7280';
-  const meta = [r.company, r.location, r.distance, r.work_mode, r.salary,
-                r.platform, r.first_seen ? 'first seen ' + r.first_seen : ''];
+  const meta = [r.company, r.location, r.distance, cap(r.work_mode), cap(r.salary),
+                platformName(r.platform), r.first_seen ? 'First seen ' + r.first_seen : ''];
   // Dealbreakers and fit scoring both read the advert body; this number is
   // the difference between a screened role and a guess.
   const thin = r.advert_chars && r.advert_chars <= THIN_ADVERT
-    ? `<span class="thin">advert is only ${r.advert_chars} chars, too short to screen</span>` : '';
-  const flags = (r.flags || []).map(f => `<span class="flag">${esc(f)}</span>`).join('');
+    ? `<span class="thin">Advert is only ${r.advert_chars} chars, too short to screen</span>` : '';
+  const flags = (r.flags || []).map(f => `<span class="flag">${esc(flagLabel(f))}</span>`).join('');
   const opts = STATUSES.map(s =>
-    `<option value="${s}"${s === r.status ? ' selected' : ''}>${s}</option>`).join('');
+    `<option value="${s}"${s === r.status ? ' selected' : ''}>${cap(s)}</option>`).join('');
   return `<div class="role" id="r-${r.uid}">
     <div class="head">
       ${matchTag(r.score, r.parts)}
@@ -707,12 +1008,12 @@ function card(r) {
     <div class="meta">${listingTag(r.listing)}${meta.filter(Boolean).map(m => `<span>${esc(m)}</span>`).join('')}${thin}</div>
     ${flags ? `<div class="flags">${flags}</div>` : ''}
     <div class="acts">
-      <button class="act" onclick="openRole('${r.uid}')">Open</button>
-      <button class="act" onclick="act('${r.uid}','interested')">Interested</button>
-      <button class="act" onclick="apply('${r.uid}','${esc(r.url)}')">Apply</button>
-      <button class="act" onclick="act('${r.uid}','skipped')">Skip</button>
+      <button data-icon="eye" class="act" onclick="openRole('${r.uid}')">Open</button>
+      <button data-icon="star" class="act" onclick="act('${r.uid}','interested')">Interested</button>
+      <button data-icon="external-link" class="act" onclick="apply('${r.uid}','${esc(r.url)}')">Apply</button>
+      <button data-icon="skip-forward" class="act" onclick="act('${r.uid}','skipped')">Skip</button>
       <select onchange="act('${r.uid}', this.value)">${opts}</select>
-      <input class="note" value="${esc(r.note)}" placeholder="note (Enter saves)"
+      <input class="note" value="${esc(r.note)}" placeholder="Note (Enter saves)"
         onkeydown="if(event.key==='Enter')act('${r.uid}', null, this.value)">
     </div></div>`;
 }
@@ -764,20 +1065,94 @@ async function openRole(uid, tab = 'advert') {
   // and not decided on looks identical to one you never opened.
   if (detail.status === 'new') act(uid, 'viewed');
   // A tab is an artifact kind; fall back to the advert if this role lacks it.
-  const kinds = (detail.artifacts || []).map(a => a.kind);
+  const kinds = [...(detail.artifacts || []).map(a => a.kind), 'tools'];
   drawDetail(kinds.includes(tab) ? tab : 'advert');
   // act() reopens the role to redraw it; showModal on an open dialog throws.
   if (!$('detail').open) $('detail').showModal();
 }
 
-const TAB_LABEL = {cover_letter: 'cover letter', resume_review: 'résumé review', cv: 'CV'};
+// ── button icons ─────────────────────────────────────────────────────────────
+// Lucide (ISC licence), inlined because the page loads nothing from anywhere.
+// A button names its icon in data-icon; decorate() puts it in front of the
+// label, and puts it back whenever a label is rewritten ("Scanning…").
+const ICONS = {
+  "archive": "<rect width=\"20\" height=\"5\" x=\"2\" y=\"3\" rx=\"1\"/><path d=\"M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8\"/><path d=\"M10 12h4\"/>",
+  "arrow-left-right": "<path d=\"M8 3 4 7l4 4\"/><path d=\"M4 7h16\"/><path d=\"m16 21 4-4-4-4\"/><path d=\"M20 17H4\"/>",
+  "award": "<path d=\"m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526\"/><circle cx=\"12\" cy=\"8\" r=\"6\"/>",
+  "building-2": "<path d=\"M10 12h4\"/><path d=\"M10 8h4\"/><path d=\"M14 21v-3a2 2 0 0 0-4 0v3\"/><path d=\"M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2\"/><path d=\"M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16\"/>",
+  "chart-line": "<path d=\"M3 3v16a2 2 0 0 0 2 2h16\"/><path d=\"m19 9-5 5-4-4-3 3\"/>",
+  "chevron-left": "<path d=\"m15 18-6-6 6-6\"/>",
+  "chevron-right": "<path d=\"m9 18 6-6-6-6\"/>",
+  "circle-alert": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\"/><line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\"/>",
+  "circle-check": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m16 9-5.5 5.5L8 12\"/>",
+  "circle-dot": "<circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"12\" cy=\"12\" r=\"10\"/>",
+  "circle-x": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m15 9-6 6\"/><path d=\"m9 9 6 6\"/>",
+  "clipboard-check": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"m9 14 2 2 4-4\"/>",
+  "cpu": "<path d=\"M12 20v2\"/><path d=\"M12 2v2\"/><path d=\"M17 20v2\"/><path d=\"M17 2v2\"/><path d=\"M2 12h2\"/><path d=\"M2 17h2\"/><path d=\"M2 7h2\"/><path d=\"M20 12h2\"/><path d=\"M20 17h2\"/><path d=\"M20 7h2\"/><path d=\"M7 20v2\"/><path d=\"M7 2v2\"/><rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"2\"/><rect x=\"8\" y=\"8\" width=\"8\" height=\"8\" rx=\"1\"/>",
+  "download": "<path d=\"M12 15V3\"/><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><path d=\"m7 10 5 5 5-5\"/>",
+  "eraser": "<path d=\"M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21\"/><path d=\"m5.082 11.09 8.828 8.828\"/>",
+  "external-link": "<path d=\"M15 3h6v6\"/><path d=\"M10 14 21 3\"/><path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\"/>",
+  "eye": "<path d=\"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>",
+  "file-check": "<path d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\"/><path d=\"M14 2v5a1 1 0 0 0 1 1h5\"/><path d=\"m9 15 2 2 4-4\"/>",
+  "file-search": "<path d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\"/><path d=\"M14 2v5a1 1 0 0 0 1 1h5\"/><circle cx=\"11.5\" cy=\"14.5\" r=\"2.5\"/><path d=\"M13.3 16.3 15 18\"/>",
+  "file-text": "<path d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\"/><path d=\"M14 2v5a1 1 0 0 0 1 1h5\"/><path d=\"M10 9H8\"/><path d=\"M16 13H8\"/><path d=\"M16 17H8\"/>",
+  "file-user": "<path d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\"/><path d=\"M14 2v5a1 1 0 0 0 1 1h5\"/><path d=\"M16 22a4 4 0 0 0-8 0\"/><circle cx=\"12\" cy=\"15\" r=\"3\"/>",
+  "filter": "<path d=\"M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z\"/>",
+  "flask-conical": "<path d=\"M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2\"/><path d=\"M6.453 15h11.094\"/><path d=\"M8.5 2h7\"/>",
+  "house": "<path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>",
+  "key-round": "<path d=\"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z\"/><circle cx=\"16.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>",
+  "layers": "<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\"/><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\"/><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\"/>",
+  "lightbulb": "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/>",
+  "loader-circle": "<path d=\"M21 12a9 9 0 1 1-6.219-8.56\"/>",
+  "mail": "<path d=\"m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7\"/><rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/>",
+  "messages-square": "<path d=\"M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z\"/><path d=\"M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1\"/>",
+  "pen-line": "<path d=\"M13 21h8\"/><path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\"/>",
+  "play": "<path d=\"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z\"/>",
+  "plus": "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>",
+  "power": "<path d=\"M12 2v10\"/><path d=\"M18.4 6.6a9 9 0 1 1-12.77.04\"/>",
+  "refresh-cw": "<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\"/><path d=\"M21 3v5h-5\"/><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\"/><path d=\"M8 16H3v5\"/>",
+  "rotate-ccw": "<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/><path d=\"M3 3v5h5\"/>",
+  "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\"/><path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\"/><path d=\"M7 3v4a1 1 0 0 0 1 1h7\"/>",
+  "search": "<path d=\"m21 21-4.34-4.34\"/><circle cx=\"11\" cy=\"11\" r=\"8\"/>",
+  "search-check": "<path d=\"m8 11 2 2 4-4\"/><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>",
+  "send": "<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\"/><path d=\"m21.854 2.147-10.94 10.939\"/>",
+  "skip-forward": "<path d=\"M21 4v16\"/><path d=\"M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z\"/>",
+  "sparkles": "<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\"/><path d=\"M20 2v4\"/><path d=\"M22 4h-4\"/><circle cx=\"4\" cy=\"20\" r=\"2\"/>",
+  "star": "<path d=\"M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z\"/>",
+  "table-2": "<path d=\"M3 9h18\"/><path d=\"M9 3v18\"/><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/>",
+  "trash-2": "<path d=\"M10 11v6\"/><path d=\"M14 11v6\"/><path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\"/><path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/>",
+  "undo-2": "<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"/>",
+  "upload": "<path d=\"M12 3v12\"/><path d=\"m17 8-5-5-5 5\"/><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/>",
+  "x": "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>"
+};
+const TAB_ICON = {tools: 'sparkles', advert: 'file-text', screen: 'clipboard-check', cv: 'file-user',
+                  cover_letter: 'mail', letter: 'mail', resume_review: 'file-search'};
+const STATUS_ICON = {new: 'circle-dot', viewed: 'eye', interested: 'star', applied: 'send',
+  submitted: 'file-check', interviewing: 'messages-square', offer: 'award',
+  rejected: 'circle-x', withdrawn: 'undo-2', skipped: 'skip-forward', closed: 'archive'};
+function decorate(root) {
+  root.querySelectorAll('button[data-icon]').forEach(b => {
+    const have = b.querySelector(':scope > svg.bi');
+    if (have && have.dataset.name === b.dataset.icon) return;
+    if (have) have.remove();
+    const name = b.dataset.icon;
+    if (!ICONS[name]) return;
+    b.insertAdjacentHTML('afterbegin', `<svg class="bi" data-name="${name}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`);
+  });
+}
+new MutationObserver(() => decorate(document.body))
+  .observe(document.body, {childList: true, subtree: true, attributes: true, attributeFilter: ['data-icon']});
+decorate(document.body);
+
+const TOOL_KINDS = ['resume_edits', 'keywords', 'highlight', 'feedback', 'revise'];
+const TAB_LABEL = {tools: 'AI tools', cover_letter: 'cover letter', resume_review: 'resume review', cv: 'CV'};
 const tabLabel = t => TAB_LABEL[t] || t.replace('_', ' ');
 
 function drawDetail(tab) {
   const d = detail;
   detailTab = tab;
-  const gen = k => `<button class="act spend" ${hasClaude ? '' : 'disabled'}
-    onclick="generate('${d.uid}','${k}')">${k.replace('_',' ')}</button>`;
+  const gen = k => `<button class="act spend" data-icon="${TAB_ICON[k] || 'file-text'}" ${hasClaude ? '' : 'disabled'}
+    onclick="generate('${d.uid}','${k}')">${esc(cap(tabLabel(k)))}</button>`;
   $('dlg-head').innerHTML = `
     ${matchTag(d.score == null ? null : Math.round(d.score), d.parts)}
     ${fitTag(d.fit == null ? null : Math.round(d.fit), d.parts)}
@@ -789,46 +1164,52 @@ function drawDetail(tab) {
     <span style="margin-left:auto">
       <a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer"
         class="act" style="text-decoration:none">Open posting</a>
-      <button class="act" onclick="document.getElementById('detail').close()">Close</button>
+      <button data-icon="x" class="act" onclick="document.getElementById('detail').close()">Close</button>
     </span>
     <div class="meta" style="width:100%">${
-      listingTag(d.listing, true) + [d.company, d.location, d.work_mode, d.platform,
-       `advert ${d.advert_chars} chars`].filter(Boolean)
+      listingTag(d.listing, true) + [d.company, d.location, cap(d.work_mode), platformName(d.platform),
+       `Advert ${Number(d.advert_chars).toLocaleString()} chars`].filter(Boolean)
         .map(m => `<span>${esc(m)}</span>`).join('')}</div>
     ${(d.copies || []).length ? `<div class="alsoat"><span class="hint">Also posted at</span>${
       d.copies.map(c => `<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer"
-        title="${esc(c.note || 'not checked yet')} · last listed ${esc(c.last_seen)} · advert ${c.advert_chars} chars">${
-        esc(c.platform)}${c.listing ? ' ' + listingTag({state: c.listing, note: c.note, checked_at: ''}, true) : ''}</a>`).join('')
+        title="${esc(cap(c.note || 'not checked yet'))} · last listed ${esc(c.last_seen)} · advert ${c.advert_chars} chars">${
+        esc(platformName(c.platform))}${c.listing ? ' ' + listingTag({state: c.listing, note: c.note, checked_at: ''}, true) : ''}</a>`).join('')
     }<span class="hint">A status set here applies to every copy.</span></div>` : ''}
     <div class="statusbar">${
       // new and viewed are recorded for you; these are the ones you decide.
       STATUSES.filter(s => s !== 'new' && s !== 'viewed').map(s => s === d.status
-        ? `<button class="act cur" style="background:${COLOURS[s] || '#6b7280'};border-color:${COLOURS[s] || '#6b7280'}" disabled>${s}</button>`
-        : `<button class="act" onclick="act('${d.uid}','${s}')">${s}</button>`).join('')}</div>`;
+        ? `<button class="act cur" data-icon="${STATUS_ICON[s] || 'circle-dot'}" style="background:${COLOURS[s] || '#6b7280'};border-color:${COLOURS[s] || '#6b7280'}" disabled>${cap(s)}</button>`
+        : `<button class="act" data-icon="${STATUS_ICON[s] || 'circle-dot'}" onclick="act('${d.uid}','${s}')">${cap(s)}</button>`).join('')}</div>`;
 
-  const tabs = ['advert', ...(d.artifacts || []).map(a => a.kind)];
+  // AI tool results live together under one tab rather than a tab each.
+  const tabs = ['advert', ...(d.artifacts || []).map(a => a.kind).filter(k => !TOOL_KINDS.includes(k)), 'tools'];
   const uniq = [...new Set(tabs)];
   let body = `<div class="tabs">${uniq.map(t =>
-      `<button class="${t === tab ? 'on' : ''}" onclick="drawDetail('${t}')">${esc(tabLabel(t))}</button>`).join('')}
+      `<button class="${t === tab ? 'on' : ''}" data-icon="${TAB_ICON[t] || 'file-text'}" onclick="drawDetail('${t}')">${esc(cap(tabLabel(t)))}</button>`).join('')}
     </div>
     <div class="bar">${!hasClaude
       ? '<span class="hint">The claude CLI is not on PATH, so drafting is unavailable. Everything else works.</span>'
       : 'Draft: ' + ['screen','cv','cover_letter'].map(gen).join(' ')}</div>
     <div class="bar">
-      <button class="act spend" onclick="roleJob('judge','${d.uid}')"
+      <button data-icon="sparkles" class="act spend" onclick="roleJob('judge','${d.uid}')"
         title="${esc(aiLabel || 'set up a model on the AI page')}">${d.ai ? 'Ask AI again' : 'Ask AI'}</button>
-      <button class="act spend" onclick="roleJob('letter','${d.uid}','cover_letter')"
-        title="${esc(aiLabel ? `${aiLabel} writes it from your résumé and this advert, then checks its claims` : 'set up a model on the AI page')}">Write cover letter (AI)</button>
-      <button class="act spend" onclick="roleJob('review','${d.uid}','resume_review')"
-        title="${esc(aiLabel ? `${aiLabel} reviews your résumé against this advert` : 'set up a model on the AI page')}">Review résumé for this post</button>
-      <button class="act" onclick="roleJob('check','${d.uid}')">Check if still open</button>
+      <button data-icon="pen-line" class="act spend" onclick="roleJob('letter','${d.uid}','cover_letter')"
+        title="${esc(aiLabel ? `${aiLabel} writes it from your resume and this advert, then checks its claims` : 'set up a model on the AI page')}">Write cover letter (AI)</button>
+      <button data-icon="file-search" class="act spend" onclick="roleJob('review','${d.uid}','resume_review')"
+        title="${esc(aiLabel ? `${aiLabel} reviews your resume against this advert` : 'set up a model on the AI page')}">Review resume for this post</button>
+      <button data-icon="circle-check" class="act" onclick="roleJob('check','${d.uid}')">Check if still open</button>
       <span id="rolejob" class="hint"></span>
     </div>`;
 
+  if (tab === 'tools') {
+    $('dlg-body').innerHTML = body + toolsIntro(d.uid) + '<div id="tools-out"><p class="empty">Loading…</p></div>';
+    drawTools(d.uid);
+    return;
+  }
   if (tab === 'advert') {
     body += (d.flags || []).length
       ? `<div class="flags" style="margin-bottom:.6rem">${
-          d.flags.map(f => `<span class="flag">${esc(f)}</span>`).join('')}</div>` : '';
+          d.flags.map(f => `<span class="flag">${esc(flagLabel(f))}</span>`).join('')}</div>` : '';
     // Some sources cannot be fetched whole (Adzuna refuses scripts), but the
     // person reading the posting in a browser can copy it.
     const thinAd = d.advert_chars <= THIN_ADVERT;
@@ -837,7 +1218,7 @@ function drawDetail(tab) {
         ? `Only ${d.advert_chars} characters stored. Paste the full advert from the posting.`
         : 'Replace the advert with pasted text'}</summary>
       <textarea id="paste-text" placeholder="Open the posting, select all of the job description, copy, paste here"></textarea>
-      <button class="act primary" onclick="saveAdvert('${d.uid}')">Save and re-screen</button>
+      <button data-icon="save" class="act primary" onclick="saveAdvert('${d.uid}')">Save and re-screen</button>
       <span id="paste-msg"></span>
     </details>`;
     body += `<div class="advert">${esc(d.description) || '<em>No advert stored.</em>'}</div>`;
@@ -868,13 +1249,16 @@ async function generate(uid, kind) {
   if (!r.ok) { alert(await r.text()); return; }
   $('detail').close();
   document.querySelector('nav button[data-view="scan"]').click();
-  logLine(`${kind.replace('_',' ')} started (this spends tokens)`, 'dim');
+  logLine(`${cap(tabLabel(kind))} started (this spends tokens)`, 'dim');
 }
 
 // ── jobs and the live log ────────────────────────────────────────────────────
 function logLine(text, cls, target) {
   const el = $(target || 'scanmsg');
   const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  // Job lines come from the server in lower case ("resume review started").
+  // The first word is capitalized; a status column ("ok", "fail") is not a word.
+  text = String(text).replace(/^(\s*)(?!(?:ok|fail|warn)\b)(\S)/, (m, sp, c) => sp + c.toUpperCase());
   el.insertAdjacentHTML('beforeend', `<div class="${cls || ''}">${esc(text)}</div>`);
   if (bottom) el.scrollTop = el.scrollHeight;
 }
@@ -895,6 +1279,41 @@ async function runJob(path) {
   if (await startJob(path, {}, 'scanmsg')) pollActivity();
 }
 $('run').onclick = () => runJob('/api/scan');
+
+// Fresh scan: preview the count, then a red button that carries it. The
+// server refuses if the number moved since, as Clean up does.
+const freshOpen = on => document.querySelector('.warnwrap').classList.toggle('open', on);
+$('btn-fresh').onclick = async () => {
+  const box = $('fresh-confirm');
+  freshOpen(true);
+  box.innerHTML = '<span class="hint">Counting…</span>';
+  const r = await api('/api/scan/fresh/preview', {method: 'POST'});
+  if (!r.ok) { box.innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
+  const d = await r.json();
+  if (!d.count) {
+    box.innerHTML = '<span class="hint">There are no scanned job posts to delete; use Run a scan.</span>';
+    return;
+  }
+  box.innerHTML = `<b>This deletes all ${d.count.toLocaleString()} scanned job posts</b>, with their
+      statuses, notes, AI verdicts and document records, then scans from scratch.
+      ${d.pursuing ? `<div class="err" style="margin-top:.3rem">${d.pursuing.toLocaleString()} of them are
+        ones you are pursuing (applied, submitted, interviewing, offer).</div>` : ''}
+      <div class="hint">The database is backed up to data/backups first. Posts you deleted
+        before stay deleted${d.kept_by_hand ? `; ${d.kept_by_hand} added by hand are kept` : ''}.</div>
+    <div class="bar">
+      <button data-icon="trash-2" class="act danger" id="fresh-go">Delete ${d.count.toLocaleString()} job posts and scan</button>
+      <button data-icon="x" class="act" id="fresh-cancel">Cancel</button>
+    </div>`;
+  $('fresh-cancel').onclick = () => { box.innerHTML = ''; freshOpen(false); };
+  $('fresh-go').onclick = async () => {
+    $('fresh-go').disabled = true;
+    const go = await api('/api/scan/fresh', {method: 'POST', body: form({expect: d.count})});
+    if (!go.ok) { box.innerHTML = `<span class="err">${esc(await go.text())}</span>`; return; }
+    box.innerHTML = ''; freshOpen(false);
+    $('scanmsg').innerHTML = ''; actPick = 0;
+    pollActivity(); loadRoles();
+  };
+};
 $('btn-enrich').onclick = () => runJob('/api/enrich');
 $('btn-rescreen').onclick = () => runJob('/api/rescreen');
 $('btn-check').onclick = () => runJob('/api/check');
@@ -905,18 +1324,160 @@ $('btn-judge').onclick = () => runJob('/api/judge');
 async function roleJob(which, uid, tab) {
   $('rolejob').textContent = {judge: 'AI is reading…', check: 'checking…',
     letter: 'AI is writing the letter; it opens here when done…',
-    review: 'AI is reviewing your résumé; it opens here when done…'}[which];
+    review: 'AI is reviewing your resume; it opens here when done…'}[which];
   // The dialog redraws when the run finishes; land on what it made.
   if (tab) detailTab = tab;
   const r = await api('/api/' + which, {method: 'POST', body: form({uid, force: '1'})});
   if (!r.ok) $('rolejob').textContent = await r.text();
 }
+// ── AI tools for one job post (ai/tools.py) ────────────────────────────────
+// The model edits; you are the author. Every result says how it was checked:
+// items the script could not find where the model said were dropped, the
+// humanizer's tells that remain, and the hallucination check.
+function toolsIntro(uid) {
+  const local = /^Ollama/.test(aiLabel || '');
+  return `<div class="toolsnote">
+    <b>You are the author; the AI is an editor.</b> Take only what is true, in your own
+    words. Read the result aloud, and be ready to speak to every line in an interview.
+    Some employers set rules on using AI in an application: check theirs.
+    ${aiLabel ? (local ? `${esc(aiLabel)} runs on this machine: nothing is sent anywhere.`
+      : `${esc(aiLabel)} is a hosted model: your email, phone number and profile links are removed before anything is sent.`)
+      : 'Set up a model on the AI page to use these.'}</div>
+  <div class="bar toolbar">
+    <button data-icon="pen-line" class="act spend" onclick="toolJob('${uid}','resume_edits')">Tailor my resume</button>
+    <button data-icon="search-check" class="act spend" onclick="toolJob('${uid}','keywords')">ATS keywords</button>
+    <button data-icon="lightbulb" class="act spend" onclick="toolJob('${uid}','highlight')">Skills to highlight</button>
+    <button data-icon="messages-square" class="act spend" onclick="toolJob('${uid}','feedback')">Recruiter feedback</button>
+    <span id="tooljob" class="hint"></span>
+  </div>
+  <details class="paste" id="tooltext-wrap">
+    <summary>Revise a bullet or paragraph, or get feedback on a cover letter</summary>
+    <textarea id="tooltext" placeholder="Paste one resume bullet or cover letter paragraph to revise, or a whole cover letter for feedback"></textarea>
+    <div class="bar" style="margin:.4rem 0 0">
+      <button data-icon="refresh-cw" class="act spend" onclick="toolJob('${uid}','revise')">Revise: 5 versions</button>
+      <button data-icon="messages-square" class="act spend" onclick="toolJob('${uid}','feedback', true)">Recruiter feedback on this letter</button>
+    </div>
+  </details>`;
+}
+
+async function toolJob(uid, kind, withText) {
+  const text = (kind === 'revise' || withText) ? ($('tooltext') || {}).value || '' : '';
+  $('tooljob').textContent = 'The AI is working; the result appears below when it is done…';
+  detailTab = 'tools';
+  const r = await api('/api/tool', {method: 'POST', body: form({uid, kind, text})});
+  if (!r.ok) { const why = cap(await r.text()); $('tooljob').textContent = ''; toast(why, 'err'); }
+}
+
+function checks(t) {
+  const g = t.guard || {}, out = [];
+  out.push(!g.checked ? `<span class="chk warn">Hallucination check: not run${g.error ? ' (' + esc(g.error) + ')' : ''}</span>`
+    : g.unsupported ? `<span class="chk bad">Hallucination check: ${g.unsupported} of ${g.claims} claims not in your resume or the ad</span>`
+    : `<span class="chk ok">Hallucination check: ${g.claims ? 'all ' + g.claims + ' claims supported' : 'nothing to check'}</span>`);
+  if (t.dropped) out.push(`<span class="chk warn">${t.dropped} item(s) dropped: not found where the model said</span>`);
+  out.push(t.tells ? `<span class="chk warn">Humanizer: ${t.tells} AI-sounding phrase(s) left</span>`
+    : '<span class="chk ok">Humanizer: clean</span>');
+  const flagged = (g.flagged || []).map(f => `<li>${esc(f.claim)}</li>`).join('');
+  return `<div class="chks">${out.join('')}</div>${flagged ? `<ul class="flagged">${flagged}</ul>` : ''}`;
+}
+const q = text => `<q>${esc(text)}</q>`;
+const figs = f => (f || []).length ? `<div class="chk bad">Adds a figure your text does not have: ${esc(f.join(', '))}</div>` : '';
+
+let toolData = {};
+async function drawTools(uid) {
+  const r = await api('/api/tools?uid=' + uid);
+  if (!$('tools-out')) return;
+  if (!r.ok) { $('tools-out').innerHTML = `<p class="err">${esc(await r.text())}</p>`; return; }
+  const d = await r.json();
+  toolData = d.tools;
+  const order = ['resume_edits', 'keywords', 'highlight', 'feedback', 'revise'];
+  const cards = order.filter(k => d.tools[k]).map(k => {
+    const t = d.tools[k], x = t.data || {};
+    let inner = '';
+    if (k === 'resume_edits') {
+      inner = `<p class="hint">Tick the edits you want, then download your resume with them applied.
+        Edit it further before you send it.</p>
+        ${(x.edits || []).map((e, i) => { const bad = (e.new_figures || []).length || (e.problems || []).length;
+          return `<label class="edit"><input type="checkbox" data-edit="${i}" ${bad ? '' : 'checked'}>
+          <span><span class="was">${esc(e.quote)}</span><span class="now">${esc(e.suggestion)}</span>
+          <span class="hint">${esc(e.why)}</span>${figs(e.new_figures)}${(e.problems || []).map(pb =>
+            `<div class="chk bad">${esc(pb)}</div>`).join('')}</span></label>`; }).join('') || '<p class="hint">No edits suggested.</p>'}
+        ${(x.edits || []).some(e => (e.new_figures || []).length || (e.problems || []).length)
+          ? '<p class="hint">Edits marked in red are left unticked: check them against what you did before you take one.</p>' : ''}
+        ${(x.move_up || []).length ? `<h4>Move these up</h4><ul>${x.move_up.map(m => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}
+        ${(x.skills || []).length ? `<label class="edit"><input type="checkbox" id="edit-skills" checked>
+          <span><b>Skills:</b> ${esc(x.skills.join(', '))}<span class="hint">Skills of yours the ad asks for, listed plainly for an applicant tracking system.</span></span></label>` : ''}
+        ${(x.missing || []).length ? `<p class="hint">The ad also asks for ${esc(x.missing.join(', '))}. They are not on your resume; add one only if it is true.</p>` : ''}
+        <button data-icon="download" class="act primary" onclick="downloadTailored()">Download tailored resume</button>`;
+    } else if (k === 'keywords') {
+      const rows = x.keywords || [];
+      inner = `<div class="kw">${rows.map(r => `<span class="kwi ${r.in_resume ? 'yes' : 'no'}">${esc(r.keyword)}
+        <b>${r.in_resume ? 'On your resume' : 'Missing'}</b></span>`).join('')}</div>
+        <p class="hint">${rows.filter(r => r.in_resume).length} of ${rows.length} are on your resume. Use a missing one
+        only where it is true, in the words the ad uses, in context rather than in a list.</p>`;
+    } else if (k === 'highlight') {
+      inner = `<h4>What the ad most needs</h4><ul>${(x.skills || []).map(s => `<li><b>${esc(s.skill)}</b>: ${q(s.ad_quote)}</li>`).join('')}</ul>
+        <h4>Your experience that shows it</h4><ul>${(x.experiences || []).map(e => `<li><b>${esc(e.skill)}</b>: ${q(e.quote)}<br><span class="hint">${esc(e.why)}</span></li>`).join('')}</ul>
+        ${(x.verbs || []).length ? `<h4>Action verbs</h4><div class="flags">${x.verbs.map(v => `<span class="flag">${esc(v)}</span>`).join('')}</div>` : ''}
+        <p class="hint">You may have better examples that are not on your resume; use yours where they fit.</p>`;
+    } else if (k === 'feedback') {
+      inner = `<p class="hint">On your ${esc(x.target || 'resume')}.</p><p>${esc(x.summary || '')}</p>
+        <h4>Strengths</h4><ul>${(x.strengths || []).map(s => `<li>${esc(s.point)}<br>${q(s.quote)}</li>`).join('') || '<li class="hint">None found.</li>'}</ul>
+        <h4>Gaps</h4><ul>${(x.gaps || []).map(g => `<li>${esc(g.point)}<br>${q(g.ad_quote)}</li>`).join('') || '<li class="hint">None found.</li>'}</ul>`;
+    } else {
+      inner = `<p class="hint">Your ${esc(x.what || 'text')}:</p><p class="was">${esc(x.original || '')}</p>
+        ${(x.versions || []).map((v, i) => `<div class="ver"><span>${esc(v.text)}</span>
+          <button data-icon="file-text" class="act" onclick="copyVersion(${i})">Copy</button>${figs(v.new_figures)}${
+          (v.problems || []).map(pb => `<div class="chk bad">${esc(pb)}</div>`).join('')}</div>`).join('')}`;
+    }
+    return `<section class="toolcard"><div class="toolhead"><strong>${esc(d.labels[k])}</strong>
+      <span class="hint">${esc(t.model || '')} · ${esc((t.created_at || '').slice(0, 16).replace('T', ' '))}</span></div>
+      ${checks(t)}${inner}</section>`;
+  });
+  $('tools-out').innerHTML = cards.join('') || '<p class="hint">No results yet for this job post. Pick a tool above.</p>';
+}
+
+function copyVersion(i) {
+  const v = ((toolData.revise || {}).data || {}).versions || [];
+  if (v[i]) navigator.clipboard.writeText(v[i].text).then(() => toast('Copied'), () => toast('Copying was refused by the browser', 'err'));
+}
+
+// The resume with the ticked edits applied, as plain text: basic formatting is
+// what an applicant tracking system reads best.
+async function downloadTailored() {
+  const x = (toolData.resume_edits || {}).data || {};
+  const r = await api('/api/resume/view');
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  // Text read from a PDF breaks lines mid-sentence and writes "ff" as one
+  // character, so a line is found by its words with any spacing between,
+  // after ligatures are spelled out. The download is spelled out too, which
+  // an applicant tracking system reads more reliably anyway.
+  let text = (await r.json()).text.normalize('NFKC'), missed = 0;
+  const loose = quote => new RegExp(quote.normalize('NFKC').trim().split(/\s+/)
+    .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'));
+  document.querySelectorAll('[data-edit]').forEach(box => {
+    const e = (x.edits || [])[+box.dataset.edit];
+    if (!box.checked || !e) return;
+    const re = loose(e.quote);
+    if (re.test(text)) text = text.replace(re, () => e.suggestion);
+    else missed++;
+  });
+  if ($('edit-skills') && $('edit-skills').checked && (x.skills || []).length)
+    text = `Skills: ${x.skills.join(', ')}\n\n` + text;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type: 'text/plain'}));
+  a.download = `resume-${(detail.company || 'tailored').replace(/[^A-Za-z0-9]+/g, '-')}.txt`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast(missed ? `Downloaded; ${missed} edit(s) could not be placed, because the line reads differently in the file`
+               : 'Downloaded your tailored resume. Read it through before you send it.');
+}
+
 // Headings and bullet lists, which is all a review uses. Escaped first, so
 // nothing in the text can become markup.
 function mdLite(text) {
   let html = '', inList = false;
+  // **bold**, after escaping, so only the markers become markup.
   for (const raw of esc(text).split('\n')) {
-    const line = raw.trimEnd(), h = line.match(/^(#{1,3}) (.*)$/), li = line.match(/^- (.*)$/);
+    const line = raw.trimEnd().replace(/\*\*(\S(?:.*?\S)?)\*\*/g, '<b>$1</b>'), h = line.match(/^(#{1,3}) (.*)$/), li = line.match(/^- (.*)$/);
     if (!li && inList) { html += '</ul>'; inList = false; }
     if (h) html += `<h4 class="md h${h[1].length}">${h[2]}</h4>`;
     else if (li) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${li[1]}</li>`; }
@@ -925,7 +1486,7 @@ function mdLite(text) {
   return html + (inList ? '</ul>' : '');
 }
 
-// A general résumé review has no job post and no file: it is read back from
+// A general resume review has no job post and no file: it is read back from
 // ai_outputs, the newest one first.
 let reviewPending = false;
 async function drawReview() {
@@ -936,29 +1497,36 @@ async function drawReview() {
   if (!o.id) { out.innerHTML = '<p class="hint">No review yet.</p>'; return; }
   const g = o.guard || {};
   const check = g.checked
-    ? `${g.claims - g.unsupported} of ${g.claims} claims found in your résumé`
+    ? `${g.claims - g.unsupported} of ${g.claims} claims found in your resume`
     : `claims not checked${g.error ? ': ' + g.error : ''}`;
   out.innerHTML = `<div class="bar" style="margin-bottom:.4rem">
       <span class="hint" style="margin:0">${esc(o.model)} · ${esc(o.created_at.replace('T', ' '))} · ${esc(check)}</span>
       <span style="margin-left:auto">${fbButtons(o.id, o.feedback, 'Was this review useful?')}</span></div>
-    ${(g.flagged || []).length ? `<div class="gate fail">READ: not in your résumé<ul>${
+    ${(g.flagged || []).length ? `<div class="gate fail">READ: not in your resume<ul>${
       g.flagged.map(f => `<li>${esc(f.claim)}</li>`).join('')}</ul></div>` : ''}
     <div class="advert md-doc">${mdLite(o.text)}</div>`;
 }
 $('btn-review').onclick = async () => {
-  $('toolslog').innerHTML = '';
+  $('resumelog').innerHTML = ''; $('resumelog').hidden = false;
   reviewPending = true;
-  $('review-state').textContent = 'reading your résumé… progress is in the log at the bottom';
-  if (!await startJob('/api/review', {}, 'toolslog')) {
+  $('review-state').textContent = 'Reading your resume…';
+  if (!await startJob('/api/review', {}, 'resumelog')) {
     reviewPending = false; $('review-state').textContent = '';
   }
 };
 
-$('btn-discover').onclick = () => { $('toolslog').innerHTML = '';
-  startJob('/api/discover', {employer: $('disc-domain').value}, 'toolslog'); };
-$('btn-discover-add').onclick = () => { $('toolslog').innerHTML = '';
-  startJob('/api/discover', {employer: $('disc-domain').value, add: '1',
-                             name: $('disc-name').value}, 'toolslog'); };
+// Boards are added only this way: the token is read off the employer's own
+// site and checked against the board before it is written.
+const discover = add => {
+  const employer = $('disc-domain').value.trim();
+  if (!employer) { $('srcmsg').className = 'err'; $('srcmsg').textContent = 'Type their website first.'; return; }
+  $('srcmsg').textContent = '';
+  $('srclog').innerHTML = ''; $('srclog').hidden = false;
+  startJob('/api/discover', add ? {employer, add: '1', name: $('disc-name').value.trim()}
+                                : {employer}, 'srclog');
+};
+$('btn-discover').onclick = () => discover(false);
+$('f-boards').onsubmit = ev => { ev.preventDefault(); discover(true); };
 $('btn-digest').onclick = () => { $('toolslog').innerHTML = '';
   startJob('/api/digest', {email: $('dig-email').value,
     all: $('dig-all').checked ? '1' : '', csv: $('dig-csv').checked ? '1' : ''},
@@ -991,15 +1559,22 @@ function connect() {
   };
   s.onmessage = ev => {
     const e = JSON.parse(ev.data);
-    // Tools keeps its own log for discover and digest. Everything else is
-    // shown by the dashboard, which reads the same lines from the database —
-    // so an event here only asks it to refresh now rather than in 2s.
-    const tools = !$('view-tools').hidden;
-    if (tools && e.kind === 'progress') logLine('  ' + e.text, '', 'toolslog');
+    // Tools keeps its own log for the digest, Resume for the review, and
+    // Sources for finding a board. Everything else is shown by the dashboard,
+    // which reads the same lines from the database — so an event here only
+    // asks it to refresh now rather than in 2s.
+    const own = !$('view-tools').hidden ? 'toolslog'
+      : !$('view-resume').hidden && !$('resumelog').hidden ? 'resumelog'
+      : !$('view-sources').hidden && !$('srclog').hidden ? 'srclog' : '';
+    const tools = !!own;
+    if (own && e.kind === 'progress') logLine('  ' + e.text, '', own);
     if (e.kind === 'progress') return;
-    if (tools) logLine(e.text, {status: 'dim', done: 'ok', error: 'bad'}[e.kind], 'toolslog');
+    if (own) logLine(e.text, {status: 'dim', done: 'ok', error: 'bad'}[e.kind], own);
     refreshState(); pollActivity();
-    if (e.kind === 'done') { loadRoles(); cfg = null; redrawDetail(); loadMetrics(); }
+    if (e.kind === 'done') {
+      loadRoles(); cfg = null; redrawDetail(); loadMetrics();
+      if (!$('view-sources').hidden) drawSources();   // a board may have been added
+    }
     if (reviewPending && (e.kind === 'done' || e.kind === 'error')) {
       reviewPending = false; $('review-state').textContent = '';
       if (e.kind === 'done') drawReview();
@@ -1017,9 +1592,10 @@ async function refreshState() {
   aiLabel = s.ai || '';
   $('aihint').textContent = s.ai_problem ? `AI: ${s.ai_problem}` : `AI: ${s.ai}`;
   const busy = s.busy;
-  ['run','btn-enrich','btn-rescreen','btn-check','btn-judge','btn-discover','btn-discover-add','btn-digest','btn-review']
+  ['run','btn-fresh','btn-enrich','btn-rescreen','btn-check','btn-judge','btn-discover','btn-discover-add','btn-digest','btn-review']
     .forEach(id => { if ($(id)) $(id).disabled = busy; });
   $('run').textContent = busy && s.job === 'scan' ? 'Scanning…' : 'Run a scan';
+  $('btn-fresh').textContent = busy && s.job === 'fresh scan' ? 'Fresh scan running…' : 'Run fresh scan';
   $('scanstate').textContent = busy ? `${s.job} running` : '';
 }
 
@@ -1047,10 +1623,10 @@ function stack(counts) {
   const sum = entries.reduce((t, [, v]) => t + v, 0);
   if (!sum) return '<p class="hint">Nothing counted yet.</p>';
   const ink = k => STATE_INK[k] || 'var(--muted)';
-  return `<div class="stack" role="img" aria-label="${esc(entries.map(([k, v]) => `${k} ${v}`).join(', '))}">${
-    entries.map(([k, v]) => `<span style="flex:${v};background:${ink(k)}" title="${esc(LABEL[k] || k)}: ${n(v)}"></span>`).join('')}</div>
+  return `<div class="stack" role="img" aria-label="${esc(cap(entries.map(([k, v]) => `${LABEL[k] || k} ${v}`).join(', ')))}">${
+    entries.map(([k, v]) => `<span style="flex:${v};background:${ink(k)}" title="${esc(cap(LABEL[k] || k))}: ${n(v)}"></span>`).join('')}</div>
     <div class="legend">${entries.map(([k, v]) =>
-      `<span><i style="background:${ink(k)}"></i>${esc(LABEL[k] || k)} <b>${n(v)}</b></span>`).join('')}</div>`;
+      `<span><i style="background:${ink(k)}"></i>${esc(cap(LABEL[k] || k))} <b>${n(v)}</b></span>`).join('')}</div>`;
 }
 
 function table(cols, rows, empty) {
@@ -1078,7 +1654,7 @@ async function pollActivity() {
 
 function drawActivity(d) {
   const j = d.chosen;
-  $('act-updated').textContent = 'updated ' + new Date().toLocaleTimeString();
+  $('act-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
   if (!j) {
     $('act-head').innerHTML = '<p class="empty">No run recorded yet. Run a scan or a check.</p>';
     ['act-tiles', 'act-progress', 'act-counts', 'act-hosts', 'act-ai', 'act-log', 'act-history']
@@ -1086,11 +1662,11 @@ function drawActivity(d) {
   } else {
     const state = j.health === 'ok' ? j.state : j.health;
     $('act-head').innerHTML = `<div class="jobhead">
-      <strong>${esc(j.job)}</strong><span class="state ${esc(state)}">${esc(state)}</span>
-      <span class="hint">from the ${esc(j.origin)}${j.pid ? ' · pid ' + j.pid : ''} · started ${esc(j.started_at.replace('T', ' '))}</span></div>
+      <strong>${esc(cap(j.job))}</strong><span class="state ${esc(state)}">${esc(state)}</span>
+      <span class="hint">From the ${esc(j.origin)}${j.pid ? ' · pid ' + j.pid : ''} · started ${esc(j.started_at.replace('T', ' '))}</span></div>
       ${j.health === 'died' ? '<p class="err">Its process ended before the job finished: it was stopped or it crashed.</p>' : ''}
       ${j.health === 'quiet' ? `<p class="warnc">No heartbeat for ${fmtDur(j.heartbeat_age)} ; it is busy or stuck.</p>` : ''}
-      <p class="hint" style="margin:.3rem 0 0">${esc(j.state === 'running' ? j.last_line : (j.summary || j.last_line))}</p>`;
+      <p class="hint" style="margin:.3rem 0 0">${esc(cap(j.state === 'running' ? j.last_line : (j.summary || j.last_line)))}</p>`;
 
     const hosts = Object.entries(j.hosts || {});
     const req = hosts.reduce((t, [, h]) => t + h.requests, 0);
@@ -1099,7 +1675,7 @@ function drawActivity(d) {
     const calls = ai.reduce((t, m) => t + m.calls, 0);
     const aiSecs = ai.reduce((t, m) => t + m.seconds, 0);
     const pct = j.total ? Math.min(100, Math.round(j.done / j.total * 100)) : null;
-    const tile = (k, v, s) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || '&nbsp;'}</div></div>`;
+    const tile = (k, v, s) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${capHtml(s) || '&nbsp;'}</div></div>`;
     $('act-tiles').innerHTML =
       tile('Progress', j.total ? `${n(j.done)} / ${n(j.total)}` : n(j.done), pct == null ? 'total unknown' : `${pct}%`) +
       tile('Rate', j.rate_per_min ? `${j.rate_per_min}/min` : '-', 'items per minute') +
@@ -1144,7 +1720,7 @@ function drawActivity(d) {
     <div class="lastrun ${r.warnings.length ? 'warn' : ''} ${r.id ? 'pick' : ''}"
       ${r.id ? `onclick="actPick=${r.id};pollActivity()" title="Show this run above"` : ''}>
       <div class="top"><b>${label[r.kind]}</b><span class="ago" title="${esc(r.when.replace('T', ' '))}">${esc(r.ago || 'never')}</span></div>
-      <div class="sum">${esc(r.summary)}</div>
+      <div class="sum">${esc(cap(r.summary))}</div>
       ${r.warnings.length ? `<ul>${r.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
     </div>`).join('');
 
@@ -1157,10 +1733,10 @@ function drawActivity(d) {
   $('act-history').innerHTML = d.recent.length ? `<div class="tbl-wrap"><table class="data"><thead><tr>
     <th>Job</th><th>From</th><th>Started</th><th class="n">Took</th><th class="n">Done</th><th>State</th><th>Result</th></tr></thead><tbody>${
     d.recent.map(x => `<tr class="pick ${j && x.id === j.id ? 'on' : ''}" onclick="actPick=${x.id};pollActivity()">
-      <td>${esc(x.job)}</td><td>${esc(x.origin)}</td><td>${esc(x.started_at.replace('T', ' ').slice(5, 16))}</td>
+      <td>${esc(cap(x.job))}</td><td>${esc(cap(x.origin))}</td><td>${esc(x.started_at.replace('T', ' ').slice(5, 16))}</td>
       <td class="n">${fmtDur(x.elapsed)}</td><td class="n">${n(x.done)}${x.total ? ' / ' + n(x.total) : ''}</td>
       <td><span class="state ${esc(x.health === 'ok' ? x.state : x.health)}">${esc(x.health === 'ok' ? x.state : x.health)}</span></td>
-      <td class="hint">${esc((x.summary || x.last_line).slice(0, 90))}</td></tr>`).join('')}</tbody></table></div>`
+      <td class="hint">${esc(cap((x.summary || x.last_line).slice(0, 90)))}</td></tr>`).join('')}</tbody></table></div>`
     : '<p class="hint">Nothing yet.</p>';
 }
 
@@ -1202,7 +1778,7 @@ async function rate(btn, value) {
 // /api/metrics over 7, 30 or 90 days. Tool colours follow a fixed order, so a
 // tool keeps its colour whichever tools ran. Every chart has a table view,
 // which is also what makes the light-theme hues under 3:1 legible.
-let mDays = 30, mData = null;
+let mDays = 30, mData = null, halBy = 'kind';
 const mTable = {};
 const pct = x => x == null ? '-' : `${(x * 100).toFixed(x > 0 && x < 0.1 ? 1 : 0)}%`;
 const toolInk = i => `var(--s${i + 1})`;
@@ -1223,10 +1799,16 @@ document.querySelectorAll('#m-days button').forEach(b => b.onclick = () => {
   document.querySelectorAll('#m-days button').forEach(x => x.classList.toggle('on', x === b));
   loadMetrics();
 });
+document.querySelectorAll('#m-hal-by button').forEach(b => b.onclick = () => {
+  halBy = b.dataset.by;
+  document.querySelectorAll('#m-hal-by button').forEach(x => x.classList.toggle('on', x === b));
+  if (mData) drawMetrics();
+});
 document.querySelectorAll('#metrics [data-table]').forEach(b => b.onclick = () => {
   const id = b.dataset.table;
   mTable[id] = !mTable[id];
   b.textContent = mTable[id] ? 'Show as chart' : 'Show as table';
+  b.dataset.icon = mTable[id] ? 'chart-line' : 'table-2';
   drawMetrics();
 });
 let mResize = null;
@@ -1235,15 +1817,15 @@ window.addEventListener('resize', () => { clearTimeout(mResize);
 
 function drawMetrics() {
   const d = mData, runs = d.runs, calls = d.ai_calls, h = d.hallucination;
-  $('m-since').textContent = `since ${d.since}`;
+  $('m-since').textContent = `Since ${d.since}`;
   const tile = (k, v, s, tip) => `<div class="tile${tip ? ' has-tip' : ''}"${tip ? ' tabindex="0"' : ''}>
-    <div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || '&nbsp;'}</div>${tip || ''}</div>`;
+    <div class="k">${k}</div><div class="v">${v}</div><div class="s">${capHtml(s) || '&nbsp;'}</div>${tip || ''}</div>`;
   const late = since => since && since > d.since ? ` · recorded from ${since}` : '';
   const errs = Object.entries(runs.by_state).filter(([, v]) => v).map(([k, v]) => `${v} ${k}`).join(', ');
-  const kinds = h.by_kind.map(k => `<tr><td>${esc(k.label)}</td><td class="pts">${k.checked} of ${k.outputs}</td>
+  const kinds = h.by_kind.map(k => `<tr><td>${esc(cap(k.label))}</td><td class="pts">${k.checked} of ${k.outputs}</td>
     <td class="pts">${k.claims ? `${k.unsupported} of ${k.claims}` : '-'}</td><td class="pts">${pct(k.rate)}</td></tr>`).join('');
-  const hTip = `<span class="tip"><h4>Claims not supported by the advert or résumé</h4>
-    ${kinds ? `<table><tr><td></td><td class="pts">checked</td><td class="pts">unsupported</td><td class="pts">rate</td></tr>${kinds}</table>`
+  const hTip = `<span class="tip"><h4>Claims not supported by the advert or resume</h4>
+    ${kinds ? `<table><tr><td></td><td class="pts">Checked</td><td class="pts">Unsupported</td><td class="pts">Rate</td></tr>${kinds}</table>`
             : '<p class="why">No AI output in this period.</p>'}
     <div class="meta-line">Each output is split into single claims and each claim is looked up in its
       sources; a claim only counts as supported when its quote is found there (HalluLens method).
@@ -1263,7 +1845,7 @@ function drawMetrics() {
   // Runs by tool
   const used = d.tools.map((t, i) => ({t, i, total: d.per_day.reduce((s, x) => s + x.runs[t], 0)}));
   $('m-runs-legend').innerHTML = used.map(u =>
-    `<span><i style="background:${toolInk(u.i)}"></i>${esc(u.t)} <b>${n(u.total)}</b></span>`).join('');
+    `<span><i style="background:${toolInk(u.i)}"></i>${esc(cap(u.t))} <b>${n(u.total)}</b></span>`).join('');
   if (mTable['m-runs']) {
     const rows = d.per_day.filter(x => d.tools.some(t => x.runs[t])).reverse();
     $('m-runs').innerHTML = table([{label: 'Day', get: x => esc(x.date)},
@@ -1273,18 +1855,52 @@ function drawMetrics() {
   } else if (!runs.total) {
     $('m-runs').innerHTML = '<div class="none">No runs in this period.</div>';
   } else {
-    columns($('m-runs'), d.per_day, {
-      up: x => d.tools.map((t, i) => ({v: x.runs[t], ink: toolInk(i), label: t})),
-      tip: x => ({head: x.date, rows: d.tools.map((t, i) => ({ink: toolInk(i), v: x.runs[t], label: t}))
-                    .filter(r => r.v), foot: `${d.tools.reduce((s, t) => s + x.runs[t], 0)} runs`})});
+    lines($('m-runs'), d.per_day,
+      d.tools.map((t, i) => ({label: cap(t), ink: toolInk(i), value: x => x.runs[t]})),
+      x => `${d.tools.reduce((s, t) => s + x.runs[t], 0)} runs`);
+  }
+
+  // Hallucination: one line per kind of output, as a share of its checked
+  // claims that day. A day with nothing checked is a gap, not 0%; the
+  // tooltip says how many claims a rate stands on, because one of two is 50%.
+  // Split by kind of output, or by model: same claims, other grouping.
+  const byModel = halBy === 'model';
+  const claimsOf = x => byModel ? x.claims_by_model : x.claims;
+  const halKinds = (byModel ? d.models : d.kinds).map((k, i) => {
+    const tot = d.per_day.reduce((a, x) => {
+      const c = claimsOf(x)[k.kind]; if (c) { a.c += c.claims; a.u += c.unsupported; } return a;
+    }, {c: 0, u: 0});
+    return {...k, ink: toolInk(i), tot};
+  });
+  $('m-hal-legend').innerHTML = halKinds.map(k =>
+    `<span><i style="background:${k.ink}"></i>${esc(cap(k.label))} <b>${k.tot.c ? `${n(k.tot.u)} of ${n(k.tot.c)}` : '-'}</b></span>`).join('');
+  const pctOf = c => c ? +(100 * c.unsupported / c.claims).toFixed(1) : null;
+  const dayTotal = x => Object.values(claimsOf(x)).reduce((a, c) => ({c: a.c + c.claims, u: a.u + c.unsupported}), {c: 0, u: 0});
+  if (mTable['m-hal']) {
+    const rows = d.per_day.filter(x => Object.keys(claimsOf(x)).length).reverse();
+    $('m-hal').innerHTML = table([{label: 'Day', get: x => esc(x.date)},
+      ...halKinds.filter(k => k.tot.c).map(k => ({label: esc(cap(k.label)), num: 1, get: x => {
+        const c = claimsOf(x)[k.kind]; return c ? `${pctOf(c)}% <span class="hint">(${c.unsupported}/${c.claims})</span>` : '-';
+      }})),
+      {label: 'All', num: 1, get: x => { const t = dayTotal(x); return `${n(t.u)} of ${n(t.c)}`; }}],
+      rows, 'Nothing was checked in this period.') + (rows.length ? '<p class="hint">Days with nothing checked are left out.</p>' : '');
+  } else if (!h.claims) {
+    $('m-hal').innerHTML = '<div class="none">Nothing was checked in this period.</div>';
+  } else {
+    lines($('m-hal'), d.per_day,
+      halKinds.map(k => ({label: cap(k.label), ink: k.ink, value: x => pctOf(claimsOf(x)[k.kind]),
+                       detail: x => `${claimsOf(x)[k.kind].unsupported} of ${claimsOf(x)[k.kind].claims} claims`})),
+      x => { const t = dayTotal(x); return `${t.u} of ${t.c} claims unsupported that day`; },
+      {fmt: v => `${+v.toFixed(1)}%`, dots: true, max: 100, floor: 10,
+       empty: 'Nothing checked this day', label: `Share of claims not supported, per day and ${byModel ? 'model' : 'kind'}`});
   }
 
   // Feedback
   const fb = d.feedback;
   $('m-fb-sub').textContent = fb.approval == null ? '' : `${pct(fb.approval)} approval`;
   $('m-fb-legend').innerHTML =
-    `<span><i style="background:var(--fb-up)"></i>thumbs up <b>${n(fb.up)}</b></span>
-     <span><i style="background:var(--fb-down)"></i>thumbs down <b>${n(fb.down)}</b></span>`;
+    `<span><i style="background:var(--fb-up)"></i>Thumbs up <b>${n(fb.up)}</b></span>
+     <span><i style="background:var(--fb-down)"></i>Thumbs down <b>${n(fb.down)}</b></span>`;
   if (mTable['m-fb']) {
     const rows = d.per_day.filter(x => x.up || x.down).reverse();
     $('m-fb').innerHTML = table([{label: 'Day written', get: x => esc(x.date)},
@@ -1295,10 +1911,10 @@ function drawMetrics() {
       letter or review with thumbs up or down and it is counted here, on the day it was written.</div>`;
   } else {
     columns($('m-fb'), d.per_day, {
-      up: x => [{v: x.up, ink: 'var(--fb-up)', label: 'thumbs up'}],
-      down: x => [{v: x.down, ink: 'var(--fb-down)', label: 'thumbs down'}],
-      tip: x => ({head: x.date, rows: [{ink: 'var(--fb-up)', v: x.up, label: 'thumbs up'},
-                                       {ink: 'var(--fb-down)', v: x.down, label: 'thumbs down'}],
+      up: x => [{v: x.up, ink: 'var(--fb-up)', label: 'Thumbs up'}],
+      down: x => [{v: x.down, ink: 'var(--fb-down)', label: 'Thumbs down'}],
+      tip: x => ({head: x.date, rows: [{ink: 'var(--fb-up)', v: x.up, label: 'Thumbs up'},
+                                       {ink: 'var(--fb-down)', v: x.down, label: 'Thumbs down'}],
                   foot: x.up + x.down ? `${pct(x.up / (x.up + x.down))} approval` : 'no ratings'})});
   }
 }
@@ -1309,6 +1925,112 @@ const niceMax = v => { if (v <= 0) return 1;
   // is simply not drawn.
   return [1, 2, 2.5, 5, 10].map(m => m * p)
     .find(m => m >= v && Number.isInteger(m)) || 10 * p; };
+
+// A time series: one 2px line per series, days along the bottom. A series
+// with nothing in the period is left out of the plot (the legend still says
+// so) rather than drawn along the baseline under the others. A crosshair
+// snaps to the nearest day and the tooltip lists every series there; the
+// arrow keys move it too.
+//
+// `value(x)` may be null: no data that day. The line breaks there instead of
+// dropping to zero, and with `opts.dots` every point gets a dot, so a day
+// with no neighbours is still seen. `opts.fmt` formats ticks and values;
+// `series.detail(x)` adds what is behind a value to its tooltip row.
+function lines(el, days, series, foot, opts = {}) {
+  const fmt = opts.fmt || (v => v.toLocaleString());
+  const W = Math.max(280, el.clientWidth || 600), H = 180;
+  const L = 34, R = 10, T = 10, B = 20, pw = W - L - R, ph = H - T - B;
+  const has = v => v !== null && v !== undefined;
+  const live = series.filter(s => days.some(x => has(s.value(x)) && (opts.dots || s.value(x))));
+  const peak = Math.max(0, ...live.flatMap(s => days.map(s.value).filter(has)));
+  const top = opts.max ? Math.min(opts.max, niceMax(Math.max(peak, opts.floor || 0))) : niceMax(Math.max(1, peak));
+  const X = i => L + (days.length === 1 ? pw / 2 : i * pw / (days.length - 1));
+  const Y = v => T + ph - v / top * ph;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
+    aria-label="${esc(opts.label || 'Per-day chart')}; use Show as table for the numbers">`;
+  [0, top / 2, top].filter(t => opts.fmt || Number.isInteger(t)).forEach(t => {
+    const y = Y(t) + .5;
+    svg += `<line class="${t ? 'grid' : 'base'}" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/>
+      <text class="tick" x="${L - 5}" y="${y + 3}" text-anchor="end">${fmt(t)}</text>`;
+  });
+  live.forEach(s => {
+    let run = [];
+    const flush = () => {
+      if (run.length > 1) svg += `<polyline points="${run.join(' ')}" fill="none" stroke="${s.ink}"
+        stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      run = [];
+    };
+    days.forEach((x, i) => {
+      const v = s.value(x);
+      if (has(v)) run.push(`${X(i).toFixed(1)},${Y(v).toFixed(1)}`); else flush();
+    });
+    flush();
+    if (opts.dots) days.forEach((x, i) => {
+      const v = s.value(x);
+      if (has(v)) svg += `<circle class="dot" cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4" fill="${s.ink}"/>`;
+    });
+  });
+  const at = [0, Math.floor((days.length - 1) / 2), days.length - 1];
+  [...new Set(at)].forEach(i => svg += `<text class="tick" x="${X(i)}" y="${H - 5}"
+    text-anchor="${i === 0 ? 'start' : i === days.length - 1 ? 'end' : 'middle'}">${shortDate(days[i].date)}</text>`);
+  svg += `<g class="cross" visibility="hidden"><line x1="0" x2="0" y1="${T}" y2="${T + ph}"/>${
+    live.map(s => `<circle r="4" fill="${s.ink}"/>`).join('')}</g>
+    <rect class="hit" x="${L}" y="${T}" width="${pw}" height="${ph}" tabindex="0"
+      aria-label="Move through the days with the arrow keys"/>`;
+  el.innerHTML = svg + '</svg>';
+
+  const tip = document.createElement('div');
+  tip.className = 'chart-tip'; tip.hidden = true; el.appendChild(tip);
+  const cross = el.querySelector('.cross'), hit = el.querySelector('.hit');
+  let current = days.length - 1;
+  const show = i => {
+    current = Math.max(0, Math.min(days.length - 1, i));
+    const x = days[current];
+    cross.setAttribute('visibility', 'visible');
+    cross.querySelector('line').setAttribute('x1', X(current));
+    cross.querySelector('line').setAttribute('x2', X(current));
+    cross.querySelectorAll('circle').forEach((c, k) => {
+      const v = live[k].value(x);
+      c.setAttribute('visibility', has(v) ? 'visible' : 'hidden');
+      if (has(v)) { c.setAttribute('cx', X(current)); c.setAttribute('cy', Y(v)); }
+    });
+    tip.replaceChildren();
+    const head = document.createElement('div'); head.className = 'd'; head.textContent = x.date;
+    tip.appendChild(head);
+    let rows = 0;
+    series.forEach(s => {
+      const v = s.value(x); if (!has(v) || (!opts.dots && !v)) return;
+      rows++;
+      const row = document.createElement('div'); row.className = 'r';
+      const key = document.createElement('i'); key.style.background = s.ink;
+      const val = document.createElement('b'); val.textContent = fmt(v);
+      const lab = document.createElement('span');
+      lab.textContent = s.label + (s.detail ? ` · ${s.detail(x)}` : '');
+      row.append(key, val, lab); tip.appendChild(row);
+    });
+    const f = document.createElement('div'); f.className = 'd';
+    f.style.margin = '.2rem 0 0'; f.textContent = rows || !opts.empty ? foot(x) : opts.empty;
+    tip.appendChild(f);
+    tip.hidden = false;
+    const box = el.getBoundingClientRect(), scale = box.width / W, cx = X(current) * scale;
+    tip.style.left = `${Math.max(0, cx + 12 + tip.offsetWidth > box.width ? cx - 12 - tip.offsetWidth : cx + 12)}px`;
+    tip.style.top = '4px';
+  };
+  const hide = () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); };
+  hit.addEventListener('pointermove', ev => {
+    const box = el.querySelector('svg').getBoundingClientRect();
+    const px = (ev.clientX - box.left) * W / box.width;
+    show(Math.round((px - L) / (days.length === 1 ? 1 : pw / (days.length - 1))));
+  });
+  hit.addEventListener('pointerleave', hide);
+  hit.addEventListener('focus', () => show(current));
+  hit.addEventListener('blur', hide);
+  hit.addEventListener('keydown', ev => {
+    if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
+      ev.preventDefault(); show(current + (ev.key === 'ArrowRight' ? 1 : -1));
+    }
+  });
+}
 
 // A column per day: stacked segments up from the baseline, and optionally a
 // second stack down from it (diverging). 2px surface gaps between segments,
@@ -1343,7 +2065,7 @@ function columns(el, days, spec) {
   };
   const ticks = spec.down ? [top, 0, top] : [0, top / 2, top].filter(t => Number.isInteger(t));
   const tickY = (t, i) => spec.down ? (i === 0 ? T : i === 1 ? base : T + ph) : base - t * k;
-  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="per-day chart; use Show as table for the numbers">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Per-day chart; use Show as table for the numbers">`;
   ticks.forEach((t, i) => {
     const y = tickY(t, i) + .5;
     svg += `<line class="${(spec.down ? i === 1 : t === 0) ? 'base' : 'grid'}" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/>
@@ -1416,8 +2138,8 @@ document.querySelectorAll('.cleanup button[data-mode]').forEach(b => b.onclick =
     ? '<p class="err" style="margin:.2rem 0 .4rem">That is every job post you have.</p>' : '';
   out.innerHTML = `${all}<b>${d.count.toLocaleString()} of ${d.total.toLocaleString()} job posts</b> would be deleted (${esc(split)}), for example:
     <ul>${d.sample.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
-    <button class="act danger" id="cl-go">Delete ${d.count.toLocaleString()} job posts</button>
-    <button class="act" id="cl-cancel">Cancel</button>`;
+    <button data-icon="trash-2" class="act danger" id="cl-go">Delete ${d.count.toLocaleString()} job posts</button>
+    <button data-icon="x" class="act" id="cl-cancel">Cancel</button>`;
   $('cl-cancel').onclick = () => out.innerHTML = '';
   $('cl-go').onclick = async () => {
     $('cl-go').disabled = true;
@@ -1435,21 +2157,21 @@ function aiTag(a) {
   if (!a) return '';
   const list = (xs, mark) => (xs || []).length
     ? `<ul>${xs.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '';
-  // The model said the advert or résumé was too thin: its number is a guess.
+  // The model said the advert or resume was too thin: its number is a guess.
   const thin = a.enough_evidence === false;
-  // Claims the guard could not find in the advert or the résumé (guard.py).
+  // Claims the guard could not find in the advert or the resume (guard.py).
   const g = a.guard;
   const flagged = g && g.checked ? (g.flagged || []) : [];
   const checked = !g ? '' : !g.checked ? ' · claims not checked'
-    : ` · ${g.claims - g.unsupported} of ${g.claims} claims found in the advert or résumé`;
-  return `<span class="badge ai ${thin ? '' : esc(a.verdict)}" tabindex="0"><span class="k">ai</span>
+    : ` · ${g.claims - g.unsupported} of ${g.claims} claims found in the advert or resume`;
+  return `<span class="badge ai ${thin ? '' : esc(a.verdict)}" tabindex="0"><span class="k">AI</span>
     <span class="v">${thin ? '?' : a.score}</span>
     <span class="tip"><h4>${thin ? 'Not enough to judge'
-                                 : esc(a.verdict) + " fit, in the model's reading"}</h4>
+                                 : esc(cap(a.verdict)) + " fit, in the model's reading"}</h4>
       <p style="margin:0 0 .45rem">${esc(a.summary)}</p>
       ${a.reasons?.length ? '<b>For</b>' + list(a.reasons) : ''}
       ${a.concerns?.length ? '<b>Against</b>' + list(a.concerns) : ''}
-      ${flagged.length ? `<b>Not in the advert or résumé</b><ul>${flagged.map(f =>
+      ${flagged.length ? `<b title="The guard split this text into claims and checked each against the advert and your resume. These were in neither.">Not in the advert or resume</b><ul>${flagged.map(f =>
         `<li><s>${esc(f.claim)}</s></li>`).join('')}</ul>` : ''}
       <div class="meta-line">${esc(a.model)} · ${esc((a.at || '').replace('T', ' '))}
         · read ${Number(a.advert_chars || 0).toLocaleString()} characters of advert${checked}</div>
@@ -1459,7 +2181,7 @@ function aiTag(a) {
 // Only the states worth a glance: gone, probably gone, confirmed up.
 function listingTag(l, always) {
   if (!l || !l.state) return '';
-  const label = {closed: 'closed', unlisted: 'maybe gone', stale: 'maybe gone', open: 'still open',
+  const label = {closed: 'Closed', unlisted: 'Maybe gone', stale: 'Maybe gone', open: 'Still open',
                  listed: 'listed', unknown: 'not checked'}[l.state] || l.state;
   if (!always && !['closed', 'unlisted', 'stale'].includes(l.state)) return '';
   return `<span class="listing ${esc(l.state)}" title="${esc(l.note)} (checked ${esc(l.checked_at.replace('T', ' '))})">${label}</span>`;
@@ -1471,11 +2193,21 @@ function redrawDetail() {
 
 // ── AI settings ──────────────────────────────────────────────────────────────
 let ai = null;
+// Each provider's own mark, from Simple Icons (CC0; Ollama, Claude, Google
+// Gemini, OpenAI), inlined because the page loads nothing from anywhere.
+const PROVIDER_ICONS = {
+  "ollama": "M16.361 10.26a.894.894 0 0 0-.558.47l-.072.148.001.207c0 .193.004.217.059.353.076.193.152.312.291.448.24.238.51.3.872.205a.86.86 0 0 0 .517-.436.752.752 0 0 0 .08-.498c-.064-.453-.33-.782-.724-.897a1.06 1.06 0 0 0-.466 0zm-9.203.005c-.305.096-.533.32-.65.639a1.187 1.187 0 0 0-.06.52c.057.309.31.59.598.667.362.095.632.033.872-.205.14-.136.215-.255.291-.448.055-.136.059-.16.059-.353l.001-.207-.072-.148a.894.894 0 0 0-.565-.472 1.02 1.02 0 0 0-.474.007Zm4.184 2c-.131.071-.223.25-.195.383.031.143.157.288.353.407.105.063.112.072.117.136.004.038-.01.146-.029.243-.02.094-.036.194-.036.222.002.074.07.195.143.253.064.052.076.054.255.059.164.005.198.001.264-.03.169-.082.212-.234.15-.525-.052-.243-.042-.28.087-.355.137-.08.281-.219.324-.314a.365.365 0 0 0-.175-.48.394.394 0 0 0-.181-.033c-.126 0-.207.03-.355.124l-.085.053-.053-.032c-.219-.13-.259-.145-.391-.143a.396.396 0 0 0-.193.032zm.39-2.195c-.373.036-.475.05-.654.086-.291.06-.68.195-.951.328-.94.46-1.589 1.226-1.787 2.114-.04.176-.045.234-.045.53 0 .294.005.357.043.524.264 1.16 1.332 2.017 2.714 2.173.3.033 1.596.033 1.896 0 1.11-.125 2.064-.727 2.493-1.571.114-.226.169-.372.22-.602.039-.167.044-.23.044-.523 0-.297-.005-.355-.045-.531-.288-1.29-1.539-2.304-3.072-2.497a6.873 6.873 0 0 0-.855-.031zm.645.937a3.283 3.283 0 0 1 1.44.514c.223.148.537.458.671.662.166.251.26.508.303.82.02.143.01.251-.043.482-.08.345-.332.705-.672.957a3.115 3.115 0 0 1-.689.348c-.382.122-.632.144-1.525.138-.582-.006-.686-.01-.853-.042-.57-.107-1.022-.334-1.35-.68-.264-.28-.385-.535-.45-.946-.03-.192.025-.509.137-.776.136-.326.488-.73.836-.963.403-.269.934-.46 1.422-.512.187-.02.586-.02.773-.002zm-5.503-11a1.653 1.653 0 0 0-.683.298C5.617.74 5.173 1.666 4.985 2.819c-.07.436-.119 1.04-.119 1.503 0 .544.064 1.24.155 1.721.02.107.031.202.023.208a8.12 8.12 0 0 1-.187.152 5.324 5.324 0 0 0-.949 1.02 5.49 5.49 0 0 0-.94 2.339 6.625 6.625 0 0 0-.023 1.357c.091.78.325 1.438.727 2.04l.13.195-.037.064c-.269.452-.498 1.105-.605 1.732-.084.496-.095.629-.095 1.294 0 .67.009.803.088 1.266.095.555.288 1.143.503 1.534.071.128.243.393.264.407.007.003-.014.067-.046.141a7.405 7.405 0 0 0-.548 1.873c-.062.417-.071.552-.071.991 0 .56.031.832.148 1.279L3.42 24h1.478l-.05-.091c-.297-.552-.325-1.575-.068-2.597.117-.472.25-.819.498-1.296l.148-.29v-.177c0-.165-.003-.184-.057-.293a.915.915 0 0 0-.194-.25 1.74 1.74 0 0 1-.385-.543c-.424-.92-.506-2.286-.208-3.451.124-.486.329-.918.544-1.154a.787.787 0 0 0 .223-.531c0-.195-.07-.355-.224-.522a3.136 3.136 0 0 1-.817-1.729c-.14-.96.114-2.005.69-2.834.563-.814 1.353-1.336 2.237-1.475.199-.033.57-.028.776.01.226.04.367.028.512-.041.179-.085.268-.19.374-.431.093-.215.165-.333.36-.576.234-.29.46-.489.822-.729.413-.27.884-.467 1.352-.561.17-.035.25-.04.569-.04.319 0 .398.005.569.04a4.07 4.07 0 0 1 1.914.997c.117.109.398.457.488.602.034.057.095.177.132.267.105.241.195.346.374.43.14.068.286.082.503.045.343-.058.607-.053.943.016 1.144.23 2.14 1.173 2.581 2.437.385 1.108.276 2.267-.296 3.153-.097.15-.193.27-.333.419-.301.322-.301.722-.001 1.053.493.539.801 1.866.708 3.036-.062.772-.26 1.463-.533 1.854a2.096 2.096 0 0 1-.224.258.916.916 0 0 0-.194.25c-.054.109-.057.128-.057.293v.178l.148.29c.248.476.38.823.498 1.295.253 1.008.231 2.01-.059 2.581a.845.845 0 0 0-.044.098c0 .006.329.009.732.009h.73l.02-.074.036-.134c.019-.076.057-.3.088-.516.029-.217.029-1.016 0-1.258-.11-.875-.295-1.57-.597-2.226-.032-.074-.053-.138-.046-.141.008-.005.057-.074.108-.152.376-.569.607-1.284.724-2.228.031-.26.031-1.378 0-1.628-.083-.645-.182-1.082-.348-1.525a6.083 6.083 0 0 0-.329-.7l-.038-.064.131-.194c.402-.604.636-1.262.727-2.04a6.625 6.625 0 0 0-.024-1.358 5.512 5.512 0 0 0-.939-2.339 5.325 5.325 0 0 0-.95-1.02 8.097 8.097 0 0 1-.186-.152.692.692 0 0 1 .023-.208c.208-1.087.201-2.443-.017-3.503-.19-.924-.535-1.658-.98-2.082-.354-.338-.716-.482-1.15-.455-.996.059-1.8 1.205-2.116 3.01a6.805 6.805 0 0 0-.097.726c0 .036-.007.066-.015.066a.96.96 0 0 1-.149-.078A4.857 4.857 0 0 0 12 3.03c-.832 0-1.687.243-2.456.698a.958.958 0 0 1-.148.078c-.008 0-.015-.03-.015-.066a6.71 6.71 0 0 0-.097-.725C8.997 1.392 8.337.319 7.46.048a2.096 2.096 0 0 0-.585-.041Zm.293 1.402c.248.197.523.759.682 1.388.03.113.06.244.069.292.007.047.026.152.041.233.067.365.098.76.102 1.24l.002.475-.12.175-.118.178h-.278c-.324 0-.646.041-.954.124l-.238.06c-.033.007-.038-.003-.057-.144a8.438 8.438 0 0 1 .016-2.323c.124-.788.413-1.501.696-1.711.067-.05.079-.049.157.013zm9.825-.012c.17.126.358.46.498.888.28.854.36 2.028.212 3.145-.019.14-.024.151-.057.144l-.238-.06a3.693 3.693 0 0 0-.954-.124h-.278l-.119-.178-.119-.175.002-.474c.004-.669.066-1.19.214-1.772.157-.623.434-1.185.68-1.382.078-.062.09-.063.159-.012z",
+  "anthropic": "m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z",
+  "gemini": "M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81",
+  "openai": "M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"
+};
+const providerIcon = p => PROVIDER_ICONS[p]
+  ? `<svg class="plogo ${p}" viewBox="0 0 24 24" aria-hidden="true"><path d="${PROVIDER_ICONS[p]}"/></svg>` : '';
 
 async function drawAI() {
   ai = await (await api('/api/llm')).json();
   $('ai-provider').innerHTML = ['', ...Object.keys(ai.providers)].map(p =>
-    `<button data-p="${p}" class="${p === ai.provider ? 'on' : ''}">${
+    `<button data-p="${p}" ${p ? '' : 'data-icon="power" '}class="${p === ai.provider ? 'on' : ''}">${providerIcon(p)}${
       p ? esc(ai.providers[p]) : 'Off'}</button>`).join('');
   $('ai-provider').querySelectorAll('button').forEach(b => b.onclick = () => {
     if (ai.provider !== b.dataset.p) $('ai-model').value = '';
@@ -1500,9 +2232,9 @@ function paintAI() {
   $('ai-key-row').hidden = !(p in ai.keys);
   const where = ai.keys[p];
   $('ai-key-state').innerHTML = where === 'memory'
-    ? `<span class="saved">held in memory</span> <button class="act" id="ai-forget">Forget</button>`
+    ? `<span class="saved">held in memory</span> <button data-icon="eraser" class="act" id="ai-forget">Forget</button>`
     : where === 'environment' ? '<span class="hint">using the key from the environment</span>'
-    : '<span class="hint">no key held</span>';
+    : '<span class="hint">No key held</span>';
   if ($('ai-forget')) $('ai-forget').onclick = async () => {
     await api('/api/llm/forget', {method: 'POST', body: form({provider: p})});
     drawAI();
@@ -1561,80 +2293,544 @@ $('ai-test').onclick = async () => {
 };
 
 // ── settings ─────────────────────────────────────────────────────────────────
+// ── list editors ─────────────────────────────────────────────────────────────
+// A list setting grows only through its form and shrinks only by removing a
+// row. Each change saves at once through /api/config, which re-reads the file
+// through the normal loader: a broken pattern or an unknown board is refused
+// and the table stays as it was.
+// A notice in the corner: what was saved, or why not. Errors stay longer
+// and can be closed; they are also shown beside the form they belong to.
+const MODE_ICON = {remote: 'house', hybrid: 'arrow-left-right', office: 'building-2'};
+const svgIcon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+function toast(text, kind = 'ok') {
+  const t = document.createElement('div');
+  t.className = `toast ${kind}`;
+  t.innerHTML = `${svgIcon(kind === 'err' ? 'circle-alert' : 'circle-check')}<span>${esc(text)}</span>
+    <button class="x" aria-label="Dismiss">×</button>`;
+  t.querySelector('.x').onclick = () => t.remove();
+  $('toasts').append(t);
+  setTimeout(() => t.remove(), kind === 'err' ? 9000 : 3500);
+}
+
+// What each list is called on the page, and how one of its rows is named.
+const LIST_NAMES = {titles_include: 'Job titles', titles_exclude: 'Never show these titles',
+  countries: 'Countries to keep job posts from', dealbreakers: 'Dealbreakers',
+  companies: 'Employer boards'};
+const rowName = (key, r) => typeof r === 'string'
+  ? (key === 'countries' ? ((placeCountries || []).find(c => c.code === r) || {}).name || r : r)
+  : r.name;
+
+async function saveList(key, rows, msgId) {
+  const before = cfg[key] || [];
+  const r = await api('/api/config', {method: 'POST',
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify({[key]: rows})});
+  const msg = $(msgId);
+  if (!r.ok) {
+    const why = cap(await r.text());
+    msg.className = 'err'; msg.textContent = why;
+    toast(why, 'err');
+    return false;
+  }
+  cfg = await r.json();
+  msg.textContent = '';
+  // Name the change: which row went in or out of which list.
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const added = rows.filter(x => !before.some(y => same(x, y)));
+  const gone = before.filter(x => !rows.some(y => same(x, y)));
+  const list = LIST_NAMES[key] || 'the list';
+  toast(added.length === 1 && !gone.length ? `Added "${rowName(key, added[0])}" to ${list}`
+      : gone.length === 1 && !added.length ? `Removed "${rowName(key, gone[0])}" from ${list}`
+      : `${list} saved`);
+  loadRoles();
+  return true;
+}
+
+// `cols`: {label, cell(row) -> html, name(row) -> text for the remove button}.
+// With a `key`, a list longer than PAGE_SIZE is shown a page at a time;
+// the page is remembered per list in `pages`, and Remove still names each
+// row by its place in the whole list.
+const PAGE_SIZE = 5, pages = {};
+function editorTable(cols, rows, empty, key) {
+  let shown = rows.map((r, i) => [r, i]), pager = '';
+  if (key && rows.length > PAGE_SIZE) {
+    const last = Math.ceil(rows.length / PAGE_SIZE) - 1;
+    const p = pages[key] = Math.min(Math.max(pages[key] || 0, 0), last);
+    shown = shown.slice(p * PAGE_SIZE, (p + 1) * PAGE_SIZE);
+    pager = `<div class="pager">
+      <button type="button" class="act" data-icon="chevron-left" data-page="${key}" data-to="${p - 1}"
+        ${p ? '' : 'disabled'} aria-label="Previous page">Previous</button>
+      <span class="hint">${p * PAGE_SIZE + 1} to ${Math.min(rows.length, (p + 1) * PAGE_SIZE)} of ${rows.length}</span>
+      <button type="button" class="act" data-icon="chevron-right" data-page="${key}" data-to="${p + 1}"
+        ${p < last ? '' : 'disabled'} aria-label="Next page">Next</button></div>`;
+  }
+  return `<div class="tbl-wrap"><table class="data editor"><tr>${
+    cols.map(c => `<th>${c.label}</th>`).join('')}<th></th></tr>${
+    shown.map(([r, i]) => `<tr>${cols.map(c => `<td>${c.cell(r)}</td>`).join('')}
+      <td class="n"><button data-icon="trash-2" type="button" class="act del" data-i="${i}"
+        aria-label="Remove ${esc(cols[0].name(r))}">Remove</button></td></tr>`).join('')
+    || `<tr><td colspan="${cols.length + 1}" class="hint">${empty}</td></tr>`}</table></div>${pager}`;
+}
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-page]');
+  if (!b || b.disabled) return;
+  pages[b.dataset.page] = +b.dataset.to;
+  drawLists();
+});
+
+// Remove asks twice: the first click arms the button for three seconds.
+function wireRemove(box, rows, save) {
+  box.querySelectorAll('button.del').forEach(b => b.onclick = async () => {
+    if (!b.classList.contains('armed')) {
+      b.classList.add('armed'); b.textContent = 'Remove?';
+      setTimeout(() => { b.classList.remove('armed'); b.textContent = 'Remove'; }, 3000);
+      return;
+    }
+    b.disabled = true;
+    if (!await save(rows.filter((_, j) => j !== +b.dataset.i))) b.disabled = false;
+  });
+}
+
+function drawLists() {
+  const word = [{label: 'Title', cell: t => esc(t), name: t => t}];
+  for (const [box, key, msg, empty] of [
+      ['ed-titles', 'titles_include', 'msg-titles', 'None yet. A scan needs at least one.'],
+      ['ed-exclude', 'titles_exclude', 'msg-exclude', 'None. Every title is kept.']]) {
+    const rows = cfg[key] || [];
+    $(box).innerHTML = editorTable(word, rows, empty, key);
+    wireRemove($(box), rows, async next => await saveList(key, next, msg) && (drawLists(), true));
+  }
+  const names = Object.fromEntries((placeCountries || []).map(c => [c.code, c.name]));
+  const countries = cfg.countries || [];
+  $('ed-countries').innerHTML = editorTable([
+    {label: 'Country', cell: c => esc(names[c] || COUNTRIES[c] || c), name: c => names[c] || c},
+    {label: 'Code', cell: c => `<span class="uid">${esc(c)}</span>`}],
+    countries, 'None: job posts from every country are kept.', 'countries');
+  wireRemove($('ed-countries'), countries,
+    async next => await saveList('countries', next, 'msg-countries') && (drawLists(), true));
+  if (placeCountries) $('add-country').innerHTML = '<option value="">Choose a country</option>' +
+    placeCountries.filter(c => !countries.includes(c.code))
+      .map(c => `<option value="${c.code}">${esc(c.name)}</option>`).join('');
+
+  const deals = cfg.dealbreakers || [];
+  $('ed-deal').innerHTML = editorTable([
+    {label: 'Name', cell: d => esc(d.name), name: d => d.name},
+    {label: 'Pattern', cell: d => `<code>${esc(d.pattern)}</code>`},
+    {label: 'Effect', cell: d => d.hard ? 'Hides the job post' : 'Costs 8 points'}],
+    deals, 'None. No advert is dropped for what it says.', 'dealbreakers');
+  wireRemove($('ed-deal'), deals,
+    async next => await saveList('dealbreakers', next, 'msg-deal') && (drawLists(), true));
+}
+
+// One add handler per form: read it, refuse the obvious, append, save.
+// `read` returns the new row, or {error} to say why there is none.
+function wireAdd(formId, msgId, read, key) {
+  $(formId).onsubmit = async ev => {
+    ev.preventDefault();
+    const msg = $(msgId);
+    const item = read();
+    if (item.error) { msg.className = 'err'; msg.textContent = item.error; return; }
+    const rows = cfg[key] || [];
+    if (await saveList(key, [...rows, item], msgId)) {
+      pages[key] = Infinity;          // show the page the new row landed on
+      $(formId).querySelectorAll('input').forEach(i => { i.value = ''; });
+      drawLists();
+    }
+  };
+}
+const addWord = (inputId, key) => () => {
+  const v = $(inputId).value.trim();
+  if (!v) return {error: 'Type one first.'};
+  if ((cfg[key] || []).some(t => t.toLowerCase() === v.toLowerCase())) return {error: 'Already in the list.'};
+  return v;
+};
+wireAdd('f-countries', 'msg-countries', () =>
+  $('add-country').value || {error: 'Choose a country first.'}, 'countries');
+wireAdd('f-titles', 'msg-titles', addWord('add-title', 'titles_include'), 'titles_include');
+wireAdd('f-exclude', 'msg-exclude', addWord('add-exclude', 'titles_exclude'), 'titles_exclude');
+// Samples for the pattern help: a common dealbreaker each, in plain words.
+const DEAL_SAMPLES = [
+  {name: 'Security clearance', pattern: 'security clearance|TS/SCI|top secret|polygraph', hard: true},
+  {name: 'Relocation required', pattern: 'must relocate|relocation (?:is )?required', hard: true},
+  {name: 'Heavy travel', pattern: 'travel up to \\d{2}\\s?%|(?:extensive|frequent) travel', hard: false},
+  {name: 'On-call', pattern: 'on.?call|24/7 support|pager ?duty', hard: false},
+  {name: 'Contract or agency', pattern: '\\bC2C\\b|corp.?to.?corp|staffing (?:agency|firm)', hard: false},
+  {name: 'Unpaid take-home', pattern: 'take.?home (?:test|project|assignment)|unpaid (?:trial|project)', hard: false},
+  {name: 'Sales quota', pattern: '\\bquota\\b|commission.?only', hard: false},
+];
+$('deal-samples').innerHTML = DEAL_SAMPLES.map((d, i) =>
+  `<button data-icon="lightbulb" type="button" class="act sample" data-i="${i}" title="${esc(d.pattern)}">${esc(d.name)}</button>`).join('');
+$('deal-samples').querySelectorAll('button').forEach(b => b.onclick = () => {
+  const d = DEAL_SAMPLES[+b.dataset.i];
+  $('add-deal-name').value = d.name; $('add-deal-pattern').value = d.pattern;
+  $('add-deal-hard').value = d.hard ? '1' : '0';
+  tryPattern(); $('add-deal-pattern').focus();
+});
+
+// Try the pattern in the form against a pasted sentence. JavaScript's regex
+// agrees with Python's on everything in the help table; Add checks it with
+// Python anyway.
+function tryPattern() {
+  const out = $('try-out'), text = $('try-text').value, pattern = $('add-deal-pattern').value;
+  if (!text || !pattern) { out.className = 'hint'; out.textContent = ''; return; }
+  let m;
+  try { m = new RegExp(pattern, 'i').exec(text); }
+  catch (e) { out.className = 'err'; out.textContent = 'Not a valid pattern yet.'; return; }
+  out.className = m ? 'saved' : 'hint';
+  out.innerHTML = m ? `Found: "<b>${esc(m[0])}</b>"` : 'Not found in that sentence.';
+}
+$('try-text').oninput = tryPattern;
+$('add-deal-pattern').addEventListener('input', tryPattern);
+
+wireAdd('f-deal', 'msg-deal', () => {
+  const name = $('add-deal-name').value.trim(), pattern = $('add-deal-pattern').value.trim();
+  if (!name || !pattern) return {error: 'Give it a name and a pattern.'};
+  if ((cfg.dealbreakers || []).some(d => d.name.toLowerCase() === name.toLowerCase()))
+    return {error: 'A dealbreaker has that name already.'};
+  return {name, pattern, hard: $('add-deal-hard').value === '1'};
+}, 'dealbreakers');
+
+// ── Where you are: country, then region, then city ──────────────────────────
+// Every choice comes from the bundled place list, so a saved location always
+// resolves; a free-text one that did not quietly turned the radius off.
+let placeCountries = null, placeCurrencies = [], pickStart = '';
+const placeGet = async (what, params) =>
+  (await api(`/api/places/${what}?` + new URLSearchParams(params))).json();
+const pickKey = () => [$('c_pcountry').value, $('c_pregion').value, $('c_pcity').value.trim()].join('|');
+const pickChanged = () => $('c_pcity') && $('c_pcity').value.trim() && pickKey() !== pickStart;
+
+// Nothing saved yet: Naperville, Illinois, United States, shown but not saved
+// until Save, like config.DEFAULT_ANCHOR for a config that leaves it out.
+const PICK_DEFAULT = {country: 'US', region: 'IL', city: 'Naperville'};
+
+async function drawPicker() {
+  const at = cfg.anchor_place || {};
+  await loadPlaceCountries();
+  const fresh = !cfg.anchor;
+  const country = at.located ? at.country : fresh ? PICK_DEFAULT.country
+    : ((cfg.countries || [])[0] || '');
+  $('c_pcountry').innerHTML = '<option value="">Choose a country</option>' + placeCountries.map(c =>
+    `<option value="${c.code}"${c.code === country ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
+  await pickRegions(at.located ? at.region : fresh ? PICK_DEFAULT.region : '');
+  $('c_pcity').value = at.located ? at.city : fresh ? PICK_DEFAULT.city : '';
+  if (fresh) $('c_currency').value = 'USD';     // the default's own currency
+  await pickCities();
+  pickStart = fresh ? '' : pickKey();
+  $('c_pwhere').className = at.located ? 'hint' : 'err';
+  $('c_pwhere').textContent = at.located
+    ? 'The radius is measured from the centre of this city.'
+    : cfg.anchor
+      ? `Your saved location, "${cfg.anchor}", is not in the place list, so the radius is off. Choose it here and Save.`
+      : 'No location saved yet, so the radius is off. Naperville is filled in; change it or Save it.';
+}
+
+async function pickRegions(selected) {
+  const country = $('c_pcountry').value;
+  const r = country ? await placeGet('regions', {country}) : {label: 'Region', regions: []};
+  $('c_pregion-label').textContent = r.label;
+  $('c_pregion-wrap').hidden = !r.regions.length;
+  $('c_pregion').innerHTML = `<option value="">Any ${esc(r.label.toLowerCase())}</option>` +
+    r.regions.map(x => `<option value="${x.code}"${x.code === selected ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
+}
+
+let pickTimer = 0;
+async function pickCities() {
+  const country = $('c_pcountry').value;
+  if (!country) { $('c_pcities').innerHTML = ''; return; }
+  const d = await placeGet('cities', {country, region: $('c_pregion').value, q: $('c_pcity').value.trim()});
+  $('c_pcities').innerHTML = d.cities.map(c => `<option value="${esc(c)}">`).join('');
+}
+document.addEventListener('change', async ev => {
+  if (ev.target.id === 'c_pcountry') {
+    await pickRegions(''); $('c_pcity').value = ''; pickCities();
+    // The salary floor follows the country, in its own currency, where a
+    // floor can use that currency; otherwise it is left as it was.
+    const c = placeCountries.find(x => x.code === ev.target.value) || {};
+    const why = $('c_currency-why');
+    if (c.currency) {
+      $('c_currency').value = c.currency;
+      why.textContent = `Set from ${c.name}; change it if you are paid in another.`;
+    } else if (c.name) {
+      why.textContent = `${c.name}'s currency cannot be used for a salary floor; kept ${$('c_currency').value}.`;
+    }
+  }
+  if (ev.target.id === 'c_pregion') { $('c_pcity').value = ''; pickCities(); }
+});
+document.addEventListener('input', ev => {
+  if (ev.target.id === 'c_pcity') { clearTimeout(pickTimer); pickTimer = setTimeout(pickCities, 150); }
+});
+
+async function loadPlaceCountries() {
+  if (placeCountries) return;
+  const d = await placeGet('countries', {});
+  placeCountries = d.countries; placeCurrencies = d.currencies;
+}
+
 async function drawConfig() {
   if (!cfg) cfg = await (await api('/api/config')).json();
-  const list = v => (v || []).join('\n');
+  await loadPlaceCountries();
+  if (formDirty()) { drawLists(); return; }    // keep what you have not saved yet
+  drawLists();
   $('cfgform').innerHTML = `
-    <div class="field"><label>Job titles, one per line</label>
-      <textarea id="c_titles">${esc(list(cfg.titles_include))}</textarea>
-      <div class="hint">Matched whole-word first, then a looser pass that
-        accepts the same words in another order.</div></div>
-    <div class="field"><label>Never show these titles</label>
-      <textarea id="c_exclude" style="min-height:3.5rem">${esc(list(cfg.titles_exclude))}</textarea></div>
-    <div class="field"><label>Where you are</label>
-      <input id="c_anchor" value="${esc(cfg.anchor)}" style="width:22rem"
-        placeholder="Chicago, IL or Makati, Philippines"></div>
+    <div class="field">
+      <div class="picker">
+        <label>Country<select id="c_pcountry"></select></label>
+        <label id="c_pregion-wrap" hidden><span id="c_pregion-label">Region</span>
+          <select id="c_pregion"></select></label>
+        <label>City<input id="c_pcity" list="c_pcities" autocomplete="off"
+          spellcheck="false" placeholder="Start typing"></label>
+        <datalist id="c_pcities"></datalist>
+      </div>
+      <div class="hint" id="c_pwhere"></div></div>
     <div class="field"><label>Radius</label>
       <input id="c_radius" value="${esc(cfg.radius)}" style="width:6rem">
       <select id="c_units">${['mi','km'].map(u =>
         `<option${u === cfg.units ? ' selected' : ''}>${u}</option>`).join('')}</select>
-      <div class="hint">"exact" matches the city only. Remote job posts skip the
-        radius, because distance means nothing for a job with no office.</div></div>
-    <div class="field"><label>Countries (ISO codes, comma separated)</label>
-      <input id="c_countries" value="${esc((cfg.countries || []).join(', '))}" style="width:14rem">
-      <div class="hint">Empty accepts everywhere.</div></div>
+      <div class="hint">How far from your city a job's office may be. Type a number,
+        or <b>exact</b> for jobs in your city only. Remote jobs are always kept, since
+        there is no office to travel to, and so is a post whose location cannot be
+        read.</div></div>
+
     <div class="field"><label>Arrangements to keep</label>
-      ${MODES.map(m => `<label style="display:inline-block;margin-right:1rem;color:var(--fg)">
+      ${MODES.map(m => `<label class="mode">
         <input type="checkbox" class="c_mode" value="${m}"
-          ${(cfg.work_modes || []).includes(m) ? 'checked' : ''}> ${m}</label>`).join('')}
+          ${(cfg.work_modes || []).includes(m) ? 'checked' : ''}>${svgIcon(MODE_ICON[m] || 'circle-dot')}${cap(m)}</label>`).join('')}
       <div class="hint">None ticked keeps all three. A posting that states no
         arrangement is kept whatever you choose. About 60% state none.</div></div>
     <div class="field"><label>Salary floor</label>
-      <input id="c_floor" value="${cfg.salary_floor ?? ''}" style="width:9rem" placeholder="none">
-      <input id="c_currency" value="${esc(cfg.currency)}" style="width:5rem">
-      <div class="hint">Only a published figure can hide a job post. About 12% of
-        postings state one; the rest show as "unconfirmed".</div></div>`;
+      <input id="c_floor" value="${cfg.salary_floor ?? ''}" style="width:9rem" placeholder="None">
+      <select id="c_currency" style="width:6rem">${placeCurrencies.map(c =>
+        `<option${c === cfg.currency ? ' selected' : ''}>${c}</option>`).join('')}</select>
+      <span class="hint" id="c_currency-why"></span>
+      <div class="hint">A job post is hidden only when it lists a salary and even the top
+        of it is below this. Most posts list no salary at all; those are always kept,
+        marked "Unconfirmed salary". So is one paid in another currency, which is
+        never converted. Leave it empty to hide nothing for pay.</div></div>`;
+  await drawPicker();
+  settle();
 }
 
+// ── Save for Location, work arrangement and pay ─────────────────────────────
+// The button says whether there is anything to save: greyed out with "All
+// changes saved" until a field changes, then "Unsaved changes", with a dot
+// on Search in the menu. Unsaved edits survive leaving the page and coming
+// back; drawConfig() only redraws the form when there are none.
+let saveBase = '';
+const formState = () => JSON.stringify([
+  $('c_pcountry').value, $('c_pregion').value, $('c_pcity').value.trim(),
+  $('c_radius').value.trim(), $('c_units').value,
+  [...document.querySelectorAll('.c_mode:checked')].map(c => c.value),
+  $('c_floor').value.trim(), $('c_currency').value]);
+const formDirty = () => !!$('c_radius') && saveBase !== '' && formState() !== saveBase;
+
+function paintSave(state, detail) {
+  const b = $('save'), m = $('savemsg');
+  if (!b) return;
+  const dirty = state === 'dirty' || state === 'error';
+  b.disabled = !dirty;
+  b.classList.toggle('busy', state === 'saving');
+  b.dataset.icon = state === 'saving' ? 'loader-circle' : 'save';
+  b.textContent = state === 'saving' ? 'Saving…' : 'Save changes';
+  if (state === 'saving') b.disabled = true;
+  m.className = 'savestate' + (state === 'dirty' ? ' dirty' : state === 'error' ? ' err' : '');
+  m.innerHTML = state === 'clean' ? `${svgIcon('circle-check')}All changes saved`
+    : state === 'dirty' ? 'Unsaved changes'
+    : state === 'error' ? `${svgIcon('circle-alert')}${esc(detail)}` : '';
+  document.querySelector('nav .item[data-view="settings"]').classList.toggle('dirty', dirty);
+}
+function settle() { saveBase = formState(); paintSave('clean'); }
+const recheck = ev => {
+  if (ev.target.closest && ev.target.closest('#cfgform') && saveBase)
+    paintSave(formDirty() ? 'dirty' : 'clean');
+};
+document.addEventListener('input', recheck);
+document.addEventListener('change', recheck);
+
 $('save').onclick = async () => {
-  const lines = id => $(id).value.split('\n').map(s => s.trim()).filter(Boolean);
+  paintSave('saving');
+  // The lists above save themselves; Save sends only the fields in this form.
   const r = await api('/api/config', {method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
-      titles_include: lines('c_titles'), titles_exclude: lines('c_exclude'),
-      anchor: $('c_anchor').value.trim(), radius: $('c_radius').value.trim(),
+      ...(pickChanged() ? {anchor_pick: {country: $('c_pcountry').value,
+        region: $('c_pregion-wrap').hidden ? '' : $('c_pregion').value,
+        city: $('c_pcity').value.trim()}} : {}),
+      radius: $('c_radius').value.trim(),
       units: $('c_units').value,
-      countries: $('c_countries').value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean),
       work_modes: [...document.querySelectorAll('.c_mode:checked')].map(c => c.value),
       salary_floor: $('c_floor').value.trim() || null,
-      currency: $('c_currency').value.trim()})});
-  const msg = $('savemsg');
-  if (r.ok) { cfg = await r.json(); msg.className = 'saved'; msg.textContent = 'saved'; loadRoles(); }
-  else { msg.className = 'err'; msg.textContent = await r.text(); }
-  setTimeout(() => { msg.textContent = ''; }, 6000);
+      currency: $('c_currency').value})});
+  if (!r.ok) {
+    const why = cap(await r.text());
+    paintSave('error', why);
+    toast(why, 'err');
+    return;
+  }
+  cfg = await r.json(); loadRoles();
+  let note = 'Location, work arrangement and pay saved';
+  // No countries listed means every country; a place just chosen is
+  // almost always the first one meant, so it is listed for you.
+  const picked = cfg.anchor_place || {};
+  if (picked.located && !(cfg.countries || []).length) {
+    const r2 = await api('/api/config', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({countries: [picked.country]})});
+    if (r2.ok) {
+      cfg = await r2.json();
+      note += `, and ${rowName('countries', picked.country)} added to Countries to keep job posts from`;
+    }
+  }
+  toast(note);
+  drawLists(); await drawPicker(); settle();
 };
 
-// ── résumé ───────────────────────────────────────────────────────────────────
+// ── resume ───────────────────────────────────────────────────────────────────
 async function drawResume() {
   if (!cfg) cfg = await (await api('/api/config')).json();
+  $('btn-resume-del').hidden = !cfg.resume_path;
+  $('btn-resume-view').hidden = !cfg.resume_path;
   $('resumeinfo').innerHTML = cfg.resume_path
     ? `<p class="hint">Currently: <code>${esc(cfg.resume_path)}</code></p>`
     : `<p class="hint">None set. Job posts are still found and filtered; they are
        just not ranked by how well they fit you, and drafting is unavailable.</p>`;
 }
 
+// Delete asks twice, like Remove: the first click arms it for three seconds.
+$('btn-resume-del').onclick = async () => {
+  const b = $('btn-resume-del');
+  if (!b.classList.contains('armed')) {
+    b.classList.add('armed', 'del'); b.textContent = 'Delete resume?';
+    setTimeout(() => { b.classList.remove('armed', 'del'); b.textContent = 'Delete resume'; }, 3000);
+    return;
+  }
+  b.disabled = true;
+  const r = await api('/api/resume/delete', {method: 'POST'});
+  b.disabled = false; b.classList.remove('armed', 'del'); b.textContent = 'Delete resume';
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  const d = await r.json();
+  toast(d.deleted ? 'Resume deleted' : 'Resume no longer used; your own file was left where it is');
+  cfg = null; $('resume-file').value = ''; $('resumemsg').textContent = '';
+  drawResume();
+};
+
+// View resume: the text as the tools read it, and the original to download.
+$('btn-resume-view').onclick = async () => {
+  const r = await api('/api/resume/view');
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  const d = await r.json();
+  $('resume-title').textContent = d.name;
+  $('resume-sub').textContent = `${d.chars.toLocaleString()} characters read · ` +
+    `${d.years ? d.years + ' years claimed · ' : ''}${d.skills.length} skills recognised`;
+  $('resume-skills').innerHTML = d.skills.map(x => `<span class="flag">${esc(x)}</span>`).join('');
+  $('resume-body').textContent = d.text;
+  $('resumedlg').dataset.name = d.name;
+  $('resumedlg').showModal();
+};
+$('resume-close').onclick = () => $('resumedlg').close();
+$('resume-dl').onclick = async () => {
+  const r = await api('/api/resume/file');
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(await r.blob());
+  a.download = $('resumedlg').dataset.name || 'resume'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+// ── cover letters ───────────────────────────────────────────────────────────
+let letters = [], letterOpen = null;
+async function drawLetters() {
+  const r = await api('/api/letters');
+  if (!r.ok) { $('letters').innerHTML = `<p class="err">${esc(await r.text())}</p>`; return; }
+  const d = await r.json();
+  letters = d.letters;
+  $('resume-temp').hidden = !d.temporary;
+  const key = 'letters', last = Math.max(0, Math.ceil(letters.length / PAGE_SIZE) - 1);
+  const p = pages[key] = Math.min(Math.max(pages[key] || 0, 0), last);
+  const shown = letters.slice(p * PAGE_SIZE, (p + 1) * PAGE_SIZE);
+  $('letters').innerHTML = `<div class="tbl-wrap"><table class="data editor letters">
+    <tr><th>Job post</th><th>Company</th><th>Written</th><th></th></tr>
+    ${shown.map(l => `<tr><td>${esc(l.title || 'A job post no longer listed')}</td>
+      <td>${esc(l.company)}</td><td>${esc(l.created_at.slice(0, 16).replace('T', ' '))}</td>
+      <td class="acts"><div class="acts-in">${l.exists
+        ? `<button type="button" class="act" data-icon="eye" data-view-letter="${l.id}">View</button>`
+        : '<span class="hint">File gone</span>'}
+        <button type="button" class="act" data-icon="trash-2" data-del-letter="${l.id}">Delete</button></div></td></tr>`).join('')
+    || '<tr><td colspan="4" class="hint">None yet.</td></tr>'}</table></div>${
+    letters.length > PAGE_SIZE ? `<div class="pager">
+      <button type="button" class="act" data-icon="chevron-left" data-letters-to="${p - 1}" ${p ? '' : 'disabled'}>Previous</button>
+      <span class="hint">${p * PAGE_SIZE + 1} to ${Math.min(letters.length, (p + 1) * PAGE_SIZE)} of ${letters.length}</span>
+      <button type="button" class="act" data-icon="chevron-right" data-letters-to="${p + 1}" ${p < last ? '' : 'disabled'}>Next</button></div>` : ''}`;
+}
+
+async function deleteLetter(id) {
+  const r = await api('/api/letters/delete', {method: 'POST', body: form({id})});
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return false; }
+  const l = letters.find(x => x.id === id) || {};
+  toast(`Deleted the cover letter for ${l.title || 'that job post'}`);
+  drawLetters();
+  return true;
+}
+
+async function openLetter(id) {
+  const r = await api(`/api/artifact?id=${id}`);
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  const d = await r.json();
+  const l = letters.find(x => x.id === id) || {};
+  letterOpen = {id, text: d.text, name: `cover-letter-${(l.company || 'job').replace(/[^A-Za-z0-9]+/g, '-')}.md`};
+  $('letter-title').textContent = l.title || 'Cover letter';
+  $('letter-sub').textContent = [l.company, (l.created_at || '').slice(0, 16).replace('T', ' ')].filter(Boolean).join(' · ');
+  $('letter-body').innerHTML = mdLite(d.text);
+  $('letter-del').classList.remove('armed', 'del'); $('letter-del').textContent = 'Delete';
+  $('letterdlg').showModal();
+}
+
+document.addEventListener('click', async ev => {
+  const v = ev.target.closest('[data-view-letter]');
+  if (v) return openLetter(+v.dataset.viewLetter);
+  const pg = ev.target.closest('[data-letters-to]');
+  if (pg && !pg.disabled) { pages.letters = +pg.dataset.lettersTo; return drawLetters(); }
+  const del = ev.target.closest('[data-del-letter]');
+  if (del) {
+    if (!del.classList.contains('armed')) {
+      del.classList.add('armed', 'del'); del.textContent = 'Delete?';
+      setTimeout(() => { del.classList.remove('armed', 'del'); del.textContent = 'Delete'; }, 3000);
+      return;
+    }
+    del.disabled = true;
+    if (!await deleteLetter(+del.dataset.delLetter)) del.disabled = false;
+  }
+});
+$('letter-close').onclick = () => $('letterdlg').close();
+$('letter-dl').onclick = () => {
+  if (!letterOpen) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([letterOpen.text], {type: 'text/markdown'}));
+  a.download = letterOpen.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('letter-del').onclick = async () => {
+  const b = $('letter-del');
+  if (!b.classList.contains('armed')) {
+    b.classList.add('armed', 'del'); b.textContent = 'Delete?';
+    setTimeout(() => { b.classList.remove('armed', 'del'); b.textContent = 'Delete'; }, 3000);
+    return;
+  }
+  if (letterOpen && await deleteLetter(letterOpen.id)) $('letterdlg').close();
+};
+
 $('btn-upload').onclick = async () => {
   const file = $('resume-file').files[0];
   const msg = $('resumemsg');
-  if (!file) { msg.className = 'err'; msg.textContent = 'choose a file first'; return; }
-  msg.className = 'hint'; msg.textContent = 'uploading…';
+  if (!file) { msg.className = 'err'; msg.textContent = 'Choose a file first.'; return; }
+  msg.className = 'hint'; msg.textContent = 'Uploading…';
   const r = await api('/api/resume', {method: 'POST',
     headers: {'X-Filename': file.name, 'Content-Type': 'application/octet-stream'},
     body: file});
-  if (!r.ok) { msg.className = 'err'; msg.textContent = await r.text(); return; }
+  if (!r.ok) { const why = cap(await r.text()); msg.className = 'err'; msg.textContent = why; toast(why, 'err'); return; }
   const d = await r.json();
   cfg = null;
-  msg.className = 'saved'; msg.textContent = 'saved';
+  msg.textContent = ''; toast(`Resume uploaded: ${file.name}`);
+  $('btn-resume-del').hidden = false; $('btn-resume-view').hidden = false;
   $('resumeinfo').innerHTML =
     `<p class="hint">Stored at <code>${esc(d.path)}</code></p>
      <p class="hint">${d.chars.toLocaleString()} characters read, ${d.years} years claimed,
@@ -1649,16 +2845,21 @@ async function drawSources() {
     <p class="hint">Active sources run on every scan. A dormant one says why it
       will not, rather than silently finding nothing.</p>
     <table><tr><th>Source</th><th>State</th></tr>
-    ${d.active.map(s => `<tr><td>${esc(s)}</td><td class="saved">active</td></tr>`).join('')}
-    ${d.dormant.map(s => `<tr><td>${esc(s.name)}</td><td class="hint">${esc(s.why)}</td></tr>`).join('')}
-    </table>
-    <h2 style="margin-top:1.25rem">Employer boards (${d.companies.length})</h2>
-    <p class="hint">These give full advert text, which aggregators do not.
-      Add one from Tools.</p>
-    <table><tr><th>Company</th><th>Platform</th><th>Token</th></tr>
-    ${d.companies.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.platform)}</td>
-      <td class="uid">${esc(c.token)}</td></tr>`).join('') ||
-      '<tr><td colspan="3" class="hint">none yet</td></tr>'}</table>`;
+    ${d.active.map(s => `<tr><td>${esc(platformName(s))}</td><td class="saved">Active</td></tr>`).join('')}
+    ${d.dormant.map(s => `<tr><td>${esc(platformName(s.name))}</td><td class="hint">${esc(cap(s.why))}</td></tr>`).join('')}
+    </table>`;
+  const boards = d.companies;
+  $('boards-head').textContent = `Employer boards (${boards.length})`;
+  $('ed-boards').innerHTML = editorTable([
+    {label: 'Company', cell: c => esc(c.name), name: c => `${c.name} (${platformName(c.platform)})`},
+    {label: 'Board type', cell: c => esc(platformName(c.platform))},
+    {label: 'Token', cell: c => `<span class="uid">${esc(c.token)}</span>`}],
+    boards, 'None yet. Add one from the employer\'s website below.');
+  wireRemove($('ed-boards'), boards, async next => {
+    const ok = await saveList('companies', next, 'srcmsg');
+    if (ok) drawSources();
+    return ok;
+  });
 }
 
 // ── nav: theme and rail ──────────────────────────────────────────────────────

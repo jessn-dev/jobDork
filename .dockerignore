@@ -1,0 +1,19 @@
+# The build copies only what it names, but the whole directory is still sent to
+# the daemon as context. Keep the private and the heavy out of it.
+.env
+config.yaml
+config.local.yaml
+data/
+out/
+logs/
+.venv/
+.git/
+.idea/
+.claude/
+**/__pycache__/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+proposal.md

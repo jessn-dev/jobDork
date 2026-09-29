@@ -323,7 +323,7 @@ anywhere:
 | `google_docs`, `google_sheets` | role lists shared in public Docs before they hit a board |
 | `linkedin_posts` | recruiter posts that go live before the official listing |
 | `hiring_manager` | people to approach directly |
-| `pdf_resumes` | publicly posted résumés, for studying how your field presents |
+| `pdf_resumes` | publicly posted resumes, for studying how your field presents |
 
 No applicant tracking system exposes any of that. Adding a board to dork mode
 is one line in `jobdork/dork/boards.py`; an API adapter is roughly a hundred plus its

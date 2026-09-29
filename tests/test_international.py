@@ -287,6 +287,102 @@ def test_exclude_still_takes_an_arbitrary_phrase():
     assert _dropped(["Bee Cave"], "Bee Cave, Texas")
 
 
+def test_a_distance_is_shown_in_the_readers_units_converted():
+    """distance_mi is miles; km readers saw the mile figure labelled km."""
+    import tempfile
+
+    from jobdork.db.store import Store
+    from jobdork.output import digest, render
+    from jobdork.search import geo
+
+    assert geo.distance_label(10, "mi") == "10 mi"
+    assert geo.distance_label(10, "km") == "16 km"
+    assert geo.distance_label(None, "km") == ""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = Config(titles_include=["x"], db_path=str(Path(tmp) / "t.db"),
+                     locations=Locations(anchor="Berlin, Germany", radius=25,
+                                         units="km", countries=["DE"]))
+        with Store(cfg.db_path) as store:
+            role = Role(platform="smartrecruiters", company="Acme", title="Engineer",
+                        url="https://jobs.smartrecruiters.com/acme/1", work_mode="hybrid")
+            role.distance_mi = 10.0
+            role.flags = ["unconfirmed salary"]
+            store.upsert(role)
+            store.conn.commit()
+            rows = store.list_roles()
+        page = Path(render.to_html(rows, Path(tmp) / "i.html", cfg)).read_text()
+        text = Path(render.to_markdown(rows, Path(tmp) / "r.md", cfg)).read_text()
+        mail = digest.build(rows, cfg, new_only=False).text
+        for out in (page, text, mail):
+            assert "16 km" in out and "10 km" not in out
+            assert "SmartRecruiters" in out and "Hybrid" in out
+        assert "Radius <b>25</b> km" in page and "Match " in page
+        assert "Unconfirmed salary" in page and "- Unconfirmed salary" in text
+
+
+def test_skills_read_as_they_are_written():
+    """Matching is on lower case terms; a person reads "AWS", not "aws"."""
+    from jobdork.search.resume import SKILL_TERMS, flag_label, skill_name
+
+    assert skill_name("aws") == "AWS" and skill_name("ci/cd") == "CI/CD"
+    assert skill_name("machine learning") == "Machine learning"
+    assert all(skill_name(t)[:1] == skill_name(t)[:1].upper() or t in ("dbt", "grpc")
+               for t in SKILL_TERMS)
+    assert (flag_label("fit: has aws, spring boot; wants next.js")
+            == "Fit: has AWS, Spring Boot; wants Next.js")
+    assert flag_label("unconfirmed salary") == "Unconfirmed salary"
+
+
+def test_a_region_tells_same_named_cities_apart():
+    from jobdork.search import geo
+    north = geo.resolve("San Fernando, Ilocos, Philippines", ("PH",))
+    south = geo.resolve("San Fernando, Central Luzon, Philippines", ("PH",))
+    assert north.located and south.located and north.lat > south.lat + 1
+
+
+def test_a_trailing_city_is_tried_without_it():
+    """GeoNames has "Baguio"; people write "Baguio City". Quezon City keeps it."""
+    from jobdork.search import geo
+    assert geo.resolve("Baguio City", ("PH",)).city == "Baguio"
+    assert geo.resolve("Quezon City, Philippines", ("PH",)).city == "Quezon City"
+
+
+def test_the_place_picker_lists_what_resolves():
+    from jobdork.search import geo
+    names = {c["code"]: c["name"] for c in geo.picker_countries()}
+    assert names["PH"] == "Philippines" and names["CI"] == "Ivory Coast"
+    ph = geo.picker_regions("PH")
+    assert ph["label"] == "Region" and any(r["name"] == "Cordillera" for r in ph["regions"])
+    assert geo.picker_regions("US")["label"] == "State"
+    assert geo.picker_regions("GB")["label"] == "Constituent"      # not a second "Country"
+    assert geo.picker_regions("SG")["regions"] == []
+    cordillera = geo.region_code("PH", "Cordillera")
+    assert geo.picker_cities("PH", cordillera)[0] == "Baguio"
+    for city, region, country in (("Baguio", cordillera, "PH"), ("Austin", "TX", "US"),
+                                  ("Toronto", "ON", "CA")):
+        where = geo.resolve(geo.picker_anchor(city, region, country), (country,))
+        assert where.located and where.country == country, (city, where)
+        assert geo.region_at(where) == region
+
+
+def test_a_config_that_leaves_location_out_is_naperville_us():
+    """A missing key takes the default; an empty one keeps its meaning."""
+    import tempfile
+
+    from jobdork.core import config
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "c.yaml"
+        path.write_text("titles: {include: [engineer]}\n")
+        cfg = config.load(str(path))
+        assert cfg.locations.anchor == "Naperville, IL"
+        assert cfg.locations.countries == ["US"]
+        path.write_text("titles: {include: [engineer]}\n"
+                        "locations: {anchor: '', countries: [], radius: exact}\n")
+        cfg = config.load(str(path))
+        assert cfg.locations.anchor == "" and cfg.locations.countries == []
+
+
 # ── keep this block LAST ───────────────────────────────────────────────────────
 
 if __name__ == "__main__":

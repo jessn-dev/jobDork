@@ -1,0 +1,5 @@
+# Known findings that are not secrets. Each line is one exact finding
+# (commit:file:rule:line), so nothing else is excused.
+#
+# A fake API key a test sends, to prove the dashboard never echoes a key back.
+b3f5f87170b43b98f9b8cb8c9c505ec266e846f8:tests/test_serve.py:generic-api-key:415

@@ -114,8 +114,8 @@ def test_the_last_scan_line_says_what_went_wrong():
         text = " ".join(scan["warnings"])
         assert scan["when"] == "2026-01-02T08:00:00"
         assert "days ago" in text
-        assert "adzuna returned 0" in text
-        assert "workable did not run" in text
+        assert "Adzuna returned 0" in text
+        assert "Workable did not run" in text
         assert "never finished" in text
 
 

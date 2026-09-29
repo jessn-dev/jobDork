@@ -9,11 +9,14 @@ Run once, and again whenever you want it refreshed:
 
     python scripts/build_gazetteer.py
 
-Source is GeoNames `cities5000` (CC BY 4.0), filtered to US and Canada. Every
-place with 5,000 people or more, which is every place a job is advertised in
-and few that are not. Roughly 4,500 rows and about 200KB, so it ships in the
-repository and the radius needs no geocoding API, no key and no per-role
-network call.
+Source is GeoNames `cities5000` (CC BY 4.0). Every place with 5,000 people or
+more, which is every place a job is advertised in and few that are not. It
+ships in the repository, so the radius needs no geocoding API, no key and no
+per-role network call.
+
+It also writes `jobdork/data/regions.csv`, every country's first-level regions
+by name (GeoNames `admin1CodesASCII`), which the dashboard's Country, Region,
+City picker lists. Each city row carries its region code in a sixth column.
 
 Rows are written most-populous first. `geo.py` keeps the first entry for a
 (city, state) pair, so a collision resolves to the city people actually mean.
@@ -31,7 +34,10 @@ import zipfile
 from pathlib import Path
 
 URL = "https://download.geonames.org/export/dump/cities5000.zip"
+ADMIN1_URL = "https://download.geonames.org/export/dump/admin1CodesASCII.txt"
+COUNTRY_URL = "https://download.geonames.org/export/dump/countryInfo.txt"
 OUT = Path(__file__).resolve().parent.parent / "jobdork" / "data" / "cities.csv"
+REGIONS_OUT = OUT.parent / "regions.csv"
 
 # GeoNames numbers Canadian provinces rather than lettering them, so admin1
 # comes back as "08" where the rest of the world would say "ON". Australia is
@@ -60,6 +66,10 @@ def main(argv: list[str] | None = None) -> int:
         help="ISO alpha-2 codes to include, e.g. PH SG. "
              "Default: read locations.countries from your config; "
              "'all' for every country.")
+    parser.add_argument(
+        "--source", default="",
+        help="a folder already holding cities5000.zip and admin1CodesASCII.txt, "
+             "instead of downloading them")
     args = parser.parse_args(argv)
 
     wanted = _wanted_countries(args.countries)
@@ -68,7 +78,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print("including: every country")
 
-    return _build(wanted)
+    return _build(wanted, Path(args.source) if args.source else None)
 
 
 def _wanted_countries(requested: list[str]) -> set[str]:
@@ -139,18 +149,51 @@ def _aliases(name: str, asciiname: str, alternates: str) -> list[str]:
     return out
 
 
-def _build(wanted: set[str]) -> int:
-    print(f"downloading {URL} ...")
+def _fetch(url: str, source: Path | None) -> bytes:
+    local = source / url.rsplit("/", 1)[1] if source else None
+    if local and local.is_file():
+        print(f"reading {local}")
+        return local.read_bytes()
+    print(f"downloading {url} ...")
+    with urllib.request.urlopen(url, timeout=120) as response:
+        return response.read()
+
+
+def _region_code(country: str, admin1: str) -> str:
+    """The code a city row carries: lettered where a posting uses one."""
+    return ADMIN1_FIXUPS.get(country, {}).get(admin1, admin1)
+
+
+def _build(wanted: set[str], source: Path | None = None) -> int:
     try:
-        with urllib.request.urlopen(URL, timeout=120) as response:
-            payload = response.read()
+        payload = _fetch(URL, source)
+        admin1_text = _fetch(ADMIN1_URL, source).decode("utf-8")
+        country_text = _fetch(COUNTRY_URL, source).decode("utf-8")
     except OSError as exc:
         print(f"download failed: {exc}", file=sys.stderr)
         print("The bundled fallback list still works; the radius is just "
               "limited to the metros in geo.py.", file=sys.stderr)
         return 1
 
-    rows: list[tuple[int, str, str, str, str, str]] = []
+    # "PH.15<tab>Cordillera<tab>..." -> ("PH", "15"): "Cordillera"
+    region_names: dict[tuple[str, str], str] = {}
+    for line in admin1_text.splitlines():
+        cols = line.split("\t")
+        if len(cols) >= 3 and "." in cols[0]:
+            country, admin1 = cols[0].split(".", 1)
+            region_names[(country, _region_code(country, admin1))] = cols[2] or cols[1]
+
+    # "PH<tab>PHL<tab>608<tab>RP<tab>Philippines<tab>...<tab>PHP<tab>..."
+    # Column 5 is the English name and column 11 the currency code.
+    country_names: dict[str, str] = {}
+    currencies: dict[str, str] = {}
+    for line in country_text.splitlines():
+        cols = line.split("\t")
+        if len(cols) > 10 and not line.startswith("#"):
+            country_names[cols[0]] = cols[4]
+            currencies[cols[0]] = cols[10]
+
+    rows: list[tuple[int, str, str, str, str, str, str]] = []
     with (zipfile.ZipFile(io.BytesIO(payload)) as archive,
           archive.open("cities5000.txt") as handle):
         for raw in io.TextIOWrapper(handle, encoding="utf-8"):
@@ -162,15 +205,19 @@ def _build(wanted: set[str]) -> int:
                 continue
 
             admin1 = cols[10]
-            state = ADMIN1_FIXUPS.get(country, {}).get(admin1, admin1)
+            region = _region_code(country, admin1)
+            if (country, region) not in region_names:
+                region = ""        # "00" and the like: no named region
+            state = region
             if country in CODED_REGIONS:
                 # A numeric admin1 that has no fixup is not a region code
                 # anybody writes in a posting, so it is dropped.
                 if not state or state.isdigit() or len(state) > 3:
                     continue
             else:
-                # Elsewhere the country identifies the place; a raw admin1
-                # number would only pollute the region column.
+                # Elsewhere a posting names the country, not a region code,
+                # so `state` stays blank; the region is kept in its own
+                # column for the dashboard's picker.
                 state = ""
 
             try:
@@ -180,7 +227,7 @@ def _build(wanted: set[str]) -> int:
 
             lat, lon = cols[4], cols[5]
             name = cols[1]
-            rows.append((population, name, state, country, lat, lon))
+            rows.append((population, name, state, country, lat, lon, region))
 
             # Postings do not always use the gazetteer's spelling. Extra
             # rows are written for the names people actually type; geo.py
@@ -188,7 +235,7 @@ def _build(wanted: set[str]) -> int:
             # sorted most-populous first, so an alias never outranks a
             # bigger city of the same name.
             for alias in _aliases(name, cols[2], cols[3]):
-                rows.append((population - 1, alias, state, country, lat, lon))
+                rows.append((population - 1, alias, state, country, lat, lon, region))
 
     if not rows:
         print("no rows parsed — the file format may have changed", file=sys.stderr)
@@ -198,9 +245,25 @@ def _build(wanted: set[str]) -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.writer(fh)
-        writer.writerow(["# city", "state", "country", "lat", "lon"])
-        for _pop, city, state, country, lat, lon in rows:
-            writer.writerow([city, state, country, lat, lon])
+        writer.writerow(["# city", "state", "country", "lat", "lon", "region"])
+        for _pop, city, state, country, lat, lon, region in rows:
+            writer.writerow([city, state, country, lat, lon, region])
+
+    # Only regions that hold at least one listed city: a region with nothing
+    # in it would be a choice that leads to an empty city list.
+    used = {(r[3], r[6]) for r in rows if r[6]}
+    with REGIONS_OUT.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(["# country", "code", "name", "currency"])
+        # A blank code is the country itself: its English name and currency.
+        for country in sorted({r[3] for r in rows}):
+            if country in country_names:
+                writer.writerow([country, "", country_names[country],
+                                 currencies.get(country, "")])
+        for (country, code), name in sorted(region_names.items(),
+                                            key=lambda kv: (kv[0][0], kv[1])):
+            if (country, code) in used:
+                writer.writerow([country, code, name])
 
     by_country: dict[str, int] = {}
     for row in rows:

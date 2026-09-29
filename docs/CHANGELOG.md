@@ -6,6 +6,1004 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-09-29 — releases are version tags, approved before they publish
+
+Nothing gave a release a sign-off. On GitHub there was no `release`
+environment, so the first run would have created it with no approval and a
+push to `main` would have published at once; `main` had no protection; and
+`DOCKERHUB_USERNAME` was saved as a secret where the workflow reads a
+variable, so the image name would have come out as `/jobdork`. There was also
+an empty environment of that name.
+
+- **A release is a version tag** (`v0.14.0`). A push to `main` is built,
+  scanned and checked, but no longer published.
+- **The `release` environment** now exists: the owner must approve each run,
+  and it can only be deployed from a `v*` tag. The Docker Hub token belongs
+  in it, so it is only handed to an approved run.
+- **Rulesets:** `main` cannot be deleted or force-pushed, takes changes by
+  pull request, and needs `test (3.10)`, `test (3.14)`, `security` and
+  `image` to pass; `v*` tags can never be moved or deleted, and only an admin
+  can create one.
+- **A GitHub Release page** for each version, from its own job (it needs to
+  write to the repository; publishing must not): the image by exact digest,
+  the command to verify its signature, a link to this changelog at that tag,
+  and GitHub's list of changes since the last release.
+- Turned on: Dependabot alerts and security updates, and private
+  vulnerability reporting, which `SECURITY.md` tells people to use. Already
+  on: secret scanning with push protection, read-only workflow permissions.
+- The stray `DOCKERHUB_USERNAME` environment, empty, deleted.
+
+`SECURITY.md` has the release steps and which settings are done and which
+are left to the owner: two-factor authentication on GitHub and Docker Hub,
+the Docker Hub token in the `release` environment, and the username as a
+variable. The workflow passes actionlint, and the Release notes were rendered
+with sample values; it has not run on GitHub yet.
+
+---
+
+## Added — 2026-09-29 — security checks before publishing, and a signed image on Python 3.14
+
+Before an image goes to Docker Hub, it and the code it came from are now
+checked, and what is published can be verified by anyone who pulls it.
+`SECURITY.md` says what is checked, how to verify an image, and which account
+settings only the owner can turn on.
+
+**Checks on every push and pull request** (`.github/workflows/docker.yml`),
+all of which must pass before anything is published:
+
+- `pip-audit` on every dependency the image installs: no known
+  vulnerabilities.
+- `bandit` over jobdork's code, medium severity and up. It found 11 things;
+  all were checked. Eight "SQL injection" findings interpolate only fixed SQL
+  fragments, `?` placeholders or table names from a hard-coded list, with
+  every value a parameter; three "binds all interfaces" are the deliberate
+  container and `JOBDORK_ALLOW_HOSTS` cases. Each is marked in the code with
+  its reason. One was a real fix: the SHA-1 that makes job post ids now says
+  it is not for security (`usedforsecurity=False`).
+- `gitleaks` over the whole git history, since a key committed once is still
+  there after it is deleted. It found none: your API keys are in `.env`,
+  which has never been committed. Its only finding is a fake key a test
+  sends, excused by exact commit and line in `.gitleaksignore`.
+- `hadolint` on the Dockerfile, which asked for a numeric user.
+- The built image scanned by Trivy for high and critical vulnerabilities,
+  fixed or not, secrets and misconfiguration; then `scripts/check_image.sh`,
+  15 checks on what is inside it and how it behaves.
+
+**The image, rebuilt to be hard to tamper with:**
+
+- **Python 3.14**, the newest stable release (3.14.7, supported to 2030). It
+  was on 3.10, whose support ends on 2026-10-31.
+- **Alpine instead of Debian slim.** Trivy found 44 high-severity findings in
+  the slim image's system packages, none with a fix released (util-linux,
+  ncurses, perl, systemd libraries), none used by jobdork; in Alpine, none.
+  159 MB instead of 278 MB. The full test suite passes on it.
+- **Every dependency pinned with its checksum** in `requirements.lock`,
+  generated inside the base image and installed with `--require-hashes`,
+  build tooling included. It used to install whatever the newest matching
+  versions were, and upgraded pip unpinned.
+- **The base image pinned by digest,** not a tag that can be moved.
+- **No pip in the image,** the app's code owned by root and read-only to the
+  user it runs as (it owned its own code before), and that user numeric,
+  `1000:1000`.
+- **The access token reaches the log.** Without `PYTHONUNBUFFERED`, Python
+  held output back in a container and the startup line with the dashboard's
+  address and token never appeared in `docker logs`, the only place to read
+  it on a NAS. Found by the new image checks.
+- `pyproject.toml` writes its licence the current way (`license = "MIT"`).
+
+**Publishing:** only after every check passes, only from `main` or a version
+tag, and only once the `release` environment approves. The image is pushed
+for Intel and ARM with a provenance record and a bill of materials, then
+signed with Sigstore keyless signing tied to this workflow and commit (no key
+to steal), and the signature verified in the same run. Scanners run from their
+official images pinned by digest rather than through third-party actions.
+Dependabot proposes updates to the actions, the base image and the Python
+dependencies, which then go through the same checks.
+
+Checked here: the image built on Alpine and Python 3.14; Trivy, pip-audit,
+bandit, gitleaks (history and working tree), hadolint and actionlint all
+clean; the 15 image checks passed; the tests passed on 3.14 Alpine and on
+3.13 locally. Not yet run on GitHub or pushed to Docker Hub.
+
+---
+
+## Added — 2026-09-29 — a guide to running jobdork on a NAS, with the AI elsewhere
+
+`docs/DEPLOY.md`, from setting it up on a UGREEN DXP4800 (8 GB): the NAS
+runs jobdork, a computer with a graphics card or Apple Silicon runs Ollama,
+and Tailscale connects them and lets you open the dashboard from anywhere.
+Measured on that NAS, one AI verdict with `qwen2.5:3b` took 8 minutes at
+100% processor load (3 min 52 s for the verdict, 21 s and 3 min 56 s for the
+two hallucination-check calls), so a model does not belong on a NAS
+processor. The guide covers:
+
+- installing Docker on UGREEN, Synology, QNAP, Unraid, TrueNAS SCALE and any
+  Linux server, and Tailscale on each and on the AI machine, linking each
+  system's own documentation (every link checked to open the page it names);
+- a test that containers on the NAS can reach Tailscale, since Tailscale in
+  a container of its own often cannot pass it on;
+- Ollama listening on the AI machine's Tailscale address only (macOS,
+  Windows, Linux), so hotel Wi-Fi cannot reach it, and which models suit
+  which memory, from the three tested with jobdork;
+- the jobdork container: image, volumes, `JOBDORK_ALLOW_HOSTS`, memory, and
+  reading the access token from its log;
+- what changes with a larger NAS or one with a graphics card, and a table of
+  what each error means.
+
+**The image's user now has the fixed id 1000.** It had whatever `useradd -r`
+gave it, so a folder mounted from a NAS could be unwritable with no one fix to
+give; now it is `chown -R 1000:1000 <folder>` on any system, and 1000 is
+usually the NAS's first user already.
+
+The README's Docker section points to the guide, and no longer suggests
+running Ollama on the NAS.
+
+---
+
+## Added — 2026-09-29 — open the dashboard on a NAS from another computer; Ollama given room
+
+For running jobdork and Ollama on a NAS (a UGREEN DXP4800, 8 GB) and using it
+from a laptop.
+
+- **`JOBDORK_ALLOW_HOSTS`** names the addresses another computer may open the
+  dashboard by (`192.168.1.50`, `nas.local`, or `address:port` for one port
+  only). Before, the server let in `127.0.0.1` and `localhost` and nothing
+  else, so a dashboard in a container on a NAS could not be opened from the
+  laptop at all. A named address is let in on any port, since a NAS may
+  publish the dashboard on a port of its own; everything else is still
+  refused, a wildcard or `0.0.0.0` is ignored with a warning, and the access
+  token is required on every request as before. The startup lines print the
+  URL for each named address. The README's Running in Docker has the NAS
+  command.
+- **Ollama is told how much text to make room for** (`num_ctx`) on every
+  call: `llm.context`, 16,384 tokens by default, 4,096 to 131,072 allowed.
+  jobdork never said, so Ollama used its own default, which is smaller than a
+  prompt carrying a full advert and a resume; and Ollama does not refuse a
+  prompt that does not fit, it drops the start of it, instructions included,
+  and answers anyway. It is one fixed size rather than sized per call,
+  because Ollama reloads the model whenever the size changes. A prompt that
+  may still not fit is logged.
+
+Measured before this, on this Mac with the real resume and three job posts,
+to choose a model for 8 GB: `llama3.2:3b` rated all three "strong" (82 to
+92), failed to produce tailored edits, and had 6 of 7 cover letter claims
+unsupported; `qwen2.5:3b` told the posts apart (45, 80 and 40; `gemma4:26b`
+had given the one it had also judged 55), ran every tool, and had 8 of 17
+letter claims unsupported. So `qwen2.5:3b` for judging on the NAS, and a
+larger model for writing.
+
+Tests in `tests/test_serve.py`: named addresses let in on any port or only
+their own, others refused, the token still required, a wildcard ignored; and
+the context size sent to Ollama, default and set.
+
+---
+
+## Added — 2026-09-29 — tests, then a Docker image, on every push to main
+
+There was no automation: nothing ran the tests on a push, and the image was
+only ever built by hand. `.github/workflows/docker.yml` now does both.
+
+- **Tests first.** Every push and pull request runs `ruff` and the test suite
+  on Python 3.10, which the image runs, and 3.13. The image is only built
+  once both pass, so a change that breaks a test is never published.
+- **Published from main and from version tags only.** A pull request builds
+  the image to prove it still builds, and pushes nothing. A push to `main`
+  publishes it for Intel and ARM machines (Apple Silicon included); a pull
+  request builds Intel only, which is much faster.
+- **Tags you can pin.** A Git tag `v1.2.3` publishes `1.2.3`, `1.2`,
+  `latest` and `sha-abc1234`; a push to `main` publishes `main` and
+  `sha-abc1234`. `latest` is always the newest release, never an untagged
+  commit on `main`, and the `sha-` tag names exactly the commit an image was
+  built from, for a rollback.
+- **Locked down.** The job's GitHub token can only read the repository, and
+  every third-party action is pinned to a commit rather than a tag that could
+  be moved (the version is in a comment beside each).
+- The Docker Hub account is a repository **variable**, `DOCKERHUB_USERNAME`,
+  with the token a **secret**, `DOCKERHUB_TOKEN`. The account name is part of
+  the image name, which a secret would mask in the logs and blank out on a
+  pull request from a fork, failing the build.
+
+Not yet run on GitHub: it needs that variable and secret set first. The test
+job's steps were run by hand in a clean install on Python 3.13 (ruff clean,
+255 tests passed); 3.10 is not installed here, so its first run will be the
+real check, though every file parses under 3.10's grammar. The image build
+has not been run, as the Docker daemon is not running on this machine.
+
+---
+
+## Added — 2026-09-29 — AI tools for your resume and cover letters, as an editor
+
+Built to the guidance that AI should edit what you have rather than author
+it. A job post's window has an **AI tools** tab, opening with that rule: you
+are the author and the AI an editor; take only what is true, in your words;
+read it aloud and be ready to speak to every line; check the employer's rules
+on AI in applications; and whether the model runs on this machine or is
+hosted (and what that means for your contact details). Then five tools, each
+from your resume and the post (`jobdork/ai/tools.py`):
+
+- **Tailor my resume**, as suggested edits, not a new resume: a rewording of
+  up to 8 of your lines, with why; lines to move up; and a Skills line of
+  skills you have that the ad asks for, with the ones it asks for that you do
+  not have listed apart ("add one only if it is true"). Tick the edits you
+  want and **Download tailored resume** writes your resume with them applied,
+  as plain text, which an applicant tracking system reads best.
+- **ATS keywords**: the ten terms a tracking system would look for, each
+  marked on your resume or missing.
+- **Skills to highlight**, before a cover letter: the ad's three most needed
+  skills with its own words, the line of yours that best shows each, and
+  action verbs for the role.
+- **Recruiter feedback**: the model as this post's recruiter, strengths and
+  gaps, on your resume, or on a cover letter you paste.
+- **Revise**: five wordings of a bullet or paragraph you paste, in your
+  style, with Copy on each.
+
+**How each is checked**, shown on every result:
+
+- **A script drops what it cannot find** where the model says it came from:
+  an edit's line not in your resume, a keyword or a requirement not in the
+  ad, a strength not in what was reviewed. The count is shown. Found or
+  missing for keywords, and the Skills line, are the script's, not the
+  model's.
+- **The humanizer** cleans every sentence and counts the tells left; an
+  action verb it flags ("Leveraged", "Showcased") is dropped.
+- **The hallucination guard** checks the claims against your resume and the
+  ad, is counted on the Dashboard's hallucination chart (five new kinds), and
+  each unsupported claim is pinned to the edit or version it came from.
+- **Each tailored edit is checked on its own**: a figure your resume does not
+  have; a tool its line does not name; too little in common with its line;
+  and dropping a word that says the work was shared or unfinished (began,
+  helped, assisted, currently, with the other…). Any of these leaves the edit
+  unticked, with the reason in red.
+
+Found in live runs with the local model on the real resume, and fixed before
+this entry: "Designed and **began implementing** a hybrid monitoring model"
+came back as "**Implemented** a hybrid monitoring model", "**currently**
+completing a Master of Science" as training from one, and "code reviews
+**with the other** senior developer" as "Performed code reviews"; neither the
+guard nor the figure check saw these, so the shared-or-unfinished check was
+added. The first version of the "different line" check measured overlap
+against the original line and marked fair condensations of long lines; it now
+measures against the shorter of the two. And Download placed none of seven
+edits: text read from a PDF breaks lines mid-sentence and writes "ff" as one
+character. A line is now found by its words with any spacing between, after
+ligatures are spelled out; all seven placed.
+
+Tests in `tests/test_tools.py`, with scripted model answers. Checked live with
+Ollama gemma4:26b on a copy of the database: all five tools on one post, the
+tab, the checks, and the edits placed.
+
+---
+
+## Added — 2026-09-29 — hosted models are not sent your contact details
+
+A resume's email address, phone number and LinkedIn, GitHub and GitLab links
+help no model judge fit or write a letter. Every prompt to Claude, Gemini or
+ChatGPT now has them removed, for every use: verdicts, page reads, letters,
+reviews, the new tools and the hallucination guard. Year ranges ("2019-2023"),
+figures ("1,200 hosts"), standards ("NIST 800-53") and salary ranges are left
+alone. A local Ollama model gets the text unchanged: nothing leaves the
+machine. A street address is not removed, and `docs/CONFIG.md` says so. Tests
+in `tests/test_tools.py`: the redaction, and that it applies to hosted
+providers only.
+
+---
+
+## Added — 2026-09-29 — View resume
+
+The Resume page has **View resume**: the text as the fit score and the AI
+read it, the skills recognised in it, and **Download original**. What the
+reader missed shows here, usually text a table or text box hid, and the
+window says to read it aloud and be ready to speak to every line. Checked in
+Chrome with the real resume: 7,562 characters, 7 years, 33 skills.
+
+---
+
+## Added — 2026-09-29 — cover letters listed, viewed and deleted; temporary in Docker
+
+**On the Resume page, everywhere:**
+
+- **Cover letters**, a table of every one written: the job post, company,
+  when, and **View** and **Delete**, five to a page. View opens the letter
+  in a window, rendered, with **Download** (as a `.md` file), **Delete** and
+  **Close**. Delete asks twice, then removes the file, its record and the
+  AI's copy of its text at once; the claim counts stay, because the
+  hallucination chart is built from them.
+- **Delete resume** beside Upload. An uploaded resume is deleted; a resume
+  you pointed the config at yourself is only no longer used, and your file
+  is left where it is.
+- Uploading a new resume removes the previous upload (a `.docx` replacing a
+  `.pdf`), once the new one has been read.
+- Uploads, deletes and failures answer with a notice, as on the Search page.
+  `**bold**` in a letter or review now shows as bold.
+
+**In Docker, nothing personal outlives a run.** `JOBDORK_TEMP_DOCS`, set by
+the Dockerfile to a private folder inside the container, is where the
+uploaded resume and every generated document go: cover letters, CVs,
+screens, per-post reviews and the advert snapshots beside them. The
+dashboard empties it when it starts and when it stops, and forgets what was
+in it: the letters' records and text go, and the resume setting is cleared.
+A config still naming that resume loads with a warning to upload it again,
+where a missing resume otherwise stops the run. The Resume page says so
+while it applies.
+
+This also fixes where Docker put documents. They went under the container
+user's home folder, which `useradd -r` never creates and `/home` does not
+let that user write; so saving a cover letter in Docker would most likely
+have failed with a permission error, and anything saved would have been
+lost with the container anyway.
+
+On your own machine nothing changes: the resume in `data/`, documents in
+`~/Documents/job-applications`. The README has a Running in Docker section.
+
+Tests in `tests/test_serve.py`: a letter listed, read and deleted (file,
+record, text; counts kept); an uploaded resume deleted and your own file
+only unset; the temporary folder emptied and forgotten, and a config naming
+a vanished temporary resume still loading. Checked in Chrome on a copy of
+the database in container mode with seven test letters: the table and its
+pages, View, bold, Delete from the window and from the table with their
+notices, and on stopping, the folder emptied (5 files) and the records
+forgotten. No Docker image was built; the Docker daemon is not running here.
+
+---
+
+## Fixed — 2026-09-29 — the UK's regions read "Country" beside Country
+
+For the United Kingdom the picker's region box, holding England, Scotland,
+Wales and Northern Ireland, was labelled "Country", right beside the Country
+box: Country, Country, City. It is labelled "Constituent", as in the
+UK's constituent countries. Test in
+`tests/test_international.py`.
+
+---
+
+## Added — 2026-09-29 — icons on Remote, Hybrid and Office
+
+The three arrangements under Arrangements to keep have an icon each, from
+the same set as the buttons: a house for remote, two arrows for hybrid, an
+office building for office. Checked in Chrome: one row, beside their boxes.
+
+---
+
+## Changed — 2026-09-29 — "Location, work arrangement and pay", one heading
+
+The section was headed "Where, how and how much" and its first field was
+labelled "Where you are", above boxes labelled Country, Region and City:
+three labels saying where before anything was chosen. The heading now names
+what the section holds, and the "Where you are" label is gone; Country,
+Region and City say it.
+
+---
+
+## Added — 2026-09-29 — the Search page says what is saved and what is not
+
+A save used to answer with the word "Saved" under the button, gone after
+six seconds, and nothing said whether there was anything to save at all.
+
+- **Save says whether there is anything to save.** Greyed out, with "All
+  changes saved" under it, until a field changes; then "Unsaved changes"
+  and a dot on Search in the menu. Changing a field back to what is saved
+  makes it clean again.
+- **The note under the page title is shorter:** "Lists save as soon as you
+  add or remove a row. Location, work arrangement and pay save with Save
+  changes at the bottom." It said the same in a sentence that was hard to
+  follow.
+- **The note at the foot of the page is gone.** It named the config file
+  and said when each part was written; Save and the notices now say that
+  as it happens.
+- **While it saves** the button reads "Saving…" with a turning icon and
+  cannot be pressed twice.
+- **A notice in the corner** for every save on the page, naming it:
+  "Added 'Intern' to Never show these titles", "Removed 'Vanta' from
+  Employer boards", "Location, work arrangement and pay saved", and when a
+  country is listed for you, which one. It goes after a few seconds. A
+  refusal stays longer, in red, with a close button, and is also shown
+  where it happened: under Save, or beside the list's form. The small
+  "Saved" beside each list's form is gone.
+- **Unsaved edits are kept.** Opening the Search page redrew the form from
+  the saved config, so a change left unsaved while you looked at another
+  page was lost without a word. The form is now only redrawn when nothing
+  is waiting to be saved.
+
+Checked in Chrome on a copy of the config: clean, changed (menu dot),
+another page and back with the change still there, changed back to clean,
+Saving… then saved with its notice, a list add's notice, and a radius of
+"far" refused with the reason under Save and in a red notice.
+
+---
+
+## Changed — 2026-09-29 — Save centred and larger
+
+Save on the Search page sat at the left edge at the size of every Add and
+Remove button, easy to miss after three columns of fields. It is centred
+under those fields and larger, and "Saved" or the reason it was not
+appears on the line under it, so the button does not move when it does.
+Checked in Chrome: the button's centre is the fields' centre.
+
+---
+
+## Changed — 2026-09-29 — Where, how and how much lines up with the lists
+
+The section under the lists had columns of its own width, and the Country,
+Region and City boxes were a fixed 14rem, so nothing in it lined up with the
+three lists above and the right of the page stood empty. The lists, the
+place picker and the fields under it now share one set of columns: Country,
+Region and City sit under Job titles, Never show these titles and Countries,
+each filling its column, with Radius, Arrangements to keep and Salary floor
+in the same three columns below. Two columns below 1,100px and one below
+700px, as the lists. Left-aligned rather than centred, so each label and box
+still starts on the same edge as the one above it.
+
+Checked in Chrome: the three rows begin at the same three points across
+the page.
+
+---
+
+## Added — 2026-09-29 — Search page tables show five rows a page
+
+A list of fifteen job titles pushed everything below it off the screen. The
+four tables on the Search page (job titles, never show these titles,
+countries, dealbreakers) now show five rows at a time, with Previous and
+Next and where you are ("6 to 10 of 15") under the table. A list of five or
+fewer has no pager. Adding a row turns to the page it landed on; removing
+one keeps the page, or the one before if that page is now empty. Each
+table remembers its own page while you stay on the Search page.
+
+Checked in Chrome on a copy of the config: fifteen titles in three pages,
+Previous disabled on the first, a sixteenth added and shown on page four,
+then removed back to page three; eight dealbreakers in two pages.
+
+---
+
+## Changed — 2026-09-29 — the Search page uses the width of the screen
+
+The page stopped at 1,060px, and its tables and help at 48rem inside that,
+so on a wide screen, and more so with the menu folded, most of it was
+empty. It is now a grid across the whole width:
+
+- **Job titles, Never show these titles and Countries to keep job posts
+  from** side by side: three columns on a wide screen, two below 1,100px,
+  one below 700px. Each add form stays on one line, its box filling the
+  column.
+- **Dealbreakers** across the page, so a long pattern reads on one line
+  where it used to wrap three or four times; its pattern box stretches.
+- **Where, how and how much** across the page: the place picker on a row of
+  its own, then radius, arrangements and salary floor in columns. Save is
+  still last.
+- Notes keep a readable line length (75 characters) whatever the width.
+  The other pages keep their 1,060px limit.
+
+Checked in Chrome with the menu folded on a wide window (three columns, no
+empty right half) and at 820px (two columns, no sideways scrolling).
+
+---
+
+## Fixed — 2026-09-29 — Countries to keep job posts from sat below Save
+
+It was placed after the Save button, so Save looked like it belonged to the
+countries and the page's last section looked unsaved. It saves on its own
+like the other lists, so it is now with them: after Dealbreakers, before
+"Where, how and how much", whose fields Save is for. Save is last again,
+and its note says a place's country was added to the countries "above".
+
+---
+
+## Fixed — 2026-09-28 — three Search page notes that misled
+
+- **Under Save** it said "Written to your config file. API keys are never
+  stored here; they live in .env." There are no API keys on the Search page;
+  a key pasted on the AI page is held in memory, with `.env` only a
+  fallback; and the lists above now save without Save. It now names the
+  file the page is kept in, and says a list saves as soon as it changes and
+  the rest on Save.
+- **Under the salary floor** it said "Only a published figure can hide a
+  job post. About 12% of postings state one; the rest show as
+  'unconfirmed'." It now says what happens in plain words: a post is hidden
+  only when it lists a salary and even the top of it is below the floor;
+  one with no salary, or paid in another currency (never converted), is
+  kept and marked; empty hides nothing. The tooltip that said the same a
+  second way is gone.
+- **Under the radius** it said '"exact" matches the city only. Remote job
+  posts skip the radius, because distance means nothing for a job with no
+  office.' It now says what the number is (how far from your city a job's
+  office may be), that `exact` means your city only, and what is kept
+  whatever the distance: remote jobs, and a post whose location cannot be
+  read.
+
+---
+
+## Added — 2026-09-28 — the salary currency follows the country
+
+Choosing a country under Where you are sets the salary floor's currency to
+that country's (Germany, EUR; the Philippines, PHP), with a note to change
+it if you are paid in another. A country whose currency a floor cannot use
+leaves it as it was and says so. The currency is now a list of the 45 a
+floor accepts, where it was a text box. The currencies come from GeoNames
+`countryInfo`, written by the builder as a fourth column on each country's
+row in `regions.csv`.
+
+---
+
+## Changed — 2026-09-28 — Countries to keep job posts from; Naperville by default
+
+- **Its own section, its own name.** "Countries" sat under Where you are and
+  read as the same thing twice. It is "Countries to keep job posts from",
+  after Save, with a note that it is not where you are: living in Baguio
+  and open to remote work for US employers is the Philippines and the
+  United States. It also says these choose which sources search.
+- **A table and an add form**, like the other lists, in place of a list
+  that needed Ctrl or Cmd held to choose more than one. Each change saves
+  at once.
+- **Saving a place with no countries listed lists its country**, and the
+  Save note says so. None listed would otherwise keep job posts from every
+  country, which a new user almost never means.
+- **Naperville, Illinois, United States is the default.** A config that
+  leaves out `locations.anchor` is at "Naperville, IL", and one that leaves
+  out `locations.countries` keeps US job posts; the picker offers
+  Naperville, in USD, when no place is saved. Only a missing key takes the
+  default: `anchor: ""` and `countries: []` keep their meaning. The example
+  config and `docs/CONFIG.md` say Naperville.
+
+Tests in `tests/test_international.py` (the defaults, and that an explicit
+empty value is kept) and `tests/test_serve.py` (countries saved as a list).
+Checked in Chrome on a copy with no place and no countries: Naperville
+offered, Save stored "Naperville, IL, United States" and listed the United
+States, a second country added from the form, and Germany set EUR.
+
+---
+
+## Added — 2026-09-28 — Where you are is picked: country, region, city
+
+**Where you are** was one free-text box, and a place it could not find
+turned the radius off with nothing on the page to say so: a scan only
+logged "distance filtering is off". The anchor in use, "Baguio City", was
+one of those. It is now three choices, all from the bundled place list:
+
+- **Country**, every one of the 245 with a listed place, by English name.
+- **Region**, that country's first level under its own name for it: State
+  (US, Australia, India, Germany…), Province (Canada, the Netherlands…),
+  Region (the Philippines, France…), Prefecture (Japan), Country (the UK),
+  Canton (Switzerland). Hidden where a country has none, such as Singapore.
+- **City**, suggested as you type, biggest first, narrowed by the region.
+
+It saves `locations.anchor` as `City, Region, Country` ("Baguio, Cordillera,
+Philippines"; "Austin, TX, United States"), and a city not in the list is
+refused with the reason. Under it the page says whether the radius is
+measured from that city, or that the saved location cannot be placed and
+the radius is off. No postal code: postings almost never carry one, so it
+would only sharpen your own point.
+
+- **The place list keeps every city's region.** `scripts/build_gazetteer.py`
+  writes a sixth column, the GeoNames first-level region, and a new
+  `jobdork/data/regions.csv` of region and country names (GeoNames
+  `admin1CodesASCII` and `countryInfo`, CC BY 4.0). Rebuilt from today's
+  GeoNames: 70,026 places, up from 69,933; 2.5MB plus 77KB. `--source DIR`
+  builds from files already downloaded. `.gitignore` ignored every `*.csv`
+  but `cities.csv`, so `regions.csv` is let through too.
+- **A region settles same-named cities.** "San Fernando, Ilocos" and "San
+  Fernando, Central Luzon" are 180 km apart, and both read as the larger
+  before. A region is only read from after the city, so "Tokyo, Tokyo"
+  keeps its city. How a posting's location is read is otherwise unchanged:
+  the `state` column still holds only US, Canadian and Australian codes.
+- **A trailing "City" is tried without it** when the name as given finds
+  nothing, so "Baguio City" now finds Baguio, and the radius works with the
+  anchor as it is in your config. Quezon City, whose name really ends in
+  "City", is found first as written.
+- The main Save's error now starts with a capital, like the rest.
+
+Tests in `tests/test_international.py` (regions, the "City" fallback, the
+picker's lists and what they save resolving back) and `tests/test_serve.py`
+(saved from the picker, and a city not in the list refused). Checked in
+Chrome on copies of the config and database, this time with the copy's
+`db:` confirmed first: the picker opens on Philippines, Cordillera,
+Baguio; Cordillera's cities list Baguio first; a change saves, an unknown
+city is refused, and the labels read State for the US and hide for
+Singapore.
+
+---
+
+## Changed — 2026-09-28 — the job post search box says "Search"
+
+Its placeholder read "Filter by title or company", and now reads "Search".
+What it searches is unchanged, title and company, and screen readers are
+told so through its label.
+
+---
+
+## Added — 2026-09-28 — an icon on every button
+
+Buttons were words only, so a row of them read as a block of text: Run a
+scan, Run fresh scan, Fetch missing adverts, Re-apply filters, Check still
+open and AI judging looked alike at a glance. Each now has an icon in front
+of its label, from Lucide (ISC licence), inlined because the page loads
+nothing from anywhere.
+
+- **Actions:** run (play), fresh scan (rotate), fetch adverts (download),
+  re-apply filters (filter), check still open (circle check), AI (sparkles),
+  add (plus), remove and delete (trash), save, upload, review (file search),
+  look up a board (search), send, cancel and close (x).
+- **Statuses** in a job post's window each have their own: interested
+  (star), applied (send), interviewing (speech bubbles), offer (award),
+  rejected (circle x), and so on; the tabs too (advert, screen, CV, cover
+  letter, resume review).
+- **Show as table** switches to a chart icon when it reads Show as chart;
+  By kind and By model have layers and a chip; the AI page's Off is a power
+  icon beside the providers' logos.
+- Left as text: the 7 / 30 / 90 days switch, where the same calendar on
+  each would say nothing.
+- A button names its icon in `data-icon`, and one observer adds it, so a
+  label rewritten while a job runs ("Scanning…") gets its icon back.
+
+Checked in Chrome: every page and a job post's window walked for a visible
+button without an icon (none but the days switch), and a label rewrite.
+
+---
+
+## Added — 2026-09-28 — help writing a dealbreaker pattern
+
+A dealbreaker is a regular expression, and nothing on the page said so or
+how to write one. Under the Dealbreakers table, **How to write a pattern,
+with samples** opens:
+
+- **The eight building blocks** that cover almost every dealbreaker (`|`,
+  `.`, `?`, `\b`, `\d`, `{2}`, `(?:a|b)`, `\s?`), each with an example,
+  what it finds and what it does not, and how to match a symbol itself
+  (`C\+\+`).
+- **Seven samples** (security clearance, relocation, heavy travel, on-call,
+  contract or agency, unpaid take-home, sales quota). A click fills the Add
+  form with the name, the pattern and whether it hides the post; nothing is
+  added until you press Add.
+- **Try it:** paste a sentence from an advert and it says whether the
+  pattern in the form finds it, and what it found, as you type. It runs in
+  the browser; Add checks the pattern again with Python, which is what a
+  scan uses.
+- **Links to public documentation:** Python's Regular Expression HOWTO, its
+  syntax reference, and regex101 set to the Python flavour.
+
+`docs/CONFIG.md` has the same guide under dealbreakers, with the samples as
+YAML and how quoting changes backslashes there. Tests: every sample on the
+page compiles with Python's `re` and finds its example
+(`tests/test_serve.py`); the YAML samples were loaded and compiled by hand.
+Checked in Chrome: a sample fills the form, and the tester finds, misses,
+and reports a pattern that is not valid yet.
+
+---
+
+## Added — 2026-09-28 — each AI provider shows its own logo
+
+The provider buttons on the AI page were words only. Each now carries its
+provider's mark: Ollama's llama, Claude's spark, the Gemini star and the
+OpenAI knot, from Simple Icons (CC0), inlined because the page loads
+nothing from anywhere. Claude and Gemini keep their brand colours on an
+unselected button; the selected one takes the button's text colour, so the
+mark keeps its contrast on the accent background. Off has none. Checked in
+Chrome.
+
+---
+
+## Fixed — 2026-09-28 — Look and add could break the config; the server kept an old one
+
+- **Look and add wrote YAML that does not parse** once the dashboard had
+  saved the config. A dashboard save writes the list with its dashes level
+  with `companies:`; Look and add indented new entries under it. Mixed in
+  one list that is a parse error, and from then on `jobdork scan` could not
+  load the config at all. New entries now take the indent of the entries
+  already there, in a hand-written file or a dumped one.
+- **Looking an employer up twice added its board twice.** A board already
+  listed (same type and token) is skipped, and the log says "already in your
+  config; nothing added", in the terminal too.
+- **The server kept the config it started with.** Look and add writes the
+  file from a background job, and a hand edit changes it too, but the
+  running dashboard never re-read it: a scan started from the page ran
+  without the new board until jobdork was restarted. Each request now
+  re-reads the file if it changed; a file that no longer loads is left
+  alone and the last good config kept, with a warning in the log.
+
+Tests in `tests/test_core.py` (a dumped list, and a repeat lookup) and
+`tests/test_serve.py` (a file changed on disk is seen by the next request).
+
+---
+
+## Added — 2026-09-28 — lists are added to by a form and removed from a table
+
+Four list settings now show as a table with a Remove button on each row and
+a form beneath it that is the only way to add one. Each add or removal is
+saved at once, through the same check as Save: a list the loader would
+refuse is not written, and the table stays as it was.
+
+- **Job titles** and **Never show these titles**, on the Search page. They
+  were free-text boxes, one per line, where a stray blank line or a
+  select-all-and-type could empty the list. A title already listed (in any
+  case) is refused.
+- **Dealbreakers**, on the Search page: name, pattern, and whether it hides
+  the job post or costs 8 points. The sidebar said the Search page edited
+  them, but there was no control for them anywhere on the dashboard; they
+  could only be changed in `config.yaml`. A pattern that does not compile is
+  refused with the reason, and the file is left as it was.
+- **Employer boards**, on the Sources page, which listed them but could not
+  remove one. The add form is Look and add, moved here from Tools: a board's
+  token is read off the employer's own site and checked against the board
+  before it is written, never typed in. The table refreshes when the lookup
+  finishes. Tools keeps Add a posting and Email a digest.
+- **Remove asks twice:** the first click turns the button into "Remove?" for
+  three seconds.
+- The rest of the Search page (where, radius, countries, arrangements, pay)
+  stays a form with Save, under "Where, how and how much"; Save no longer
+  sends the lists.
+- `/api/config` accepts `dealbreakers` and `companies` as whole lists, named
+  fields only.
+
+Tests in `tests/test_serve.py`: dealbreakers saved and a broken pattern
+refused with the file unchanged; a board removed and an unknown board type
+refused. Checked in Chrome on copies of the config and database: add, a
+duplicate refused, remove, a broken pattern refused, and on Sources a board
+removed then added back by Look and add (Vanta, Ashby, 88 jobs verified).
+
+---
+
+## Changed — 2026-09-28 — "resume" without the accents
+
+Every "résumé" jobdork writes is now "resume": the page, the terminal, the
+static page, the Markdown and the digest, the prompts, and the docs. Place
+names that carry an accent (Québec, México) are data and are unchanged.
+
+- **Schema version 7** changes what jobdork wrote itself into the database:
+  the score's part name ("résumé fit", which the page looks up for the fit
+  tip, so rows scored before would have lost it), run names and log lines,
+  and the text of AI outputs. Adverts and your notes are not touched: those
+  are someone else's words. On a copy of the database: 678 job posts moved
+  to "resume fit", 2 runs renamed, no advert changed.
+
+Tests in `tests/test_migrations.py`.
+
+---
+
+## Changed — 2026-09-28 — resume review moved to the Resume page
+
+**Review my resume** was on Tools, a page away from the resume it reviews:
+you uploaded in one place and asked for a review in another. It is on the
+Resume page now, under the upload, with the latest review shown there. It
+has its own log, which appears when a review starts; the progress was in
+the Tools log at the bottom of a different page. Tools goes back to helpers
+that do not need the resume: add a posting, find an employer's board, email
+a digest. The Resume page stays in Setup, because every scan reads the file
+for fit and the AI reads it for verdicts: it is a setting, not a one-off.
+
+- The Resume entry's sidebar tip says the review is there.
+- Log lines on Tools and Resume start with a capital ("Resume review
+  started"); a status column ("ok") is left as it is.
+
+Checked in Chrome on a copy of the database, with the local model: Tools
+without the review, the Resume page with the earlier review drawn, and a
+review run from there (17 of 17 claims found in the resume) that logged on
+that page and drew the new review when done.
+
+---
+
+## Fixed — 2026-09-28 — a search box too narrow to read; the capitals still missed
+
+- **The Job posts search box** was the browser's default width, about 180px,
+  so a company name like "iSupport Worldwide" scrolled inside it. It now
+  takes the room left on its row, up to 40rem (about 550px on a laptop),
+  and never less than the screen on a phone.
+- **Skills read as they are written.** Matching is on lower case terms, and
+  the fit tip and the "Fit: has … wants …" flag showed them that way:
+  "aws", "ci/cd", "postgresql". `resume.SKILL_NAMES` gives every acronym and
+  product its own spelling ("AWS", "CI/CD", "PostgreSQL", "GitHub Actions",
+  "Argo CD"); anything else reads in sentence case ("Machine learning").
+  The flags were written into the database at scan time, so they are put
+  right where they are shown (`resume.flag_label`: the dashboard, the static
+  page, the Markdown, the digest and `list --flags`), and a scan made before
+  this still reads correctly.
+- **Job boards by their own names** where the last scan is reported:
+  "Adzuna returned 0 job posts", "Workable did not run", and the per-board
+  counts on the Last scan card, which read "adzuna 822, ashby 88".
+- **The rest, found by walking every page's text in Chrome:** the badge
+  keys on each job post (Match, Fit, AI), the status and scope menus
+  ("Any status", "Open job posts"), placeholders ("Filter by title or
+  company", "Note (Enter saves)", "Paste the key"), the Hallucination tip's
+  table (its kinds and its Checked / Unsupported / Rate headings), "No key
+  held", "Claude drafts", and the screen-reader labels on the charts.
+- **Country names.** The Countries list mixed English and local names and
+  capitalized small words: "United States Of America", "Bosnia And
+  Herzegovina", "Deutschland", "España", "Italia", "Viet Nam". They are
+  English throughout now, with "and" and "of" in lower case.
+
+Left in lower case on purpose: company names as the company writes them
+(tastytrade, iManage), dbt and gRPC, the units mi and km, the example URL,
+domain and email address, and a hint that continues a sentence begun in its
+label. Checked in Chrome on a copy of the database: every page walked again
+for text starting in lower case, the search box with a long company name,
+and the fit flags on posts scanned before the change. Tests in
+`tests/test_international.py` and `tests/test_telemetry.py`.
+
+---
+
+## Added — 2026-09-28 — hallucination over time, by model
+
+A **By kind / By model** switch on the Hallucination chart. By kind asks
+which output makes things up; by model asks whether the model does, which
+is the question after switching models or providers. Same claims, grouped
+the other way: the totals agree (20 of 181 either way on the check below).
+
+- **Models in the order first used, over all time**, and that order is the
+  colour order, so a model keeps its colour when another is added or when
+  the period changes.
+- **At most six lines.** Past that, the rest fold into "Other models": more
+  lines than distinct colours is noise, and a colour must not be reused.
+- Output recorded before models were logged is "Unknown model" rather than
+  left out, so the totals still match By kind.
+- `/api/metrics` returns `models` and each day's `claims_by_model`.
+- The table view's column headers were not capitalized, unlike the legend;
+  they are now.
+
+Checked in Chrome on the scrubbed copy of the database: both settings of
+the switch, the legend totals under each, the tooltip, and the table. The
+Dashboard screenshot is retaken. Tests in `tests/test_metrics.py`.
+
+---
+
+## Fixed — 2026-09-28 — the Docker image could not be reached or started
+
+Three things kept the image from the previous entries from working at all.
+No image was built for this: the Docker daemon was not running here.
+
+- **The dashboard listened where nothing could reach it.** `serve` binds
+  127.0.0.1, and inside a container that is the container's own loopback: a
+  port published with `-p` arrives on the container's network interface and
+  finds nothing there. It now binds 0.0.0.0 when `JOBDORK_IN_CONTAINER=1`
+  (set by the Dockerfile) **and** a container marker file (`/.dockerenv`,
+  `/run/.containerenv`) are both present, so exporting the variable on a
+  bare host changes nothing and the "no `--host`" rule stands. The printed
+  URL and the Host check stay on 127.0.0.1, and `serve` says to publish to
+  the host's loopback only, on the same port both sides:
+  `-p 127.0.0.1:8765:8765`.
+- **It exited at once.** The image baked in an empty `config.yaml`, which
+  does not load ("titles.include is empty"). No config or `.env` is baked in
+  now; `config.example.yaml` is, and the Dockerfile gives the `docker run`
+  line that mounts your own config, `.env`, `data/` and `out/`. The config
+  mount is writable, because the dashboard edits it.
+- **It tried to open a browser** it does not have. `CMD` is now
+  `serve --no-open`.
+- **`.dockerignore`**, so `.env`, `config.yaml`, `data/` and the virtualenv
+  are not sent to the daemon as build context, even though the build copies
+  none of them.
+
+Tests in `tests/test_serve.py`: the variable alone, the marker alone, and
+both together.
+
+---
+
+## Fixed — 2026-09-28 — a token in the URL could change things; the page could be framed
+
+- **A POST was accepted with the token in the query string.** The query is
+  there so a person can be handed one URL; after the first load the page
+  sends the token as the `X-Jobdork-Token` header. Accepting `?t=` on a POST
+  as well meant a leaked URL (browser history, a screenshot, a proxy log) was
+  enough to change statuses, delete job posts or start scans. `?t=` now
+  counts only on a GET: the first page load and the live-scan stream.
+- **Another site could put the dashboard in a frame** and lay its own page
+  over it, so a click meant for that page landed on a dashboard button.
+  Every response now says `X-Frame-Options: DENY`, and the page's
+  Content-Security-Policy adds `frame-ancestors 'none'`.
+
+Tests in `tests/test_serve.py`: a POST carrying only `?t=` is refused and
+changes nothing; the page carries both headers.
+
+---
+
+## Added — 2026-09-28 — a Docker image, run as a non-root user
+
+A `Dockerfile` for running jobdork away from the rest of the machine. It is
+two stages: the first installs the package with the `pdf` and `ai` extras
+into a virtualenv, the second copies only that virtualenv onto
+`python:3.10-slim`. It runs as `appuser`, not root, because it parses files
+it did not write: a resume PDF through `pypdf`, and job adverts from the
+open web. A parser bug reached through either stays inside the container
+without root. As first written it could not be reached or started; see the
+entry above.
+
+---
+
+## Fixed — 2026-09-28 — distances in km were miles; labels in sentence case
+
+- **A kilometre reader saw miles labelled km.** Distances are stored in
+  miles. The dashboard, the Markdown output and the digest printed the
+  stored number with the reader's unit after it, so 10 miles showed as
+  "10 km"; the static page printed "mi" whatever the unit. All of them now
+  convert, through `geo.distance_label`: 10 miles is "16 km".
+- **Labels are in sentence case** in every output: "Match", "Fit",
+  "Hybrid", "Unconfirmed salary", and each job board as it spells itself
+  ("SmartRecruiters", "USAJOBS") rather than its internal key. Company names
+  are left as the company writes them.
+
+Tests in `tests/test_international.py`.
+
+---
+
+## Added — 2026-09-28 — countries from a list; tooltips on the settings
+
+- **Countries is a list of names** on the Config page, where it was a text
+  box that wanted ISO codes typed and comma separated. Hold Cmd/Ctrl to
+  choose several; none accepts everywhere, as before.
+- **Hover tips** say what a setting does to a scan where the label cannot:
+  a title exclusion drops the post before its advert is read; a job post
+  with no salary stated is not hidden by the salary floor; a country left
+  out drops its posts at screening, and adding it back and scanning again
+  finds them. On an AI verdict, the tip on "Not in the advert or resume"
+  says how those claims were found. The first wording of two of these was
+  wrong: the country tip said "permanently hidden", and nothing screened out
+  is stored, so nothing is permanent; the guard tip said claims were checked
+  against "your uploaded documents", when they are checked against the
+  advert and your resume.
+
+---
+
+## Added — 2026-09-28 — hallucination over time, by kind of output
+
+A line chart on the Dashboard beside Runs by tool; the Hallucination card
+stays. The card is one number for the period. The chart shows **when** the
+model says things its sources do not (a jump after changing the model or a
+prompt) and **where**: one line per kind of output (verdicts, page reads,
+cover letters, resume reviews, claude drafts), each the share of that
+day's checked claims that were unsupported.
+
+- **A day with nothing checked is a gap, not 0%.** Zero would claim there
+  were no hallucinations on a day nothing was looked at. Every point has a
+  dot, so a day with no neighbours is still seen.
+- **The tooltip says what a rate stands on:** "17.6% · cover letters · 16 of
+  91 claims", and the day's total. One unsupported claim of two is 50%, and
+  should read as two claims, not as a trend.
+- The legend gives each kind's totals for the period; Show as table lists
+  the days with anything checked.
+- It is its own chart rather than a second axis on another: a share and a
+  count do not share a scale.
+- `/api/metrics` returns each day's checked claims per kind (`claims`) and
+  the kinds in their fixed order (`kinds`), which is also the colour order.
+- The line chart draws gaps, dots, percentages and per-row detail, so both
+  time-series charts are one function. Dots are 8px, the dataviz minimum.
+
+Checked in Chrome on a scrubbed copy of the database: three kinds on today,
+gaps before, the tooltip on a day with data and on one without, and the
+table. The Dashboard screenshot is retaken. Tests in
+`tests/test_metrics.py`.
+
+---
+
+## Added — 2026-09-28 — Run fresh scan; runs by tool as a line chart
+
+- **Run fresh scan** on the Dashboard, beside Run a scan, and
+  `jobdork scan --fresh` in the terminal. It deletes every job post a scan
+  found, with its status, notes, AI verdict and document records, then scans
+  from nothing. A red warning tip on the button says so before it is
+  clicked. Clicking previews: how many posts, how many of them you are
+  pursuing, and a red **Delete N job posts and scan** button that carries N;
+  the server refuses if the number moved since, as Clean up does. The
+  database is backed up to `data/backups` first. Nothing is remembered as
+  deleted, so the scan finds them again; posts you deleted before stay
+  deleted, and posts added by hand are kept. In the terminal it previews
+  unless given `--yes`.
+- **Runs by tool is a line chart**, one line per tool over the days of the
+  period, where it was stacked bars. The legend keys are short lines to
+  match. A crosshair snaps to the nearest day and the tooltip lists every
+  tool there; the arrow keys move it once the chart has focus. A tool with
+  no runs in the period stays in the legend with 0 and is not drawn along
+  the baseline. Show as table is unchanged.
+- **One scan, whoever starts it.** The dashboard's Run a scan had its own
+  copy of the scan, which skipped "judge after scan" and wrote only the
+  html and json outputs; it now runs the same job as the rest of the page.
+  The terminal's scan did not judge after scanning either; it does when
+  `llm.judge_on_scan` is on. Both write every format in `output.formats`
+  through one function (`render.write_all`).
+
+Checked in Chrome on a copy of the database: the chart, its tooltip and
+keyboard, the warning tip, and the confirm step. The tip at first stayed
+open over the confirm panel after a click, hiding its delete button; it now
+opens on hover or keyboard focus only, and never while the panel is open.
+The dashboard screenshot is retaken, from a copy with the log and AI text
+removed. Tests in `tests/test_fresh_scan.py`.
+
+---
+
 ## Fixed — 2026-09-28 — list --json, and a connection left open
 
 - **`list --json` and `roles.json` wrote JSON inside JSON.** The verdict, the
@@ -57,10 +1055,10 @@ Both found while making the demo screenshots.
   commits keep their author.
 - **Screenshots from a demo.** All five are taken from a copy of the
   database with every status, note, draft, AI output, verdict and log line
-  removed, re-scored against a made-up résumé ("Alex Rivera"), and judged
+  removed, re-scored against a made-up resume ("Alex Rivera"), and judged
   with it. The job posts are public listings. Before, the skill chips came
-  from the real résumé and the verdict summarised a real career.
-- **Résumé facts quoted in the docs** (years of experience, the post it was
+  from the real resume and the verdict summarised a real career.
+- **Resume facts quoted in the docs** (years of experience, the post it was
   tried on) are replaced with neutral examples, in the README, the
   changelog and the cover-letter prompt's own example.
 - **Deleted:** `docs/images/generated-cv.jpg` (it showed a name, phone
@@ -95,7 +1093,7 @@ Every doc was read against the code as it now is.
   and the Dashboard; "What is not built", which contradicted itself, is gone;
   the test counts are gone too, as they had gone stale twice.
 - **README:** a section on the AI page (providers, keys in memory, judging,
-  page reads, the hallucination check with its HalluLens credit, the résumé
+  page reads, the hallucination check with its HalluLens credit, the resume
   review, feedback); `check` and `prune`; the `viewed` status; the Dashboard,
   Job posts and job post window with their screenshots; draft checks named as
   they are (humanizer rules, not an em-dash count); "48 tests" gone; the
@@ -191,27 +1189,27 @@ Last part of the guardrail plan.
 
 - **Thumbs up / down** on every AI output the page shows: beside the AI
   badge in a job post's window (the verdict), under each cover letter,
-  résumé review and `claude -p` draft tab ("Was this cover letter
-  useful?"), and on the Tools page's résumé review. Pressing the pressed one
+  resume review and `claude -p` draft tab ("Was this cover letter
+  useful?"), and on the Tools page's resume review. Pressing the pressed one
   clears it. Ratings feed the Dashboard's feedback chart. A draft made with
   the guard off can be rated too: its output row is kept in the artifact
   under a hidden `_output` key, which the page never shows as a gate.
-- **Job post window:** **Write cover letter (AI)** and **Review résumé for
+- **Job post window:** **Write cover letter (AI)** and **Review resume for
   this post** beside Ask AI. Each runs as a normal run, and the window opens
   on the new tab when it finishes. The tab shows the checks, with the claims
   the guard flagged listed, then the text.
-- **Tools → Résumé review:** **Review my résumé** runs the general review;
+- **Tools → Resume review:** **Review my resume** runs the general review;
   the newest one is shown there whenever Tools is opened, with the model,
-  the time, how many of its claims were found in your résumé, and anything
+  the time, how many of its claims were found in your resume, and anything
   flagged.
 - Reviews are shown with their headings and lists rather than as raw
   Markdown. The text is escaped first, so nothing in it becomes markup.
 - The review capitalises each point; gemma writes them in lower case.
-- Tabs read "résumé review" and "CV" rather than `resume_review` and `cv`.
+- Tabs read "resume review" and "CV" rather than `resume_review` and `cv`.
 
 Checked in Chrome: the buttons in the window and the tabs, a thumb pressed
 and pressed again (stored as 1, then cleared), and a real general review
-from the Tools page (gemma4:26b, 18 of 18 claims found in the résumé). Tests
+from the Tools page (gemma4:26b, 18 of 18 claims found in the resume). Tests
 in `tests/test_guard_wiring.py`.
 
 ---
@@ -226,7 +1224,7 @@ Fifth part of the guardrail plan. Above "Last runs", scoped by a **7 / 30 /
   it; and the **hallucination** rate: unsupported claims over checked
   claims, with coverage (checked outputs over all AI outputs). Hover or
   focus the hallucination tile for the split by kind: verdicts, page reads,
-  cover letters, résumé reviews, claude drafts.
+  cover letters, resume reviews, claude drafts.
 - **Runs by tool, per day.** Stacked columns in a fixed tool order (scan,
   check, AI judging, AI writing, enrich, other), so a tool keeps its colour
   whatever ran. A job started in the terminal and one started here count as
@@ -261,13 +1259,13 @@ of 22 up to 25 rather than 50. Tests in `tests/test_metrics.py`.
 Fourth part of the guardrail plan. Every piece of text a model writes here is
 now an `ai_outputs` row, and with the new **`llm.guard`** setting on (the
 default; AI page: "Check each verdict and draft…") it is checked against the
-advert and your résumé.
+advert and your resume.
 
 - **AI judging.** After each verdict, its summary, reasons and concerns go
   through `guard.check`. The result is kept inside the verdict (`guard`,
   `ai_output_id`). The AI badge's tip lists claims neither source supports,
-  struck out, under **Not in the advert or résumé**, and ends with "N of M
-  claims found in the advert or résumé" (or "claims not checked"). The score
+  struck out, under **Not in the advert or resume**, and ends with "N of M
+  claims found in the advert or resume" (or "claims not checked"). The score
   is left as the model gave it. The run summary counts verdicts with such a
   claim, and so does the run's Outcomes bar ("unsupported claims").
 - **Abstaining.** The judge answers `enough_evidence`. When it says no, the
@@ -298,13 +1296,13 @@ the guard off still records every output, unchecked.
 
 ---
 
-## Added — 2026-09-28 — AI cover letter and résumé review (`writer.py`)
+## Added — 2026-09-28 — AI cover letter and resume review (`writer.py`)
 
 Third part of the guardrail plan. Both use the model set on the AI page
 (local Ollama included), not `claude -p`.
 
 - **`jobdork letter UID`** (dashboard: `POST /api/letter`). At most four
-  short paragraphs, facts from the résumé and advert only, humanizer rules in
+  short paragraphs, facts from the resume and advert only, humanizer rules in
   the prompt and `humanize.clean` after. Gated like a `claude -p` letter
   (length, AI tells, unsupported figures, overlap with `CV.md`) plus a
   **hallucination check** gate from `guard.check`. Saved as
@@ -313,9 +1311,9 @@ Third part of the guardrail plan. Both use the model set on the AI page
   shows in the job-post dialog as the other drafts do. A new or viewed post
   moves to interested, as with any draft.
 - **`jobdork review [UID]`** (`POST /api/review`). Without a post: the
-  résumé's own problems, each quoting the line it is about. With one: also
-  what the advert asks for that the résumé does not show, what to move up,
-  and lines to reword. A suggestion quoting text that is not in the résumé
+  resume's own problems, each quoting the line it is about. With one: also
+  what the advert asks for that the resume does not show, what to move up,
+  and lines to reword. A suggestion quoting text that is not in the resume
   is dropped by script and the review says how many were. When the model
   says the evidence is too thin, the review opens by saying so. Against a
   post it is saved as `resume-review.md` and a `resume_review` artifact; a
@@ -340,9 +1338,9 @@ Guard fixes found on the first live run (gemma4:26b, one job post):
 
 After the fixes the same letter went from 6 of 25 claims flagged to 1 of 25,
 and the one left is a real stretch: Docker attached to an employer the
-résumé does not tie it to. The first letter had claimed the résumé's total years of
+resume does not tie it to. The first letter had claimed the resume's total years of
 experience for each language separately; the letter
-prompt now says a number of years belongs to what the résumé attaches it to.
+prompt now says a number of years belongs to what the resume attaches it to.
 
 Also: the overlap gate read "no the CV to compare against yet"; it now reads
 "nothing to compare: the CV is not drafted yet".
@@ -357,7 +1355,7 @@ Second part of the guardrail plan. Two tables, created on open like
 `activity` (no migration step, since new tables need none):
 
 - **`ai_outputs`** — one row per text a model wrote (verdict, page read,
-  cover letter, résumé review, draft): kind, job post, model, the run it came
+  cover letter, resume review, draft): kind, job post, model, the run it came
   from, the text, the guard report with its claim and unsupported counts,
   whether the check ran, and thumbs up/down. `Store.add_ai_output`,
   `ai_output`, `set_feedback` (1, -1 or cleared).
@@ -377,13 +1375,13 @@ guard wiring. Tests in `tests/test_telemetry.py`.
 
 `jobdork/guard.py` implements the HalluLens method (LongWiki task) with our
 own prompts: extract atomic claims from an AI output, verify each against
-the known source (résumé, advert), and count unsupported claims. A model's
+the known source (resume, advert), and count unsupported claims. A model's
 "supported" only counts when its quote is found in the named source by
 script. A failed check returns `checked=False` and never blocks the output.
 Tests in `tests/test_guard.py`.
 
 Not yet wired in. Still to build, per the approved plan: the `ai_outputs`
-and `llm_calls` tables, the AI cover-letter and résumé-review tools
+and `llm_calls` tables, the AI cover-letter and resume-review tools
 (`writer.py`), guard checks on judging, page reads and drafts, feedback
 buttons, and the observability metrics on the Dashboard.
 
@@ -546,7 +1544,7 @@ closed while another copy was live.
   switch, and disappears once it is back. The running-job name under it is
   gone too; the Dashboard dot already says that.
 - **ⓘ on every Setup item.** Hover it — or tab to the item — for a short
-  explanation of that page (Search, Résumé, Sources, AI, Tools). The tip
+  explanation of that page (Search, Resume, Sources, AI, Tools). The tip
   floats beside the nav so the nav's scrolling cannot clip it. Native hover
   titles now appear only in the collapsed rail, where the names are hidden.
 
@@ -682,7 +1680,7 @@ section of the config — provider, model, Ollama address, and two opt-ins:
 - **When checking postings, read pages that do not say** whether the job is
   open.
 
-What the model does: reads the full advert against your résumé and returns
+What the model does: reads the full advert against your resume and returns
 a 0-100 verdict (strong / possible / weak) with a summary, reasons for and
 concerns against. It shows as a third badge, `AI 85`, beside match and fit,
 with the reasoning on hover. It never drops or hides a role. **Ask AI** in
@@ -751,10 +1749,10 @@ tabbing to either opens a card that explains that role's number:
   `titles.include` term matched, the arrangement, the distance against your
   radius with the formula (and, at 0 mi, that the posting only gave a city
   so it was measured to the city centre), what the salary was compared
-  with, any soft dealbreakers, and résumé fit — totalled at the bottom.
+  with, any soft dealbreakers, and resume fit — totalled at the bottom.
 - **fit** says how many of the advert's skills you have and how that became
   the number, including when a short advert was counted out of 5, then
-  lists the skills on your résumé in green and the ones asked for but
+  lists the skills on your resume in green and the ones asked for but
   missing.
 
 Screening now records these as `roles.score_parts` (JSON, schema v4). A
@@ -767,7 +1765,7 @@ role not screened since shows "Tools → Re-apply filters fills this in".
 A bare number beside `fit 5/25` read as a second, unexplained score. It is
 now `match 80` on cards, in the role dialog and in the HTML and Markdown
 reports, with a tooltip naming what it adds up: title, arrangement,
-distance, salary and résumé fit. CSV keeps its `score` column name so
+distance, salary and resume fit. CSV keeps its `score` column name so
 existing spreadsheets still line up.
 
 ---
@@ -777,7 +1775,7 @@ existing spreadsheets still line up.
 Three Adzuna roles sat at exactly 100. Not a cap — every part of the sum had
 maxed: title 30, arrangement 10, distance 30 (Adzuna says "Chicago,
 Illinois", which resolves to the anchor itself, so 0.0 mi), salary 5 (no
-floor set), and résumé fit 25 of 25 — because the 500-character teaser named
+floor set), and resume fit 25 of 25 — because the 500-character teaser named
 one skill, and one of one is 100%.
 
 ### Changed
@@ -786,7 +1784,7 @@ one skill, and one of one is 100%.
   v3), shown as `fit N/25` next to the score on each card, in the role
   dialog, and in the HTML, Markdown and CSV reports (`fit` is appended as
   the last CSV column so existing column positions hold). A role with no
-  résumé or no advert shows `–`, not 0.
+  resume or no advert shows `–`, not 0.
 - **A thin advert cannot score full fit.** The share is taken of at least
   `MIN_SKILLS` (5) skills, so a teaser naming only "java" scores 5 of 25, not
   25. A full advert you match entirely still scores 25.
@@ -881,10 +1879,10 @@ Without it a role you have read and not decided on is indistinguishable from
 one you never opened, which is the exact thing a scanner is supposed to
 remember for you.
 
-### Added — résumé upload
+### Added — resume upload
 
 Drop a `.pdf`, `.docx`, `.md` or `.txt` in the page; it is parsed immediately
-and reports back how many characters, years and skills it found, so a résumé
+and reports back how many characters, years and skills it found, so a resume
 that cannot be read is caught at upload rather than silently scoring every
 role at zero.
 
@@ -954,7 +1952,7 @@ is trying to report progress.
 ### Added — settings in the page
 
 Titles, location, radius, units, countries, arrangements, salary floor and
-résumé path, edited without opening YAML. The file is written, then re-read
+resume path, edited without opening YAML. The file is written, then re-read
 through the normal loader; **an edit that would not survive `jobdork scan`
 cannot be saved**, and a rejected edit is rolled back to the file that was
 there before. Credentials are not in the payload and are not touched.
@@ -1198,8 +2196,8 @@ than guessing them.
 | usajobs | 2 | 4,121 chars | 2 / 2 |
 | adzuna | 653 | **500 chars** | **517 / 653** |
 
-Résumé fit scoring reads the advert body, and the difference is not subtle. The
-same feature, on the same résumé:
+Resume fit scoring reads the advert body, and the difference is not subtle. The
+same feature, on the same resume:
 
 ```
 adzuna, 500 chars   fit: has security
@@ -1230,17 +2228,17 @@ trusting it.
 
 ### Fixed
 
-- **The résumé was outside the sandbox and therefore unreadable.** `--add-dir`
-  names the job folder and nothing else, so a résumé at `~/Documents` could not
+- **The resume was outside the sandbox and therefore unreadable.** `--add-dir`
+  names the job folder and nothing else, so a resume at `~/Documents` could not
   be opened. The first screen came back *"file access was not granted"* and
   assessed nothing.
 
   Widening the sandbox to reach it would undo the point of having one, so the
-  résumé is **copied into the job folder** instead and referenced by local
+  resume is **copied into the job folder** instead and referenced by local
   name. The scope stays one directory.
 
 - **A screen was being held to send-time gates.** It flagged
-  `"$140,000 - $170,000"` as a figure not in the résumé — the advertised
+  `"$140,000 - $170,000"` as a figure not in the resume — the advertised
   salary, read correctly off the posting. Those gates guard documents you
   *send*; a screen is notes to yourself and is *supposed* to quote the advert.
   Gates are now per-kind: a screen gets a length check and nothing else.
@@ -1256,7 +2254,7 @@ it found a title mismatch (advertised "DevOps Engineer", described a Forward
 Deployed Engineer), buried travel expectations — "consecutive weeks spent
 full-time at a client site" against an advert headlined as 2-days-a-week
 hybrid — a currency typo in the salary, and named four requirements not on the
-résumé.
+resume.
 
 On a role whose advert had been **truncated to 500 characters by an
 aggregator**, it refused: *"cannot screen yet. Advert is a stub. Re-scrape
@@ -1292,7 +2290,7 @@ jobdork generate <ref> --dry-run         # the prompt and the command, spending 
 ```
 
 The Claude Code CLI rather than the API, deliberately: the agent reads your
-résumé off disk, writes the draft, and is checked by scripts afterwards.
+resume off disk, writes the draft, and is checked by scripts afterwards.
 Through a bare API call all of that would be reassembled out of prompt text,
 and the drafting quality lives in the reading and writing. The desktop chat
 app ships no command-line entry point and cannot be driven from here.
@@ -1311,7 +2309,7 @@ counting em-dashes says how many there are.
 
 | Gate | What it catches |
 |---|---|
-| **unsupported figures** | any number or scale word in the draft that is not in your résumé |
+| **unsupported figures** | any number or scale word in the draft that is not in your resume |
 | **phrase overlap** | a cover letter repeating the CV — no run of six words may appear in both |
 | **em dashes** | more than two |
 | **length** | a draft that came back empty |
@@ -1319,8 +2317,8 @@ counting em-dashes says how many there are.
 
 `unsupported figures` is the one that matters. A tailored CV is the easiest
 place in a job search to acquire a statistic nobody can back up. Tested: a
-draft claiming "2.5 million" and "tripled" against a résumé that says neither
-is caught on all three, while the figures that *are* in the résumé are not
+draft claiming "2.5 million" and "tripled" against a resume that says neither
+is caught on all three, while the figures that *are* in the resume are not
 flagged. Dates and small integers are ignored — they are list counts, not
 claims.
 
@@ -1470,7 +2468,7 @@ Copyright held under the GitHub handle `jessn-dev`.
 ## 0.8.0 — 2026-08-29 — `enrich`
 
 Fetches the full advert for roles stored as summaries. Dealbreakers read the
-advert body, so does work-mode detection, so does résumé fit scoring — a role
+advert body, so does work-mode detection, so does resume fit scoring — a role
 stored with 200 characters of teaser was waved through rather than screened,
 and the flags on it were guesses.
 
@@ -1533,7 +2531,7 @@ country meant editing a file you had tuned, or keeping several and passing
 
 - **An override is validated exactly as the file is**, so it cannot be a
   looser way in than the config it replaces. `--country ZZ`, `--currency XYZ`,
-  `--radius nonsense`, a résumé path that does not exist, and a numeric radius
+  `--radius nonsense`, a resume path that does not exist, and a numeric radius
   with no anchor are all refused the same way they would be in YAML.
 
 - **`--country` moves units and the Adzuna index with it.** Carrying miles
@@ -1756,8 +2754,8 @@ and a section that has to be re-invented is a section that gets skipped.
 - **SmartRecruiters answers 200 with `totalFound: 0`** for a throttle and for
   a board that is not there alike. An empty answer from it proves nothing
   either way.
-- **Uncommitted:** 0.6.0 through 0.13.0, and every dated entry above, exist
-  only in the working tree. `684b7c9` is the last commit.
+- **Uncommitted:** every entry above "list --json, and a connection left
+  open" exists only in the working tree. `b3f5f87` is the last commit.
 
 ---
 
@@ -1845,7 +2843,7 @@ current. Boards for named employers are added individually when you want them.
 | `geo.py` | Offline gazetteer, radius, state/metro/country normalisation |
 | `screen.py` | Title, location, salary, work-mode and dealbreaker filtering |
 | `scan.py` | Orchestration, threading, rescreen |
-| `resume.py` | Offline résumé parsing and skill-overlap scoring |
+| `resume.py` | Offline resume parsing and skill-overlap scoring |
 | `render.py` | Static HTML + JSON output |
 | `cli.py` | `scan / list / show / applied / rescreen / add / sources / dork` |
 | `textutil.py` | HTML-to-text for advert bodies |
@@ -1867,7 +2865,7 @@ offer`, plus `rejected`, `withdrawn`, `skipped`, `closed`. The last four are
 hidden from results. A status you set outranks a later filter change:
 `rescreen --remove` never deletes a role you acted on.
 
-**Résumé scoring**, offline and free. Reads `.docx`, `.md`, `.txt` and — via
+**Resume scoring**, offline and free. Reads `.docx`, `.md`, `.txt` and — via
 the optional `pypdf` extra — `.pdf`. Sorts the list by skill overlap and names
 the gaps. Never drops a role; it only adds points.
 
@@ -1996,7 +2994,7 @@ One Chicago run, 16 titles, radius 25 miles, 855 roles before dedupe:
 | usajobs | 2 | 4,102 chars | 0/2 | **100%** |
 
 **Adzuna truncates every advert to exactly 500 characters.** Dealbreakers,
-work-mode detection and résumé fit scoring all read the advert body, so Adzuna
+work-mode detection and resume fit scoring all read the advert body, so Adzuna
 is a discovery-and-salary source and Workable is the one that can be filtered
 on. This is the single most important limitation in the tool.
 
@@ -2022,7 +3020,7 @@ pay.
 - **`enrich` is not implemented.** Breezy and SmartRecruiters return a summary
   index; their full adverts need a second request per role.
 - **No `discover` command yet.** Board tokens have to be supplied by hand.
-- **PDF résumés need `pypdf`**, an optional extra. A PDF that extracts under
+- **PDF resumes need `pypdf`**, an optional extra. A PDF that extracts under
   200 characters is refused rather than silently scoring every role zero.
 
 ### Not built
@@ -2036,4 +3034,4 @@ Everything else works without them.
 ### Dependencies
 
 Added `PyYAML` and `requests` as required, `pypdf` as an optional extra for
-PDF résumés. `resend` unchanged.
+PDF resumes. `resend` unchanged.

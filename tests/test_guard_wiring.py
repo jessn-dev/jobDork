@@ -76,7 +76,7 @@ def test_a_judged_verdict_carries_its_guard_and_output_row():
             stored = json.loads(store.get(uid)["llm_judgement"])
             output = store.ai_output(stored["ai_output_id"])
         assert report.judged == 1 and report.flagged == 1
-        assert "claim the advert and résumé do not support" in " ".join(report.lines())
+        assert "claim the advert and resume do not support" in " ".join(report.lines())
         assert stored["guard"]["unsupported"] == 1
         assert seen["text"].splitlines() == ["Close match.", "Seven years of Python",
                                              "No Go"]

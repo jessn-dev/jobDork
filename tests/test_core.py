@@ -585,6 +585,34 @@ def test_add_preserves_comments_and_appends():
             ("Vectra", "vectranetworks"), ("Ramp", "ramp")}
 
 
+
+def test_add_matches_a_list_the_dashboard_wrote():
+    """A YAML dump puts the dash level with `companies:`; a hand-written file
+    indents it. An entry at the other indent is a parse error, and then no
+    scan can load the config."""
+    import tempfile
+
+    import yaml
+
+    from jobdork.core import config
+    from jobdork.search import discover
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "config.yaml"
+        target.write_text(yaml.safe_dump({
+            "titles": {"include": ["engineer"]},
+            "locations": {"anchor": "Chicago, IL", "radius": "exact",
+                          "countries": ["US"]},
+            "sources": {"companies": [{"name": "Acme", "platform": "ashby",
+                                       "token": "acme"}]}}, sort_keys=False))
+        discover.add_to_config(str(target), "Ramp", [
+            discover.Found(platform="ashby", token="ramp", status="verified")])
+        cfg = config.load(str(target))
+        assert [c.token for c in cfg.sources.companies] == ["ramp", "acme"]
+        # Looked up again: nothing new is written.
+        assert discover.add_to_config(str(target), "Ramp", [
+            discover.Found(platform="ashby", token="ramp", status="verified")]) == []
+        assert len(config.load(str(target)).sources.companies) == 2
+
 # ── cli overrides ──────────────────────────────────────────────────────────────
 
 def _base_config_file(tmpdir) -> str:
@@ -869,7 +897,7 @@ def test_a_broken_screening_pattern_stops_the_run():
 
 # ── keep this block LAST ───────────────────────────────────────────────────────
 
-# ── résumé fit and thin adverts ───────────────────────────────────────────────
+# ── resume fit and thin adverts ───────────────────────────────────────────────
 
 def test_a_teaser_naming_one_skill_is_not_a_perfect_fit():
     """Adzuna's 500 characters named "java" and scored 25 of 25 on it."""
@@ -950,7 +978,7 @@ def test_every_point_of_the_score_is_explained():
                 work_mode="remote", description="Python and Go services.")
     screen.screen(role, cfg, geo.resolve_anchor(""), cv)
     names = [p["part"] for p in role.score_parts]
-    assert names[:2] == ["title", "arrangement"] and names[-1] == "résumé fit", names
+    assert names[:2] == ["title", "arrangement"] and names[-1] == "resume fit", names
     assert abs(sum(p["points"] for p in role.score_parts) - role.score) < 0.5
     assert all(p["why"] for p in role.score_parts), "every part says why"
     fit = role.score_parts[-1]
