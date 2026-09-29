@@ -6,20 +6,23 @@ it and into an entry when the work is done.
 
 ---
 
-## Changed — 2026-09-29 — version 0.14.1; `v0.14.0` was never released
+## Changed — 2026-09-29 — version 0.14.2; `v0.14.0` and `v0.14.1` were never released
 
-The tag `v0.14.0` was pushed at 08:47, two minutes before the pull request
-that set the version to 0.14.0 was merged, so it points at `a3df943`, whose
-code says 0.13.0. That commit predates the check that a tag matches the
-version, so nothing stopped the run: it passed every check and waited for
-approval. The approval was rejected, and nothing was published: no image, no
-GitHub Release. Release tags can never be moved or deleted, by design, so
-`v0.14.0` stays as a tag with no release, and the first release is 0.14.1.
+Both tags were pushed before the pull request that set their version was
+merged, so each points at a commit whose code says an older version.
 
-The release steps in `SECURITY.md` now say to update `main` after the merge
-and before tagging. From here on the tag check runs on every release tag.
+- **`v0.14.0`** points at `a3df943`, which says 0.13.0. That commit predates
+  the check that a tag matches the version, so the run passed every check
+  and waited for approval; the approval was rejected.
+- **`v0.14.1`** points at `2bd3d41`, which says 0.14.0. That commit has the
+  check, and it stopped the run before anything was built or offered for
+  approval: "tag v0.14.1 does not match version 0.14.0 in pyproject.toml".
 
----
+Nothing was published for either: no image, no GitHub Release. Release tags
+can never be moved or deleted, by design, so both stay as tags with no
+release, and the first release is 0.14.2. The release steps in `SECURITY.md`
+now say that pushing a branch or opening a pull request puts nothing on
+`main`; merging does, and only then is `main` pulled and tagged.
 
 ## Changed — 2026-09-29 — version 0.14.0, and a tag must match the version
 

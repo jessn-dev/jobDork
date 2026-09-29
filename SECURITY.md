@@ -54,9 +54,11 @@ only after the owner approves it in the `release` environment. A push to
    tag that does not is stopped before the approval step.
 2. **After the merge**, bring `main` up to date, then tag it and push the tag:
    `git checkout main && git pull`, then
-   `git tag v0.14.1 && git push origin v0.14.1`. Only an admin can create a
+   `git tag v0.14.2 && git push origin v0.14.2`. Only an admin can create a
    `v*` tag, and once pushed it can never be moved or deleted, so a tag made
-   before the pull lands on the old commit for good (as `v0.14.0` did).
+   before the pull lands on the old commit for good (as `v0.14.0` and
+   `v0.14.1` did). Pushing a branch or opening a pull request does not put
+   anything on `main`; merging it does.
 3. The workflow runs every check again on the tag, then stops at **Review
    deployments**: open the run under Actions and approve it. Nothing is
    published, and the Docker Hub token is not handed out, until you do.
