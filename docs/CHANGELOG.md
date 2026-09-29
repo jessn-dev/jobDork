@@ -6,6 +6,20 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-09-29 — version 0.14.0, and a tag must match the version
+
+The code still said 0.13.0, and the first release was to be tagged
+v0.14.0: an image tagged `0.14.0` whose `jobdork --version` answered
+`0.13.0`. `pyproject.toml` now says 0.14.0, and on a tag push the `image` job
+checks the tag against it first, so a mismatched tag fails before anything is
+built or approved. Rehearsed: `v0.14.0` passes, `v0.15.0` is stopped. The
+release steps in `SECURITY.md` start with setting the version.
+
+The Docker Hub account and token are now in the `release` environment only,
+the username as a variable; the copies at repository level are deleted.
+
+---
+
 ## Added — 2026-09-29 — releases are version tags, approved before they publish
 
 Nothing gave a release a sign-off. On GitHub there was no `release`

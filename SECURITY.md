@@ -49,7 +49,9 @@ only after the owner approves it in the `release` environment. A push to
 
 ## How a release is made, and signed off
 
-1. Merge the change into `main` through a pull request; the checks must pass.
+1. Set the new version in `pyproject.toml` and merge it into `main` through a
+   pull request; the checks must pass. The tag in step 2 must match it: a
+   tag that does not is stopped before the approval step.
 2. Create the version tag from `main` and push it:
    `git tag v0.14.0 && git push origin v0.14.0`. Only an admin can create a
    `v*` tag, and once pushed it can never be moved or deleted.
