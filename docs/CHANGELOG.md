@@ -6,6 +6,21 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-09-29 — version 0.14.1; `v0.14.0` was never released
+
+The tag `v0.14.0` was pushed at 08:47, two minutes before the pull request
+that set the version to 0.14.0 was merged, so it points at `a3df943`, whose
+code says 0.13.0. That commit predates the check that a tag matches the
+version, so nothing stopped the run: it passed every check and waited for
+approval. The approval was rejected, and nothing was published: no image, no
+GitHub Release. Release tags can never be moved or deleted, by design, so
+`v0.14.0` stays as a tag with no release, and the first release is 0.14.1.
+
+The release steps in `SECURITY.md` now say to update `main` after the merge
+and before tagging. From here on the tag check runs on every release tag.
+
+---
+
 ## Changed — 2026-09-29 — version 0.14.0, and a tag must match the version
 
 The code still said 0.13.0, and the first release was to be tagged
