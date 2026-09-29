@@ -52,9 +52,11 @@ only after the owner approves it in the `release` environment. A push to
 1. Set the new version in `pyproject.toml` and merge it into `main` through a
    pull request; the checks must pass. The tag in step 2 must match it: a
    tag that does not is stopped before the approval step.
-2. Create the version tag from `main` and push it:
-   `git tag v0.14.0 && git push origin v0.14.0`. Only an admin can create a
-   `v*` tag, and once pushed it can never be moved or deleted.
+2. **After the merge**, bring `main` up to date, then tag it and push the tag:
+   `git checkout main && git pull`, then
+   `git tag v0.14.1 && git push origin v0.14.1`. Only an admin can create a
+   `v*` tag, and once pushed it can never be moved or deleted, so a tag made
+   before the pull lands on the old commit for good (as `v0.14.0` did).
 3. The workflow runs every check again on the tag, then stops at **Review
    deployments**: open the run under Actions and approve it. Nothing is
    published, and the Docker Hub token is not handed out, until you do.
