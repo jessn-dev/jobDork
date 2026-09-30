@@ -78,8 +78,8 @@ def test_an_old_database_is_upgraded_without_losing_anything():
         _v1_database(path)
 
         with Store(path) as store:
-            assert store.applied_migrations == [2, 3, 4, 5, 6, 7], store.applied_migrations
-            assert migrations.current_version(store.conn) == 7
+            assert store.applied_migrations == [2, 3, 4, 5, 6, 7, 8], store.applied_migrations
+            assert migrations.current_version(store.conn) == 8
             assert {"fit", "score_parts", "llm_score", "listing_state"} \
                 <= migrations._columns(store.conn, "roles")
 
@@ -95,7 +95,7 @@ def test_migrating_twice_does_nothing_the_second_time():
         path = Path(tmp) / "old.db"
         _v1_database(path)
         with Store(path) as store:
-            assert store.applied_migrations == [2, 3, 4, 5, 6, 7]
+            assert store.applied_migrations == [2, 3, 4, 5, 6, 7, 8]
         with Store(path) as store:
             assert store.applied_migrations == [], "already at the version"
 

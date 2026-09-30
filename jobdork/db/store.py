@@ -187,6 +187,22 @@ CREATE TABLE IF NOT EXISTS llm_calls (
 );
 CREATE INDEX IF NOT EXISTS idx_llm_calls_at ON llm_calls(at);
 
+-- Projects you describe yourself, STAR-style, on the Resume page. Source
+-- material for a tailored resume beside the resume file: the writer may use
+-- them, and the checks accept what they say (ai/writer.py).
+CREATE TABLE IF NOT EXISTS projects (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    tools       TEXT NOT NULL DEFAULT '',
+    link        TEXT NOT NULL DEFAULT '',
+    situation   TEXT NOT NULL DEFAULT '',
+    task        TEXT NOT NULL DEFAULT '',
+    action      TEXT NOT NULL DEFAULT '',
+    result      TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_roles_first_seen ON roles(first_seen);
 CREATE INDEX IF NOT EXISTS idx_roles_company    ON roles(company);
 CREATE INDEX IF NOT EXISTS idx_roles_url        ON roles(url);
@@ -756,6 +772,38 @@ class Store:
              1 if guard.get("checked") else 0))
         self.conn.commit()
         return int(cur.lastrowid)
+
+    # ── projects (Resume page, STAR fields) ─────────────────────────────────────
+
+    PROJECT_FIELDS = ("name", "tools", "link", "situation", "task", "action", "result")
+
+    def projects(self) -> list[sqlite3.Row]:
+        return self.conn.execute(
+            "SELECT * FROM projects ORDER BY updated_at DESC, id DESC").fetchall()
+
+    def save_project(self, fields: dict, project_id: int | None = None) -> int:
+        """Add a project, or replace one by id. Returns its id; 0 if no such id."""
+        values = [str(fields.get(f) or "").strip() for f in self.PROJECT_FIELDS]
+        if not values[0]:
+            raise ValueError("a project needs a name")
+        now = _now()
+        if project_id:
+            cur = self.conn.execute(
+                "UPDATE projects SET name = ?, tools = ?, link = ?, situation = ?, "
+                "task = ?, action = ?, result = ?, updated_at = ? WHERE id = ?",
+                (*values, now, int(project_id)))
+            self.conn.commit()
+            return int(project_id) if cur.rowcount else 0
+        cur = self.conn.execute(
+            "INSERT INTO projects(name, tools, link, situation, task, action, result, "
+            "created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", (*values, now, now))
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def delete_project(self, project_id: int) -> bool:
+        cur = self.conn.execute("DELETE FROM projects WHERE id = ?", (int(project_id),))
+        self.conn.commit()
+        return cur.rowcount > 0
 
     def ai_output(self, output_id: int) -> sqlite3.Row | None:
         return self.conn.execute(

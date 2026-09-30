@@ -61,7 +61,7 @@ def _summary(report) -> None:
 
 # Commands that run long enough to be worth watching on the Activity page.
 RECORDED = ("scan", "enrich", "check", "judge", "rescreen", "generate",
-            "letter", "review")
+            "letter", "review", "tailor")
 
 
 def _load(args) -> config.Config:
@@ -500,6 +500,7 @@ def cmd_generate(args) -> int:
     """Screen a role, or draft a CV or cover letter. Spends tokens."""
     from .ai import guard
     from .writing import generate as gen
+    from .writing import resume_doc
 
     cfg = _load(args)
     with Store(cfg.db_path) as store:
@@ -520,6 +521,7 @@ def cmd_generate(args) -> int:
                 dry_run=args.dry_run,
                 progress=_say if not args.quiet else None,
                 settings=guard.settings_for(cfg),
+                notes=resume_doc.project_notes(store.projects()),
             )
         except gen.GenerateError as exc:
             print(f"generate: {exc}", file=sys.stderr)
@@ -641,6 +643,27 @@ def cmd_letter(args) -> int:
             return 1
     print(f"\n{draft.path}")
     _summary_text(f"wrote {draft.path.name} (output {draft.output_id})")
+    return 0
+
+
+def cmd_tailor(args) -> int:
+    """Your resume rewritten for one job post, in the ATS template, as a PDF."""
+    from .ai import writer
+    from .ai.llm import LLMError
+
+    cfg = _load(args)
+    with Store(cfg.db_path) as store:
+        uid = _one_uid(store, args.uid)
+        if not uid:
+            return 2
+        try:
+            result = writer.tailor(cfg, store, uid, root=args.dir,
+                                   progress=None if args.quiet else _say)
+        except LLMError as exc:
+            print(f"cannot tailor the resume: {exc}")
+            return 1
+    print(f"\n{result.pdf_path}")
+    _summary_text(f"wrote {result.pdf_path.name} (output {result.output_id})")
     return 0
 
 
@@ -934,6 +957,15 @@ def build_parser() -> argparse.ArgumentParser:
                                               "(default ~/Documents/job-applications)")
     p.add_argument("-q", "--quiet", action="store_true")
     p.set_defaults(func=cmd_letter)
+
+    p = subs.add_parser("tailor", parents=[over],
+                        help="AI resume rewritten for one job post, in the ATS "
+                             "template, as FirstName_LastName_JobTitle_Resume.pdf")
+    p.add_argument("uid", help="the job post's uid, URL or company")
+    p.add_argument("--dir", default="", help="job folders root "
+                                              "(default ~/Documents/job-applications)")
+    p.add_argument("-q", "--quiet", action="store_true")
+    p.set_defaults(func=cmd_tailor)
 
     p = subs.add_parser("review", parents=[over],
                         help="AI resume review; give a job post id to compare with it")

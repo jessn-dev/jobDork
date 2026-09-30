@@ -404,6 +404,12 @@ dialog{overflow:visible}
 .fb .ack{font-size:.72rem;color:var(--muted);min-width:3.5rem}
 .review-out{margin-top:.75rem}
 .md-doc{white-space:normal}
+.projform textarea{min-height:3.5rem;font-family:inherit}
+.projform input:not([type=hidden]){width:100%;box-sizing:border-box}
+.hint.warn{color:var(--warn)}
+.proj{border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem;margin-bottom:.5rem}
+.proj .bar{margin:.4rem 0 0}
+.pdfview{width:100%;height:70vh;border:1px solid var(--line);border-radius:8px;background:#fff}
 .md-doc h4{margin:.9rem 0 .35rem;font-size:.95rem}
 .md-doc h4.h1{margin-top:0;font-size:1.05rem}
 .md-doc h4.h3{font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
@@ -801,6 +807,43 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
       stops or starts. Upload the resume again after a restart, and download a
       letter you want to keep.</p>
 
+    <h2 style="margin-top:1.5rem">Projects</h2>
+    <p class="hint">Projects your resume does not describe well, in your own words. A
+      tailored resume may use them, and its checks count them as part of your record.
+      Whether they get a section at all is decided per job post: near the top for a
+      student or a career changer, beside the jobs for a freelancer, and folded into
+      the jobs for someone with years in the field.</p>
+    <div id="projects-list"></div>
+    <details class="paste" id="project-edit">
+      <summary id="project-summary">Add a project</summary>
+      <form id="project-form" class="projform" autocomplete="off">
+        <input type="hidden" name="id">
+        <div class="field"><label for="pf-name">Name</label>
+          <input id="pf-name" name="name" maxlength="200" required
+            placeholder="e.g. Inventory forecasting for a family shop">
+          <div class="hint warn" id="pf-tutorial" hidden></div></div>
+        <div class="field"><label for="pf-tools">Tools or methods</label>
+          <input id="pf-tools" name="tools" maxlength="400" placeholder="Python, PostgreSQL, Figma, a survey of 40 customers…"></div>
+        <div class="field"><label for="pf-link">Link (optional)</label>
+          <input id="pf-link" name="link" maxlength="400" placeholder="https://…"></div>
+        <p class="hint">Answer each step in a sentence or two. Vague answers make vague
+          bullets; a number, where you have one, makes the result believable.</p>
+        <div class="field"><label for="pf-situation">Situation: what was the context or the problem?</label>
+          <textarea id="pf-situation" name="situation" maxlength="2000"></textarea></div>
+        <div class="field"><label for="pf-task">Task: what were you responsible for?</label>
+          <textarea id="pf-task" name="task" maxlength="2000"></textarea></div>
+        <div class="field"><label for="pf-action">Action: what did you do, and how?</label>
+          <textarea id="pf-action" name="action" maxlength="2000"></textarea></div>
+        <div class="field"><label for="pf-result">Result: what changed because of it?</label>
+          <textarea id="pf-result" name="result" maxlength="2000"></textarea></div>
+        <div class="bar">
+          <button data-icon="save" class="act primary" type="submit">Save project</button>
+          <button class="act" type="button" id="pf-cancel">Cancel</button>
+          <span id="pf-msg"></span>
+        </div>
+      </form>
+    </details>
+
     <h2 style="margin-top:1.5rem">Resume review</h2>
     <p class="hint">The model on the AI page reads your resume and lists what to
       fix, each point quoting the line it is about. A point that quotes something
@@ -847,11 +890,15 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
 <dialog id="resumedlg" aria-labelledby="resume-title">
   <div class="dlg-head"><strong id="resume-title"></strong><span class="hint" id="resume-sub"></span></div>
   <div class="dlg-body">
-    <p class="hint">This is the text the fit score and the AI read. Anything missing here
-      was hidden from the reader by the file's layout, usually a table or a text box.
-      Read it aloud: you should be able to speak to every line in an interview.</p>
-    <div class="flags" id="resume-skills"></div>
-    <div class="advert" id="resume-body" style="margin-top:.6rem"></div>
+    <div id="resume-doc"></div>
+    <details class="paste" style="margin-top:.75rem">
+      <summary>The text the fit score and the AI read</summary>
+      <p class="hint">Anything missing here was hidden from the reader by the file's layout,
+        usually a table or a text box. Read it aloud: you should be able to speak to every
+        line in an interview.</p>
+      <div class="flags" id="resume-skills"></div>
+      <div class="advert" id="resume-body" style="margin-top:.6rem"></div>
+    </details>
   </div>
   <div class="dlg-foot">
     <button data-icon="download" class="act" id="resume-dl">Download original</button>
@@ -950,7 +997,7 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
       $('view-' + v).hidden = v !== b.dataset.view);
     if (b.dataset.view === 'settings') drawConfig();
     if (b.dataset.view === 'sources') drawSources();
-    if (b.dataset.view === 'resume') { drawResume(); drawReview(); drawLetters(); }
+    if (b.dataset.view === 'resume') { drawResume(); drawProjects(); drawReview(); drawLetters(); }
     if (b.dataset.view === 'ai') drawAI();
     if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); }
   };
@@ -1126,7 +1173,8 @@ const ICONS = {
   "x": "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>"
 };
 const TAB_ICON = {tools: 'sparkles', advert: 'file-text', screen: 'clipboard-check', cv: 'file-user',
-                  cover_letter: 'mail', letter: 'mail', resume_review: 'file-search'};
+                  cover_letter: 'mail', letter: 'mail', resume_review: 'file-search',
+                  tailored_resume: 'file-user'};
 const STATUS_ICON = {new: 'circle-dot', viewed: 'eye', interested: 'star', applied: 'send',
   submitted: 'file-check', interviewing: 'messages-square', offer: 'award',
   rejected: 'circle-x', withdrawn: 'undo-2', skipped: 'skip-forward', closed: 'archive'};
@@ -1145,7 +1193,10 @@ new MutationObserver(() => decorate(document.body))
 decorate(document.body);
 
 const TOOL_KINDS = ['resume_edits', 'keywords', 'highlight', 'feedback', 'revise'];
-const TAB_LABEL = {tools: 'AI tools', cover_letter: 'cover letter', resume_review: 'resume review', cv: 'CV'};
+const TAB_LABEL = {tools: 'AI tools', cover_letter: 'cover letter', resume_review: 'resume review', cv: 'CV',
+                   tailored_resume: 'tailored resume'};
+// Documents that are resumes: shown formatted, with their PDF to open or save.
+const PDF_KINDS = ['tailored_resume', 'cv'];
 const tabLabel = t => TAB_LABEL[t] || t.replace('_', ' ');
 
 function drawDetail(tab) {
@@ -1195,6 +1246,8 @@ function drawDetail(tab) {
         title="${esc(aiLabel || 'set up a model on the AI page')}">${d.ai ? 'Ask AI again' : 'Ask AI'}</button>
       <button data-icon="pen-line" class="act spend" onclick="roleJob('letter','${d.uid}','cover_letter')"
         title="${esc(aiLabel ? `${aiLabel} writes it from your resume and this advert, then checks its claims` : 'set up a model on the AI page')}">Write cover letter (AI)</button>
+      <button data-icon="file-user" class="act spend" onclick="roleJob('tailor','${d.uid}','tailored_resume')"
+        title="${esc(aiLabel ? `${aiLabel} rewrites your resume for this advert in the ATS template, then checks its claims` : 'set up a model on the AI page')}">Write tailored resume (AI)</button>
       <button data-icon="file-search" class="act spend" onclick="roleJob('review','${d.uid}','resume_review')"
         title="${esc(aiLabel ? `${aiLabel} reviews your resume against this advert` : 'set up a model on the AI page')}">Review resume for this post</button>
       <button data-icon="circle-check" class="act" onclick="roleJob('check','${d.uid}')">Check if still open</button>
@@ -1238,10 +1291,32 @@ function drawDetail(tab) {
         (doc.output ? `<div style="margin-bottom:.6rem">${fbButtons(doc.output.id, doc.output.feedback,
           `Was this ${tabLabel(tab)} useful?`)}</div>` : '') +
         `<div class="hint" style="margin-bottom:.5rem">${esc(doc.path)}</div>` +
-        (tab === 'resume_review' ? `<div class="advert md-doc">${mdLite(doc.text)}</div>`
-                                 : `<div class="advert">${esc(doc.text)}</div>`);
+        (PDF_KINDS.includes(tab) ? `<div class="bar">
+            <button data-icon="external-link" class="act" onclick="artifactPdf(${doc.id}, false)">Open PDF</button>
+            <button data-icon="download" class="act primary" onclick="artifactPdf(${doc.id}, true)">Download PDF</button>
+            <span class="hint">Read it through before you send it.</span></div>` : '') +
+        (tab === 'resume_review' || PDF_KINDS.includes(tab)
+          ? `<div class="advert md-doc">${mdLite(tab === 'resume_review' ? untitled(doc.text) : doc.text)}</div>`
+          : `<div class="advert">${esc(doc.text)}</div>`);
     });
   }
+}
+
+// A resume document's PDF, named FirstName_LastName_JobTitle_Resume.pdf by
+// the server. Fetched with the token, then opened or saved from a blob.
+async function artifactPdf(id, save) {
+  // Opened before the fetch: a tab opened after an await is a popup to block.
+  const tab = save ? null : window.open('', '_blank');
+  const r = await api('/api/artifact/pdf?id=' + id);
+  if (!r.ok) { if (tab) tab.close(); toast(cap(await r.text()), 'err'); return; }
+  const name = ((r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/) || [])[1] || 'Resume.pdf';
+  const url = URL.createObjectURL(new Blob([await r.blob()], {type: 'application/pdf'}));
+  if (save) {
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.click();
+  } else if (tab) tab.location.href = url;
+  else toast('The browser blocked the new tab; use Download PDF', 'err');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 async function generate(uid, kind) {
@@ -1324,6 +1399,7 @@ $('btn-judge').onclick = () => runJob('/api/judge');
 async function roleJob(which, uid, tab) {
   $('rolejob').textContent = {judge: 'AI is reading…', check: 'checking…',
     letter: 'AI is writing the letter; it opens here when done…',
+    tailor: 'AI is tailoring your resume; it opens here when done…',
     review: 'AI is reviewing your resume; it opens here when done…'}[which];
   // The dialog redraws when the run finishes; land on what it made.
   if (tab) detailTab = tab;
@@ -1471,6 +1547,10 @@ async function downloadTailored() {
                : 'Downloaded your tailored resume. Read it through before you send it.');
 }
 
+// A review file starts "# Resume review"; on the page it sits under a heading
+// or tab that already says so, and twice reads as two reviews.
+const untitled = text => String(text || '').replace(/^# [^\n]*\n+/, '');
+
 // Headings and bullet lists, which is all a review uses. Escaped first, so
 // nothing in the text can become markup.
 function mdLite(text) {
@@ -1504,7 +1584,7 @@ async function drawReview() {
       <span style="margin-left:auto">${fbButtons(o.id, o.feedback, 'Was this review useful?')}</span></div>
     ${(g.flagged || []).length ? `<div class="gate fail">READ: not in your resume<ul>${
       g.flagged.map(f => `<li>${esc(f.claim)}</li>`).join('')}</ul></div>` : ''}
-    <div class="advert md-doc">${mdLite(o.text)}</div>`;
+    <div class="advert md-doc">${mdLite(untitled(o.text))}</div>`;
 }
 $('btn-review').onclick = async () => {
   $('resumelog').innerHTML = ''; $('resumelog').hidden = false;
@@ -2713,11 +2793,28 @@ $('btn-resume-del').onclick = async () => {
   drawResume();
 };
 
-// View resume: the text as the tools read it, and the original to download.
+// View resume: the file as it is (a PDF in the browser's own viewer, a Word
+// file or Markdown with its headings and bullets), and underneath, the text
+// the tools read.
+let resumeUrl = '';
 $('btn-resume-view').onclick = async () => {
   const r = await api('/api/resume/view');
   if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
   const d = await r.json();
+  if (resumeUrl) { URL.revokeObjectURL(resumeUrl); resumeUrl = ''; }
+  const shown = $('resume-doc');
+  if (d.type === 'pdf') {
+    shown.innerHTML = '<p class="hint">Loading…</p>';
+    api('/api/resume/file').then(async f => {
+      if (!f.ok) { shown.innerHTML = `<p class="err">${esc(await f.text())}</p>`; return; }
+      resumeUrl = URL.createObjectURL(new Blob([await f.blob()], {type: 'application/pdf'}));
+      shown.innerHTML = `<iframe class="pdfview" src="${resumeUrl}" title="${esc(d.name)}"></iframe>`;
+    });
+  } else if (d.markdown) {
+    shown.innerHTML = `<div class="advert md-doc">${mdLite(d.markdown)}</div>`;
+  } else {
+    shown.innerHTML = `<div class="advert">${esc(d.text)}</div>`;
+  }
   $('resume-title').textContent = d.name;
   $('resume-sub').textContent = `${d.chars.toLocaleString()} characters read · ` +
     `${d.years ? d.years + ' years claimed · ' : ''}${d.skills.length} skills recognised`;
@@ -2727,6 +2824,69 @@ $('btn-resume-view').onclick = async () => {
   $('resumedlg').showModal();
 };
 $('resume-close').onclick = () => $('resumedlg').close();
+
+// ── projects (STAR) ───────────────────────────────────────────────────────────
+let projects = [], tutorialRe = null, tutorialAdvice = '';
+async function drawProjects() {
+  const r = await api('/api/projects');
+  if (!r.ok) { $('projects-list').innerHTML = `<p class="err">${esc(await r.text())}</p>`; return; }
+  const d = await r.json();
+  projects = d.projects;
+  tutorialAdvice = d.tutorial_advice;
+  try { tutorialRe = new RegExp(d.tutorial_pattern, 'i'); } catch { tutorialRe = null; }
+  $('projects-list').innerHTML = projects.length ? projects.map(p => `<div class="proj">
+      <b>${esc(p.name)}</b>${p.tools ? ` <span class="hint">${esc(p.tools)}</span>` : ''}
+      ${p.tutorial ? `<div class="hint warn">This ${esc(tutorialAdvice)}.</div>` : ''}
+      ${p.result ? `<div class="hint">Result: ${esc(p.result)}</div>` : ''}
+      <div class="bar">
+        <button data-icon="pen-line" class="act" onclick="editProject(${p.id})">Edit</button>
+        <button data-icon="trash-2" class="act" onclick="deleteProject(this, ${p.id})">Delete</button>
+      </div></div>`).join('')
+    : '<p class="hint">No projects added.</p>';
+}
+function tutorialCheck() {
+  const name = $('pf-name').value;
+  const hit = tutorialRe && name && tutorialRe.test(name);
+  $('pf-tutorial').hidden = !hit;
+  if (hit) $('pf-tutorial').textContent = `"${name}" ${tutorialAdvice}.`;
+}
+$('pf-name').addEventListener('input', tutorialCheck);
+function editProject(id) {
+  const p = projects.find(x => x.id === id), f = $('project-form');
+  f.reset();
+  for (const k of ['id', 'name', 'tools', 'link', 'situation', 'task', 'action', 'result'])
+    f.elements[k].value = p ? (p[k] ?? '') : '';
+  $('project-summary').textContent = p ? `Edit "${p.name}"` : 'Add a project';
+  $('pf-msg').textContent = '';
+  $('project-edit').open = true;
+  tutorialCheck();
+  $('pf-name').focus();
+}
+$('pf-cancel').onclick = () => { editProject(null); $('project-edit').open = false; };
+$('project-form').onsubmit = async ev => {
+  ev.preventDefault();
+  const r = await api('/api/projects/save', {method: 'POST',
+    body: new URLSearchParams(new FormData($('project-form')))});
+  if (!r.ok) { $('pf-msg').innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
+  toast('Project saved');
+  editProject(null); $('project-edit').open = false;
+  drawProjects();
+};
+async function deleteProject(b, id) {
+  if (!b.classList.contains('armed')) {
+    b.classList.add('armed', 'del'); b.textContent = 'Delete?';
+    setTimeout(() => { b.classList.remove('armed', 'del'); b.textContent = 'Delete'; }, 3000);
+    return;
+  }
+  const r = await api('/api/projects/delete', {method: 'POST', body: form({id})});
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  toast('Project deleted');
+  drawProjects();
+}
+$('resumedlg').addEventListener('close', () => {
+  if (resumeUrl) { URL.revokeObjectURL(resumeUrl); resumeUrl = ''; }
+  $('resume-doc').innerHTML = '';
+});
 $('resume-dl').onclick = async () => {
   const r = await api('/api/resume/file');
   if (!r.ok) { toast(cap(await r.text()), 'err'); return; }

@@ -262,10 +262,78 @@ def resume_view(cfg) -> dict:
         parsed = resume_mod.load(cfg.resume_path)
     except resume_mod.ResumeError as exc:
         raise ApiError(str(exc), 410) from exc
+    # How the page shows it: a PDF as itself, a Word file or Markdown with
+    # its headings and bullets, plain text as written.
+    suffix = Path(cfg.resume_path).suffix.lower()
+    markdown = ""
+    if suffix in (".md", ".markdown"):
+        markdown = parsed.text
+    elif suffix == ".docx":
+        try:
+            markdown = resume_mod.docx_markdown(cfg.resume_path)
+        except resume_mod.ResumeError:
+            markdown = ""
     return {"name": Path(cfg.resume_path).name, "text": parsed.text,
+            "type": suffix.lstrip("."), "markdown": markdown,
             "chars": len(parsed.text),
             "skills": [resume_mod.skill_name(s) for s in sorted(parsed.skills)],
             "years": resume_mod.years_claimed(parsed.text)}
+
+
+# ── projects (Resume page) ────────────────────────────────────────────────────
+
+MAX_PROJECT_FIELD = 2_000     # one STAR answer; a whole case study is a document
+
+
+def _project(row) -> dict:
+    from ..writing import resume_doc
+
+    d = {k: row[k] for k in ("id", "name", "tools", "link", "situation", "task",
+                             "action", "result", "updated_at")}
+    d["tutorial"] = bool(resume_doc.tutorial_projects([row["name"]]))
+    return d
+
+
+def list_projects(cfg) -> dict:
+    from ..db.store import Store
+    from ..writing import resume_doc
+
+    with Store(cfg.db_path) as store:
+        rows = store.projects()
+    return {"projects": [_project(r) for r in rows],
+            "tutorial_advice": resume_doc.TUTORIAL_ADVICE,
+            # One list, both sides: the page warns as you type with the same pattern.
+            "tutorial_pattern": resume_doc.TUTORIAL.pattern}
+
+
+def save_project(cfg, form: dict) -> dict:
+    """Add or change one project. The link must be a web address, if given."""
+    from ..db.store import Store
+
+    fields = {k: str(form.get(k) or "").strip() for k in Store.PROJECT_FIELDS}
+    if not fields["name"]:
+        raise ApiError("give the project a name")
+    for key, value in fields.items():
+        if len(value) > MAX_PROJECT_FIELD:
+            raise ApiError(f"{key} is over {MAX_PROJECT_FIELD} characters")
+    if fields["link"] and not re.match(r"^https?://\S+$", fields["link"]):
+        raise ApiError("the link must start with http:// or https://")
+    raw = str(form.get("id") or "")
+    with Store(cfg.db_path) as store:
+        project_id = store.save_project(fields, int(raw) if raw.isdigit() else None)
+        if not project_id:
+            raise ApiError("no such project", 404)
+        row = next(r for r in store.projects() if r["id"] == project_id)
+    return {"project": _project(row)}
+
+
+def delete_project(cfg, project_id: int) -> dict:
+    from ..db.store import Store
+
+    with Store(cfg.db_path) as store:
+        if not store.delete_project(project_id):
+            raise ApiError("no such project", 404)
+    return {"deleted": project_id}
 
 
 RESUME_TYPES = {".pdf": "application/pdf", ".md": "text/markdown; charset=utf-8",
@@ -335,6 +403,38 @@ def artifact_text(cfg, artifact_id: int) -> dict:
         "output": {"id": output["id"], "feedback": output["feedback"]}
         if output else None,
     }
+
+
+# Documents that have a PDF beside them, under the same name.
+PDF_KINDS = ("tailored_resume", "cv")
+
+
+def artifact_pdf(cfg, artifact_id: int) -> tuple[bytes, str]:
+    """A recorded resume document as a PDF, and its file name.
+
+    Rendered from the document's own Markdown each time, so the PDF always
+    says what the page shows, whichever of the two drafts was written last.
+    The document is found from its recorded path, never from anything the
+    page sends, so only a file this tool wrote can be served.
+    """
+    from ..db.store import Store
+    from ..output import pdf
+    from ..writing import resume_doc
+
+    with Store(cfg.db_path) as store:
+        row = store.conn.execute(
+            "SELECT a.kind, a.path, r.title FROM artifacts a "
+            "LEFT JOIN roles r ON r.uid = a.uid WHERE a.id = ?",
+            (int(artifact_id),)).fetchone()
+    if row is None or row["kind"] not in PDF_KINDS:
+        raise ApiError("no such document", 404)
+    path = Path(row["path"] or "")
+    if not path.is_file():
+        raise ApiError(f"{row['kind']} was recorded but the file is gone: {path}", 410)
+    markdown = path.read_text(encoding="utf-8", errors="replace")
+    name = resume_doc.name_of(markdown)
+    return (pdf.render(markdown, f"{name or 'Resume'}, {row['title'] or ''}"),
+            resume_doc.filename(name, row["title"] or ""))
 
 
 def set_advert(cfg, uid: str, text: str) -> dict:
@@ -724,6 +824,7 @@ MAX_MODELS = 6            # lines on the hallucination chart, by model
 TOOLS = ("scan", "check", "AI judging", "AI writing", "enrich", "other")
 OUTPUT_KINDS = {"judge": "verdicts", "page_read": "page reads",
                 "cover_letter": "cover letters", "resume_review": "resume reviews",
+                "tailored_resume": "tailored resumes",
                 "draft": "Claude drafts", "resume_edits": "tailored resume edits",
                 "highlight": "skills to highlight", "feedback": "recruiter feedback",
                 "revise": "revisions", "keywords": "ATS keywords"}
@@ -738,8 +839,9 @@ def _tool(job: str) -> str:
         return "check"
     if job in ("judge", "ai judging"):
         return "AI judging"
-    if job in ("letter", "review", "generate", "screen", "cv", "cover letter",
-               "cover letter (ai)", "resume review") or job.startswith("ai tool"):
+    if (job in ("letter", "review", "generate", "screen", "cv", "cover letter",
+                "cover letter (ai)", "resume review", "tailor", "tailored resume (ai)")
+            or job.startswith("ai tool")):
         return "AI writing"
     if job == "enrich":
         return "enrich"
@@ -1212,6 +1314,7 @@ def generate_job(cfg, uid: str, kind: str):
     def work(progress):
         from ..ai import guard
         from ..writing import generate as gen
+        from ..writing import resume_doc
 
         with Store(cfg.db_path) as store:
             row = store.get(uid)
@@ -1220,6 +1323,7 @@ def generate_job(cfg, uid: str, kind: str):
 
             progress(f"running claude -p for {kind} (this spends tokens)")
             result = gen.generate(row, kind, cfg.resume_path, progress=progress,
+                                  notes=resume_doc.project_notes(store.projects()),
                                   settings=guard.settings_for(cfg))
 
             for gate in result.gates:
@@ -1256,6 +1360,30 @@ def letter_job(cfg, uid: str):
                 store.set_status(uid, "interested", "cover letter drafted (AI)")
         failed = [g for g in draft.gates if not g.passed]
         return (f"wrote {draft.path.name}"
+                + (f"; {len(failed)} gate(s) to read before sending"
+                   if failed else "; all gates clean"))
+    return work
+
+
+def tailor_job(cfg, uid: str):
+    """A resume rewritten for one post, in the template, as Markdown and PDF."""
+    if not UID.match(uid or ""):
+        raise ApiError("not a job post id")
+
+    def work(progress):
+        from ..ai import llm, writer
+        from ..db.store import Store
+
+        with Store(cfg.db_path) as store:
+            try:
+                result = writer.tailor(cfg, store, uid, progress=progress)
+            except llm.LLMError as exc:
+                raise ApiError(str(exc)) from exc
+            row = store.get(uid)
+            if (row["status"] or "new") in ("new", "viewed"):
+                store.set_status(uid, "interested", "resume tailored (AI)")
+        failed = [g for g in result.gates if not g.passed]
+        return (f"wrote {result.pdf_path.name}"
                 + (f"; {len(failed)} gate(s) to read before sending"
                    if failed else "; all gates clean"))
     return work

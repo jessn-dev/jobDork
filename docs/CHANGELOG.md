@@ -6,6 +6,132 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-09-30 — no traceback when the browser hangs up
+
+With the dashboard running, reloading the page, closing its tab or
+restarting the server printed a full traceback ending in
+"ConnectionResetError: [Errno 54] Connection reset by peer". A browser keeps
+a connection open for its next request and drops it when the page goes
+away; Python's standard server reports that as an error. Nothing had
+failed, but it read as a crash every time. The server (`serve.Server`) now
+passes over a reset, a broken pipe, an aborted connection and a timeout, and
+still prints anything else.
+
+---
+
+## Fixed — 2026-09-30 — the resume review showed its title twice
+
+The Resume page read "Resume review", then straight under it "Resume review"
+again: the section's heading, then the review's own first line, `# Resume
+review`, which the page drew as a heading. It looked like two reviews. A job
+post's Resume review tab had the same doubling. The page now leaves that
+first line out; `resume-review.md` in the job folder keeps it, since there it
+is the only title.
+
+---
+
+## Added — 2026-09-30 — the projects section adapts to the person, and projects can be described STAR-style
+
+A projects section is a student's evidence and a senior engineer's padding;
+the tailored resume had one rule for both (a PROJECTS section at the end,
+whenever the model listed any).
+
+- **The model judges the career stage** from the resume and the post
+  (student or entry level, career changer, freelancer, experienced) and the
+  post's industry, with a one-line reason. **Code decides the layout** from
+  that (`resume_doc.ORDER`):
+
+  | Stage | Projects section |
+  |---|---|
+  | Student, entry level | right below Education, which moves above the jobs; at most three |
+  | Career changer | above the jobs; at most three |
+  | Freelancer | right after the jobs, as "Selected Client Projects" ("Consulting Highlights" in business); at most four |
+  | Experienced | none: a project belongs in a job's bullets, where the resume ties it to that job |
+
+  A stage the model makes up counts as experienced, the one that adds
+  nothing. The heading follows the industry: "Technical Projects",
+  "Portfolio Highlights", "Key Initiatives", otherwise "Projects". A new
+  gate, "projects section", says which stage was judged, why, and what that
+  did to the section.
+- **Projects on the Resume page**, with STAR fields (situation, task, action,
+  result) plus tools and a link, kept in the database (schema version 8, a
+  new `projects` table). They are part of the record: the tailored resume and
+  the `claude -p` drafts may use them (as `projects.md` in the job folder),
+  and the figure and hallucination checks accept what they say. A project
+  the resume and the notes do not name is left out and listed. Each project
+  is written as one to three STAR bullets.
+- **The tutorial filter:** a to-do list, tic-tac-toe, a weather app, a
+  calculator, a clone of a well-known site and the like are flagged as you
+  type the name, on the saved project, and as a gate on a tailored resume
+  that shows one. Flagged, not hidden: it may be all a student has. The page
+  and the server use one pattern (`resume_doc.TUTORIAL`).
+
+Tried with `gemma4:26b` on the real resume for an internship post: judged
+"experienced (over 7 years of professional experience)", so no section, and
+the one saved project left out and counted. Seven new tests. A database at
+schema 8 is refused by an older jobdork, as every schema bump is.
+
+---
+
+## Added — 2026-09-30 — a tailored resume in the ATS template, as a PDF named for the role
+
+"Tailor my resume" suggested edits to tick, and downloaded the result as a
+`.txt`; a whole resume rewritten for a post came only from `claude -p`, as
+Markdown, which a NAS container does not have. Now **Write tailored resume
+(AI)** in a job post's window (or `jobdork tailor UID`) has the AI-page model,
+Ollama or a hosted one, rewrite the resume for that post and saves it as
+`FirstName_LastName_JobTitle_Resume.pdf`, with its Markdown beside it.
+
+- **The layout is the
+  [AI-friendly template](https://resumeoptimizerpro.com/blog/ai-friendly-resume-template)**,
+  and it is code, not a request: the model returns fields (summary, skills,
+  jobs, education, certifications, projects) and `writing/resume_doc.py` lays
+  them out, so every provider gives the same document. One column; the name,
+  then "City, State | Phone | Email | LinkedIn"; PROFESSIONAL SUMMARY, SKILLS,
+  PROFESSIONAL EXPERIENCE, EDUCATION, CERTIFICATIONS, PROJECTS, each left out
+  when empty; skills comma-separated; each job as title, then
+  "Company | City, State | Month YYYY - Month YYYY", then bullets. A date the
+  resume gives as a year stays a year: a month nobody wrote is not invented.
+- **The contact line is copied from the resume by script.** A hosted model
+  never sees the email, phone or profile links (they are redacted), and a
+  name a model typed is one it could get wrong.
+- **Checked like everything else a model writes:** figures, AI tells, the
+  hallucination check, and a new gate: an employer, school or certification
+  the resume does not name is left out and listed, and a title worded
+  differently from the resume is listed to check.
+- **The PDF is written by jobdork** (`output/pdf.py`): real selectable text in
+  reading order, Helvetica (the template's Arial), no new dependency, so
+  nothing new in the image to lock or scan. Text outside Western European
+  letters is spelled with the nearest ones ("Łódź" as "Lodz"). A heading is
+  kept on the same page as the lines under it.
+- **`claude -p`'s CV follows the same template**, keeps titles, employers and
+  schools as the resume writes them (it could retitle before), and gets the
+  same PDF beside `CV.md`.
+- **The page** shows the tailored resume formatted, with Open PDF and
+  Download PDF. The PDF is rendered from the document's own Markdown when
+  asked for, so it always matches what the page shows.
+
+Tried on the real resume with `gemma4:26b` over Tailscale: written in about 40
+seconds, all 25 claims supported, every employer found, one AI tell
+("Enhanced") flagged. Nine new tests.
+
+---
+
+## Changed — 2026-09-30 — View resume shows the resume, not only its text
+
+View resume showed the text the tools extract, which for a PDF is broken
+lines and no layout: it was hard to tell whether that was the file or the
+reading of it. Now a PDF opens in the browser's own viewer inside the dialog,
+and a Word file or Markdown is shown with its headings, bullets and bold. The
+extracted text, with the skills found in it, is still there, folded under
+"The text the fit score and the AI read".
+
+The page may now frame a `blob:` it made itself (`frame-src blob:` in the
+content security policy); it still loads nothing from anywhere else, and
+nothing may frame the page.
+
+---
+
 ## Changed — 2026-09-30 — version 0.14.3; `v0.14.2` was never released either
 
 The entry below said the first release would be 0.14.2. It was not: the

@@ -42,7 +42,7 @@ log = logging.getLogger("jobdork.db.migrations")
 
 # The version a fresh database is created at, and the version this code
 # understands. Bumped by adding a step below.
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 
 class MigrationError(Exception):
@@ -218,6 +218,23 @@ def _v6_to_v7(conn: sqlite3.Connection) -> None:
             "WHERE score_parts LIKE '%sum%'")
 
 
+def _v7_to_v8(conn: sqlite3.Connection) -> None:
+    """Projects described STAR-style on the Resume page, for tailored resumes."""
+    # execute, not executescript: that commits, and a step is one transaction.
+    conn.execute('''CREATE TABLE IF NOT EXISTS projects (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    tools       TEXT NOT NULL DEFAULT '',
+    link        TEXT NOT NULL DEFAULT '',
+    situation   TEXT NOT NULL DEFAULT '',
+    task        TEXT NOT NULL DEFAULT '',
+    action      TEXT NOT NULL DEFAULT '',
+    result      TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+)''')
+
+
 # Numbered, ordered, append-only. The key is the version a step produces.
 STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     2: _v1_to_v2,
@@ -226,6 +243,7 @@ STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     5: _v4_to_v5,
     6: _v5_to_v6,
     7: _v6_to_v7,
+    8: _v7_to_v8,
 }
 
 

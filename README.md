@@ -408,7 +408,28 @@ resume. It is optional, and it never hides a job post.
 jobdork judge                 # the best job posts, read against your resume
 jobdork letter <uid>          # a cover letter from your resume and the advert
 jobdork review [<uid>]        # what to fix in your resume, or against one post
+jobdork tailor <uid>          # your resume rewritten for one post, as a PDF
 ```
+
+- **A tailored resume** follows the
+  [AI-friendly template](https://resumeoptimizerpro.com/blog/ai-friendly-resume-template):
+  one column, the name and one contact line, standard section names in a fixed
+  order, comma-separated skills, and each job as title, then
+  "Company | City, State | Month YYYY - Month YYYY", then bullets. The model
+  gives the content only; jobdork lays it out and writes the PDF, so every
+  provider gives the same document. The contact line is copied from your
+  resume, never written by a model. An employer, school or certification your
+  resume does not name is left out and listed. It is saved as
+  `FirstName_LastName_JobTitle_Resume.pdf`, with its Markdown beside it.
+- **Projects adapt to the person.** The model judges the career stage from
+  the resume and the post: a student's projects go right below Education
+  (two or three), a career changer's above the jobs, a freelancer's after
+  them as "Selected Client Projects", and someone with years in the field gets
+  no projects section at all. The heading follows the industry ("Technical
+  Projects", "Portfolio Highlights", "Key Initiatives"). Projects can be
+  described on the Resume page in STAR fields (situation, task, action,
+  result), and a common tutorial project (a to-do list, a weather app) is
+  flagged as you type and in the result.
 
 - **Any of four providers:** Ollama running locally (free), Claude, Gemini or
   ChatGPT. **Keys are held in memory only**: typed on the AI page, never
