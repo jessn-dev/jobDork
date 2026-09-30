@@ -895,6 +895,103 @@ def test_a_broken_screening_pattern_stops_the_run():
         os.unlink(path)
 
 
+def _in_a_fake_container(tmp, *, marker: bool, variable: bool):
+    """cwd = tmp holding the image's example; container signals as asked."""
+    import os
+    import shutil
+    from pathlib import Path
+
+    from jobdork.core import config
+    root = Path(__file__).resolve().parent.parent
+    shutil.copy(root / "config.example.yaml", Path(tmp) / "config.example.yaml")
+    mark = Path(tmp) / ".dockerenv"
+    if marker:
+        mark.touch()
+    config.CONTAINER_MARKERS = (str(mark),)
+    os.environ.pop("JOBDORK_CONFIG", None)
+    if variable:
+        os.environ[config.CONTAINER_ENV] = "1"
+    else:
+        os.environ.pop(config.CONTAINER_ENV, None)
+    os.chdir(tmp)
+
+
+def _restoring_the_environment(fn):
+    def wrapped():
+        import os
+
+        from jobdork.core import config
+        cwd, markers = os.getcwd(), config.CONTAINER_MARKERS
+        saved = {k: os.environ.get(k) for k in (config.CONTAINER_ENV, "JOBDORK_CONFIG")}
+        try:
+            fn()
+        finally:
+            os.chdir(cwd)
+            config.CONTAINER_MARKERS = markers
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+    wrapped.__name__ = fn.__name__
+    return wrapped
+
+
+@_restoring_the_environment
+def test_a_container_with_no_config_starts_from_the_example_in_data():
+    import tempfile
+    from pathlib import Path
+
+    from jobdork.core import config
+    with tempfile.TemporaryDirectory() as tmp:
+        _in_a_fake_container(tmp, marker=True, variable=True)
+        cfg = config.load()
+        seeded = Path(tmp) / "data" / "config.yaml"
+        assert seeded.is_file(), "the example should be copied into data/"
+        assert cfg.path == "data/config.yaml"
+        assert any("created from config.example.yaml" in w for w in cfg.warnings)
+        # A second start reads the kept copy and does not announce it again.
+        seeded.write_text(seeded.read_text() + "\n# edited\n")
+        again = config.load()
+        assert again.path == "data/config.yaml"
+        assert "# edited" in seeded.read_text(), "a kept config is never overwritten"
+        assert not any("created from" in w for w in again.warnings)
+
+
+@_restoring_the_environment
+def test_a_mapped_config_yaml_still_wins_over_the_seeded_one():
+    import tempfile
+    from pathlib import Path
+
+    from jobdork.core import config
+    with tempfile.TemporaryDirectory() as tmp:
+        _in_a_fake_container(tmp, marker=True, variable=True)
+        (Path(tmp) / "config.yaml").write_text("titles: {include: [nurse]}\n")
+        cfg = config.load()
+        assert cfg.path == "config.yaml"
+        assert not (Path(tmp) / "data" / "config.yaml").exists()
+
+
+@_restoring_the_environment
+def test_outside_a_container_no_config_is_written():
+    """The variable alone, or the marker alone, is not a container."""
+    import tempfile
+    from pathlib import Path
+
+    from jobdork.core import config
+    from jobdork.core.config import ConfigError
+    for marker, variable in ((False, True), (True, False)):
+        with tempfile.TemporaryDirectory() as tmp:
+            _in_a_fake_container(tmp, marker=marker, variable=variable)
+            try:
+                config.load()
+            except ConfigError as exc:
+                assert "No config found" in str(exc)
+            else:
+                raise AssertionError("no config outside a container must stop the run")
+            assert not (Path(tmp) / "data" / "config.yaml").exists()
+
+
 # ── keep this block LAST ───────────────────────────────────────────────────────
 
 # ── resume fit and thin adverts ───────────────────────────────────────────────

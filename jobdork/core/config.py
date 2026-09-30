@@ -15,6 +15,11 @@ Rules this file exists to enforce:
 
 `config.local.yaml` is read in preference to `config.yaml` when present, so a
 machine-specific override never has to be merged back.
+
+In a container with no config at all, the image's `config.example.yaml` is
+copied to `data/config.yaml` on first start and used from then on. `data/` is
+the volume that is kept, so the dashboard's saves survive a new container, and
+a NAS needs one folder mapped rather than a file prepared by hand first.
 """
 
 from __future__ import annotations
@@ -88,7 +93,16 @@ KEYED_SOURCES = ("usajobs", "adzuna")
 
 ALL_SOURCES = KEYLESS_SOURCES + KEYED_SOURCES
 
-CONFIG_CANDIDATES = ("config.local.yaml", "config.yaml")
+CONFIG_CANDIDATES = ("config.local.yaml", "config.yaml", "data/config.yaml")
+
+# A container starts from the example the image carries, copied into the kept
+# volume. Both conditions, as for binding beyond loopback in web.serve: the
+# variable is set by the Dockerfile, the marker file by the runtime, so the
+# variable alone on a bare host never writes a config nobody asked for.
+CONTAINER_ENV = "JOBDORK_IN_CONTAINER"
+CONTAINER_MARKERS = ("/.dockerenv", "/run/.containerenv")
+EXAMPLE_CONFIG = "config.example.yaml"
+SEEDED_CONFIG = "data/config.yaml"
 
 # Currencies a floor can be stated in. A salary in any other currency is kept
 # and flagged "not compared", never converted.
@@ -348,10 +362,36 @@ def find_config(explicit: str = "") -> Path | None:
     return None
 
 
+def in_container() -> bool:
+    return (os.environ.get(CONTAINER_ENV) == "1"
+            and any(Path(m).exists() for m in CONTAINER_MARKERS))
+
+
+def _seed_from_example() -> Path | None:
+    """In a container with no config, copy the image's example into data/."""
+    example, seeded = Path(EXAMPLE_CONFIG), Path(SEEDED_CONFIG)
+    if not (in_container() and example.is_file()):
+        return None
+    try:
+        seeded.parent.mkdir(parents=True, exist_ok=True)
+        seeded.write_text(example.read_text(encoding="utf-8"), encoding="utf-8")
+    except OSError as exc:
+        raise ConfigError(
+            f"No config, and {seeded} could not be created from the example: "
+            f"{exc}. The folder mapped to /app/data must be writable by user "
+            "1000 (chown -R 1000:1000 on the host)."
+        ) from exc
+    return seeded
+
+
 def load(explicit: str = "", require: bool = True) -> Config:
     """Read, validate and return the config. Raises ConfigError on anything wrong."""
     load_dotenv()
     path = find_config(explicit)
+    seeded = False
+    if path is None and not explicit:
+        path = _seed_from_example()
+        seeded = path is not None
     if path is None:
         if require:
             raise ConfigError(
@@ -369,6 +409,11 @@ def load(explicit: str = "", require: bool = True) -> Config:
 
     cfg = _build(raw)
     cfg.path = str(path)
+    if seeded:
+        cfg.warnings.append(
+            f"No config found, so {path} was created from {EXAMPLE_CONFIG}. "
+            "Change it from the dashboard's settings; it is kept in data/."
+        )
     _apply_env_secrets(cfg)
     _validate(cfg)
     return cfg

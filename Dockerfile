@@ -39,7 +39,7 @@ LABEL org.opencontainers.image.title="jobdork" \
       org.opencontainers.image.licenses="MIT"
 
 # A non-root user with a fixed id, 1000: the folders mounted from a NAS or a
-# server (config.yaml, data/) must be writable by it, and a known id makes
+# server (data/, and config.yaml if one is mapped) must be writable by it, and a known id makes
 # that one command on any system: chown -R 1000:1000 <the folder>. 1000 is
 # also the first user on most Linux systems and NAS, often the owner already.
 RUN addgroup -S -g 1000 appgroup && adduser -S -D -H -u 1000 -G appgroup appuser \
