@@ -307,6 +307,27 @@ def test_a_busy_port_is_stepped_over_rather_than_failing():
     assert new_session("127.0.0.1", preferred_port=0).port > 0
 
 
+def test_a_browser_hanging_up_is_not_reported_as_an_error():
+    """A dropped keep-alive printed a full traceback; a real error still does."""
+    import contextlib
+    import io
+    import socket
+
+    server = serve_mod.Server(("127.0.0.1", 0), serve_mod.BaseHTTPRequestHandler)
+    try:
+        for exc, printed in ((ConnectionResetError(54, "reset"), False),
+                             (BrokenPipeError(), False), (ValueError("real"), True)):
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err), socket.socket() as sock:
+                try:
+                    raise exc
+                except Exception:
+                    server.handle_error(sock, ("127.0.0.1", 1))
+            assert bool(err.getvalue()) == printed, (exc, err.getvalue())
+    finally:
+        server.server_close()
+
+
 def test_only_a_container_binds_beyond_loopback():
     """The variable alone must not open the socket: it needs the marker too."""
     import os

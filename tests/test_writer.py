@@ -205,6 +205,131 @@ def test_a_guard_that_cannot_run_does_not_stop_the_letter():
         assert gate.passed and "not checked" in gate.detail
 
 
+def test_a_tailored_resume_keeps_to_the_resume_and_is_named_for_the_role():
+    tailored = {
+        "stage": "experienced", "industry": "tech", "stage_reason": "Years of it.",
+        "summary": "Platform engineer with seven years of Python and Go \u2014 "
+                   "looking for platform work.",
+        "skills": ["Kubernetes", "Python", "Go", "python", "GitHub Actions"],
+        "experience": [
+            {"title": "Platform engineer", "company": "Acme", "location": "",
+             "start": "", "end": "", "bullets": [
+                 "Ran the Kubernetes platform for 40 services.",
+                 "Built CI pipelines in GitHub Actions."]},
+            {"title": "Staff engineer", "company": "Globex", "location": "Berlin",
+             "start": "Jan 2019", "end": "Dec 2020", "bullets": ["Led a team."]}],
+        "education": [], "certifications": ["CKA"], "projects": []}
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, uid = _setup(tmp)
+        saved = _patched_settings()
+        try:
+            with _Script(tailored, *GUARD_OK) as script, Store(cfg.db_path) as store:
+                result = writer.tailor(cfg, store, uid, root=tmp)
+                artifact = store.artifacts(uid, "tailored_resume")[0]
+        finally:
+            writer._settings = saved
+        assert script.purposes == ["tailored_resume", "guard_extract", "guard_verify"]
+        assert result.pdf_path.name == "Jane_Doe_Platform_Engineer_Resume.pdf"
+        assert result.pdf_path.read_bytes().startswith(b"%PDF-")
+        assert result.path.suffix == ".md" and artifact["path"] == str(result.path)
+        text = result.markdown
+        assert text.startswith("# Jane Doe\n")
+        assert "## PROFESSIONAL SUMMARY" in text and "\u2014" not in text
+        assert "## SKILLS\nKubernetes, Python, Go, GitHub Actions\n" in text
+        # Globex and the CKA are not in the resume: left out, and said so.
+        assert "Globex" not in text and "CKA" not in text
+        facts = next(g for g in result.gates if g.name == writer.FACTS_GATE)
+        assert not facts.passed and len(facts.items) == 2
+
+        body, name = api.artifact_pdf(cfg, result.artifact_id)
+        assert name == result.pdf_path.name and body.startswith(b"%PDF-")
+
+
+def _tailor_with(answer, notes_rows=()):
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, uid = _setup(tmp)
+        saved = _patched_settings()
+        try:
+            with _Script(answer, *GUARD_OK), Store(cfg.db_path) as store:
+                for fields in notes_rows:
+                    store.save_project(fields)
+                return writer.tailor(cfg, store, uid, root=tmp)
+        finally:
+            writer._settings = saved
+
+
+BASE = {"summary": "Platform engineer with seven years of Python and Go.",
+        "skills": ["Kubernetes", "Python", "Go"],
+        "experience": [{"title": "Platform engineer", "company": "Acme", "location": "",
+                        "start": "", "end": "", "bullets": ["Ran the Kubernetes platform."]}],
+        "education": [], "certifications": []}
+
+
+def test_an_experienced_person_gets_no_projects_section():
+    result = _tailor_with({**BASE, "stage": "experienced", "industry": "tech",
+                           "stage_reason": "Seven years of platform work.",
+                           "projects": [{"name": "CI pipelines", "bullets": ["Built them."]}]})
+    assert "PROJECTS" not in result.markdown
+    gate = next(g for g in result.gates if g.name == writer.PROJECTS_GATE)
+    assert gate.passed and "experienced" in gate.detail and "no projects section" in gate.detail
+
+
+def test_a_career_changer_leads_with_projects_from_their_own_notes():
+    notes = [{"name": "Kubernetes homelab", "tools": "k3s, Grafana",
+              "situation": "Wanted to learn cluster operations.",
+              "task": "Run my own services.", "action": "Built a three-node cluster.",
+              "result": "Hosts 12 services with 99% uptime."}]
+    result = _tailor_with({**BASE, "stage": "career_changer", "industry": "tech",
+                           "stage_reason": "Moving from support into platform work.",
+                           "projects": [
+                               {"name": "Kubernetes homelab", "bullets": [
+                                   "Built a three-node cluster that hosts 12 services with 99% uptime."]},
+                               {"name": "Invented project", "bullets": ["Did things."]}]},
+                          notes)
+    md = result.markdown
+    assert md.index("## TECHNICAL PROJECTS") < md.index("## PROFESSIONAL EXPERIENCE")
+    assert "Kubernetes homelab" in md and "Invented project" not in md
+    # Figures from the notes are the person's own: not "unsupported".
+    figures = next(g for g in result.gates if g.name == "unsupported figures")
+    assert figures.passed, figures.detail
+    facts = next(g for g in result.gates if g.name == writer.FACTS_GATE)
+    assert "project: Invented project" in facts.items
+
+
+def test_a_tutorial_project_is_flagged_not_hidden():
+    notes = [{"name": "To-Do List App", "action": "Built a to-do list in React."}]
+    result = _tailor_with({**BASE, "stage": "student", "industry": "tech",
+                           "stage_reason": "A new graduate.",
+                           "projects": [{"name": "To-Do List App",
+                                         "bullets": ["Built a to-do list in React."]}]},
+                          notes)
+    assert "To-Do List App" in result.markdown
+    gate = next(g for g in result.gates if g.name == writer.TUTORIAL_GATE)
+    assert not gate.passed and gate.items == ["To-Do List App"]
+
+
+def test_projects_are_saved_checked_and_flagged_through_the_api():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, _uid = _setup(tmp)
+        for bad, why in (({"name": ""}, "name"),
+                         ({"name": "X", "link": "javascript:alert(1)"}, "http")):
+            try:
+                api.save_project(cfg, bad)
+            except api.ApiError as exc:
+                assert why in str(exc)
+            else:
+                raise AssertionError(f"{bad} should be refused")
+        saved = api.save_project(cfg, {"name": "Weather App", "tools": "React"})["project"]
+        assert saved["tutorial"] is True
+        changed = api.save_project(cfg, {"id": saved["id"], "name": "Flood alerts for 3 towns"})
+        assert changed["project"]["tutorial"] is False
+        listed = api.list_projects(cfg)
+        assert [p["name"] for p in listed["projects"]] == ["Flood alerts for 3 towns"]
+        assert listed["tutorial_pattern"]
+        api.delete_project(cfg, saved["id"])
+        assert api.list_projects(cfg)["projects"] == []
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

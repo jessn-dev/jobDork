@@ -113,6 +113,23 @@ def bind_address() -> str:
 PAGE_PATH = Path(__file__).resolve().parent.parent / "data" / "dashboard.html"
 
 
+class Server(ThreadingHTTPServer):
+    """The standard threading server, quiet about browsers hanging up.
+
+    A browser keeps a connection open for the next request and drops it when
+    the page reloads, the tab closes or the laptop sleeps. The standard
+    server prints a full traceback for each ("Connection reset by peer"),
+    which reads as a crash and is not one. Anything else is still printed.
+    """
+
+    def handle_error(self, request, client_address) -> None:
+        import sys
+        if isinstance(sys.exc_info()[1], (ConnectionResetError, BrokenPipeError,
+                                          ConnectionAbortedError, TimeoutError)):
+            return
+        super().handle_error(request, client_address)
+
+
 def _row_to_dict(row, units: str) -> dict:
     try:
         flags = json.loads(row["flags"] or "[]")
@@ -240,9 +257,14 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             self.end_headers()
             self.wfile.write(payload)
 
-        def _send(self, code: int, body: bytes, content_type: str) -> None:
+        def _send(self, code: int, body: bytes, content_type: str,
+                  filename: str = "") -> None:
             self.send_response(code)
             self.send_header("Content-Type", content_type)
+            if filename:
+                # Names come from resume_doc.filename: letters, digits, "_".
+                self.send_header("Content-Disposition",
+                                 f'inline; filename="{filename}"')
             self.send_header("Content-Length", str(len(body)))
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("X-Frame-Options", "DENY")
@@ -253,6 +275,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 "Content-Security-Policy",
                 "default-src 'none'; style-src 'unsafe-inline'; "
                 "script-src 'unsafe-inline'; connect-src 'self'; "
+                # A PDF shown in the page is a blob the page made itself from
+                # a document fetched with the token; nothing else may frame.
+                "frame-src blob:; "
                 "form-action 'none'; base-uri 'none'; frame-ancestors 'none'")
             self.end_headers()
             self.wfile.write(body)
@@ -351,6 +376,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 return self._send(200, body, kind)
             if path == "/api/letters":
                 return self._wrap(api_mod.list_letters, cfg_holder["cfg"])
+            if path == "/api/projects":
+                return self._wrap(api_mod.list_projects, cfg_holder["cfg"])
             if path == "/api/tools":
                 uid = parse_qs(urlsplit(self.path).query).get("uid", [""])[0]
                 return self._wrap(api_mod.latest_tools, cfg_holder["cfg"], uid)
@@ -360,6 +387,15 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                     return self._reject(400, "not a document id")
                 return self._wrap(api_mod.artifact_text, cfg_holder["cfg"],
                                   int(raw))
+            if path == "/api/artifact/pdf":
+                raw = parse_qs(urlsplit(self.path).query).get("id", [""])[0]
+                if not raw.isdigit():
+                    return self._reject(400, "not a document id")
+                try:
+                    body, name = api_mod.artifact_pdf(cfg_holder["cfg"], int(raw))
+                except api_mod.ApiError as exc:
+                    return self._reject(exc.status, str(exc))
+                return self._send(200, body, "application/pdf", filename=name)
             if path == "/api/ai_output":
                 raw = parse_qs(urlsplit(self.path).query).get("id", [""])[0]
                 if not raw.isdigit():
@@ -408,6 +444,16 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 except Exception as exc:
                     return self._reject(400, f"not removed: {exc}")
                 return self._json(200, gone)
+            if path == "/api/projects/save":
+                form = self._body(limit=24 * 1024)
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.save_project, cfg_holder["cfg"], form)
+            if path == "/api/projects/delete":
+                raw = str((self._body() or {}).get("id") or "")
+                if not raw.isdigit():
+                    return self._reject(400, "not a project id")
+                return self._wrap(api_mod.delete_project, cfg_holder["cfg"], int(raw))
             if path == "/api/letters/delete":
                 form = self._body()
                 raw = str((form or {}).get("id") or "")
@@ -444,7 +490,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                                   form.get("output_id"), form.get("value"))
             if path in ("/api/enrich", "/api/rescreen", "/api/discover",
                         "/api/generate", "/api/digest", "/api/judge",
-                        "/api/check", "/api/letter", "/api/review", "/api/tool"):
+                        "/api/check", "/api/letter", "/api/review", "/api/tool",
+                        "/api/tailor"):
                 return self._job(path.rsplit("/", 1)[1])
             return self._reject(404, "no such path")
 
@@ -564,6 +611,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 elif which == "letter":
                     name = "cover letter (AI)"
                     work = api_mod.letter_job(cfg, str(form.get("uid") or ""))
+                elif which == "tailor":
+                    name = "tailored resume (AI)"
+                    work = api_mod.tailor_job(cfg, str(form.get("uid") or ""))
                 elif which == "review":
                     name = "resume review"
                     work = api_mod.review_job(cfg, str(form.get("uid") or ""))
@@ -877,7 +927,7 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
         print(f"emptied the temporary folder: {cleared} file(s) from the last run")
 
     try:
-        server = ThreadingHTTPServer(
+        server = Server(
             (bind, session.port),
             make_handler(cfg_holder, session, runner))
     except OSError as exc:

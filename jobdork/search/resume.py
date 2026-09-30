@@ -176,6 +176,49 @@ def _read_docx(path: Path) -> str:
     return re.sub(r"\n{3,}", "\n\n", xml).strip()
 
 
+_PARA = re.compile(r"<w:p[ >].*?</w:p>|<w:p/>", re.DOTALL)
+_RUN = re.compile(r"<w:r[ >].*?</w:r>", re.DOTALL)
+_PIECE = re.compile(r"<w:t(?: [^>]*)?>([^<]*)</w:t>|(<w:tab/>)|(<w:br/>)")
+
+
+def docx_markdown(path: str) -> str:
+    """A .docx as the resume template's small Markdown, for showing it.
+
+    Headings (a Title or Heading style) become headings, list paragraphs
+    become bullets, bold runs stay bold. Only for the page: the tools read
+    the plain text from `load`.
+    """
+    import html
+
+    try:
+        with zipfile.ZipFile(path) as archive:
+            xml = archive.read("word/document.xml").decode("utf-8", "replace")
+    except (zipfile.BadZipFile, KeyError, OSError) as exc:
+        raise ResumeError(f"{path} is not a readable .docx: {exc}") from exc
+    lines = []
+    for para in _PARA.findall(xml):
+        style = re.search(r'<w:pStyle w:val="([^"]+)"', para)
+        style = style.group(1).lower() if style else ""
+        text = ""
+        for run in _RUN.findall(para):
+            piece = html.unescape("".join(
+                t or (" " if tab else "\n") for t, tab, _br in _PIECE.findall(run)))
+            bold = re.search(r"<w:b/>|<w:b w:val=\"(?:1|true|on)\"/>", run)
+            text += f"**{piece.strip()}** " if bold and piece.strip() else piece
+        text = re.sub(r"[ \t]+", " ", text).strip()
+        if not text:
+            lines.append("")
+        elif style.startswith("title"):
+            lines.append(f"# {text.replace('**', '')}")
+        elif style.startswith("heading"):
+            lines.append(f"## {text.replace('**', '')}")
+        elif "<w:numPr>" in para or style.startswith("list"):
+            lines.append(f"- {text}")
+        else:
+            lines.append(text)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip() + "\n"
+
+
 def _read_pdf(path: Path) -> str:
     """Read a PDF via pypdf, which is optional and says so when absent.
 

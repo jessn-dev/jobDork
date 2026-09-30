@@ -52,6 +52,7 @@ from pathlib import Path
 
 from ..core.textutil import squash
 from . import gates as gates_mod
+from . import resume_doc
 
 log = logging.getLogger("jobdork.writing.generate")
 
@@ -270,8 +271,9 @@ PROMPTS = {
         "  there.\n"
         "- Do not invent numbers. Every figure and every scale word must\n"
         "  already appear in the resume; a script checks this afterwards.\n"
-        "- You may cut, reorder, retitle and rephrase. You may not add.\n\n"
-        + _STYLE + "Write only `CV.md`."
+        "- You may cut, reorder and rephrase. You may not add, and a job\n"
+        "  title, employer or school stays as the resume writes it.\n\n"
+        + resume_doc.TEMPLATE_GUIDE + _STYLE + "Write only `CV.md`."
     ),
     "cover_letter": _PREAMBLE + (
         "Read the advert, the reader's resume at `{resume}` in this folder, and `CV.md` in\n"
@@ -307,7 +309,7 @@ def build_command(folder: Path) -> list[str]:
 
 def generate(row, kind: str, resume_path: str, root: str = "",
              timeout: int = TIMEOUT, dry_run: bool = False,
-             progress=None, settings=None) -> Result:
+             progress=None, settings=None, notes: str = "") -> Result:
     """Draft one document. With `settings` (the AI-page model), the draft is
     also checked for claims the resume and advert do not support."""
     if kind not in KINDS:
@@ -334,6 +336,14 @@ def generate(row, kind: str, resume_path: str, root: str = "",
         shutil.copyfile(resume, local_resume)
     except OSError as exc:
         raise GenerateError(f"could not copy the resume into {folder}: {exc}") from exc
+
+    # Projects described on the Resume page: part of the record, so they sit
+    # beside the resume in the sandbox, and the gates count them as the resume.
+    notes_file = folder / "projects.md"
+    if notes:
+        notes_file.write_text(notes + "\n", encoding="utf-8")
+    elif notes_file.is_file():
+        notes_file.unlink()
 
     if kind == "cover_letter" and not (folder / FILENAMES["cv"]).is_file():
         # The letter is checked against the CV, so the CV has to exist for the
@@ -386,11 +396,21 @@ def generate(row, kind: str, resume_path: str, root: str = "",
 
     result.path = written
     result.text = written.read_text(encoding="utf-8")
+    if kind == "cv":
+        # The PDF to send, named FirstName_LastName_JobTitle_Resume.pdf. The
+        # page renders its own from CV.md; this one is for the folder.
+        from ..output import pdf
+        name = resume_doc.name_of(result.text)
+        try:
+            (folder / resume_doc.filename(name, row["title"] or "")).write_bytes(
+                pdf.render(result.text, f"{name or 'Resume'}, {row['title'] or ''}"))
+        except OSError as exc:
+            log.warning("could not write the CV's PDF: %s", exc)
 
     sibling = ""
     if kind == "cover_letter":
         sibling = (folder / FILENAMES["cv"]).read_text(encoding="utf-8")
-    resume_text = _resume_text(resume)
+    resume_text = _resume_text(resume) + ("\n\n" + notes if notes else "")
     result.gates = gates_mod.run_all(
         result.text, kind, resume_text=resume_text, sibling=sibling)
     if settings is not None:
