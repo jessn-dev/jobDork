@@ -51,7 +51,13 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from ..ai.llm import VAULT
-from ..core.config import SETTLED_STATUSES, STATUSES, WORK_MODES
+from ..core.config import (
+    CONTAINER_ENV,
+    CONTAINER_MARKERS,
+    SETTLED_STATUSES,
+    STATUSES,
+    WORK_MODES,
+)
 from ..db.store import Store
 from ..output.render import STATUS_COLOURS
 from ..search import geo
@@ -69,9 +75,8 @@ HOST = "127.0.0.1"
 # published with `docker run -p` arrives on its network interface and finds
 # nothing listening. The variable is set by the Dockerfile; the marker file
 # is set by the runtime. Both are required, so exporting the variable on a
-# bare host changes nothing.
-CONTAINER_ENV = "JOBDORK_IN_CONTAINER"
-CONTAINER_MARKERS = ("/.dockerenv", "/run/.containerenv")
+# bare host changes nothing. CONTAINER_ENV and CONTAINER_MARKERS live in
+# core.config, which uses the same test to seed a config in a container.
 
 # Opening the dashboard from another machine, such as a Mac reaching a NAS,
 # takes naming the address it is opened by: "192.168.1.50" or "nas.local".

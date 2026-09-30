@@ -6,6 +6,36 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-09-30 — a container needs no config.yaml prepared by hand
+
+Setting jobdork up in a NAS's Docker app took a file made outside the
+image first: download `config.example.yaml`, rename it, upload it, and map it
+to `/app/config.yaml`. Map it before it exists and Docker makes a *folder*
+of that name; leave it out and the container stopped at start with "No config
+found". The image already carries the example.
+
+- **In a container with no config**, the first start copies the image's
+  `config.example.yaml` to `data/config.yaml` and uses it, with a warning in
+  the log saying so. `data/` is the volume that is kept, so the dashboard's
+  settings are saved there and survive a new container. Later starts read
+  the kept copy and never overwrite it.
+- **`data/config.yaml` is the last place looked**, after `config.local.yaml`
+  and `config.yaml`, so a `config.yaml` already mapped to `/app/config.yaml`
+  is still the one used.
+- **Only in a container:** the same test as for listening beyond loopback,
+  the `JOBDORK_IN_CONTAINER` variable *and* a container marker file, so a
+  checkout with no config still stops with "No config found" rather than
+  writing one. The test's constants moved from `web/serve.py` to
+  `core/config.py`, which both now use.
+- If `data/` is not writable by user 1000, the error says so and gives the
+  `chown`.
+
+A NAS now maps one folder, `data` → `/app/data`. `docs/DEPLOY.md` and the
+README say so. Three new tests: seeding and keeping the copy, a mapped
+`config.yaml` winning, and nothing written outside a container.
+
+---
+
 ## Fixed — 2026-09-30 — 0.14.3 is published; the signature check no longer races Docker Hub
 
 `v0.14.3` is the first release. The image is on Docker Hub as
@@ -28,6 +58,7 @@ move to an image other than the one signed and approved.
 
 The verify step now tries up to six times, ten seconds apart, before it calls
 a signature missing.
+
 
 ---
 

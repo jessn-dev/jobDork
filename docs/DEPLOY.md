@@ -146,15 +146,16 @@ it and pull. Every published image is signed; [SECURITY.md](../SECURITY.md)
 shows how to check the signature and pin the exact image by its digest before
 you run it.
 
-**A folder for its files.** Make a folder on the NAS, for example
-`docker/jobdork`, with:
+**A folder for its files.** Make an empty folder on the NAS, for example
+`docker/jobdork/data`. It holds everything jobdork keeps: the database of job
+posts, your settings' history, and `config.yaml`. There is no config to
+prepare: on the first start jobdork copies the example the image carries into
+`data/config.yaml`, and the dashboard's settings are saved there. (A
+`config.yaml` of your own mapped to `/app/config.yaml` is used instead, as
+before.)
 
-- `config.yaml`: copy [config.example.yaml](../config.example.yaml) and edit
-  it, or keep the example's defaults and set everything from the dashboard.
-- a folder `data`: the database of job posts and your settings' history.
-
-The container runs as user and group **1000**, so both must be writable by
-1000. Most NAS make their first user 1000 already; if saving fails with
+The container runs as user and group **1000**, so the folder must be writable
+by 1000. Most NAS make their first user 1000 already; if saving fails with
 "permission denied", run over SSH `sudo chown -R 1000:1000 /path/to/docker/jobdork`.
 
 **The container.** In your NAS's Docker app, or as a command:
@@ -163,7 +164,6 @@ The container runs as user and group **1000**, so both must be writable by
 |---|---|
 | Image | `<dockerhub-user>/jobdork:<version>` |
 | Port | NAS `8765` → container `8765` |
-| Volume | `…/docker/jobdork/config.yaml` → `/app/config.yaml`, read/write |
 | Volume | `…/docker/jobdork/data` → `/app/data`, read/write |
 | Environment | `JOBDORK_ALLOW_HOSTS` = the NAS's addresses, comma separated: its home-network address and its Tailscale name, e.g. `10.0.0.122,my-nas.tail1234.ts.net` |
 | Memory limit | 1 GB is plenty |
@@ -172,7 +172,6 @@ The container runs as user and group **1000**, so both must be writable by
 ```bash
 docker run -d --name jobdork --restart unless-stopped -p 8765:8765 \
   -e JOBDORK_ALLOW_HOSTS=10.0.0.122,my-nas.tail1234.ts.net \
-  -v /volume1/docker/jobdork/config.yaml:/app/config.yaml \
   -v /volume1/docker/jobdork/data:/app/data \
   <dockerhub-user>/jobdork:<version>
 ```

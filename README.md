@@ -101,9 +101,11 @@ it by, and publish the port to your network rather than to the NAS alone:
 ```bash
 docker run -d --restart unless-stopped -p 8765:8765 \
   -e JOBDORK_ALLOW_HOSTS=192.168.1.50 \
-  -v /volume1/docker/jobdork/config.yaml:/app/config.yaml \
-  -v /volume1/docker/jobdork/data:/app/data jobdork
+  -v /volume1/docker/jobdork/data:/app/data jessengolab/jobdork:<version>
 ```
+
+With no config mapped, the first start copies the image's example to
+`data/config.yaml`, and the dashboard's settings are saved there.
 
 `JOBDORK_ALLOW_HOSTS` takes addresses separated by commas (`192.168.1.50`,
 `nas.local`), on any port, or `address:port` for one port only. Nothing else
