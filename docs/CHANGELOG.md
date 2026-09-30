@@ -6,6 +6,31 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-09-30 — 0.14.3 is published; the signature check no longer races Docker Hub
+
+`v0.14.3` is the first release. The image is on Docker Hub as
+`jessengolab/jobdork:0.14.3` (also `0.14` and `latest`), exactly
+`sha256:6ec0dc1f092423b4cc2edcbbdff86387095ffe53864188c17b7405e00dc4da2f`,
+signed by this repository's workflow.
+
+The run still ended red. cosign 3 stores the signature as an OCI referrer of
+the image, and Docker Hub lists a new referrer a few seconds after it is
+pushed; the verify step ran three seconds after signing and got "no
+signatures found". The signature was there: it is listed under the image's
+referrers, and `cosign verify` (v3.0.6) passes against it from outside. But
+the failed step skipped the job that writes the GitHub Release page, so that
+page was created by hand with the same notes the job writes, plus a line
+saying so.
+
+Re-running the failed job was not an option: it rebuilds, the build time is
+in the image's labels, so the digest changes and `0.14.3` and `latest` would
+move to an image other than the one signed and approved.
+
+The verify step now tries up to six times, ten seconds apart, before it calls
+a signature missing.
+
+---
+
 ## Fixed — 2026-09-30 — no traceback when the browser hangs up
 
 With the dashboard running, reloading the page, closing its tab or
@@ -129,6 +154,7 @@ extracted text, with the skills found in it, is still there, folded under
 The page may now frame a `blob:` it made itself (`frame-src blob:` in the
 content security policy); it still loads nothing from anywhere else, and
 nothing may frame the page.
+
 
 ---
 
