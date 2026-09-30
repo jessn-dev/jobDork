@@ -154,6 +154,9 @@ def _location(item: dict, anchor: geo.Resolved | None = None) -> tuple[str, int]
     return clean(places[0].get("LocationName") or ""), len(places)
 
 
+USAJOBS_MAX_DAYS = 60
+
+
 @register("usajobs")
 def fetch(fetcher, cfg, **_) -> SourceResult:
     # US federal hiring only. A reader whose countries do not include the US
@@ -193,6 +196,11 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
                 "Page": page,
                 **location,
             }
+            # USAJOBS filters by posting age up to 60 days. A limit past that
+            # cannot be asked for, and 60 would hide stale posts that should
+            # still be shown, so it is left to screening then.
+            if 0 < cfg.freshness.ghost_days <= USAJOBS_MAX_DAYS:
+                params["DatePosted"] = cfg.freshness.ghost_days
             if cfg.salary.floor and cfg.salary.currency == "USD":
                 params["RemunerationMinimumAmount"] = int(cfg.salary.floor)
 

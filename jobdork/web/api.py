@@ -448,6 +448,7 @@ def set_advert(cfg, uid: str, text: str) -> dict:
     A role that no longer passes on the full text is marked skipped, exactly
     as `enrich` does, with the reason as its note.
     """
+    from ..db import grouping
     from ..db.store import Role, Store
     from ..search import geo, screen
     from ..search.scan import _load_resume
@@ -477,7 +478,8 @@ def set_advert(cfg, uid: str, text: str) -> dict:
             salary_period=row["salary_period"] or "",
             salary_stated=bool(row["salary_stated"]),
         )
-        verdict = screen.screen(role, cfg, anchor, cv)
+        verdict = screen.screen(role, cfg, anchor, cv,
+                                first_seen=grouping.earliest_seen(store.conn, uid=uid))
         if role.uid != uid:
             raise ApiError("stored url no longer maps to this job post", 409)
         store.upsert(role, seen=False)

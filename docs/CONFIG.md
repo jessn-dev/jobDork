@@ -419,6 +419,37 @@ at once; it does not make any single board answer faster.
 
 ---
 
+## freshness
+
+How a job post's age counts. Measured in code from the job board's own dates,
+never by a model.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `freshness.new_days` | int | `2` | Up to this: brand new, top of the pile |
+| `freshness.week_days` | int | `7` | Up to this: first week |
+| `freshness.older_days` | int | `21` | Up to this: older, risky; beyond it, stale |
+| `freshness.ghost_days` | int | `90` | Beyond this: a ghost listing, dropped. `0` never drops for age |
+| `freshness.points` | map | `{new: 5, older: -5, stale: -15}` | Score points per tier |
+
+**Only a ghost is dropped.** A stale post may be filled or reposted by a
+script, but the job you want most may still be worth a try, so it is marked
+and ranked lower. A post you have applied to is never hidden for its age.
+
+**Where the date comes from:** the board's posting date; failing that, the
+posting page (`datePosted`, or "Posted 3 weeks ago", read by `enrich`);
+failing that, the day jobdork first saw the post, once that is more than a
+week ago, as a lower bound. None of those: "posting date not stated", kept.
+
+**Reposts** are dated from the first sighting. A job jobdork saw on 1 July,
+under this URL or another copy of it, that the board now dates 29 September
+was reposted, and is as old as 1 July says.
+
+Adzuna is asked for nothing older than `ghost_days`. USAJOBS can only be
+asked for up to 60 days, so with a longer limit screening does it.
+
+---
+
 ## llm
 
 The AI reader. Off unless `provider` is set. The dashboard's AI page writes
@@ -482,6 +513,9 @@ Points, so you can tell why one role is above another.
 | Salary above floor | 10 to 20, by headroom |
 | Resume skill overlap | 0 to 25 |
 | Soft dealbreaker | −8 each |
+| Posted in the last 2 days | +5 |
+| Posted 8 to 21 days ago | −5 |
+| Posted more than 21 days ago | −15 |
 
 Nearness is worth only a few points on purpose: a role 24 miles away that fits
 is worth more than one next door that does not.

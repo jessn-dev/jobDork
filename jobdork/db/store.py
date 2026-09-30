@@ -445,6 +445,12 @@ class Store:
             )
         return is_new
 
+    def first_seen(self, uid: str) -> str:
+        """When a stored post was first seen, or "" for one never stored."""
+        row = self.conn.execute(
+            "SELECT first_seen FROM roles WHERE uid = ?", (uid,)).fetchone()
+        return (row["first_seen"] or "") if row else ""
+
     def stored_description(self, uid: str) -> str:
         row = self.conn.execute(
             "SELECT description FROM roles WHERE uid = ?", (uid,)).fetchone()

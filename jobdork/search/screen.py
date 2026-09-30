@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from ..core.config import DEFAULT_BLOCKERS as BLOCKERS
 from ..core.config import Config
 from ..db.store import Role
-from . import geo
+from . import freshness, geo
 
 LOOSE_GAP = 2
 
@@ -418,12 +418,17 @@ def screen(
     cfg: Config,
     anchor: geo.Resolved | None = None,
     resume=None,
+    first_seen: str = "",
+    today=None,
 ) -> Verdict:
     """Apply every rule to one role and mutate it with what was learned.
 
     `resume` is optional and only ever adds points. It never drops a role:
     a skill you have not listed is a gap in the resume as often as it is a
     gap in you, and neither is grounds for hiding the job.
+
+    `first_seen`, when the post is already stored, dates a post the board
+    gave no date for (freshness.age); `today` is for tests.
     """
     if anchor is None:
         anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
@@ -442,6 +447,21 @@ def screen(
         return verdict
     verdict.add("title", points, 30, why + (
         ": 30" if points == 30 else ": 18, since a loose match scores less than an exact one"))
+
+    fresh = cfg.freshness
+    old = freshness.age(role.posted_at, first_seen, fresh, today)
+    if old.tier == "ghost":
+        verdict.keep = False
+        verdict.reasons.append(
+            f"{old.text().split(' (')[0]}, past freshness.ghost_days "
+            f"({fresh.ghost_days}): likely an evergreen or abandoned listing")
+        return verdict
+
+    over = freshness.CLOSED_TEXT.search(role.description or "")
+    if over:
+        verdict.keep = False
+        verdict.reasons.append(f'the advert says the post is over: "{over.group(0)}"')
+        return verdict
 
     mode, mode_flags = detect_work_mode(role, cfg)
     role.work_mode = mode
@@ -496,6 +516,22 @@ def screen(
 
     if role.description and _NO_SPONSORSHIP.search(role.description):
         verdict.flags.append("states it will not sponsor a visa")
+
+    if old.known:
+        got = freshness.points(old.tier, fresh)
+        verdict.add("freshness", got, fresh.new_points,
+                    f"{old.text()}: {got:+g}" if got else f"{old.text()}: 0",
+                    days=old.days, tier=old.tier, source=old.source,
+                    since=old.posted, reposted=old.reposted)
+        if old.reposted:
+            verdict.flags.append(
+                f"reposted: first seen {old.posted}, the board now dates it {old.reposted}")
+        if old.tier in ("older", "stale"):
+            verdict.flags.append(old.text())
+    else:
+        verdict.add("freshness", 0.0, fresh.new_points,
+                    "the job board gives no posting date: 0", tier="")
+        verdict.flags.append("posting date not stated")
 
     role.fit = None
     if resume is not None and getattr(resume, "loaded", False):

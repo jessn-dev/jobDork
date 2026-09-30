@@ -26,6 +26,8 @@ import logging
 from dataclasses import dataclass, field
 
 from ..core import telemetry
+from ..db import grouping
+from ..search import freshness
 from . import guard
 from .llm import LLMError, Settings, judge
 
@@ -96,7 +98,11 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
         if progress:
             progress(f"  reading {row['uid']}  {(row['title'] or '')[:50]}")
         role = {"title": row["title"], "company": row["company"],
-                "location": row["location_raw"], "description": row["description"]}
+                "location": row["location_raw"], "description": row["description"],
+                # Measured here, from the board's dates: the model has no clock.
+                "posting": freshness.prompt_block(
+                    row["posted_at"] or "",
+                    grouping.earliest_seen(store.conn, uid=row["uid"]), cfg.freshness)}
         try:
             verdict = judge(settings, role, resume_text)
         except LLMError as exc:
