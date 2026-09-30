@@ -229,13 +229,26 @@ jobs:
           IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/jobdork@${{ steps.push.outputs.digest }}
         run: cosign sign --yes "$IMAGE"
 
+      # cosign 3 stores the signature as an OCI referrer, and Docker Hub lists
+      # a new referrer a few seconds after it is pushed: checked at once, a
+      # good signature reads as "no signatures found" (v0.14.3). So retry for
+      # up to a minute before calling it missing.
       - name: Verify the signature, as a user would
         env:
           IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/jobdork@${{ steps.push.outputs.digest }}
-        run: >
-          cosign verify "$IMAGE"
-          --certificate-identity-regexp "^https://github.com/${{ github.repository }}/\.github/workflows/docker\.yml@"
-          --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          IDENTITY: ^https://github.com/${{ github.repository }}/\.github/workflows/docker\.yml@
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if cosign verify "$IMAGE" \
+                --certificate-identity-regexp "$IDENTITY" \
+                --certificate-oidc-issuer https://token.actions.githubusercontent.com; then
+              exit 0
+            fi
+            echo "Attempt $attempt: not verified yet; retrying in 10s"
+            sleep 10
+          done
+          echo "::error::signature did not verify after 6 attempts"
+          exit 1
 
       - name: Record the digest
         run: echo "Published ${{ vars.DOCKERHUB_USERNAME }}/jobdork@${{ steps.push.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
