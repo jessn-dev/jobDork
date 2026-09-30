@@ -6,6 +6,27 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-09-30 — version 0.14.3; `v0.14.2` was never released either
+
+The entry below said the first release would be 0.14.2. It was not: the
+`v0.14.2` tag was pushed from a `main` that had not been pulled after the
+pull request was merged, so it points at `2bd3d41`, the same commit as
+`v0.14.1`, whose code says 0.14.0. The version check stopped the run before
+anything was built or offered for approval, as it did for `v0.14.1`. Nothing
+was published: no image, no GitHub Release.
+
+`pyproject.toml` now says 0.14.3, and the first release is 0.14.3. The
+release steps in `SECURITY.md` add one check between the pull and the tag:
+`grep -m1 '^version' pyproject.toml` must show the new version, because
+"pull first" alone was already written there and was still skipped.
+
+Also on `main` since 0.14.2, from Dependabot: `actions/checkout` 7.0.1 and
+`actions/setup-python` 7.0.0. The first run after those merges failed in the
+image scan because Trivy's vulnerability database mirror answered 404
+(`mirror.gcr.io/aquasec/trivy-db:2`); the next run, with both bumps, passed.
+
+---
+
 ## Changed — 2026-09-29 — version 0.14.2; `v0.14.0` and `v0.14.1` were never released
 
 Both tags were pushed before the pull request that set their version was
