@@ -132,6 +132,12 @@ button.spend{border-color:var(--warn);color:var(--warn)}
 .head{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
 .score{font-variant-numeric:tabular-nums;font-weight:600;color:var(--accent);min-width:3ch}.title{font-weight:600;cursor:pointer}
 .title:hover{text-decoration:underline}
+.age{font-size:.7rem;padding:.08rem .45rem;border-radius:999px;border:1px solid var(--line);
+  color:var(--muted);white-space:nowrap}
+.age.new{color:var(--ok);border-color:var(--ok);font-weight:600}
+.age.older{color:var(--warn);border-color:var(--warn)}
+.age.stale,.age.ghost{color:var(--bad);border-color:var(--bad)}
+.age.ghost{text-decoration:line-through}
 .pill{padding:.1rem .5rem;border-radius:999px;font-size:.7rem;font-weight:600;
   color:#fff;text-transform:uppercase;letter-spacing:.02em}
 .meta{color:var(--muted);font-size:.85rem;margin-top:.3rem;display:flex;
@@ -493,6 +499,12 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
         <option value="open">Open job posts</option>
         <option value="new">New since last scan</option>
         <option value="all">Including settled</option>
+      </select>
+      <select id="posted" aria-label="Posted within">
+        <option value="">Posted any time</option>
+        <option value="2">Posted in the last 2 days</option>
+        <option value="7">Posted in the last week</option>
+        <option value="21">Posted in the last 3 weeks</option>
       </select>
       <input type="search" id="q" placeholder="Search" aria-label="Search job posts by title or company">
       <span class="count" id="count"></span>
@@ -1012,23 +1024,40 @@ async function loadRoles() {
                       `&status=${encodeURIComponent($('status').value)}`);
   if (!r.ok) { $('list').innerHTML = `<p class="empty">${esc(await r.text())}</p>`; return; }
   const d = await r.json();
-  roles = d.roles; drawRoles(d);
+  roles = d.roles; rolesMeta = d; drawRoles(d);
 }
 
-function drawRoles(d) {
+let rolesMeta = null;
+function drawRoles(d = rolesMeta) {
   const q = $('q').value.toLowerCase();
-  const shown = roles.filter(r => !q ||
-    (r.title + ' ' + r.company).toLowerCase().includes(q));
+  // A post with no date cannot be said to be recent, so a "posted within"
+  // filter leaves it out; "any time" shows it.
+  const within = +$('posted').value;
+  const shown = roles.filter(r => (!q ||
+    (r.title + ' ' + r.company).toLowerCase().includes(q)) &&
+    (!within || (r.age && r.age.days != null && r.age.days <= within)));
   // Copies of one job are one post (grouping.py); say how many were folded in.
   const grouped = roles.reduce((t, r) => t + Math.max(0, (r.copies || 1) - 1), 0);
   $('count').textContent = `${shown.length} of ${roles.length}` +
     (d && d.settled ? ` · ${d.settled} settled and hidden` : '') +
+    (d && d.ghosts ? ` · ${d.ghosts} ghost listings hidden (older than the freshness limit)` : '') +
     (grouped ? ` · ${grouped} duplicates grouped` : '');
   const fresh = roles.filter(r => r.status === 'new').length;
   $('nav-new').hidden = !fresh;
   $('nav-new').textContent = fresh > 999 ? '999+' : fresh;
   $('list').innerHTML = shown.length ? shown.map(card).join('')
     : '<p class="empty">Nothing matches.</p>';
+}
+
+// How old the post is today (search/freshness.py): the application's place
+// in the pile. Stale posts stay listed, marked, for the one worth a try anyway.
+const AGE_SHORT = {new: 'New', week: '', older: 'Risky', stale: 'Stale', ghost: 'Ghost'};
+function ageTag(a) {
+  if (!a) return '';
+  if (a.days == null) return '<span class="age unknown" title="The job board gives no posting date">Date unknown</span>';
+  const d = a.days, n = d < 1 ? 'today' : d < 14 ? d + 'd' : d < 63 ? Math.round(d / 7) + 'w' : Math.round(d / 30) + 'mo';
+  const word = AGE_SHORT[a.tier] || '';
+  return `<span class="age ${esc(a.tier)}" title="${esc(cap(a.text))}">${esc(word ? word + ' · ' + n : n)}</span>`;
 }
 
 function card(r) {
@@ -1048,6 +1077,7 @@ function card(r) {
       ${fitTag(r.fit, r.parts)}
       ${aiTag(r.ai)}
       <span class="title" onclick="openRole('${r.uid}')">${esc(r.title)}</span>
+      ${ageTag(r.age)}
       <span class="pill" style="background:${colour}">${esc(r.status)}</span>
       <span class="uid">${r.uid}</span>
       ${r.copies > 1 ? `<span class="copies" title="Posted in ${r.copies} places. Open it to see every link.">+${r.copies - 1} ${r.copies === 2 ? 'copy' : 'copies'}</span>` : ''}
@@ -1081,6 +1111,7 @@ function apply(uid, url) { window.open(url, '_blank', 'noopener'); act(uid, 'app
 
 $('scope').onchange = loadRoles; $('status').onchange = loadRoles;
 $('q').oninput = () => drawRoles();
+$('posted').onchange = () => drawRoles();
 
 async function saveAdvert(uid) {
   const text = $('paste-text').value.trim();

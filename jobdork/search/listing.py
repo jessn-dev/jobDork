@@ -49,30 +49,15 @@ from ..core import telemetry
 from ..core.textutil import to_text
 from ..db import grouping
 from .enrich import _LD_BLOCK, _walk
+from .freshness import CLOSED_TEXT  # one pattern for pages and adverts
 
 log = logging.getLogger("jobdork.search.listing")
 
 # Only statuses that mean "not acted on yet" are closed automatically.
 AUTO_CLOSE = ("new", "viewed", "interested")
 
-# Worded tightly on purpose. USAJOBS prints "this posting will no longer be
-# available once the announcement has closed" on every OPEN job, and a loose
-# "no longer available" would close all of them.
-CLOSED_TEXT = re.compile(
-    r"\b(?:"
-    r"no longer accepting (?:applications|applicants|candidates)"
-    r"|(?:this|the) (?:job|position|posting|role|vacancy|opening|requisition|listing)"
-    r"(?: you(?:'re| are) looking for)? "
-    r"(?:is no longer (?:available|open|active|accepting)"
-    r"|has (?:been )?(?:closed|filled|expired|removed|taken down)"
-    r"|(?:was|is) (?:closed|filled|expired|removed))"
-    r"|(?:job|position|posting|vacancy) (?:has )?expired"
-    r"|applications? (?:are|is|have) (?:now )?closed"
-    r"|position (?:has been )?filled"
-    r"|job (?:posting )?not found"
-    r")\b",
-    re.IGNORECASE,
-)
+# CLOSED_TEXT, the words that say a posting is over, lives in freshness.py:
+# screening reads adverts with it too.
 
 # Evidence stronger than this is not needed to re-check; weaker is re-read.
 RECHECK_HOURS = 12

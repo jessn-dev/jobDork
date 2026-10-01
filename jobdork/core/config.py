@@ -200,6 +200,23 @@ class Screening:
 
 
 @dataclass
+class Freshness:
+    """How a post's age counts (search/freshness.py). Days, and score points.
+
+    Tiers: new up to `new_days`, first week up to `week_days`, older up to
+    `older_days`, stale beyond, and past `ghost_days` a ghost, dropped.
+    `ghost_days: 0` never drops for age.
+    """
+    new_days: int = 2
+    week_days: int = 7
+    older_days: int = 21
+    ghost_days: int = 90
+    new_points: float = 5.0
+    older_points: float = -5.0
+    stale_points: float = -15.0
+
+
+@dataclass
 class Salary:
     floor: float | None = None
     currency: str = "USD"
@@ -281,6 +298,7 @@ class Config:
     locations: Locations = field(default_factory=Locations)
     salary: Salary = field(default_factory=Salary)
     screening: Screening = field(default_factory=Screening)
+    freshness: Freshness = field(default_factory=Freshness)
     dealbreakers: list[Dealbreaker] = field(default_factory=list)
     resume_path: str = ""
     sources: Sources = field(default_factory=Sources)
@@ -519,6 +537,18 @@ def _build(raw: dict[str, Any]) -> Config:
                                   "screening.office_patterns"),
     )
 
+    fr = raw.get("freshness") or {}
+    pts = fr.get("points") or {}
+    try:
+        cfg.freshness = Freshness(
+            new_days=int(fr.get("new_days", 2)), week_days=int(fr.get("week_days", 7)),
+            older_days=int(fr.get("older_days", 21)),
+            ghost_days=int(fr.get("ghost_days", 90)),
+            new_points=float(pts.get("new", 5)), older_points=float(pts.get("older", -5)),
+            stale_points=float(pts.get("stale", -15)))
+    except (TypeError, ValueError) as exc:
+        raise ConfigError(f"freshness needs whole days and numeric points: {exc}") from exc
+
     resume = raw.get("resume") or {}
     cfg.resume_path = str(resume.get("path") or "").strip()
 
@@ -685,6 +715,16 @@ def _validate(cfg: Config) -> None:
         )
     if cfg.salary.floor is not None and cfg.salary.floor < 0:
         raise ConfigError("salary.floor cannot be negative")
+
+    f = cfg.freshness
+    if not 0 <= f.new_days < f.week_days < f.older_days:
+        raise ConfigError(
+            "freshness days must rise: new_days < week_days < older_days "
+            f"(got {f.new_days}, {f.week_days}, {f.older_days})")
+    if f.ghost_days and f.ghost_days <= f.older_days:
+        raise ConfigError(
+            f"freshness.ghost_days ({f.ghost_days}) must be past older_days "
+            f"({f.older_days}), or 0 to never drop a post for its age")
 
     if cfg.screening.loose_gap < 0:
         raise ConfigError("screening.loose_gap cannot be negative")

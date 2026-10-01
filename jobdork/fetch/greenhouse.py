@@ -81,7 +81,10 @@ def fetch(fetcher, cfg, token: str = "", company: str = "", **_) -> SourceResult
             url=url,
             location_raw=clean((job.get("location") or {}).get("name") or ""),
             description=to_text(job.get("content") or ""),
-            posted_at=(job.get("first_published") or job.get("updated_at") or "")[:10],
+            # Never updated_at: an edit or an automatic repost bumps it, and an
+            # evergreen post from last year would read as posted this week.
+            # No first_published means no date; freshness then uses first sight.
+            posted_at=(job.get("first_published") or "")[:10],
             salary_min=lo, salary_max=hi, salary_currency=currency,
             salary_period=period, salary_stated=stated,
         ))

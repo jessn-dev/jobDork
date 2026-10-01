@@ -138,6 +138,18 @@ fetch:
 # load): type it on the AI page, where it is held in memory only, or set
 # ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY for the terminal.
 # See docs/CONFIG.md#llm.
+# How a job post's age counts. A post in its first two days is at the top of
+# the pile; after three weeks it may be filled, reposted by a script, or
+# abandoned. Stale posts are marked and ranked lower, never hidden: the one
+# you want most may still be worth a try. Past ghost_days a post is dropped
+# (0: never). Ages come from the job board's own dates, not from a model.
+freshness:
+  new_days: 2               # brand new
+  week_days: 7              # first week
+  older_days: 21            # older, risky; beyond this, stale
+  ghost_days: 90            # dropped as a ghost listing
+  points: {new: 5, older: -5, stale: -15}
+
 llm:
   provider: ""              # ollama | anthropic | gemini | openai
   model: ""                 # e.g. gemma4:26b for Ollama

@@ -44,6 +44,42 @@ def key_sql(alias: str = "") -> str:
     )
 
 
+def _sql_lower(text: str) -> str:
+    """SQLite's lower(): ASCII letters only, so the two keys agree on "Ü"."""
+    return "".join(chr(ord(c) + 32) if "A" <= c <= "Z" else c for c in text)
+
+
+def key_of(role) -> str:
+    """key_sql() for a Role not yet stored, after screening resolved its place."""
+    trim = lambda t: (t or "").strip(" ")  # noqa: E731  sqlite trim(): spaces only
+    if role.work_mode == "remote":
+        place = "remote"
+    elif role.city:
+        place = _sql_lower(role.city) + "," + _sql_lower(role.state or "")
+    else:
+        place = _sql_lower(trim(role.location_raw))
+    return f"{_sql_lower(trim(role.company))}|{_sql_lower(trim(role.title))}|{place}"
+
+
+def earliest_seen(conn, role=None, uid: str = "") -> str:
+    """When jobdork first saw any copy of this job: a floor for its age.
+
+    A job reposted under a new URL, or re-dated on the same one, still
+    dates from the first sighting (freshness.age).
+    """
+    if uid:
+        row = conn.execute(
+            # Safe: key_sql() is a fixed SQL fragment; uid is a ? parameter.
+            f"SELECT MIN(first_seen) FROM roles WHERE {key_sql()} = "  # nosec B608
+            f"(SELECT {key_sql()} FROM roles WHERE uid = ?)", (uid,)).fetchone()
+    else:
+        row = conn.execute(
+            # Safe: key_sql() is a fixed SQL fragment; the key is a ? parameter.
+            f"SELECT MIN(first_seen) FROM roles WHERE {key_sql()} = ?",  # nosec B608
+            (key_of(role),)).fetchone()
+    return (row[0] or "") if row else ""
+
+
 def representative_order() -> str:
     """Which copy of a group is shown: not closed, fullest advert, best score.
 

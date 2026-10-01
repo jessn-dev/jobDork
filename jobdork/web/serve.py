@@ -57,10 +57,11 @@ from ..core.config import (
     SETTLED_STATUSES,
     STATUSES,
     WORK_MODES,
+    Freshness,
 )
 from ..db.store import Store
 from ..output.render import STATUS_COLOURS
-from ..search import geo
+from ..search import freshness, geo
 from ..search.resume import SKILL_NAMES
 from . import api as api_mod
 from .live import Runner
@@ -135,7 +136,14 @@ class Server(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
-def _row_to_dict(row, units: str) -> dict:
+def _age(row, parts: list, fresh) -> dict:
+    """How old the post is today, for its badge and the "posted within" filter."""
+    part = next((p for p in parts if p.get("part") == "freshness"), None)
+    a = freshness.now(part, row["posted_at"] or "", row["first_seen"] or "", fresh)
+    return {"days": a.days, "tier": a.tier, "text": a.text(), "source": a.source}
+
+
+def _row_to_dict(row, units: str, fresh=None) -> dict:
     try:
         flags = json.loads(row["flags"] or "[]")
     except (json.JSONDecodeError, TypeError):
@@ -156,7 +164,8 @@ def _row_to_dict(row, units: str) -> dict:
         "uid": row["uid"],
         "score": None if row["score"] is None else round(row["score"]),
         "fit": None if row["fit"] is None else round(row["fit"]),
-        "parts": api_mod.score_parts(row),
+        "parts": (parts := api_mod.score_parts(row)),
+        "age": _age(row, parts, fresh or Freshness()),
         "copies": row["copies"],
         **api_mod.ai_fields(row),
         "status": row["status"] or "new",
@@ -669,11 +678,21 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 )
                 counts = store.status_counts()
                 units = cfg.locations.units or "mi"
-                payload = [_row_to_dict(row, units) for row in rows]
+                payload = [_row_to_dict(row, units, cfg.freshness) for row in rows]
 
+            # Past freshness.ghost_days a post is dropped at screening, but one
+            # stored before it aged stays in the database until a rescreen
+            # --remove. Not acted on, it is left out of the list here, and
+            # counted; a post you applied to is never hidden for its age.
+            ghosts = 0
+            if scope != "all":
+                kept = [p for p in payload if not (
+                    p["age"]["tier"] == "ghost" and p["status"] in ("new", "viewed"))]
+                ghosts = len(payload) - len(kept)
+                payload = kept
             settled = sum(counts.get(s, 0) for s in SETTLED_STATUSES)
             self._json(200, {"roles": payload, "counts": counts,
-                             "settled": settled})
+                             "settled": settled, "ghosts": ghosts})
 
         def _events(self) -> None:
             """Server-sent events. Held open for the life of the page."""

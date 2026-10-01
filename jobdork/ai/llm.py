@@ -516,6 +516,12 @@ languages or years), not keyword overlap. "summary" is one sentence. \
 "reasons" and "concerns" are short, specific, at most five each, and quote \
 the advert where it helps.
 
+<<POSTING DATES>> is measured by the tool from the job board's own data and \
+is the only date that says how old the post is: dates in the resume are the \
+candidate's history. Score fit on substance alone, never on the post's age; \
+when the block says older or stale, add one concern that it may already be \
+filled or reposted.
+
 "enough_evidence" is false when the advert or the resume says too little to \
 judge fit honestly (a teaser, a title and a company, a resume with no \
 experience section). Say what is missing in "summary" rather than guessing.
@@ -534,6 +540,8 @@ def judge(settings: Settings, role: dict, resume_text: str) -> dict:
     user = (
         f"Role: {role.get('title', '')}\nEmployer: {role.get('company', '')}\n"
         f"Location: {role.get('location', '')}\n\n"
+        + (f"<<POSTING DATES>>\n{role['posting']}\n<</POSTING DATES>>\n\n"
+           if role.get("posting") else "")
         + _fenced("ADVERT", advert, MAX_ADVERT) + "\n\n"
         + _fenced("RESUME", resume_text, MAX_RESUME)
     )

@@ -6,6 +6,69 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-09-30 — stale and ghost job posts: aged by date, ranked, and dropped past 90 days
+
+Nothing looked at how old a post was. Of the 29 posts in the database, 17
+were posted more than 60 days before and 9 more than 180, the oldest on
+2023-09-05: mostly Workable listings still "published" years on, the classic
+ghost job. The model that judges fit was given no dates at all, and
+Greenhouse's date fell back to `updated_at`, which an edit or an automatic
+repost bumps, so an old post could read as this week's.
+
+**The age is measured in code, never asked of a model** (`search/freshness.py`).
+A model has no clock and can take the dates in a resume or an advert for the
+posting date. Tiers, all settings under [freshness](CONFIG.md#freshness):
+
+| Tier | Age | Effect |
+|---|---|---|
+| New | up to 2 days | +5, green badge |
+| First week | up to 7 | 0 |
+| Older, risky | up to 21 | −5, amber, flagged |
+| Stale, may be filled | beyond 21 | −15, red, flagged |
+| Ghost | beyond 90 | dropped at screening |
+
+Stale posts stay listed: the job you want most may still be worth a try. A
+ghost you have not acted on is left out of the list, and counted ("13 ghost
+listings hidden"); a post you applied to is never hidden for its age.
+
+- **Dates, best first:** the board's posting date; the posting page's own
+  `datePosted`, or its "Posted 3 weeks ago" (read by `enrich` only after the
+  word "posted", so "5 years of experience" or "a 12-month contract" is never
+  taken for a date); failing both, the day jobdork first saw the post, as a
+  lower bound once it is more than a week old; failing that, "posting date
+  not stated", kept.
+- **Reposts** date from the first sighting: a job seen in July, under this
+  URL or any other copy of it (grouping.py), that the board now dates
+  September, is flagged "reposted" and aged from July.
+- **Greenhouse** no longer falls back to `updated_at`.
+- **At the source:** Adzuna is asked for nothing older than `ghost_days`, so
+  ghosts cost no quota. USAJOBS can be asked for 60 days at most, so with the
+  default 90 screening does it.
+- **An advert that says the post is over** ("this position has been filled",
+  "this job has been archived", "no longer accepting applications") is
+  dropped at screening. The words are the listing check's, now shared, and as
+  tight as before: USAJOBS' "will no longer be available once the
+  announcement has closed", printed on every open job, does not match, nor
+  does "archived records management".
+- **The model is told the dates in their own block** (`<<POSTING DATES>>`):
+  today, the posting date and its age, and that the resume's dates are the
+  candidate's history. It scores fit on substance only and, for an older or
+  stale post, adds a concern that it may be filled.
+- **The page** shows each post's age as a badge worked out when the page
+  loads, not when it was screened (a post screened as new is not new a month
+  later), and has a "Posted within" filter: 2 days, a week, 3 weeks, any
+  time.
+
+Tried on a copy of the real database: 13 of 29 posts past 90 days, the rest
+ranked with their age ("posted 29 days ago (stale, may be filled): −15").
+Thirteen new tests.
+
+Not done: flagging an Adzuna post that is not on the employer's own careers
+board. Adzuna's pages cannot be read, and matching it to the employer's board
+needs that board found first (`discover`); it is left for its own change.
+
+---
+
 ## Changed — 2026-09-30 — a container needs no config.yaml prepared by hand
 
 Setting jobdork up in a NAS's Docker app took a file made outside the
@@ -2971,12 +3034,11 @@ open; a digest arrives, and what arrived with it is what was not there before.
 
 ## Still outstanding
 
-Nothing. Every item that has been in this section has moved into an entry
-above, and the last one — a rate limit that was somebody else's clock —
-expired on its own.
-
-It is kept as a heading rather than deleted, because the next gap goes here
-and a section that has to be re-invented is a section that gets skipped.
+- **An Adzuna post that is not on the employer's own careers board** should
+  be flagged as a likely ghost. Adzuna's pages cannot be read (enrich.py), so
+  the check is whether the same job (grouping.py) is on the employer's own
+  board, which `discover` has to have found first. Left out of the freshness
+  change of 2026-09-30.
 
 ### Operational notes, not work
 

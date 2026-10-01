@@ -175,6 +175,10 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
                     "content-type": "application/json",
                     **where,
                 }
+                # Ghost-age posts are not worth a request's quota: they would
+                # be dropped at screening anyway (freshness.ghost_days).
+                if cfg.freshness.ghost_days:
+                    params["max_days_old"] = cfg.freshness.ghost_days
                 resp = fetcher.get(API.format(country=country, page=page),
                                    params=params)
                 requests_made += 1

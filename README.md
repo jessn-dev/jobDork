@@ -433,6 +433,11 @@ jobdork tailor <uid>          # your resume rewritten for one post, as a PDF
   result), and a common tutorial project (a to-do list, a weather app) is
   flagged as you type and in the result.
 
+- **Posting dates are measured, not guessed.** A model has no clock, so the
+  age of every post is worked out in code from the job board's own dates
+  (see [freshness](docs/CONFIG.md#freshness)) and given to the model in its
+  own block, apart from the dates in your resume. New posts rank higher,
+  stale ones lower and marked, and ghost listings past 90 days are dropped.
 - **Any of four providers:** Ollama running locally (free), Claude, Gemini or
   ChatGPT. **Keys are held in memory only**: typed on the AI page, never
   written to the config, the database or a log, and wiped when the server

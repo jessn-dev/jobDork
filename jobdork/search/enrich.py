@@ -31,6 +31,7 @@ import re
 from dataclasses import dataclass, field
 
 from ..core.textutil import to_text
+from ..db import grouping
 from ..db.store import Role, Store
 
 log = logging.getLogger("jobdork.search.enrich")
@@ -62,6 +63,7 @@ class EnrichReport:
     failed: int = 0
     skipped: dict[str, int] = field(default_factory=dict)
     gained: int = 0                      # characters of advert recovered
+    dated: int = 0                       # posts given their posting date from the page
     rescreened_out: list[str] = field(default_factory=list)
 
     def lines(self) -> list[str]:
@@ -76,6 +78,8 @@ class EnrichReport:
             )
         if self.unchanged or self.failed:
             out.append(f"no better {self.unchanged}, could not read {self.failed}")
+        if self.dated:
+            out.append(f"posting date read from the page for {self.dated}")
         for platform, count in sorted(self.skipped.items()):
             why = UNREACHABLE.get(platform, "advert already complete")
             out.append(f"skipped {count} {platform}: {why}")
@@ -119,6 +123,29 @@ def extract_description(html: str) -> str:
             if isinstance(description, str) and len(description) > len(best):
                 best = description
     return to_text(best)
+
+
+def extract_posted(html: str) -> str:
+    """The posting date the page states, YYYY-MM-DD, or "".
+
+    schema.org `datePosted` first, which is the employer's own record; else a
+    "Posted 3 weeks ago" in the page text (freshness.relative_posted, which
+    only reads a date after the word "posted"). For posts whose board gave no
+    date, so their age does not rest on when jobdork happened to see them.
+    """
+    from . import freshness
+
+    for block in _LD_BLOCK.findall(html or ""):
+        try:
+            data = json.loads(block)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        for posting in _walk(data):
+            when = freshness.parse_date(str(posting.get("datePosted") or ""))
+            if when:
+                return when.isoformat()
+    when = freshness.relative_posted(to_text(html or "")[:20_000])
+    return when.isoformat() if when else ""
 
 
 def _smartrecruiters(fetcher, row) -> tuple[str, bool]:
@@ -212,6 +239,15 @@ def enrich(cfg, store: Store, fetcher, limit: int = 0, platform: str = "",
                              f"{resp.error or resp.status}")
                 continue
             description = extract_description(resp.body)
+            if not row["posted_at"] and not dry_run:
+                posted = extract_posted(resp.body)
+                if posted:
+                    # Kept whether or not the advert improved: the date alone
+                    # is worth having.
+                    store.conn.execute("UPDATE roles SET posted_at = ? WHERE uid = ?",
+                                       (posted, row["uid"]))
+                    row = store.get(row["uid"]) or row
+                    report.dated += 1
         before = len(row["description"] or "")
         if len(description) <= before:
             report.unchanged += 1
@@ -240,7 +276,8 @@ def enrich(cfg, store: Store, fetcher, limit: int = 0, platform: str = "",
         # Re-screened on the fuller text. A dealbreaker that could not match a
         # 200-character teaser may match 7,000 characters, and keeping the old
         # verdict would be worse than never having fetched.
-        verdict = screen.screen(role, cfg, anchor, cv)
+        verdict = screen.screen(role, cfg, anchor, cv,
+                                first_seen=grouping.earliest_seen(store.conn, uid=row["uid"]))
         store.upsert(role, seen=False)
         store.conn.commit()                  # each fetch is slow; do not hold a write
         if not verdict.keep:
