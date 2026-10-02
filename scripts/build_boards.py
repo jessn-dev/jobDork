@@ -136,7 +136,12 @@ def add(candidates: list[dict], boards: dict, today: str, fetcher: Fetcher,
                 log["refreshed" if old else "added"].append(
                     f"{name}: {item.platform} `{item.token}`, {item.jobs} jobs")
             if not kept and not has_board:
-                log["not found"].append(f"{name} ({row['url']})")
+                # Why: a system with no reader, blocked, or nothing named at all.
+                why = sorted({u.platform for u in report.unsupported}) or \
+                    (["blocked"] if report.blocked else []) or \
+                    ([f"front end {report.front_end}"] if report.front_end else []) or \
+                    [f"{h} token not on page" for h in report.hinted] or ["nothing named"]
+                log["not found"].append(f"{name} ({row['url']}): {', '.join(why)}")
 
 
 def reverify(boards: dict, today: str, fetcher: Fetcher,

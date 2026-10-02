@@ -117,10 +117,14 @@ def fetch(fetcher, cfg, today: date | None = None, **_) -> SourceResult:
     result = SourceResult(source="kalibrr")
     seen: set[str] = set()
 
-    for title in cfg.titles_include:
+    # The search answers with Philippine jobs unless asked for a country by
+    # name: without `country=Indonesia`, an Indonesian search found 2 jobs
+    # where there were dozens. One search per country you want.
+    names = [name for name, code in COUNTRIES.items() if not wanted or code in wanted]
+    for title, name in ((t, n) for t in cfg.titles_include for n in names):
         for page in range(MAX_PAGES):
             resp = fetcher.get(API, params={"text": title, "limit": PAGE_SIZE,
-                                            "offset": page * PAGE_SIZE})
+                                            "offset": page * PAGE_SIZE, "country": name})
             result.requests_made += 1
             if not resp.ok:
                 result.errors.append(f"{title!r}: {resp.error}")

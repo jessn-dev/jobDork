@@ -47,6 +47,30 @@ version and [docs/](docs/README.md) is the long one.
 
 ---
 
+## How is this different from a job board, or an AI job app?
+
+**jobdork is not a job board.** Nobody posts jobs to it, it has no listings
+of its own, and it has no account. It is a tool that runs on your machine and
+reads the places jobs are posted, for you.
+
+| | A job board (Indeed, LinkedIn, ZipRecruiter…) | An AI job app (matching, auto-apply) | jobdork |
+|---|---|---|---|
+| **Where the jobs come from** | Its own listings, and copies of other sites' | Usually a job board's feed | Employers' own hiring systems (Workday, Oracle, Greenhouse and others), employers' careers sites and keyword searches, side by side |
+| **What decides what you see** | The site's ranking, which often puts paid listings first | A model's match score you cannot inspect | Rules you wrote down (titles, distance, pay, dealbreakers), with every drop counted and named; a model's opinion sits beside the score and never hides a post |
+| **Copies and ghost jobs** | One job reposted under several listings; old posts left up | Inherited from the feed | Copies of one job grouped into one; posts aged from the employer's own dates; ghost listings past 90 days dropped |
+| **What the AI writes** | n/a | Applications and cover letters, often sent for you | Drafts you read: a cover letter, a resume review, a tailored resume. Every claim is checked against your resume and the advert, and anything it cannot find there is flagged. It never applies for you |
+| **Your resume and your searches** | On their servers, tied to an account | Uploaded to their servers | On your machine. The AI can run locally (Ollama), and with a hosted model your contact details are not sent |
+| **What it costs you** | Free, paid for by your attention and data | Usually a subscription | Free and open source; a hosted model's own fees if you use one |
+
+**What it is not good at, said plainly:** it needs setting up, it reaches
+fewer employers outside North America and parts of Asia for now
+([docs/REGIONS.md](docs/REGIONS.md)), it does not work around sites that
+offer no public way in or refuse automated readers (Indeed, LinkedIn and
+SEEK among them; `jobdork dork` builds search links for those instead), and it never applies on your
+behalf. [What it cannot do](#what-it-cannot-do) has the full list.
+
+---
+
 ## Install
 
 ```bash
@@ -93,7 +117,10 @@ docker run --rm -p 127.0.0.1:8765:8765 \
 Open the URL it prints. It runs as a non-root user, and the dashboard is
 published to your own machine only.
 
-**On a NAS or a home server,** follow [docs/DEPLOY.md](docs/DEPLOY.md):
+**On a NAS or a home server,** the quickest way is [`compose.yaml`](compose.yaml),
+pasted into the NAS's Docker app as a project; [docs/DEPLOY.md](docs/DEPLOY.md)
+says where that is on Synology, QNAP, UGREEN, TrueNAS, Unraid and Portainer,
+and covers
 installing Docker and Tailscale, running the AI on a separate computer, and
 opening the dashboard from anywhere. In short, name the address you will open
 it by, and publish the port to your network rather than to the NAS alone:
@@ -101,7 +128,7 @@ it by, and publish the port to your network rather than to the NAS alone:
 ```bash
 docker run -d --restart unless-stopped -p 8765:8765 \
   -e JOBDORK_ALLOW_HOSTS=192.168.1.50 \
-  -v /volume1/docker/jobdork/data:/app/data jessengolab/jobdork:<version>
+  -v /volume1/docker/jobdork/data:/app/data jessengolab/jobdork:0.14.4
 ```
 
 With no config mapped, the first start copies the image's example to
@@ -121,13 +148,13 @@ on an 8 GB NAS one AI verdict took 8 minutes at 100% load. `llm.context`
 (default 16,384 tokens) is how much text jobdork asks Ollama to make room for
 on each call.
 
-**Your resume and cover letters are temporary in Docker.** An uploaded resume
-and every document written from it go to a folder inside the container that
-is emptied when the dashboard starts and when it stops. Upload the resume
-again after a restart, and use **Download** on a cover letter you want to
-keep. Scan results and settings, in `data/` and `config.yaml`, are kept. On
-your own machine nothing is temporary: the resume is kept in `data/` and
-documents in `~/Documents/job-applications`.
+**Your resume and cover letters are kept,** in Docker in `data/documents`
+inside the same volume as scan results and settings, so a restart keeps
+them; on your own machine the resume is kept in `data/` and documents in
+`~/Documents/job-applications`. On a shared machine where nothing personal
+should outlive a run, add `-e JOBDORK_TEMP_DOCS=/tmp/jobdork`: the resume and
+every document then go to a folder inside the container that is emptied
+when the dashboard starts and when it stops.
 
 Either way, the Resume page lists every cover letter, with **View** to read
 one and **Delete** to remove its file and text at once.
@@ -136,14 +163,21 @@ one and **Delete** to remove its file and text at once.
 
 **Nothing here needs a credential to start.** Workable's cross-employer search
 takes a job title and answers for its whole market — no token, no account, no
-list of employers to maintain. That is where most of the volume comes from.
+list of employers to maintain. Himalayas adds remote jobs open to your
+country and your hours, and Kalibrr adds Philippine and Indonesian jobs.
 
-Alongside it, five per-employer boards read one company each: Greenhouse,
-Ashby, Lever, Breezy and SmartRecruiters. Coverage there is exactly the
-companies you name, which is the trade for getting the full advert.
+Alongside them, **employer boards** read one company each, with the full
+advert: Greenhouse, Ashby, Lever, Breezy, SmartRecruiters, Workday, Oracle
+Recruiting Cloud, Eightfold, Taleo Business Edition, and an employer's own
+careers site when it marks its postings up for search engines. **368 of them
+ship built in**, 308 of them US employers across 26 industries (hospitals,
+banks, retailers, insurers, airlines, government contractors and more); a
+scan reads the ones hiring in your countries, and you can narrow them to
+industries or switch them off (`sources.directory`, see
+[docs/SOURCES.md](docs/SOURCES.md#employer-boards-jobdork-ships-with)).
 
-`jobdork discover` finds those, by reading the board token off the employer's
-own careers page rather than guessing it from their name:
+`jobdork discover` adds any other employer, by reading the board token off
+their own careers page rather than guessing it from their name:
 
 ```
 $ jobdork discover vectra.ai
@@ -220,9 +254,11 @@ Place names are the part that needed real work:
 - **`WA` depends on who is reading.** Washington to someone in Seattle,
   Western Australia to someone in Perth. Your configured countries settle it.
 
-Where a country has no Adzuna index — the Philippines, for one — the coverage
-is Workable's search, whatever employer boards you name, and dork mode. Stated
-here rather than left for you to find.
+What a scan reaches differs by region, and is measured rather than assumed:
+[docs/REGIONS.md](docs/REGIONS.md) has what reaches each region today (the US
+most, then Canada and Asia), the numbers measured so far, and the plan for
+Europe, the Middle East, and Australia and Oceania, which are planned and
+not built yet.
 
 ---
 
@@ -404,7 +440,8 @@ scoped to that one folder.
 ### A second reader: the AI page
 
 A model can read what the rules cannot: the whole advert against your whole
-resume. It is optional, and it never hides a job post.
+resume. Judging, letters, reviews and tailored resumes need one; a scan does
+not, and a verdict never hides a job post.
 
 ```bash
 jobdork judge                 # the best job posts, read against your resume
@@ -517,7 +554,9 @@ A tool that quietly fails at something looks broken rather than out of scope.
 
 - **Employers not on a platform here, and not named by you.** Coverage is
   keyword search, the employer boards jobdork ships with (US first), and the
-  companies you add. `jobdork dork` covers the rest.
+  companies you add. A site that refuses scripts is not worked around, and
+  SAP SuccessFactors, UKG and iCIMS have no reader yet. `jobdork dork` covers
+  the rest.
 - **Screening an advert that arrived truncated.** Adzuna caps every advert at
   exactly 500 characters. Dealbreakers, work-mode detection and resume
   scoring all read the advert body, so on one run **517 of 653 Adzuna roles
@@ -529,13 +568,16 @@ A tool that quietly fails at something looks broken rather than out of scope.
   for them anyway.
 - **Salary you can filter on**, for seven postings in eight.
 - **Right to work.** A posting that states its sponsorship position is
-  flagged, read from the advert. Most state nothing; treat an unflagged role
-  as unknown rather than as available.
+  flagged, read from the advert, and the dealbreakers "us citizen" and "no
+  visa sponsorship" act on it. Most state nothing; treat an unflagged role as
+  unknown rather than as available.
 - **Telling a SmartRecruiters throttle from an empty board.** It answers 200
   with `totalFound: 0` for both, so a quiet board is reported as unknown
   rather than as not hiring.
-- **Jobs never posted to an ATS at all.** Trades, retail floor work and most
-  care work do not hire this way.
+- **Jobs never posted online in a system it can read.** Large employers'
+  store, warehouse and care jobs are (Dollar Tree, Lowe's, Starbucks and the
+  hospital systems in the built-in boards); small and local employers' trades,
+  shop and care jobs mostly are not.
 
 ---
 
@@ -590,8 +632,13 @@ blocking automated readers makes the market worse for everyone.
 | [docs/CONFIG.md](docs/CONFIG.md) | Every setting, what it accepts, what happens when it is wrong |
 | [docs/PLATFORMS.md](docs/PLATFORMS.md) | Each source's endpoint, quirks, rate limits and verification status |
 | [docs/SOURCES.md](docs/SOURCES.md) | Where coverage comes from, board tokens, the gazetteer |
+| [docs/REGIONS.md](docs/REGIONS.md) | What a scan reaches region by region, what has been measured, and the plan for the rest |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | Running it on a NAS or home server: Docker, compose, Tailscale, Ollama on another machine |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pipeline fits together and why |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Choices that shape jobdork, what was ruled out, and when to revisit them |
+| [docs/HISTORY.md](docs/HISTORY.md) | How jobdork got here, from a Google search builder, and the decisions that turned around |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | What changed, and every bug found on the way |
+| [SECURITY.md](SECURITY.md) | How releases are checked, signed and approved, and how to verify an image |
 
 ---
 
@@ -626,20 +673,25 @@ in the source. None of them calls a real model or a real site.
 .
 ├── run.sh                 # shell wrapper (auto-detects the venv)
 ├── config.example.yaml    # copy to config.yaml
+├── Dockerfile             # the published image
+├── compose.yaml           # jobdork on a NAS, as a compose project
 ├── jobdork/
 │   ├── cli.py             # every command
-│   ├── core/              # config, run telemetry, text helpers
+│   ├── core/              # config, where the resume is kept, run telemetry, text helpers
 │   ├── db/                # SQLite store, migrations, grouping copies of a job
-│   ├── fetch/             # one adapter per source, and the paced HTTP client
-│   ├── search/            # scan, screen, enrich, discover, listing check, geo, resume
+│   ├── fetch/             # one adapter per source, robots.txt, and the paced HTTP client
+│   ├── search/            # scan, screen, dealbreakers, built-in boards, freshness, enrich,
+│   │                      # discover, listing check, geo, resume
 │   ├── ai/                # the model, judging, the hallucination guard, AI letter and review
 │   ├── writing/           # claude -p drafts and the checks every draft gets
 │   ├── web/               # the dashboard server and its API
 │   ├── output/            # the static HTML/JSON page and the email digest
 │   ├── dork/              # the original Google query generator (boards.py holds its tables)
-│   └── data/              # cities gazetteer, dashboard page, humanizer rules
+│   └── data/              # built-in employer boards, cities gazetteer, dashboard page, humanizer rules
+├── scripts/               # build the boards list, benchmarks, gazetteer, image check
 ├── tests/                 # python tests/run_all.py
 ├── docs/
+├── .github/workflows/     # tests and image (docker.yml), weekly boards re-check (boards.yml)
 └── data/jobdork.db        # your database (created on first run)
 ```
 

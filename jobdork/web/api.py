@@ -1119,6 +1119,38 @@ def fresh_preview(cfg) -> dict:
             "pursuing": sum(n for s, n in by_status.items() if s in PURSUING_STATUSES)}
 
 
+def delete_scanned_job(cfg, expect):
+    """Back up, then delete every scanned job post, and scan nothing.
+
+    The fresh scan without its scan: for starting over later, or with other
+    settings. Same preview, same count check now and again when it runs,
+    same backup; posts added by hand are kept, and posts you deleted before
+    stay deleted.
+    """
+    from ..db.store import Store
+
+    try:
+        expect = int(expect)
+    except (TypeError, ValueError):
+        raise ApiError("preview first") from None
+    with Store(cfg.db_path) as store:
+        now = store.scanned_count()
+    if now != expect:
+        raise ApiError(f"the count changed from {expect} to {now} since the "
+                       "preview; preview again", 409)
+
+    def work(progress):
+        with Store(cfg.db_path) as store:
+            if store.scanned_count() != expect:
+                raise ApiError("the job posts changed before the delete started; "
+                               "nothing was deleted", 409)
+            backup = _backup(cfg, store, "delete-scanned")
+            deleted = store.clear_scanned()
+        progress(f"backed up to {backup}")
+        return f"deleted {deleted} scanned job posts; backup at {backup}"
+    return work
+
+
 def fresh_scan_job(cfg, expect):
     """Back up, delete every scanned job post, then scan from scratch.
 

@@ -145,6 +145,16 @@ def test_southeast_asian_sites_are_search_links_on_request_only():
         assert site in boards.SITE_DORKS and site not in boards.DEFAULT_SITES
 
 
+def test_each_country_you_want_is_asked_for_by_name():
+    """Without country=Indonesia the search answers with Philippine jobs."""
+    fetcher = _Fetcher([], 0)
+    kalibrr.fetch(fetcher, _cfg(("ID",)), today=TODAY)
+    assert [a["country"] for a in fetcher.asked] == ["Indonesia"]
+    fetcher = _Fetcher([], 0)
+    kalibrr.fetch(fetcher, _cfg(()), today=TODAY)             # no countries: both
+    assert sorted(a["country"] for a in fetcher.asked) == ["Indonesia", "Philippines"]
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

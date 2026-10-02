@@ -220,6 +220,13 @@ button.del{padding:.15rem .55rem;font-size:.75rem}
 .samples{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.5rem}
 .samples .act{font-size:.78rem;padding:.2rem .6rem}
 button.del.armed{color:var(--bad);border-color:var(--bad);font-weight:600}
+.clearall{margin:.2rem 0 .4rem}
+.clearall .confirm{border:1px solid var(--bad);border-radius:8px;padding:.6rem .8rem;max-width:40rem}
+.clearall .confirm .bar{margin:.5rem 0 0}
+.delconfirm{display:inline-flex;gap:.3rem}
+.delconfirm button{padding:.15rem .45rem;font-size:.75rem}
+.delconfirm button svg.bi{margin:0}
+.delconfirm .del-yes{color:var(--bad);border-color:var(--bad)}
 .field label{display:block;font-size:.82rem;color:var(--muted);margin-bottom:.25rem}
 .picker{display:flex;flex-wrap:wrap;gap:.6rem}
 .picker label{display:flex;flex-direction:column;gap:.2rem;font-size:.75rem;margin:0}
@@ -391,6 +398,9 @@ dialog{overflow:visible}
 .warnwrap:hover .warntip,.warnwrap:has(:focus-visible) .warntip{display:block}
 /* Never over the confirm step it warns about: that panel says it all. */
 .warnwrap.open .warntip{display:none}
+.datawarn{border:1px solid var(--bad);border-radius:8px;padding:.6rem .85rem;margin:.5rem 0;
+  max-width:60rem}
+.datawarn code{white-space:nowrap}
 #fresh-confirm:not(:empty){border:1px solid var(--bad);border-radius:8px;padding:.7rem .85rem;
   margin:.4rem 0 .8rem;background:color-mix(in srgb, var(--bad) 7%, var(--bg));font-size:.86rem}
 #fresh-confirm .bar{margin:.55rem 0 0}
@@ -533,12 +543,25 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
           backed up first, and you confirm the number before anything is deleted.
         </span>
       </span>
+      <span class="warnwrap">
+        <button data-icon="trash-2" class="act danger" id="btn-delete-scanned" aria-describedby="delete-tip">Delete all scanned posts</button>
+        <span class="warntip" id="delete-tip" role="tooltip">
+          <b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.5 21h21L12 2.5zm-1 7h2v6h-2v-6zm0 8h2v2h-2v-2z"/></svg>
+            Deletes all job posts</b>
+          Every job post found by scans is deleted, with its status, notes, AI
+          verdict and document records, and no scan follows: run one when you
+          are ready. Posts you applied to or are interviewing for go too. The
+          database is backed up first, and you confirm the number before
+          anything is deleted.
+        </span>
+      </span>
       <button data-icon="download" class="act" id="btn-enrich">Fetch missing adverts</button>
       <button data-icon="filter" class="act" id="btn-rescreen">Re-apply filters</button>
       <button data-icon="circle-check" class="act" id="btn-check" title="Ask each posting whether the job is still up; close the ones that are gone">Check still open</button>
       <button data-icon="sparkles" class="act spend" id="btn-judge" title="The model on the AI page reads the best job posts against your resume">AI: judge top job posts</button>
       <span class="count" id="scanstate"></span>
     </div>
+    <div class="datawarn" id="datawarn" role="alert" hidden></div>
     <p class="hint" id="aihint"></p>
     <div id="scanmsg"></div>
     <div id="fresh-confirm"></div>
@@ -716,6 +739,7 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
         <input id="add-title" placeholder="A job title, e.g. Security engineer">
         <button data-icon="plus" class="act primary">Add</button><span id="msg-titles"></span>
       </form>
+      <div class="clearall" id="clear-titles"></div>
       </div>
       <div class="sgroup">
       <h3>Never show these titles</h3>
@@ -726,6 +750,7 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
         <input id="add-exclude" placeholder="A word or phrase, e.g. Intern">
         <button data-icon="plus" class="act primary">Add</button><span id="msg-exclude"></span>
       </form>
+      <div class="clearall" id="clear-exclude"></div>
       </div>
       <div class="sgroup">
       <h3>Countries to keep job posts from</h3>
@@ -758,6 +783,7 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
           <option value="0">Costs 8 points</option></select>
         <button data-icon="plus" class="act primary">Add</button><span id="msg-deal"></span>
       </form>
+      <div class="clearall" id="clear-deal"></div>
       <p class="hint" style="margin:.25rem 0">Common ones, one click to add:</p>
       <div class="samples" id="deal-samples"></div>
       <p class="hint" style="margin:.25rem 0"><b>Try it.</b> Paste a sentence from an
@@ -1208,6 +1234,7 @@ const ICONS = {
   "trash-2": "<path d=\"M10 11v6\"/><path d=\"M14 11v6\"/><path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\"/><path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/>",
   "undo-2": "<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"/>",
   "upload": "<path d=\"M12 3v12\"/><path d=\"m17 8-5-5-5 5\"/><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/>",
+  "check": "<path d=\"M20 6 9 17l-5-5\"/>",
   "x": "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>"
 };
 const TAB_ICON = {tools: 'sparkles', advert: 'file-text', screen: 'clipboard-check', cv: 'file-user',
@@ -1393,40 +1420,50 @@ async function runJob(path) {
 }
 $('run').onclick = () => runJob('/api/scan');
 
-// Fresh scan: preview the count, then a red button that carries it. The
-// server refuses if the number moved since, as Clean up does.
-const freshOpen = on => document.querySelector('.warnwrap').classList.toggle('open', on);
-$('btn-fresh').onclick = async () => {
+// Fresh scan, and delete without a scan: preview the count, then a red
+// button that carries it. The server refuses if the number moved since, as
+// Clean up does.
+const warnOpen = (btn, on) => {
+  document.querySelectorAll('.warnwrap').forEach(w => w.classList.remove('open'));
+  if (on) $(btn).closest('.warnwrap').classList.add('open');
+};
+async function confirmDelete(btn, scanAfter) {
   const box = $('fresh-confirm');
-  freshOpen(true);
+  warnOpen(btn, true);
   box.innerHTML = '<span class="hint">Counting…</span>';
   const r = await api('/api/scan/fresh/preview', {method: 'POST'});
   if (!r.ok) { box.innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
   const d = await r.json();
   if (!d.count) {
-    box.innerHTML = '<span class="hint">There are no scanned job posts to delete; use Run a scan.</span>';
+    box.innerHTML = `<span class="hint">There are no scanned job posts to delete${scanAfter ? '; use Run a scan' : ''}.</span>`;
     return;
   }
-  box.innerHTML = `<b>This deletes all ${d.count.toLocaleString()} scanned job posts</b>, with their
-      statuses, notes, AI verdicts and document records, then scans from scratch.
+  const n = d.count.toLocaleString();
+  box.innerHTML = `<b>This deletes all ${n} scanned job posts</b>, with their
+      statuses, notes, AI verdicts and document records${scanAfter
+        ? ', then scans from scratch' : '. No scan follows; run one when you are ready'}.
       ${d.pursuing ? `<div class="err" style="margin-top:.3rem">${d.pursuing.toLocaleString()} of them are
         ones you are pursuing (applied, submitted, interviewing, offer).</div>` : ''}
       <div class="hint">The database is backed up to data/backups first. Posts you deleted
         before stay deleted${d.kept_by_hand ? `; ${d.kept_by_hand} added by hand are kept` : ''}.</div>
     <div class="bar">
-      <button data-icon="trash-2" class="act danger" id="fresh-go">Delete ${d.count.toLocaleString()} job posts and scan</button>
+      <button data-icon="trash-2" class="act danger" id="fresh-go">${scanAfter
+        ? `Delete ${n} job posts and scan` : `Delete ${n} job posts`}</button>
       <button data-icon="x" class="act" id="fresh-cancel">Cancel</button>
     </div>`;
-  $('fresh-cancel').onclick = () => { box.innerHTML = ''; freshOpen(false); };
+  $('fresh-cancel').onclick = () => { box.innerHTML = ''; warnOpen(btn, false); };
   $('fresh-go').onclick = async () => {
     $('fresh-go').disabled = true;
-    const go = await api('/api/scan/fresh', {method: 'POST', body: form({expect: d.count})});
+    const go = await api(scanAfter ? '/api/scan/fresh' : '/api/scan/delete',
+      {method: 'POST', body: form({expect: d.count})});
     if (!go.ok) { box.innerHTML = `<span class="err">${esc(await go.text())}</span>`; return; }
-    box.innerHTML = ''; freshOpen(false);
+    box.innerHTML = ''; warnOpen(btn, false);
     $('scanmsg').innerHTML = ''; actPick = 0;
     pollActivity(); loadRoles();
   };
-};
+}
+$('btn-fresh').onclick = () => confirmDelete('btn-fresh', true);
+$('btn-delete-scanned').onclick = () => confirmDelete('btn-delete-scanned', false);
 $('btn-enrich').onclick = () => runJob('/api/enrich');
 $('btn-rescreen').onclick = () => runJob('/api/rescreen');
 $('btn-check').onclick = () => runJob('/api/check');
@@ -1709,8 +1746,15 @@ async function refreshState() {
   hasClaude = s.claude;
   aiLabel = s.ai || '';
   $('aihint').textContent = s.ai_problem ? `AI: ${s.ai_problem}` : `AI: ${s.ai}`;
+  // Docker without -v: the data lives in the container and goes with it.
+  $('datawarn').hidden = !s.unkept_data;
+  if (s.unkept_data) $('datawarn').innerHTML = `<b class="err">Your data is deleted with this
+    container.</b> <code>${esc(s.unkept_data)}</code> is inside the container, not a folder on
+    your machine, so your job posts, settings, resume and letters go when the container is
+    removed. Start it with <code>-v &lt;a folder on this machine&gt;:${esc(s.unkept_data)}</code>
+    to keep them.`;
   const busy = s.busy;
-  ['run','btn-fresh','btn-enrich','btn-rescreen','btn-check','btn-judge','btn-discover','btn-discover-add','btn-digest','btn-review']
+  ['run','btn-fresh','btn-delete-scanned','btn-enrich','btn-rescreen','btn-check','btn-judge','btn-discover','btn-discover-add','btn-digest','btn-review']
     .forEach(id => { if ($(id)) $(id).disabled = busy; });
   $('run').textContent = busy && s.job === 'scan' ? 'Scanning…' : 'Run a scan';
   $('btn-fresh').textContent = busy && s.job === 'fresh scan' ? 'Fresh scan running…' : 'Run fresh scan';
@@ -2496,17 +2540,64 @@ document.addEventListener('click', ev => {
   drawLists();
 });
 
-// Remove asks twice: the first click arms the button for three seconds.
+// Remove asks twice: the first click swaps it for a check (remove) and an
+// x (keep), and with neither clicked it comes back after four seconds.
 function wireRemove(box, rows, save) {
-  box.querySelectorAll('button.del').forEach(b => b.onclick = async () => {
-    if (!b.classList.contains('armed')) {
-      b.classList.add('armed'); b.textContent = 'Remove?';
-      setTimeout(() => { b.classList.remove('armed'); b.textContent = 'Remove'; }, 3000);
-      return;
-    }
-    b.disabled = true;
-    if (!await save(rows.filter((_, j) => j !== +b.dataset.i))) b.disabled = false;
+  box.querySelectorAll('button.del').forEach(b => b.onclick = () => {
+    const what = (b.getAttribute('aria-label') || 'Remove').replace(/^Remove /, '');
+    const ask = document.createElement('span');
+    ask.className = 'delconfirm';
+    ask.innerHTML = `<button type="button" class="act del-yes" data-icon="check"
+        title="Remove" aria-label="Yes, remove ${esc(what)}"></button>
+      <button type="button" class="act del-no" data-icon="x"
+        title="Keep" aria-label="No, keep ${esc(what)}"></button>`;
+    b.hidden = true;
+    b.after(ask);
+    const back = () => { clearTimeout(timer); ask.remove(); b.hidden = false; };
+    const timer = setTimeout(back, 4000);
+    ask.querySelector('.del-no').onclick = () => { back(); b.focus(); };
+    const yes = ask.querySelector('.del-yes');
+    yes.onclick = async () => {
+      clearTimeout(timer);
+      yes.disabled = true;
+      if (!await save(rows.filter((_, j) => j !== +b.dataset.i))) back();
+    };
+    yes.focus();
   });
+}
+
+// Remove all: a red confirm, as Delete all scanned posts has. Job titles
+// cannot be left empty (a scan needs one), so there the confirm asks for
+// the titles that replace them and saves both in one go.
+function drawClearAll(boxId, key, msgId, noun, replace) {
+  const box = $(boxId), rows = cfg[key] || [];
+  if (!rows.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<button type="button" class="act danger" data-icon="trash-2">Remove all ${rows.length}</button>`;
+  box.querySelector('button').onclick = () => {
+    const n = rows.length;
+    box.innerHTML = `<div class="confirm"><b>${replace ? 'Replace' : 'Remove'} all ${n} ${noun}.</b>
+      ${replace ? `A scan needs at least one, so type the ones to search for instead,
+        separated by commas.<div class="bar"><input id="${boxId}-new" style="flex:1 1 18rem"
+        placeholder="e.g. nurse, registered nurse"></div>` : 'This cannot be undone from here; add them again by hand if you change your mind.'}
+      <div class="bar">
+        <button type="button" class="act danger" data-icon="trash-2" id="${boxId}-go">${replace ? 'Replace all' : `Remove all ${n}`}</button>
+        <button type="button" class="act" data-icon="x" id="${boxId}-no">Cancel</button>
+        <span id="${boxId}-msg"></span>
+      </div></div>`;
+    const field = $(`${boxId}-new`);
+    $(`${boxId}-no`).onclick = () => drawClearAll(boxId, key, msgId, noun, replace);
+    $(`${boxId}-go`).onclick = async () => {
+      const next = replace ? [...new Set(field.value.split(',').map(t => t.trim()).filter(Boolean))] : [];
+      if (replace && !next.length) {
+        const m = $(`${boxId}-msg`); m.className = 'err'; m.textContent = 'Type at least one title.';
+        field.focus(); return;
+      }
+      $(`${boxId}-go`).disabled = true;
+      if (await saveList(key, next, msgId)) { pages[key] = 0; drawLists(); }
+      else drawClearAll(boxId, key, msgId, noun, replace);
+    };
+    (field || $(`${boxId}-go`)).focus();
+  };
 }
 
 function drawLists() {
@@ -2540,6 +2631,9 @@ function drawLists() {
   wireRemove($('ed-deal'), deals,
     async next => await saveList('dealbreakers', next, 'msg-deal') && (drawLists(), true));
   drawDealSamples();
+  drawClearAll('clear-titles', 'titles_include', 'msg-titles', 'job titles', true);
+  drawClearAll('clear-exclude', 'titles_exclude', 'msg-exclude', 'titles you never want shown', false);
+  drawClearAll('clear-deal', 'dealbreakers', 'msg-deal', 'dealbreakers', false);
 }
 
 // One add handler per form: read it, refuse the obvious, append, save.

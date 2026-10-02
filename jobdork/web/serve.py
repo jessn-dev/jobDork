@@ -218,6 +218,11 @@ def _config_payload(cfg) -> dict:
     }
 
 
+def _unkept(cfg) -> str:
+    from ..core import storage
+    return storage.unkept_data_dir(cfg)
+
+
 def _deal_row(d: dict) -> dict:
     """One dealbreaker as config.yaml holds it: words, or an advanced pattern."""
     words = d.get("words") or []
@@ -383,6 +388,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                     "claude": bool(__import__("shutil").which("claude")),
                     "ai": ai["label"],
                     "ai_problem": ai["problem"],
+                    "unkept_data": _unkept(cfg_holder["cfg"]),
                 })
             if path == "/api/events":
                 return self._events()
@@ -467,6 +473,18 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 if not started:
                     return self._reject(409, why)
                 return self._json(202, {"started": True, "job": "fresh scan"})
+            if path == "/api/scan/delete":
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                try:
+                    work = api_mod.delete_scanned_job(cfg_holder["cfg"], form.get("expect"))
+                except api_mod.ApiError as exc:
+                    return self._reject(exc.status, str(exc))
+                started, why = runner.start("delete scanned", work)
+                if not started:
+                    return self._reject(409, why)
+                return self._json(202, {"started": True, "job": "delete scanned"})
             if path == "/api/config":
                 return self._save_config()
             if path == "/api/resume":
@@ -985,6 +1003,13 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
     if session.port != port:
         print(f"port {port} was busy; using {session.port}")
     print(f"jobdork dashboard: {session.url}")
+    from ..core import storage
+    unkept = storage.unkept_data_dir(cfg)
+    if unkept:
+        print(f"WARNING: {unkept} is inside this container, not a mounted folder. "
+              "Your job posts, settings, resume and letters are deleted with the "
+              f"container. Start it with -v <a folder on this machine>:{unkept} "
+              "to keep them.")
     extra = allowed_extra_hosts()
     if extra:
         # A port named with the host is how that address reaches it (a NAS

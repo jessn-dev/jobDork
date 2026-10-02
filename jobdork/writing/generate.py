@@ -97,8 +97,9 @@ def documents_dir() -> Path:
 def default_root() -> str:
     """Where generated documents go, unless `--dir` says otherwise.
 
-    In a container that is the temporary folder (see core.storage), so a
-    letter lasts as long as the run; otherwise ~/Documents/job-applications.
+    In a container that is the documents folder in the kept volume, or the
+    temporary one when asked for (see core.storage); otherwise
+    ~/Documents/job-applications.
     """
     from ..core import storage
     temp = storage.documents_root()

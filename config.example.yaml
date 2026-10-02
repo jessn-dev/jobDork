@@ -133,8 +133,8 @@ sources:
     #   token: ramp
 
   # Employer boards jobdork ships with (jobdork/data/boards.csv): hundreds
-  # of US employers across industries, each found on the employer's own site
-  # and re-verified weekly. Read alongside `companies` above.
+  # of employers across industries, US first, then Canada and Asia, each found
+  # on the employer's own site and re-verified weekly. Read alongside `companies` above.
   #   countries   only boards hiring there; empty follows locations.countries
   #   industries  healthcare, banking, retail, logistics…; empty is all
   # `jobdork sources` says how many boards your settings read.
@@ -168,8 +168,9 @@ fetch:
   timeout: 20
   retries: 2
 
-# The AI reader, optional. Off while provider is empty; the dashboard's AI page
-# writes this section for you. Keys never go here (a key in this file stops the
+# The AI reader: judging, letters, reviews and tailored resumes need it; a scan
+# does not. Off while provider is empty; the dashboard's AI page writes this
+# section for you. Keys never go here (a key in this file stops the
 # load): type it on the AI page, where it is held in memory only, or set
 # ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY for the terminal.
 # See docs/CONFIG.md#llm.

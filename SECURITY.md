@@ -44,6 +44,11 @@ only after the owner approves it in the `release` environment. A push to
   it), attached in the registry.
 - The workflow's token can only read the repository; publishing, signing and
   the Docker Hub token are confined to the one approved job.
+- **The weekly boards re-check** (`.github/workflows/boards.yml`) is the one
+  workflow that writes: it pushes a branch and opens a pull request, with
+  `BOARDS_PR_TOKEN`, a fine-grained token for this repository only. Its pull
+  request goes through the same required checks and the owner's review as
+  any other; nothing it does reaches `main` or an image by itself.
 
 ---
 
@@ -75,7 +80,7 @@ only after the owner approves it in the `release` environment. A push to
 Check that it was built by this repository's workflow and not altered since:
 
 ```bash
-cosign verify <dockerhub-user>/jobdork:<version> \
+cosign verify jessengolab/jobdork:<version> \
   --certificate-identity-regexp '^https://github.com/jessn-dev/jobDork/\.github/workflows/docker\.yml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
@@ -85,7 +90,7 @@ Then run it **by digest**, the `sha256:…` the verification printed, rather
 than by tag:
 
 ```bash
-docker pull <dockerhub-user>/jobdork@sha256:<digest>
+docker pull jessengolab/jobdork@sha256:<digest>
 ```
 
 A tag can be re-pointed later; a digest always means the exact image you
@@ -110,16 +115,22 @@ got into the GitHub or Docker Hub account could get around everything above.
 - [x] Dependabot alerts and security updates.
 - [x] Private vulnerability reporting.
 
-**Still to do by the owner:**
-- [ ] Two-factor authentication on GitHub, preferably a passkey or security key.
-- [ ] Two-factor authentication on Docker Hub.
-- [ ] A Docker Hub personal access token for this workflow only, with the
+**Set, confirmed 2026-10-02:**
+- [x] A Docker Hub personal access token for this workflow only, with the
       Read & Write scope (not Delete), saved as the secret `DOCKERHUB_TOKEN`
       in the `release` environment, not in the repository. Rotate it yearly,
       and revoke it at once if it may have leaked.
-- [ ] The repository variable `DOCKERHUB_USERNAME`: the Docker Hub account.
+- [x] The variable `DOCKERHUB_USERNAME`, the Docker Hub account, in the
+      `release` environment (not at repository level).
+
+**Still to do by the owner:**
+- [ ] Two-factor authentication on GitHub, preferably a passkey or security key.
+- [ ] Two-factor authentication on Docker Hub.
 - [ ] If offered under Actions → General, require actions to be pinned to a
       full commit SHA.
+- [ ] `BOARDS_PR_TOKEN`, for the weekly boards re-check: a fine-grained
+      personal access token for this repository only, with Contents and Pull
+      requests set to Read and write and nothing else. Rotate it yearly.
 
 ---
 

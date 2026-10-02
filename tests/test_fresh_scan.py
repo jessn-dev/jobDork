@@ -82,6 +82,30 @@ def test_a_count_that_moved_since_the_preview_deletes_nothing():
             assert store.scanned_count() == 3
 
 
+def test_delete_all_scanned_backs_up_deletes_and_does_not_scan():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _seed(tmp)
+        lines, scanned = [], []
+        saved = api.scan_job
+        api.scan_job = lambda cfg: (lambda progress: scanned.append(True) or "scanned")
+        try:
+            summary = api.delete_scanned_job(cfg, 3)(lines.append)
+        finally:
+            api.scan_job = saved
+        assert not scanned and summary.startswith("deleted 3 scanned job posts")
+        with Store(cfg.db_path) as store:
+            left = [r[0] for r in store.conn.execute("SELECT origin FROM roles")]
+        assert left == ["manual"]                        # added by hand: kept
+        backups = list((Path(tmp) / "data" / "backups").glob("*-before-delete-scanned.db"))
+        assert len(backups) == 1 and any("backed up" in x for x in lines)
+        for expect in (3, "", None):                     # now 0: any old count is refused
+            try:
+                api.delete_scanned_job(cfg, expect)
+            except api.ApiError:
+                continue
+            raise AssertionError(f"expect={expect!r} must be refused")
+
+
 def test_the_terminal_previews_unless_told_yes():
     with tempfile.TemporaryDirectory() as tmp:
         cfg = _seed(tmp)

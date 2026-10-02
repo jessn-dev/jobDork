@@ -84,6 +84,9 @@ BOARD_PATTERNS: tuple[tuple[str, str], ...] = (
     ("ashby",      r"jobs\.ashbyhq\.com/([A-Za-z0-9._-]+)"),
     ("ashby",      r"api\.ashbyhq\.com/posting-api/job-board/([A-Za-z0-9._-]+)"),
     ("lever",      r"jobs\.(?:eu\.)?lever\.co/([A-Za-z0-9_-]+)"),
+    # A candidate's applications page names the board after it (Dr. Reddy's:
+    # jobs.smartrecruiters.com/my-applications/DrReddysLaboratoriesLimited).
+    ("smartrecruiters", r"jobs\.smartrecruiters\.com/my-applications/([A-Za-z0-9_-]+)"),
     ("smartrecruiters", r"jobs\.smartrecruiters\.com/([A-Za-z0-9_-]+)"),
     ("smartrecruiters", r"careers\.smartrecruiters\.com/([A-Za-z0-9_-]+)"),
     ("breezy",     HOST + r"\.breezy\.hr"),
@@ -119,6 +122,12 @@ UNSUPPORTED_PATTERNS: tuple[tuple[str, str], ...] = (
     ("icims", HOST + r"\.icims\.com"),
     ("taleo", HOST + r"\.taleo\.net"),
     ("successfactors", HOST + r"\.jobs2web\.com"),
+    ("successfactors", r"(?:career|performancemanager)\d*\.successfactors\.(?:com|eu)"
+                       r"[^\s\"'<>]{0,160}?company=([A-Za-z0-9_]+)"),
+    ("successfactors", HOST + r"\.sapsf\.(?:com|eu)"),
+    ("turbohire", HOST + r"\.turbohire\.co"),
+    ("darwinbox", HOST + r"\.darwinbox\.in"),
+    ("peoplestrong", HOST + r"\.peoplestrong\.com"),
     ("jobvite", r"jobs\.jobvite\.com/([A-Za-z0-9_-]+)"),
     ("jazzhr", HOST + r"\.applytojob\.com"),
     ("bamboohr", HOST + r"\.bamboohr\.com"),
@@ -159,6 +168,7 @@ NOT_TOKENS = {
     "embed", "job_board", "jobs", "careers", "search", "api", "v1", "static",
     "assets", "www", "job", "boards", "posting-api", "job-board", "images",
     "app", "cdn", "errors", "vs-errors", "login", "wday", "auth", "sso",
+    "my-applications",
 }
 
 SUPPORTED = ("greenhouse", "ashby", "lever", "smartrecruiters", "breezy", "workday",
@@ -305,8 +315,13 @@ def _extract(html: str, source_url: str) -> tuple[list[Found], list[Found]]:
 
     for platform, pattern in BOARD_PATTERNS:
         for match in re.finditer(pattern, html, re.IGNORECASE):
-            if any(g.lower() in NOT_TOKENS for g in match.groups()):
+            # Only the first part can be a word like "careers" by mistake; a
+            # Workday site may well be named Careers (razer/wd3/Careers).
+            if match.group(1).lower() in NOT_TOKENS:
                 continue
+            if platform == "workday" and match.group(3).lower() in {
+                    "wday", "job", "jobs", "login", "auth", "sso"}:
+                continue                 # an API or posting path, not a site
             # A vendor's test copy of an employer's board answers with jobs
             # too: HP's page named hp-sandbox.eightfold.ai.
             if re.search(r"sandbox|staging|(?:^|[-_.])(?:test|demo|uat|dev)(?:$|[-_.])",
@@ -742,6 +757,10 @@ def discover(employer: str, fetcher: Fetcher, max_pages: int = MAX_PAGES) -> Rep
     given = (employer or "").strip()
     if "://" in given and urllib.parse.urlsplit(given).path.strip("/"):
         push(given)
+    # The address given may be the board itself
+    # (razer.wd3.myworkdayjobs.com/Careers): read it like a page's link.
+    for item in _extract(given, given)[0]:
+        seen_supported.setdefault((item.platform, item.token.lower()), item)
     for base in bases:
         push(base + "/")
     landing = set(queue)

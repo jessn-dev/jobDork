@@ -558,6 +558,17 @@ def test_dealbreakers_are_words_tried_and_saved_through_the_server():
     _with_server(check)
 
 
+def test_delete_all_scanned_needs_the_previewed_count():
+    def check(run):
+        code, preview = _post_json(run, "/api/scan/fresh/preview", {})
+        assert code == 200, preview
+        code, body = _post_json(run, "/api/scan/delete", {"expect": preview["count"] + 1})
+        assert code == 409, body
+        code, body = _post_json(run, "/api/scan/delete", {"expect": "x"})
+        assert code == 400, body
+    _with_server(check)
+
+
 def test_where_you_are_is_saved_from_the_picker_and_must_resolve():
     def check(run):
         code, body = run.get("/api/places/cities?country=PH&q=bagu")
@@ -642,6 +653,51 @@ def test_an_uploaded_resume_is_deleted_but_your_own_file_is_only_unset():
         assert mine.is_file(), "a file you chose must never be deleted"
         assert run.cfg_now.resume_path == ""
     _with_server(check)
+
+
+def test_in_a_container_the_resume_and_letters_are_kept_unless_asked_otherwise():
+    """JOBDORK_DOCS_DIR keeps them in the volume; JOBDORK_TEMP_DOCS, opt-in, wins."""
+    import os
+
+    from jobdork.core import storage
+    with tempfile.TemporaryDirectory() as tmp:
+        saved = {k: os.environ.get(k) for k in (storage.DOCS_ENV, storage.TEMP_ENV)}
+        try:
+            os.environ.pop(storage.TEMP_ENV, None)
+            os.environ[storage.DOCS_ENV] = str(Path(tmp) / "data" / "documents")
+            cfg = Config(titles_include=["x"])
+            assert storage.resume_dir(cfg) == Path(tmp) / "data" / "documents" / "resume"
+            assert storage.documents_root() == Path(tmp) / "data" / "documents" / "job-applications"
+            assert storage.temp_root() is None and storage.wipe() == 0   # nothing emptied
+            os.environ[storage.TEMP_ENV] = str(Path(tmp) / "temp")
+            assert storage.resume_dir(cfg) == Path(tmp) / "temp" / "resume"
+        finally:
+            for k, v in saved.items():
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+
+
+def test_docker_without_a_mounted_data_folder_is_warned():
+    """No -v for /app/data: the data goes with the container, and the page says so."""
+    from jobdork.core import config as config_mod
+    from jobdork.core import storage
+
+    line = "36 35 98:0 / {} rw,relatime - overlay overlay rw\n"
+    with tempfile.TemporaryDirectory() as tmp:
+        data = Path(tmp) / "app" / "data"
+        data.mkdir(parents=True)
+        cfg = Config(titles_include=["x"], db_path=str(data / "jobdork.db"))
+        plain, mounted = Path(tmp) / "plain", Path(tmp) / "mounted"
+        plain.write_text(line.format("/"))
+        mounted.write_text(line.format("/") + line.format(data.resolve()))
+        saved = config_mod.in_container
+        try:
+            config_mod.in_container = lambda: True
+            assert storage.unkept_data_dir(cfg, plain) == str(data.resolve())
+            assert storage.unkept_data_dir(cfg, mounted) == ""
+            config_mod.in_container = lambda: False           # not in a container
+            assert storage.unkept_data_dir(cfg, plain) == ""
+        finally:
+            config_mod.in_container = saved
 
 
 def test_the_temporary_folder_is_emptied_and_forgotten():

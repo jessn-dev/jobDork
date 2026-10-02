@@ -5,9 +5,11 @@
 | [CONFIG.md](CONFIG.md) | Every setting, what it accepts, what happens when it is wrong, including the [AI reader](CONFIG.md#llm) |
 | [PLATFORMS.md](PLATFORMS.md) | Each source's endpoint, quirks, rate limits and verification status |
 | [SOURCES.md](SOURCES.md) | Where coverage comes from, board tokens, the gazetteer, what is out of reach |
+| [REGIONS.md](REGIONS.md) | What a scan reaches region by region today, what has been measured, and the plan for Europe, the Middle East, and Australia and Oceania |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the pipeline fits together and why, the package layout, the AI guard and run history |
-| [DEPLOY.md](DEPLOY.md) | Running it on a NAS or home server: Docker, Tailscale, Ollama on a separate AI machine, and opening it from anywhere |
-| [DECISIONS.md](DECISIONS.md) | Choices that shape jobdork, what was ruled out, and what would make each worth revisiting (API keys, the deferred key proxy) |
+| [DEPLOY.md](DEPLOY.md) | Running it on a NAS or home server: Docker or `compose.yaml` (per NAS), Tailscale, Ollama on a separate AI machine, and opening it from anywhere |
+| [DECISIONS.md](DECISIONS.md) | Choices that shape jobdork, what was ruled out, and what would make each worth revisiting (first-run onboarding, API keys, the deferred key proxy) |
+| [HISTORY.md](HISTORY.md) | How jobdork got here, era by era, and the decisions that turned around |
 | [CHANGELOG.md](CHANGELOG.md) | What changed, and every bug found on the way |
 
 ---
