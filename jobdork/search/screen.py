@@ -334,8 +334,11 @@ def dealbreaker_verdict(role: Role, cfg: Config) -> tuple[bool, str, float, list
             flags.append("no advert text, so dealbreakers were not checked")
         return True, "", 0.0, flags
 
+    from . import dealbreakers
+
     for rule in cfg.dealbreakers:
-        if rule.regex and rule.regex.search(role.description):
+        if rule.regex and dealbreakers.find(rule.regex, role.description,
+                                            rule.negations_count):
             if rule.hard:
                 return False, f"dealbreaker: {rule.name}", 0.0, flags
             flags.append(f"dealbreaker (soft): {rule.name}")

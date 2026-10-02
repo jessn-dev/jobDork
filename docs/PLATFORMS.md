@@ -20,6 +20,13 @@ the documentation is not.
 | [SmartRecruiters](#smartrecruiters) | `api.smartrecruiters.com/v1/companies/{token}/postings` | none | detail endpoint | — | stated | verified |
 | [Adzuna](#adzuna) | `api.adzuna.com/v1/api/jobs/{cc}/search/{page}` | free key | **500 chars, capped** | 30%, mostly predicted | rarely | verified |
 | [USAJOBS](#usajobs) | `data.usajobs.gov/api/search` | free key | full | **100%** | rarely | verified |
+| [Kalibrr](#kalibrr) | `www.kalibrr.com/kjs/job_board/search` | none | full, inline | when shown | stated | verified |
+| [Workday](#workday) | `{tenant}.{dc}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs` | none | detail endpoint | — | rarely | verified |
+| [Himalayas](#himalayas) | `himalayas.app/jobs/api/search` | none | full, inline | with a currency | **always remote** | verified |
+| [Oracle Recruiting Cloud](#oracle-recruiting-cloud) | `{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions` | none | detail endpoint | — | rarely | verified |
+| [Eightfold](#eightfold) | `{host}/api/pcsx/search` | none | detail endpoint | — | stated | verified |
+| [Taleo Business Edition](#taleo-business-edition) | `{host}/{path}/ats/careers/v2/searchResults` | none | on the job's page | when stated | when stated | verified |
+| [Employer site](#employer-site) | its sitemap, then each posting page | none | full, on the page | when stated | when stated | verified |
 
 ---
 
@@ -366,6 +373,216 @@ Paced at 3/s.
 
 ---
 
+## Kalibrr
+
+    GET https://www.kalibrr.com/kjs/job_board/search?text=...&limit=50&offset=0
+
+The search Kalibrr's own site reads. Philippine and Indonesian jobs, many of
+them from employers whose careers page Kalibrr hosts, so it reaches
+Philippine employers that run no Greenhouse or Lever board. `robots.txt`
+closes only `/root` and `/candidate/profile`. Skipped when
+`locations.countries` names neither PH nor ID.
+
+- **Dates are the best of any source:** `activation_date` (posted),
+  `application_end_date` (applications close; a post past it is not
+  returned) and `es_recruiter_last_seen`. A recruiter not seen in 30 days is
+  flagged: applications may not be read.
+- `text` matches loosely: "software engineer" put a marketing internship
+  first. Screening's title match does the real filtering (231 of 240 in the
+  first live run).
+- No location parameter; results mix the Philippines and Indonesia, so the
+  country is read off each job and the radius measured locally.
+- Pay counts only when `salary_shown` is true.
+- `is_work_from_home` / `is_hybrid` give the arrangement; both false is left
+  unstated.
+- **Job pages answer 403 to scripts.** The link works in a browser. The
+  "still open" check goes by the closing date, then by whether the post was
+  in the latest search, as for Adzuna; `enrich` skips it (the search already
+  carries the whole advert).
+
+---
+
+## Workday
+
+    POST https://{tenant}.{dc}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs
+    GET  https://{tenant}.{dc}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/job/...
+
+Most large employers hire through Workday. The JSON is what the careers
+site's own pages read; robots.txt allows the public site path. The token is
+three parts, `tenant/dc/site` (`nvidia/wd5/NVIDIAExternalCareerSite`), read
+off the employer's careers page by `discover`.
+
+- **Your countries are asked of the board.** Its country filter has a name
+  each employer picks (NVIDIA: `locationHierarchy1`) and is recognised by its
+  values being country names. One empty search per board reads it; a board
+  with none of your countries is skipped after that one request ("NVIDIA
+  lists no jobs in PH"). With no such filter, a listing whose location names
+  another country is skipped before its detail is fetched.
+- **A detail is one request per job**, so only titles your title rules keep
+  are fetched in full. NVIDIA for two titles, worldwide: 145 requests and
+  2½ minutes; for India alone, 71.
+- The list states `total` on its first page only.
+- `startDate` is the posting date; a relative "Posted 30+ Days Ago" when it
+  is missing.
+- **Still open:** the detail answers 404 for a removed posting and
+  `posted: false` for one taken down; the page itself is a script and says
+  nothing.
+- Paced at one request a second for every `*.myworkdayjobs.com` host.
+
+---
+
+## Himalayas
+
+    GET https://himalayas.app/jobs/api/search?q=...&country=PH&sort=recent&page=1
+
+Remote jobs worldwide, about 93,000. No key; robots.txt allows the API. Their
+terms ask that a job links back to Himalayas and names it as the source: the
+stored link is the Himalayas page, and the source shows as Himalayas.
+
+- **`country`** returns jobs open to that country, including worldwide ones.
+  Most "remote" jobs from US employers are remote within the US; asking by
+  country is what keeps those out. One search per title per country.
+- **Working hours:** `timezoneRestrictions` lists the UTC offsets a job
+  accepts. One more than an hour from yours is left out. Your offset comes
+  from the anchor's longitude (Baguio, 120.6° east: UTC+8); with no anchor,
+  hours are not checked.
+- 20 jobs a request at most, three pages a title, newest first.
+- `pubDate` / `expiryDate` are Unix seconds. Past expiry, a post is not
+  returned, and a stored one is closed by the "still open" check.
+- Pay counts when it comes with a currency.
+- **Job pages answer 403 to scripts** although robots.txt allows them.
+  "Still open" goes by the expiry, then by the latest search; `enrich` skips it.
+- Skipped when `locations.work_modes` leaves out remote.
+
+---
+
+## Oracle Recruiting Cloud
+
+    GET https://{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions
+        ?onlyData=true&finder=findReqs;siteNumber={site},keyword="…",limit=25,offset=…
+    GET https://{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails
+        ?onlyData=true&expand=all&finder=ById;Id="{id}",siteNumber={site}
+
+JPMorgan Chase, Kroger, Hilton, Marriott and Mayo Clinic hire through it.
+The JSON is what the employer's Candidate Experience site reads; robots.txt
+on these hosts answers 403, so there is no file to honour. The token is two
+parts, `host/site` (`jpmc.fa.oraclecloud.com/CX_1001`), read off the careers
+page by `discover`: from the careers link, or, where the page only loads
+Oracle's assets (Kroger), from a `siteNumber=` in their addresses.
+
+- **The keyword search is loose.** "software engineer" finds 1,659 jobs at
+  JPMorgan, ranked by relevance. A listing is kept only when your title
+  rules keep its title; each title is read at most four pages of 25 deep,
+  and paging stops at the first page with none of yours. Kroger, for
+  "pharmacist" in the US: 100 kept, the four-page cap.
+- **Your countries are asked of the board.** Its location filter mixes
+  countries, states and cities; the entries named as a country are the
+  country filter. Several are one finder value joined by an encoded `;`
+  (`%3B`): a bare `;` ends the finder's name. A board with none of yours
+  costs one request.
+- **The advert is a detail request**, one per kept job:
+  `ExternalDescriptionStr`, responsibilities and qualifications.
+- **One board, two site numbers.** Hilton's `CX_1` and `CX_1009` answer with
+  the same 4,225 jobs; `discover` keeps one.
+- **Still open:** the detail answers with no items for a removed posting.
+- Paced at two requests a second for every `*.oraclecloud.com` host.
+
+---
+
+## Eightfold
+
+    GET https://{host}/api/pcsx/search?domain={domain}&query=…&location=…&start=…
+    GET https://{host}/api/pcsx/position_details?domain={domain}&position_id={id}
+
+Starbucks and Lockheed Martin hire through it. robots.txt on these hosts
+closes the site and opens `/careers` and `/api/pcsx` to tools; this is that
+path. The token is two parts, `host/domain`
+(`starbucks.eightfold.ai/starbucks.com`): the careers host, `{tenant}.eightfold.ai`
+or the employer's own (`jobs.nvidia.com`), and the employer domain the API
+is asked for.
+
+- **A wrong domain answers 404** and none at all 422, so `discover` checks
+  the one it guesses: a `domain=` the page names, then the site it read the
+  tenant on, then the tenant's name with .com. Lockheed's page names
+  `lockheedmartin.eightfold.ai` and no domain; `lockheedmartin.com` answers.
+- **Pages are ten results**, whatever `num` asks for, ranked by relevance.
+  Each title is read at most five pages deep, a listing is kept only when
+  your title rules keep it, and a page with none of yours ends it.
+- **Your countries are asked by name** (`location=United States`); a
+  country with no jobs costs one request and is skipped. Starbucks lists
+  none in the Philippines.
+- **The advert is a detail request**, one per kept job; a removed posting
+  answers 404. A posting's address carries `?domain=`, which its page
+  accepts, so the still-open check and `enrich` can ask again.
+- `workLocationOption` is `onsite`, `hybrid` or `remote`.
+- Paced at two requests a second per host. Starbucks answers slowly: 56
+  requests took 107 seconds, Lockheed's 57.
+
+---
+
+## Taleo Business Edition
+
+    GET https://{host}/{path}/ats/careers/v2/searchResults?org={org}&cws={cws}&rowFrom=…
+    GET https://{host}/{path}/ats/careers/v2/viewRequisition?org={org}&cws={cws}&rid={id}
+
+Costco hires through it. There is no JSON: the search results are a page
+listing ten jobs at a time, paged by `rowFrom` with no session needed, and
+each job's own page carries a schema.org `JobPosting`, read as an employer
+site's is. robots.txt on these hosts answers 404, which allows everything.
+The token is four parts, `host/path/org/cws`
+(`phf.tbe.taleo.net/phf02/COSTCO/41`), read off the careers page by
+`discover`.
+
+- **Only titles your title rules keep are opened**, one page each.
+  Costco's board, "engineer" and "analyst" in the US: 11 jobs, 13 requests,
+  13 seconds. At most 300 jobs are listed per board.
+- `org` and `cws` come in either order, and Costco's sit in a script joined
+  by `\u0026`, so `discover` matches both.
+- **`datePosted` may be Java's form**, "Thu Jul 02 00:00:00 GMT 2026"; it is
+  read as 2026-07-02, here and for every employer site.
+- **Still open:** a removed job answers 200 with "This job has moved or is
+  no longer available", which counts as closed.
+- Paced at one page a second for every `*.taleo.net` host.
+
+Taleo Enterprise (`*.taleo.net/careersection/…`) is a different product and
+has no reader; Kaiser Permanente and UnitedHealth Group, which use it, are
+read through their own careers sites instead.
+
+---
+
+## Employer site
+
+    GET {site}/robots.txt → Sitemap: …
+    GET {site}/sitemap.xml (and its jobs children)
+    GET {posting page}   → <script type="application/ld+json"> JobPosting
+
+For employers whose applicant tracking system has no reader here. Their
+careers site lists every posting in its sitemap and marks each posting page
+up for Google as a schema.org `JobPosting`: title, places, posting date,
+closing date, the full advert, and pay when stated. Kaiser Permanente,
+UnitedHealth Group, Mayo Clinic, Wells Fargo, State Farm, UPS and General
+Motors all do. The token is the careers site's address
+(`https://jobs.mayoclinic.org`); `discover` offers it when it finds no board
+it can read and a posting on the site is marked up.
+
+- **A posting address has a jobs word and an id** (`/job/irvine/nursing-
+  attendant/641/10035`, `/jobs/R-1075582`); category and blog pages in the
+  same sitemap have no id and are left out. The same posting listed once
+  per language counts once.
+- **Only postings whose address names one of your titles are read**, one
+  request each, at most 40 per site per scan, newest first. A site whose
+  addresses are ids only (`jobs.statefarm.com/jobs/46295`) is read newest
+  first, 20 a scan.
+- `jobLocation.address` is one address, a list of them (Wells Fargo), or
+  text. `jobLocationType: TELECOMMUTE` is remote.
+- **Pay of 0 to 0 is no pay stated** (State Farm sends that on every post).
+- **Still open:** a `validThrough` in the past is closed, and is left out
+  of a scan; the page answering 404 is closed.
+- robots.txt is honoured for the sitemaps and every page. Paced at one page
+  a second per site.
+
+---
+
 ## Pacing
 
 Concurrency governs how many **different** boards are read at once. It is not
@@ -379,6 +596,7 @@ pool on a single host.
 | `boards-api.greenhouse.io`, `api.ashbyhq.com` | 5.0 |
 | `api.lever.co`, `data.usajobs.gov`, default | 3.0 |
 | `api.adzuna.com` | 1.0 (quota, not politeness) |
+| `www.kalibrr.com`, `himalayas.app`, `*.myworkdayjobs.com` | 1.0 (no published limit) |
 | `apply.workable.com` | 0.7 |
 | `jobs.workable.com` | 0.4 |
 
@@ -406,7 +624,14 @@ No usable public API exists for these; they remain reachable only through
 **LinkedIn** (the public guest endpoint carries no description and no salary,
 and is disallowed by its robots.txt) · **Dice** · **BuiltIn** ·
 **ZipRecruiter** · **Monster** · **CareerBuilder** · **SimplyHired** ·
-**FlexJobs** · **Wellfound** · **Y Combinator**
+**FlexJobs** · **Wellfound** · **Y Combinator** · **JobStreet** and
+**JobsDB** (SEEK; answer 403 to scripts, robots.txt closes the search API, the
+API is partner-only) · **OnlineJobs.ph**
+
+Discover recognises these by address and says so before sending anything,
+rather than reporting a refusal as if an employer had blocked it. JobStreet,
+JobsDB, Kalibrr and OnlineJobs.ph are in dork mode on request:
+`jobdork dork --sites jobstreet jobsdb kalibrr onlinejobs`.
 
 Adding a board to dork mode is one line. An API adapter is roughly a hundred
 plus its quirks — which is most of this document.

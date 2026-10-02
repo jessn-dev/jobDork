@@ -1,0 +1,80 @@
+name: Re-verify employer boards
+
+# Weekly: asks every board in jobdork/data/boards.csv again, refreshes the
+# ones that answer with jobs, drops the ones that have not for three weeks,
+# and opens a pull request with the changes for a person to merge. Nothing
+# reaches main without that review: main takes changes by pull request only.
+# Run by hand with "add candidates" ticked to also run discover over
+# scripts/candidates.csv.
+#
+# Needs, in the repository settings:
+#   secret BOARDS_PR_TOKEN   a fine-grained personal access token for this
+#                            repository only, with Contents and Pull requests
+#                            set to Read and write. A pull request opened with
+#                            the workflow's own token does not start the
+#                            other workflows, so the checks main requires
+#                            would never run on it and it could not be merged.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'          # Mondays 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      add:
+        description: 'Also run discover over scripts/candidates.csv'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: boards
+  cancel-in-progress: false
+
+jobs:
+  reverify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Re-verify boards
+        env:
+          ADD: ${{ inputs.add && '--add' || '' }}
+        run: python scripts/build_boards.py --reverify $ADD
+
+      - name: Open a pull request with the changes
+        env:
+          GH_TOKEN: ${{ secrets.BOARDS_PR_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          if git diff --quiet -- jobdork/data/boards.csv; then
+            echo "No changes to the boards."
+            exit 0
+          fi
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::BOARDS_PR_TOKEN is not set; see the top of this workflow."
+            exit 1
+          fi
+          branch="boards/$(date -u +%Y-%m-%d)-${GITHUB_RUN_ID}"
+          git config user.name "jobdork boards"
+          git config user.email "boards@users.noreply.github.com"
+          git switch -c "$branch"
+          git add jobdork/data/boards.csv
+          git commit -m "boards: re-verified $(date -u +%Y-%m-%d) (see PR text)"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "$branch"
+          gh pr create --repo "$REPO" --base main --head "$branch" \
+            --title "Employer boards re-verified $(date -u +%Y-%m-%d)" \
+            --body-file out/boards_report.md

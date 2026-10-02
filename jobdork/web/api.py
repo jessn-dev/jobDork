@@ -510,7 +510,50 @@ def sources_report(cfg) -> dict:
         "dormant": dormant,
         "companies": [{"name": c.name, "platform": c.platform, "token": c.token}
                       for c in cfg.sources.companies],
+        "directory": _directory_view(cfg),
     }
+
+
+def _directory_view(cfg) -> dict:
+    """The built-in employer boards: on or off, and how many this config reads."""
+    from ..search import directory
+
+    d = cfg.sources.directory
+    return {"enabled": d.enabled, "boards": len(directory.select(cfg)),
+            "total": len(directory.load()),
+            "countries": d.countries or list(cfg.locations.countries),
+            "industries": d.industries}
+
+
+def try_dealbreaker(form: dict) -> dict:
+    """Whether a dealbreaker finds anything in a sentence, as a scan would.
+
+    The page sends its words (or an advanced pattern) and a sentence; the
+    answer is the text found, so the matching is Python's and the same as a
+    scan's, not a guess in the browser.
+    """
+    import re as _re
+
+    from ..search import dealbreakers
+
+    text = str(form.get("text") or "")[:4000]
+    words = form.get("words") or []
+    if isinstance(words, str):
+        words = words.split(",")
+    words = [str(w).strip() for w in words if str(w).strip()]
+    if words:
+        found = dealbreakers.find(dealbreakers.compile_words(words), text,
+                                  dealbreakers.negates(words))
+        return {"found": found, "matches": dealbreakers.expand(words)[:12]}
+    pattern = str(form.get("pattern") or "")
+    if not pattern:
+        raise ApiError("give the words to look for")
+    try:
+        regex = _re.compile(pattern, _re.IGNORECASE)
+    except _re.error as exc:
+        raise ApiError(f"not a valid pattern: {exc}") from exc
+    match = regex.search(text)
+    return {"found": match.group(0) if match else "", "matches": []}
 
 
 # ── writing ───────────────────────────────────────────────────────────────────

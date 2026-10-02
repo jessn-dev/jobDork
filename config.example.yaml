@@ -78,15 +78,23 @@ salary:
 
 # Read against the job description, which is where the detail hides. A role
 # can look right in a search result and be wrong in the third paragraph.
-# `hard: true` hides it; `hard: false` shows it with a warning.
-# A broken pattern stops the run rather than silently matching nothing.
+# Plain words: capitals, hyphens, dots and plurals do not matter, common ones
+# include their other wordings ("security clearance" also finds TS/SCI and
+# polygraph), and "no clearance required" does not count. A bare phrase is a
+# whole dealbreaker; `hard: true` hides the post, `hard: false` warns.
+# `pattern:` takes a regular expression instead; see docs/CONFIG.md.
 dealbreakers:
   - name: unpaid take-home
-    pattern: "take.?home (?:test|project|assignment)|unpaid (?:trial|project)"
+    words: [unpaid take-home]
     hard: false
-  - name: on-call rotation
-    pattern: "on.?call rotation|24/7 on.?call|pager duty rotation"
+  - name: on-call
+    words: [on call]
     hard: false
+  # - security clearance
+  # - us citizen
+  # - name: client travel
+  #   words: [client-site travel, extensive travel]
+  #   hard: false
 
 sources:
   # Sources that need no credential. This is what a fresh install runs.
@@ -95,7 +103,23 @@ sources:
   #                    has added by hand. No salary field at all.
   #   greenhouse ashby lever smartrecruiters breezy
   #                    one employer each, and each needs a board token below
-  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy]
+  #   kalibrr          Kalibrr's keyword search: Philippine and Indonesian
+  #                    jobs, with posting and closing dates. Skipped when
+  #                    countries names neither PH nor ID
+  #   himalayas        remote jobs worldwide, only those open to your
+  #                    countries and within an hour of your time zone
+  #   workday          one employer each, like greenhouse; its token is three
+  #                    parts (nvidia/wd5/NVIDIAExternalCareerSite), from discover
+  #   oracle           one employer each on Oracle Recruiting Cloud; its token is
+  #                    host/site (jpmc.fa.oraclecloud.com/CX_1001), from discover
+  #   eightfold        one employer each on Eightfold; its token is host/domain
+  #                    (starbucks.eightfold.ai/starbucks.com), from discover
+  #   taleo            one employer each on Taleo Business Edition; its token is
+  #                    host/path/org/cws (phf.tbe.taleo.net/phf02/COSTCO/41)
+  #   site             an employer's own careers site, read through its sitemap
+  #                    and the job data on each posting page; its token is the
+  #                    site's address (https://jobs.mayoclinic.org), from discover
+  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, workday, oracle, eightfold, taleo, site]
 
   # Employer boards to watch. The token is the board id, not the company name
   # — `mymoose` is Rapid7 — so read it off the employer's own posting URL
@@ -107,6 +131,17 @@ sources:
     # - name: Ramp
     #   platform: ashby
     #   token: ramp
+
+  # Employer boards jobdork ships with (jobdork/data/boards.csv): hundreds
+  # of US employers across industries, each found on the employer's own site
+  # and re-verified weekly. Read alongside `companies` above.
+  #   countries   only boards hiring there; empty follows locations.countries
+  #   industries  healthcare, banking, retail, logistics…; empty is all
+  # `jobdork sources` says how many boards your settings read.
+  directory:
+    enabled: true
+    countries: []
+    industries: []
 
   # Adzuna national indexes. Leave empty and it follows locations.countries,
   # so a Berlin reader gets `de` without knowing the code.

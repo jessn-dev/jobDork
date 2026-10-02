@@ -1,0 +1,47 @@
+name,industry,country,url
+HCA Healthcare,healthcare,US,https://careers.hcahealthcare.com
+Kaiser Permanente,healthcare,US,https://www.kaiserpermanentejobs.org
+CVS Health,healthcare,US,https://jobs.cvshealth.com
+UnitedHealth Group,healthcare,US,https://careers.unitedhealthgroup.com
+Mayo Clinic,healthcare,US,https://jobs.mayoclinic.org
+Walmart,retail,US,https://careers.walmart.com
+Target,retail,US,https://corporate.target.com/careers
+The Home Depot,retail,US,https://careers.homedepot.com
+Kroger,retail,US,https://jobs.kroger.com
+Costco,retail,US,https://www.costco.com/jobs.html
+JPMorgan Chase,banking,US,https://careers.jpmorgan.com
+Bank of America,banking,US,https://careers.bankofamerica.com
+Capital One,banking,US,https://www.capitalonecareers.com
+Wells Fargo,banking,US,https://www.wellsfargojobs.com
+State Farm,insurance,US,https://jobs.statefarm.com
+UPS,logistics,US,https://www.jobs-ups.com
+FedEx,logistics,US,https://careers.fedex.com
+J.B. Hunt,logistics,US,https://careers.jbhunt.com
+Delta Air Lines,transportation,US,https://www.delta.com/us/en/careers/overview
+Boeing,manufacturing,US,https://jobs.boeing.com
+General Motors,manufacturing,US,https://search-careers.gm.com
+Caterpillar,manufacturing,US,https://careers.caterpillar.com
+3M,manufacturing,US,https://www.3m.com/3M/en_US/careers-us/
+Marriott International,hospitality,US,https://careers.marriott.com
+Hilton,hospitality,US,https://jobs.hilton.com
+Starbucks,hospitality,US,https://www.starbucks.com/careers
+McDonald's,hospitality,US,https://careers.mcdonalds.com
+Lockheed Martin,government contracting,US,https://www.lockheedmartinjobs.com
+Booz Allen Hamilton,government contracting,US,https://careers.boozallen.com
+Leidos,government contracting,US,https://careers.leidos.com
+University of Michigan,education,US,https://careers.umich.edu
+Salesforce,tech,US,https://careers.salesforce.com
+NVIDIA,tech,US,https://jobs.nvidia.com/careers
+Adobe,tech,US,https://careers.adobe.com/us/en/c/engineering-and-product-jobs
+Stripe,tech,US,https://stripe.com/jobs
+Airbnb,tech,US,https://careers.airbnb.com
+Canva,tech,AU,https://www.lifeatcanva.com
+Atlassian,tech,AU,https://www.atlassian.com/company/careers
+Shopify,tech,CA,https://www.shopify.com/careers
+Spotify,tech,SE,https://www.lifeatspotify.com
+Unilever,consumer goods,GB,https://careers.unilever.com
+Accenture,consulting,IE,https://www.accenture.com/us-en/careers
+Thoughtworks,consulting,US,https://www.thoughtworks.com/careers
+Grab,tech,SG,https://www.grab.careers
+Globe Telecom,telecom,PH,https://www.globe.com.ph/careers
+BPI,banking,PH,https://www.bpi.com.ph/careers

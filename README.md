@@ -515,8 +515,8 @@ library only — no CDN, no framework, no external request.
 
 A tool that quietly fails at something looks broken rather than out of scope.
 
-- **Employers not on a platform here, and not named by you.** There is no
-  bundled list of employer boards, so coverage is keyword search plus the
+- **Employers not on a platform here, and not named by you.** Coverage is
+  keyword search, the employer boards jobdork ships with (US first), and the
   companies you add. `jobdork dork` covers the rest.
 - **Screening an advert that arrived truncated.** Adzuna caps every advert at
   exactly 500 characters. Dealbreakers, work-mode detection and resume

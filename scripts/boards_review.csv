@@ -1,0 +1,26 @@
+platform,token,decision,reason
+workday,mymvw/wd5/MVW,reject,Marriott Vacations Worldwide: a separate company linked from a Marriott brand page; Marriott's own jobs are on Oracle Recruiting Cloud
+workday,cisco/wd5/Cisco_Careers,accept,Cisco owns Splunk and lists Splunk jobs on its own board; already in as Cisco
+workday,xboxgaming/wd1/External,accept,Microsoft Gaming's board; Activision Blizzard is part of it
+workday,myhrabc/wd5/Global,accept,Cencora was AmerisourceBergen (ABC); its careers site links this board
+workday,spectrumhealth/wd5/CorewellHealthCareers,accept,Corewell Health was Spectrum Health; the site name says Corewell Health
+workday,gehc/wd5/GEHC_ExternalSite,accept,GE HealthCare's own board (GEHC)
+workday,mmc/wd1/MMC,accept,Marsh McLennan (MMC)
+workday,globalhr/wd5/REC_RTX_Ext_Gateway,accept,RTX's own board; the site name says RTX
+workday,swa/wd1/external,accept,Southwest Airlines (SWA)
+greenhouse,thenewyorktimes,accept,The New York Times' own board
+workday,warnerbros/wd5/global,accept,Warner Bros. Discovery's own board
+workday,gohealthuc/wd12/External,reject,GoHealth Urgent Care, a partner linked from UPMC's site, not UPMC
+smartrecruiters,SAPITBusinessSysteme,reject,a small SAP affiliate's board with 38 jobs, not SAP's own
+breezy,duolingo,reject,3 jobs in US and Nigeria under the same name; Duolingo's own board is greenhouse duolingo
+site,https://careers.cshs.org,accept,Cedars-Sinai Health System (CSHS); cedars-sinai.edu's careers link leads there
+site,https://careers.compass-usa.com,accept,Compass Group USA's own careers site; compassgroupcareers.com redirects to it
+site,https://www.enterprisemobility.com,accept,Enterprise Mobility's own careers site; enterprise.com sends careers there
+site,https://jobs.sixflags.com,accept,Six Flags' own jobs site; sixflagsjobs.com redirects to it
+site,https://careers.wholefoods.com,accept,Whole Foods Market's own careers site on its short domain
+site,https://gildancorp.com,reject,hanes.com leads to Gildan's site; Gildan was buying Hanesbrands in 2025 but whether this board lists Hanes jobs was not checked
+ashby,hims-and-hers,accept,Hims & Hers' own Ashby board; their careers page links it
+oracle,fa-euxw-saasfaprod1.fa.ocs.oraclecloud.com/CX_1,accept,Alorica's own Oracle board; linked from alorica.com/careers/philippines (Oracle host names are opaque codes)
+oracle,fa-euyk-saasfaprod1.fa.ocs.oraclecloud.com/PenskeCareers,accept,Penske's own Oracle board (site PenskeCareers); linked from gopenske.com/careers
+eightfold,hp-sandbox.eightfold.ai/hp-sandbox.com,reject,HP's Eightfold test environment (sandbox) linked from jobs.hp.com; not HP's real board
+eightfold,careers.lumen.com/lumen.com,accept,Lumen's own Eightfold board on its own host careers.lumen.com

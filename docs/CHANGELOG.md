@@ -6,6 +6,491 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-01 — Taleo Business Edition boards
+
+Costco hires through Taleo Business Edition, and Discover reported it as
+"taleo, no adapter" (and named the host only, `tbe.taleo.net`, which is
+everybody's). Taleo Business Edition has no JSON at all; its pages are the
+interface.
+
+- **`fetch/taleo.py`**, source `taleo`, token `host/path/org/cws`
+  (`phf.tbe.taleo.net/phf02/COSTCO/41`). The search results page lists ten
+  jobs at a time, paged by `rowFrom` with no session; only titles your title
+  rules keep are opened, and each job's page carries a schema.org
+  `JobPosting`, read as an employer site's is. Measured: Costco, "engineer"
+  and "analyst", US: 11 jobs with full adverts, 13 requests, 13 seconds.
+- **Discover reads the token** with `org` and `cws` in either order; Costco's
+  sit in a script, cws first, joined by `\u0026`, and a `\b` before them
+  found nothing because `\u0026cws` has no word edge. The board is counted
+  by paging its results, and is no longer also reported as "no adapter".
+- **Still open:** a removed job answers 200 with "This job has moved or is no
+  longer available", now read as closed; the page check alone said
+  "unknown".
+- **Dates in Java's form** ("Thu Jul 02 00:00:00 GMT 2026", from Costco's
+  pages) are read as 2026-07-02 for every employer site; they were stored
+  as "Thu Jul 02".
+- The check that holds a board back for a person compares Taleo's `org`
+  with the employer, not the host's first label (`phf`).
+- Paced at one page a second for every `*.taleo.net` host. Taleo Enterprise
+  (`careersection`) is a different product with no reader; Kaiser
+  Permanente and UnitedHealth Group, which use it, are read through their
+  own sites.
+
+**Test list: 30 of 46 (was 29), US 26 of 37 (was 25).** New: Costco.
+
+**Built-in boards: 322 (was 319), 308 of them US.** Costco is the only
+Taleo Business Edition employer among the 645 candidates; BNSF Railway and
+Trinity Health came in on the same build through their own sites, which
+answered this time.
+
+`taleo` was added to the local config's sources; the example lists it.
+Six new tests in `tests/test_taleo.py`.
+
+---
+
+## Changed — 2026-10-01 — Dealbreakers in plain words; regular expressions under Advanced
+
+A dealbreaker was a regular expression. To rule out jobs that need a
+clearance, you wrote `security clearance|TS/SCI|top secret|polygraph`, and
+the dashboard explained `\b`, `(?:a|b)` and `\d{2}` to get you there. Most
+people looking for work should not have to learn that to say "no security
+clearance".
+
+- **Type the words**: `security clearance`, `us citizen`, `client-site
+  travel`. Capitals, hyphens, dots and plurals do not matter ("us citizen"
+  finds "U.S. citizenship", "client-site travel" finds "client site"), and
+  only whole words match ("us" never matches inside "focus").
+- **Common dealbreakers include their other wordings.** 17 of them, US
+  first and across industries: "security clearance" also finds TS/SCI, top
+  secret and polygraph; "no visa sponsorship" finds "unable to sponsor"; "heavy
+  travel" finds "travel up to 75%" and not "up to 10%"; "heavy lifting" finds
+  "lift up to 50 lbs". On the dashboard they are one-click buttons.
+- **A negation is not a match.** "No security clearance is required" and "you
+  do not need to be a US citizen" said the opposite and, as patterns, matched
+  anyway. A no, not, without or never in the few words before a match, in the
+  same sentence, now skips it. A dealbreaker that is itself a negation ("no
+  visa sponsorship") counts its matches as they are, and so does a pattern.
+- **Try it asks the server**, so a pasted sentence is tested by the same
+  Python a scan uses (`POST /api/dealbreakers/try`), not by the browser's
+  regex engine.
+- **Regular expressions stay**, under Advanced on the dashboard and as
+  `pattern:` in config.yaml; every existing dealbreaker works as before.
+- In config.yaml a dealbreaker can be a bare phrase (`- security
+  clearance`), named and weighted as the common list has it, or `words:`
+  with `name` and `hard`. One with nothing to look for stops the load.
+
+`jobdork/search/dealbreakers.py` holds the matching and the list. Checked in
+the browser on a copy: typing "us citizen" and pasting "Applicants must be
+U.S. citizens" shows `Found: "U.S. citizens"`; Add and a one-click
+suggestion both save words. Seven new tests (`tests/test_dealbreakers.py`
+and one in `tests/test_serve.py`, which replaces the check of the old
+regex samples).
+
+---
+
+## Added — 2026-10-01 — Eightfold boards
+
+Starbucks and Lockheed Martin hire through Eightfold, and Discover reported
+each as "eightfold, no adapter". Eightfold's robots.txt closes its sites
+and opens two paths to tools, `/careers` and `/api/pcsx`; the second is the
+JSON the careers site reads.
+
+- **`fetch/eightfold.py`**, source `eightfold`, token `host/domain`
+  (`starbucks.eightfold.ai/starbucks.com`): the careers host, a tenant's or
+  the employer's own (`careers.lumen.com`), and the employer domain the API
+  is asked for.
+- **Pages are ten results, ranked by relevance**, so as with Oracle a
+  listing is kept only when your title rules keep its title, each title is
+  read at most five pages deep, and a page with none of yours ends it.
+  Measured, US: Starbucks, store manager, 50 jobs; Lockheed Martin,
+  software engineer, 50.
+- **Your countries are asked by name**; a country with no jobs costs one
+  request (Starbucks lists none in the Philippines).
+- **The advert is one detail request per kept job.** A posting's address
+  carries `?domain=`, which its page accepts, so the still-open check and
+  `enrich` can ask again; a removed posting answers 404.
+- **Discover settles the domain** by asking: a wrong one answers 404, so a
+  `domain=` the page names is tried first, then the site the tenant was
+  read on, then the tenant's name with .com. An Eightfold careers site on
+  the employer's own host is tried as a board when it names no tenant.
+- **A vendor's test copy is not a board.** HP's page linked
+  `hp-sandbox.eightfold.ai`, which answered with 135 jobs; tenants named
+  sandbox, staging, test, demo, uat or dev are ignored, and that one is
+  rejected in `scripts/boards_review.csv`.
+- **The check that holds a board back for a person** compared the tenant
+  with the site's name, and on an employer's own host the tenant is
+  "careers"; for Eightfold it compares the employer domain.
+- **An employer is read through one kind of board.** FedEx's careers page
+  stopped linking its Workday boards on 2026-10-01, and the build would
+  have added its site next to them; a site board is no longer added for an
+  employer that has their own board.
+
+**Test list: 29 of 46 (was 27), US 25 of 37 (was 23).** New: Starbucks,
+Lockheed Martin.
+
+**Built-in boards: 319 (was 304), 305 of them US.** 16 Eightfold boards,
+among them Citigroup, Morgan Stanley, Northrop Grumman, Micron, Qualcomm,
+PayPal and AstraZeneca; six employers moved from their site to their
+Eightfold board.
+
+**Measured on the same copy, US only, 15 titles:** a scan of the 319
+boards took 23 minutes (21 before), about 10,700 requests. The 16 Eightfold
+boards cost 874 of them and fetched 524 jobs for your titles; that copy keeps
+only Naperville and remote jobs, so 11 were kept.
+
+`eightfold` was added to the local config's sources; the example lists it.
+Eight new tests (`tests/test_eightfold.py`, and one in
+`tests/test_directory.py`).
+
+---
+
+## Added — 2026-10-01 — Oracle Recruiting Cloud boards
+
+JPMorgan Chase, Kroger, Hilton and Marriott hire through Oracle Recruiting
+Cloud, and Discover reported each as "oraclecloud, no adapter". Marriott's
+was worse: with its own board unreadable, the only board Discover could
+offer was a link on a brand page to Marriott Vacations Worldwide.
+
+- **`fetch/oracle.py`**, source `oracle`, token `host/site`
+  (`jpmc.fa.oraclecloud.com/CX_1001`): the JSON the employer's Candidate
+  Experience site reads. robots.txt on these hosts answers 403.
+- **The keyword search is loose** ("software engineer": 1,659 results at
+  JPMorgan, by relevance), so a listing is kept only when your title rules
+  keep its title, each title is read at most four pages of 25 deep, and a
+  page with none of yours ends it. Measured: JPMorgan, software engineer,
+  US: 88 jobs in 32 seconds; Kroger, pharmacist: 100.
+- **Your countries are asked of the board** through its location filter;
+  several are one finder value joined by `%3B`, since a bare `;` ends the
+  finder's name. A board with none of yours costs one request.
+- **The advert is one detail request per kept job**; a removed posting
+  answers with no items, which the still-open check counts as closed.
+  `enrich` reads Oracle adverts the same way.
+- **Discover reads the token** off the careers link, or, where the page only
+  loads Oracle's assets (Kroger), off a `siteNumber=` in their addresses. One
+  board under two site numbers with the same count (Hilton's `CX_1` and
+  `CX_1009`) is kept once, and an Oracle host read as a board is no longer
+  also reported as "no adapter".
+- **`build_boards.py` drops an employer's site board when it finds their own
+  board**, so nobody is read twice: Mayo Clinic, Ascension, Tenet and five
+  more moved from their site to their Oracle or Workday board.
+- Paced at two requests a second for every `*.oraclecloud.com` host.
+
+**Test list: 27 of 46 (was 24), US 23 of 37 (was 20).** New: JPMorgan
+Chase, Kroger, Hilton; Marriott's find is now its own board (12,912 jobs)
+rather than Marriott Vacations Worldwide's.
+
+**Built-in boards: 304 (was 273), 291 of them US.** 32 Oracle boards,
+among them American Express, Dollar General, Macy's, Honeywell, Texas
+Instruments, Northwell Health and Providence. Alorica's and Penske's were
+held back (Oracle host names are codes, so the name check cannot match
+them) and accepted in `scripts/boards_review.csv`.
+
+**Measured on the same copy, US only, 15 titles:** a scan of the 304
+boards took 21 minutes (19 before), about 9,800 requests in all. The 32
+Oracle boards cost 1,212 of them and kept 41 jobs; Workday's 162 boards
+still cost the most, 7,053.
+
+`oracle` was added to the local config's sources; the example lists it.
+Eight new tests in `tests/test_oracle.py`.
+
+---
+
+## Added — 2026-10-01 — An employer's own careers site as a source
+
+Discover found Kaiser Permanente and UnitedHealth Group on Taleo, Mayo
+Clinic on Oracle Recruiting Cloud, State Farm on iCIMS, UPS behind a Phenom
+front end, and Wells Fargo and General Motors not at all: none of them
+readable. But their careers sites list every
+posting in a sitemap and mark each posting page up for Google as a
+schema.org `JobPosting`, with title, places, dates, the full advert and pay
+when stated. That is readable, whatever system sits behind it.
+
+- **`fetch/site.py`**, source `site`, token the careers site's address
+  (`https://jobs.mayoclinic.org`). Sitemap first (robots.txt `Sitemap:`,
+  then the index's jobs children), then the posting pages.
+- **Only postings whose address names one of your titles are read**
+  (`/job/rochester/registered-nurse/33647/…`), one request each, at most 40
+  a site per scan, one a second. Addresses that are ids only
+  (`jobs.statefarm.com/jobs/46295`) are read newest first, 20 a scan.
+- A posting address has a jobs word and an id; category and blog pages in
+  the same sitemap have none and are skipped. One posting in five languages
+  counts once.
+- `validThrough` in the past leaves a posting out. Pay of 0 to 0 (State
+  Farm, on every post) is no pay stated. `address` may be a list (Wells
+  Fargo).
+- **Discover offers the site** when it finds no board jobdork can read and a
+  posting there is marked up: "site 3097 jobs [verified]" for Kaiser.
+- robots.txt is honoured for sitemaps and pages; the reader moved from
+  `discover` to `fetch/robots.py` so both use it. `Fetcher.pace()` slows one
+  host, for sites no rate table can name in advance.
+
+**Test list: 24 of 46 (was 16), US 20 of 37 (was 12), healthcare 4 of 5
+(was 1).** New: Kaiser Permanente, UnitedHealth Group, Mayo Clinic, Wells
+Fargo, State Farm, UPS, General Motors, Stripe.
+
+**Built-in boards: 273 (was 183), 261 of them US.** Rebuilding the list
+with the site reader added 88 employers' own sites: Walgreens, Chipotle,
+Ford, Disney, PepsiCo, Procter & Gamble, Tenet, Ascension, Sutter Health,
+Johns Hopkins Medicine and the rest. The check that holds a board back for
+a person compared the employer's name with the token's first part, which
+for a site is "https:", so it held back all 91; for a site it now asks
+whether the address led to another domain. Six did; five were the
+employer's own (Cedars-Sinai at `cshs.org`, Whole Foods at
+`wholefoods.com`) and were accepted in `scripts/boards_review.csv`, and
+Hanesbrands, whose address leads to Gildan's site, was rejected.
+
+**Measured on the same copy, US only, 15 titles:** a scan of the 273 boards
+took 19 minutes (18 without the sites). The 86 site boards read in it cost
+1,564 requests and kept 82 jobs, while Workday's 159 boards cost 6,973.
+
+`site` was added to the local config's sources; the example lists it.
+Nine new tests in `tests/test_site.py`.
+
+---
+
+## Added — 2026-10-01 — Employer boards jobdork ships with: 183 employers, on by default
+
+A fresh install read keyword sources and nothing else until someone ran
+`discover` employer by employer. Workday, Greenhouse and Ashby have no
+cross-employer search, so the employers most people name (retailers,
+hospital systems, banks) were out of reach by default.
+
+- **`jobdork/data/boards.csv`: 183 boards, 175 of them US employers, across
+  23 industries.** Healthcare 20, banking 19, tech 18, retail 13,
+  insurance 12, pharma 11 and the rest; 158 are Workday. Each was found by
+  `discover` on the employer's own site and answered with jobs, and records
+  the countries it lists jobs in.
+- **`sources.directory`**, on by default: reads the boards hiring in your
+  countries (`locations.countries` unless it names its own), optionally
+  only some industries. A board also in `sources.companies` is read once.
+  `jobdork sources` says how many boards your config reads.
+- **`scripts/build_boards.py`** builds the list: `--add` runs `discover`
+  over `scripts/candidates.csv` (645 employers, 615 US); `--reverify` asks
+  every board again and removes one with no jobs for three weeks. A board
+  found deep in a site under another name is held back for a person.
+- **`scripts/boards_review.csv`** holds those decisions, each with its
+  reason, and the build applies them every run. From the first build: 9
+  held-back boards accepted (Cencora is `myhrabc`, Corewell Health is
+  `spectrumhealth`, Southwest is `swa`), and 4 rejected: Marriott's link to
+  Marriott Vacations Worldwide, UPMC's to GoHealth Urgent Care, a 38-job SAP
+  affiliate, and a 3-job Breezy board under Duolingo's name.
+- **A weekly GitHub Action** (`.github/workflows/boards.yml`) re-verifies the
+  list and opens a pull request whose text says what changed. It needs a
+  `BOARDS_PR_TOKEN` secret: a pull request opened with the workflow's own
+  token does not start the checks main requires.
+- `discover` now records the countries a board lists jobs in: Workday's
+  country facet, or the places of the jobs another platform returned.
+- `.gitignore` ignored every `*.csv`, so `jobdork/data/boards.csv` and the
+  build's `scripts/candidates.csv`, `scripts/boards_review.csv` and
+  `scripts/employers.csv` would have been left out of a commit; they are
+  now listed as exceptions, like the gazetteer.
+
+**Measured on a copy, US only, 15 titles:** the 183 boards cost 18 minutes
+and about 7,000 requests, nearly all Workday (one search per title per
+board, then one request per matching job), and kept 523 jobs out of 8,000
+fetched. The other platforms' 17 boards took 48 requests.
+
+Reading the built-in Workday boards without each job's advert was tried and
+dropped. Skipping it outright took 10 minutes but kept 1,013 jobs, 825 of
+them with no known country: "2 Locations" names nowhere, and passed the
+location filter unread. Reading the advert only for those took 14 minutes
+and kept 480, 43 fewer than a full read, most likely remote jobs listed
+under a city, since only the advert says remote. Four minutes did not pay
+for losing those, so every board is read in full.
+
+- **`enrich` reads Workday adverts** from the same record the scan uses;
+  the posting page is drawn by script and carries none. Checked on live
+  postings: 7,000 to 8,000 characters each.
+
+From the first build, 467 of 645 candidates had no board jobdork can read:
+Oracle Recruiting Cloud, Taleo, iCIMS and Eightfold above all, which is the
+order platform readers come next. docs/SOURCES.md's "Why not a bundled list
+of employers" is rewritten to say how the list limits each of its costs.
+Ten new tests.
+
+---
+
+## Fixed — 2026-10-01 — Discover could hang on a page with a long run of letters
+
+`jobdork discover` looked for a job system's address (`kp.icims.com`,
+`acme.wd5.myworkdayjobs.com`) with patterns like `[A-Za-z0-9_-]+\.icims\.com`,
+which retry from every letter of a run that never matches. A page with 40,000
+letters of inline data in a row cost 87 seconds per pattern; a page with a
+megabyte of it never finished. Found when a build over 645 employers sat at
+full CPU for 26 minutes.
+
+A host name label is now matched only where it starts, and at most 63
+characters long (the DNS limit). Two million letters take a third of a
+second, and every board found before is still found. One new test.
+
+---
+
+## Changed — 2026-09-30 — Discover follows the site's own job links and sitemap
+
+Discover tried one page and then a fixed list of seventeen addresses
+(`/careers`, `/jobs/search`, `/join-us`…). A board linked from anywhere
+else on the site was missed. On the test list below it found a board for 10
+of 46 employers and took 20 minutes.
+
+- **Reading order:** the page you gave, the front page, then that site's
+  own links to job pages (same site, search pages first, six at most), then
+  its sitemap (one or two postings, whose Apply links name the board), then
+  six usual addresses. Twelve pages at most; it stops at the first board.
+- **robots.txt is honoured**, read the way RFC 9309 says: the longest
+  matching rule decides. Python's `urllib.robotparser` takes the first
+  match, and read `jobs.nvidia.com`'s `Disallow: /` ahead of its
+  `Allow: /careers`, closing the page the site opens to tools. Pages left
+  unread for it are listed.
+- **A site that does not answer, or refuses (401, 403), is not asked
+  again.** Unreachable and blocked are reported apart.
+- **A board found only on a page Discover followed, under a name that is
+  not the site's, carries a note to check it.** `careers.marriott.com` links
+  Marriott Vacations Worldwide's board (`mymvw`) from a brand page; Marriott's
+  own jobs are on Oracle Recruiting Cloud.
+
+**Result on the test list: 16 of 46 (was 10), US 12 of 37 (was 8), in 7½
+minutes (was 20).** New: CVS Health, FedEx, Airbnb, Spotify, Grab; Costco
+now names its platform (Taleo) instead of nothing. Marriott's find is the
+sister company above, so the honest count is 15.
+
+Fourteen new tests in `tests/test_discover.py`. The Adobe test now expects
+robots.txt to be read before the page.
+
+---
+
+## Added — 2026-09-30 — A test list for Discover: 46 real employers
+
+There was no measure of how often Discover finds a board for the employers
+people name. Every change to it was checked against the one site that
+prompted it.
+
+- **`scripts/employers.csv`**: 46 employers, 37 in the US across retail,
+  banking, healthcare, logistics, manufacturing, hospitality, government
+  contracting, education and tech, and 9 elsewhere.
+- **`scripts/discover_benchmark.py`** runs Discover on each, real requests
+  paced as every jobdork request is, and writes
+  `out/discover_benchmark.json`: the outcome per employer, the hit rate
+  overall, for the US and by industry, and every platform seen by how many
+  employers use it. Run on purpose, not in CI.
+
+**First result: 10 of 46 (21%), US 8 of 37.** All ten were Workday. No
+reader for Oracle Recruiting Cloud (5: Kroger, JPMorgan, Marriott, Hilton,
+Mayo Clinic), Eightfold (3), Taleo (2), iCIMS (1); blocked by 4; healthcare
+0 of 5, hospitality 0 of 4. That order is the order platform readers get
+built in.
+
+---
+
+## Added — 2026-09-30 — Workday boards, found by Discover and filtered to your countries by the board
+
+Discover on NVIDIA's careers page (`jobs.nvidia.com`) listed three platforms
+with "no adapter" and added nothing: Workday, where NVIDIA's jobs are, and
+two lines for Eightfold, which were `app.eightfold.ai` and
+`vs-errors.eightfold.ai`, Eightfold's own service hosts and nobody's board.
+Most large employers hire through Workday; without it a scan reached
+startups and missed the companies people most often name.
+
+- **`fetch/workday.py`**: an employer's board through the JSON its careers
+  site reads. The token is three parts, `tenant/dc/site`.
+- **Discover reads the three parts** off the employer's page and verifies
+  the board with one empty search, its own count of open jobs:
+  "workday 2000 jobs [verified]" for NVIDIA.
+- **Your countries are asked of the board itself** through its country
+  filter, whatever the employer named it. NVIDIA has no Philippine jobs, so
+  for the real config the board costs one request and says "NVIDIA lists no
+  jobs in PH"; before the filter, two titles took 145 requests and 2½
+  minutes to find the same nothing.
+- **Only titles you keep are fetched in full** (one request each), and
+  Workday hosts are paced at one request a second.
+- **Still open** asks the posting's own record: 404 or `posted: false` is
+  closed, and counts as hard evidence.
+- **Discover ignores a platform's service hosts** (`app`, `vs-errors`, `cdn`
+  and the like), so they are no longer reported as boards.
+
+Also fixed on the way: a closing date passed (Kalibrr, Himalayas) was
+recorded as closed but not as hard evidence, so the post was never moved to
+closed. It is now.
+
+`workday` was added to the local config's sources; the example lists it.
+Nine new tests; two older ones that named Workday as the example of a
+platform with no adapter now name iCIMS.
+
+---
+
+## Added — 2026-09-30 — Himalayas: remote jobs open to your country and your hours
+
+Remote work is most of what a scan can find for someone outside Manila, and
+most "remote" jobs on the big boards are remote within the US. Himalayas'
+public search (no key) says, per job, which countries it accepts and which
+UTC offsets, so those can be filtered rather than shown.
+
+- **`fetch/himalayas.py`**, in `sources.keyless`: each title searched once
+  per country in `locations.countries`, three pages of 20, newest first, one
+  request a second. Skipped when `locations.work_modes` leaves out remote.
+- **Your country:** asked of the search itself, which returns jobs open to it
+  and jobs open worldwide; the post says which ("remote, open to
+  Philippines", "remote worldwide").
+- **Your hours:** a job whose accepted offsets are all more than an hour from
+  yours is left out. Your offset is read from the anchor's longitude
+  (Baguio: UTC+8), with no time-zone database to ship.
+- Posting and expiry dates as for Kalibrr: freshness tiers apply, an expired
+  post is not returned, and "still open" (job pages answer 403 to scripts)
+  goes by the expiry, then by the latest search.
+- Their terms ask that a job links back and names Himalayas as its source:
+  the link is the Himalayas page, and the source reads Himalayas.
+
+Tried live with the real config's first two titles: 6 requests in 5 seconds,
+89 posts, 7 kept, all open to the Philippines, four posted that day. Five new
+tests, none touching the network. `himalayas` was added to the local
+config's source list by hand, and the example lists it.
+
+---
+
+## Added — 2026-09-30 — Kalibrr as a source, and Discover knows a job site from an employer
+
+Discover was given `https://ph.jobstreet.com/jobs` and answered "refused the
+request; nothing here works around that, no job board found". True, and no
+help: Discover looks for one employer's board on that employer's own site,
+and JobStreet is a job site, not an employer. It answers 403 to anything but
+a browser, its robots.txt closes its search API, and SEEK's API is for
+partners only. Kalibrr, tried next, is different: its site reads a public
+JSON search that answers scripts, and robots.txt allows it.
+
+- **Kalibrr is a scan source** (`fetch/kalibrr.py`, in `sources.keyless`).
+  Each title is searched four pages deep, 50 a page, at one request a
+  second. Philippine and Indonesian jobs; skipped when `locations.countries`
+  names neither PH nor ID. Its dates are the best of any source:
+  - `activation_date` is the posting date, so the freshness tiers apply;
+  - a post past its `application_end_date` is not returned, and the "still
+    open" check marks a stored one closed after it;
+  - a recruiter not seen in 30 days (`es_recruiter_last_seen`) is flagged,
+    "applications may not be read": the clearest ghost signal a board gives.
+
+  Pay counts only when the employer shows it; remote and hybrid are read
+  from Kalibrr's own fields. Its job pages answer 403 to scripts, so "still
+  open" otherwise goes by whether the post was in the latest search, as for
+  Adzuna (the two now share that path), and `enrich` skips it.
+- **Discover recognises job sites by address** (JobStreet, JobsDB, SEEK,
+  Kalibrr, LinkedIn, Indeed, Glassdoor, OnlineJobs.ph) and says what to do
+  instead, before sending anything: for Kalibrr, add it to
+  `sources.keyless`; for the rest, search links, or Discover the employer's
+  own site from a posting.
+- **Dork mode** has JobStreet, JobsDB, Kalibrr and OnlineJobs.ph on request
+  (`jobdork dork --sites jobstreet kalibrr --since 1w`), opened in your
+  browser, which those sites allow. Not in the default set, which stays as
+  it was.
+
+A config that lists its sources keeps its list: `kalibrr` was added to the
+local one by hand, and the example config lists it.
+
+Tried live with the real config's first two titles: 8 requests in 8
+seconds, 240 posts; 231 dropped on the title (Kalibrr's search is loose), 3
+as more than 25 miles from Baguio, 1 as a ghost 247 days old; 2 remote posts
+kept, one posted two days before. Ten carried the idle-recruiter flag. Seven
+new tests, none touching the network.
+
+---
+
 ## Added — 2026-09-30 — stale and ghost job posts: aged by date, ranked, and dropped past 90 days
 
 Nothing looked at how old a post was. Of the 29 posts in the database, 17
@@ -3034,6 +3519,37 @@ open; a digest arrives, and what arrived with it is what was not there before.
 
 ## Still outstanding
 
+- **The dashboard does not show the built-in employer boards** or let you
+  switch them off or pick industries. `/api/sources` already returns them
+  (`directory`: on or off, how many boards, countries, industries); the
+  Sources page does not draw it yet. Until then it is `sources.directory`
+  in config.yaml and `jobdork sources`.
+- **More built-in boards.** 322, past the 300 aimed for, 308 of them US.
+  More candidates in `scripts/candidates.csv` help most now: every system
+  on the test list has a reader, and of the 16 misses left, 4 sites refuse
+  scripts, 11 name no board Discover can find, and Shopify's names none.
+- **Users outside the US.** The built-in list is US first; Asia, Europe and
+  Australia get Workable, Adzuna (with a key), Himalayas, Kalibrr (PH, ID)
+  and multinationals' boards filtered to their country. Measure a default
+  scan per region first (Manila, Berlin, London, Sydney, Singapore), then
+  add sources where it is thinnest: candidates include Arbeitnow, the
+  German federal job search, Reed, EURES, MyCareersFuture and Australia's
+  government boards, and remote boards (RemoteOK, Remotive, We Work
+  Remotely, Working Nomads) for everyone. All unverified.
+- **A key proxy, deferred** until the Discover test list shows whether
+  keyless sources leave real gaps: zero-setup access to keyed sources
+  (Adzuna, USAJOBS, Google Jobs resellers) through a server the project runs.
+  The reasoning, its costs, and the conditions for revisiting it are in
+  [DECISIONS.md](DECISIONS.md#deferred-a-key-proxy).
+- **JSearch (RapidAPI) as an optional keyed source**: Google for Jobs data,
+  which reaches Philippine posts on JobStreet and LinkedIn by legitimate
+  means, with full adverts, apply links and dates. Waits on three things:
+  a RapidAPI key to verify the live answer against (Adzuna's documentation
+  was wrong on three fields until the first live run); a monthly budget, as
+  the free tier is 200 requests a month and one scan of 16 titles would
+  spend most of it; and its current terms and free tier, read on RapidAPI.
+  `python-jobspy` was considered and refused: it scrapes LinkedIn and Indeed
+  against their terms and robots.txt.
 - **An Adzuna post that is not on the employer's own careers board** should
   be flagged as a likely ghost. Adzuna's pages cannot be read (enrich.py), so
   the check is whether the same job (grouping.py) is on the employer's own

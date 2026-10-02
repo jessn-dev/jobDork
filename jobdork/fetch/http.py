@@ -58,8 +58,33 @@ HOST_RATES: dict[str, float] = {
     "api.eu.lever.co": 3.0,
     "data.usajobs.gov": 3.0,
     "api.adzuna.com": 1.0,          # 25 calls a minute on the free tier
+    # Kalibrr publishes no limit. One a second is a person paging quickly.
+    "www.kalibrr.com": 1.0,
+    # Himalayas answers 429 past an unpublished limit.
+    "himalayas.app": 1.0,
 }
 DEFAULT_RATE = 3.0
+
+# Rates for every host under a domain, where each employer has its own host
+# (nvidia.wd5.myworkdayjobs.com). Workday publishes no limit; one a second is
+# a person paging, and a detail is fetched per matching job.
+DOMAIN_RATES: dict[str, float] = {
+    "myworkdayjobs.com": 1.0,
+    # Oracle Recruiting Cloud (jpmc.fa.oraclecloud.com) publishes no limit
+    # either; two a second, one detail per kept job.
+    "oraclecloud.com": 2.0,
+    # Taleo Business Edition pages (phf.tbe.taleo.net): HTML, one a second.
+    "taleo.net": 1.0,
+}
+
+
+def rate_for(host: str) -> float:
+    if host in HOST_RATES:
+        return HOST_RATES[host]
+    for domain, rate in DOMAIN_RATES.items():
+        if host == domain or host.endswith("." + domain):
+            return rate
+    return DEFAULT_RATE
 
 BLOCK_SECONDS = 300.0               # how long a host that said no is left alone
 MAX_CONSECUTIVE_429 = 3
@@ -124,9 +149,19 @@ class Fetcher:
         with self._hosts_lock:
             state = self._hosts.get(host)
             if state is None:
-                state = _HostState(rate=HOST_RATES.get(host, DEFAULT_RATE))
+                state = _HostState(rate=rate_for(host))
                 self._hosts[host] = state
             return state
+
+    def pace(self, host: str, rate: float) -> None:
+        """Slow one host to `rate` a second, never speed it up.
+
+        For hosts no table can name in advance: an employer's own careers
+        site, read by fetch/site.py.
+        """
+        state = self._state(host.lower())
+        with state.lock:
+            state.rate = min(state.rate, rate)
 
     def _wait_turn(self, host: str) -> None:
         """Sleep until this host's clock allows another request."""

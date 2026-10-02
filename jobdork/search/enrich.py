@@ -46,6 +46,9 @@ ALREADY_FULL = ("workable", "greenhouse", "ashby", "lever", "usajobs")
 # Platforms that cannot be read, and why. Named rather than silently skipped.
 UNREACHABLE = {
     "adzuna": "links answer 403 from bot protection, which is not worked around",
+    # Its search already carries the whole advert; the page would only refuse.
+    "kalibrr": "pages answer 403 to scripts, and the search sends the full advert",
+    "himalayas": "pages answer 403 to scripts, and the search sends the full advert",
 }
 
 _LD_BLOCK = re.compile(
@@ -175,8 +178,37 @@ def _smartrecruiters(fetcher, row) -> tuple[str, bool]:
     return to_text("\n\n".join(p for p in parts if p)), True
 
 
+def _workday(fetcher, row) -> tuple[str, bool]:
+    """Workday's page is drawn by script; its advert is in the cxs record.
+
+    A scan reads it already; this covers a Workday job stored without one,
+    such as one added by hand from its posting address.
+    """
+    from ..fetch import workday
+
+    info, read = workday.advert(fetcher, row["url"] or "")
+    return to_text(info.get("jobDescription") or ""), read
+
+
+def _oracle(fetcher, row) -> tuple[str, bool]:
+    """Oracle Recruiting's page is drawn by script; the advert is in the detail record."""
+    from ..fetch import oracle
+
+    info, read = oracle.record(fetcher, row["url"] or "")
+    return oracle.advert(info), read and bool(info)
+
+
+def _eightfold(fetcher, row) -> tuple[str, bool]:
+    """Eightfold's page is drawn by script; the advert is in position_details."""
+    from ..fetch import eightfold
+
+    info, read = eightfold.record(fetcher, row["url"] or "")
+    return to_text(info.get("jobDescription") or ""), read and bool(info)
+
+
 # Platforms whose advert is not on the page the role links to.
-PLATFORM_READERS = {"smartrecruiters": _smartrecruiters}
+PLATFORM_READERS = {"smartrecruiters": _smartrecruiters, "workday": _workday,
+                    "oracle": _oracle, "eightfold": _eightfold}
 
 
 def enrich(cfg, store: Store, fetcher, limit: int = 0, platform: str = "",
