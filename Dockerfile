@@ -75,9 +75,11 @@ ENV JOBDORK_IN_CONTAINER=1
 ENV PYTHONUNBUFFERED=1
 
 # The uploaded resume and every generated document (cover letters, CVs,
-# reviews) go to a temporary folder inside the container, emptied when the
-# dashboard starts and when it stops, so nothing personal outlives a run.
-ENV JOBDORK_TEMP_DOCS=/tmp/jobdork
+# reviews) go to data/documents, inside the volume that keeps scan results
+# and settings, so they survive a restart. For a shared machine where nothing
+# personal should outlive a run, add `-e JOBDORK_TEMP_DOCS=/tmp/jobdork`: a
+# temporary folder emptied when the dashboard starts and when it stops.
+ENV JOBDORK_DOCS_DIR=/app/data/documents
 
 # Directories the app writes to. No config.yaml or .env is baked in: an empty
 # config.yaml does not load, so `serve` would exit at once. Mount your own;

@@ -6,6 +6,254 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-02 — How jobdork got here, and how it differs from a job board
+
+- **docs/HISTORY.md**: from a 900-line Google search builder in March to
+  today, era by era, with the decisions that turned around and why (no
+  bundled list → 368 built-in boards; AI optional → required → not blocking
+  a scan; Docker's temporary resume → kept; regex dealbreakers → plain
+  words).
+- **README: "How is this different from a job board, or an AI job app?"**,
+  a table on where the jobs come from, what decides what you see, copies and
+  ghost jobs, what the AI writes, where your resume lives and what it costs,
+  and what jobdork is not good at.
+
+---
+
+## Changed — 2026-10-02 — Documentation checked against the code
+
+Every document was read for claims the last three days made untrue, and
+fixed:
+
+- **README:** sources now name Kalibrr, Himalayas, the nine employer-board
+  platforms and the 368 built-in boards (it said five platforms, "exactly
+  the companies you name"); what it cannot do no longer says retail floor
+  and care work never reach a hiring system (Dollar Tree, Lowe's, Starbucks
+  and the hospital systems do), and names the systems without a reader; the
+  AI is described as needed for judging and writing, not as "optional"; the
+  docs table and project structure list REGIONS, DEPLOY, DECISIONS,
+  SECURITY, `compose.yaml`, `scripts/` and the workflows.
+- **docs/ARCHITECTURE.md:** the module table (storage, robots, dealbreakers,
+  directory, freshness; line counts), `boards.csv` in the pipeline and in
+  `data/`, pacing by domain and `Fetcher.pace`.
+- **docs/SOURCES.md:** tokens for Workday, Oracle, Eightfold, Taleo and
+  employer sites; Discover reading a given address as a board and falling
+  back to the site itself; Oracle and Taleo no longer listed as having no
+  adapter; the gazetteer's real size (70,026 places, 2.6 MB); what an
+  employer-board reader needs to be added.
+- **docs/PLATFORMS.md:** Kalibrr is asked for a country by name (it said
+  results mix both countries); employer systems with no reader listed.
+- **docs/CONFIG.md:** `JOBDORK_ALLOW_HOSTS`, `JOBDORK_DOCS_DIR` and
+  `JOBDORK_TEMP_DOCS`.
+- **docs/DEPLOY.md:** what "No config found" restarts and the red data
+  notice mean.
+- **SECURITY.md:** the weekly boards workflow and its write token; the
+  Docker Hub token and username ticked as set (confirmed by the owner), the
+  username described as a `release` environment variable, where it is.
+- **docs/DECISIONS.md:** the keys decision's list of shipped sources brought
+  up to date, marked as such.
+- **config.example.yaml:** the AI comment and the built-in boards' reach.
+- This changelog: a note that work was uncommitted since `b3f5f87`, long
+  untrue, removed.
+
+---
+
+## Added — 2026-10-02 — docs/REGIONS.md: coverage by region, and the plan for the rest
+
+What reaches a user outside the US was spread over the README, SOURCES and
+this changelog, and the README still said a Philippine user had Workable and
+little else. `docs/REGIONS.md` puts it in one place: what reaches each
+region today (the US, Canada, Mexico, Asia, Europe, the Middle East,
+Australia and Oceania), what has been measured, and the plan for **Europe,
+the Middle East, and Australia and Oceania, which are planned and not
+built**: measure first with the coverage test, add each region's large
+employers, add its job sites where their terms allow, measure again. The
+README links to it in place of the old line.
+
+---
+
+## Added — 2026-10-02 — compose.yaml for a NAS, and where each setting goes on each one
+
+docs/DEPLOY.md named the image `<dockerhub-user>/jobdork` (it is
+`jessengolab/jobdork`), gave click-by-click steps for UGREEN only, and had no
+compose file, though Synology, QNAP, UGREEN, TrueNAS and Portainer all take
+one pasted in, which fills every setting at once.
+
+- **`compose.yaml`** at the top of the repository: the image with a version
+  tag, the port, `JOBDORK_ALLOW_HOSTS`, `./data` mounted at `/app/data`,
+  automatic restart, 1 GB of memory, and the opt-in temporary folder and
+  `.env` commented out. Checked with `docker compose up` on an image built
+  from this branch: it starts, writes `data/config.yaml` into the folder
+  beside it, and the dashboard answers through an allowed address.
+- **docs/DEPLOY.md** says where a compose file goes on Synology, QNAP,
+  UGREEN, TrueNAS SCALE and Portainer, and where each setting goes on Unraid,
+  which takes them one by one.
+- The real image name in README, DEPLOY and SECURITY.
+
+**The published 0.14.3 does not work this way.** It was built before the
+container learnt to create its own `data/config.yaml`, and with no config
+mapped in it restarts over and over ("No config found"). The compose file
+and the docs name 0.14.4, which has to be released before they are true.
+
+---
+
+## Fixed — 2026-10-02 — Kalibrr found almost nothing in Indonesia
+
+Kalibrr's search answers with Philippine jobs unless it is asked for a
+country by name, and jobdork never asked, so an Indonesian search filtered
+three pages of Philippine jobs down to nothing: 2 jobs for three titles.
+Each country you want is now asked for (`country=Indonesia`): 380 jobs for
+the same titles. On the coverage test, Jakarta's Kalibrr results went from 0
+kept to 10. One new test.
+
+---
+
+## Added — 2026-10-02 — 26 Asian, 19 Canadian and 1 Mexican employer board in the built-in list
+
+The built-in list was US first and reached Asia, Canada and Mexico only
+through multinationals hiring there: one board was Canadian, none Mexican,
+and the Asian ones could be counted on one hand.
+
+- **`scripts/candidates.csv` gains 232 employers** (877 in all): 154 across
+  11 Asian markets (banks, telecoms, airlines, conglomerates, hospitals, IT
+  services), 48 Canadian and 30 Mexican.
+- **46 boards came of it** (368 in all, was 322): DBS, UOB, AIA, Prudential, MUFG,
+  Samsung, TSMC, Coupang, Agoda, AirAsia, AIS, Maxis, Razer, Takeda and
+  Dr. Reddy's in Asia; RBC, BMO, CIBC, Desjardins, Loblaw, Canadian Tire, Air
+  Canada, Bell, Enbridge, Canadian Natural Resources and McGill in Canada;
+  Mercado Libre for Mexico. Six held back for a name the check could not
+  match were accepted in `scripts/boards_review.csv`, with reasons.
+- **Fixed on the way:** Discover read boards only off pages, never off the
+  address it was given (Razer's own Workday address became a "site" board);
+  a Workday site named "Careers" was refused as if it were a path word; a
+  SmartRecruiters link through `my-applications/` gave that word as the
+  token (Dr. Reddy's). SuccessFactors addresses on `sapsf.com` and
+  `career…successfactors.com`, and TurboHire, Darwinbox and PeopleStrong,
+  are now named rather than reported as nothing.
+- **`build_boards.py` says why each employer found nothing**: a system with
+  no reader, blocked, or nothing named. Of the misses: Asia 93 named nothing
+  (after 37 careers addresses guessed wrong were replaced by the employers'
+  home pages), CA/MX 35; blocked 14 and 13; SuccessFactors 13 in all. Most
+  big Asian employers run careers sites of their own that link no board.
+
+**Asia coverage test, jobs kept (local, not remote), before → after,
+with the Kalibrr fix:** Manila 316 → 386 (168 → 238), Bengaluru 354 → 405
+(281 → 333), Taipei 47 → 79 (26 → 57), Jakarta 37 → 48 (16 → 27), Singapore
+129 → 137, Kuala Lumpur 78 → 85, Bangkok 43 → 51, Ho Chi Minh City 45 → 49,
+Hong Kong 32 → 35, Tokyo 40 → 42, Seoul 26 → 28. Tokyo, Seoul and Hong Kong
+stay under 20 local jobs: regional job sites, not more employers, are what
+is left there.
+
+---
+
+## Added — 2026-10-02 — A warning when Docker is keeping your data inside the container
+
+Started without `-v <folder>:/app/data`, the container keeps job posts,
+settings, the resume and letters in its own layer, and `docker rm` (or
+`--rm` on stop) deletes them with it. Nothing said so; the documented
+commands mount a folder, but a quick `docker run jobdork` does not.
+
+- **At startup**, when `/app/data` (the folder holding the database, or one
+  above it) is not a mount point in the kernel's mount table, the log says
+  so and gives the `-v` to add.
+- **On the Dashboard**, a red notice says the same, until the container is
+  started with a mounted folder.
+- Outside a container nothing is checked.
+
+Checked with the image built locally: without `-v` the log warns and
+`/api/state` reports `/app/data`; with `-v` there is no warning and the
+seeded config lands in the mounted folder. One new test.
+
+---
+
+## Changed — 2026-10-02 — Docker keeps your resume and letters across restarts
+
+In the container the uploaded resume and every document written from it
+went to a temporary folder, emptied whenever the dashboard started and
+stopped. Every restart meant uploading the resume again, and a cover letter
+not downloaded was gone. For a tool whose next step is a resume-first
+onboarding, that is a step to redo after every update.
+
+- **The image now keeps them in `data/documents`**, inside the volume that
+  already keeps scan results and settings (`JOBDORK_DOCS_DIR`, set to
+  `/app/data/documents`).
+- **Temporary stays available, by choice:** `-e JOBDORK_TEMP_DOCS=/tmp/jobdork`
+  restores the old behaviour for a shared machine where nothing personal
+  should outlive a run, and wins when both are set.
+- On your own machine nothing changes: `data/` and
+  `~/Documents/job-applications`.
+
+README and docs/DEPLOY.md say so. One new test.
+
+---
+
+## Added — 2026-10-02 — Remove all, for job titles, titles never shown, and dealbreakers
+
+Starting a search over (a nurse's titles instead of an engineer's) meant
+removing every row by hand, two clicks each.
+
+- **Remove all N**, under Job titles, Never show these titles and
+  Dealbreakers on the Search page, opens a red confirm like Delete all
+  scanned posts, with a Cancel; it is hidden when the list is empty.
+- **Job titles are replaced, not emptied.** A scan needs at least one title
+  and the config refuses an empty list, so the confirm asks for the new
+  titles (separated by commas) and saves them in place of the old in one
+  go.
+
+Checked in the browser on a copy: 14 job titles replaced by two, and three
+never-shown titles removed.
+
+---
+
+## Changed — 2026-10-02 — Remove asks with a check and an x
+
+On the Search page's lists (titles, countries, dealbreakers) the first
+click on Remove turned the button into "Remove?" for three seconds, and a
+second click on the same spot removed the row. Now the first click puts a
+check (remove) and an x (keep) in its place; the check has the focus, the x
+puts the Remove button back, and with neither clicked it comes back by
+itself after four seconds. Checked in the browser on a copy.
+
+---
+
+## Added — 2026-10-02 — Delete all scanned job posts, without scanning again
+
+The only way to empty the list was Run fresh scan, which deletes every
+scanned job post and starts a scan straight away. Starting over with other
+settings, or just clearing the list, meant a scan you did not want yet.
+
+- **Delete all scanned posts**, on the Dashboard next to Run fresh scan:
+  the same preview ("This deletes all 662 scanned job posts…", with how
+  many you are pursuing), the same red button carrying the count, the same
+  backup to `data/backups` first, and no scan after. Posts added by hand are
+  kept; posts you deleted before stay deleted.
+- It runs as a job (`POST /api/scan/delete`), so it shows in the run log and
+  is refused while a scan is running; a count that moved since the preview
+  deletes nothing.
+
+Checked in the browser on a copy: 662 deleted, backup written, run logged.
+Two new tests.
+
+---
+
+## Added — 2026-10-02 — A coverage test for users in Asia
+
+How much a fresh install finds outside the US had never been measured.
+`scripts/coverage_benchmark.py` runs a real default scan, no keys, the
+built-in boards, 50 km, for a test user in each of 11 Asian cities and four
+titles across industries (software engineer, accountant, nurse, customer
+service), and counts what each source keeps.
+
+**First result (jobs kept, of them not remote):** Bengaluru 354 / 281,
+Manila 316 / 168, Singapore 129 / 104, Kuala Lumpur 78 / 75, Taipei 47 / 26,
+Ho Chi Minh City 45 / 25, Bangkok 43 / 25, Tokyo 40 / 15, Jakarta 37 / 16,
+Hong Kong 32 / 13, Seoul 26 / 5. Outside Manila, Bengaluru and Singapore
+most of what is found is remote work from Himalayas; the local jobs come
+from multinationals' boards in the built-in list. Kalibrr found nothing for
+Jakarta, though it covers Indonesia.
+
+---
+
 ## Added — 2026-10-01 — Taleo Business Edition boards
 
 Costco hires through Taleo Business Edition, and Discover reported it as
@@ -3519,23 +3767,23 @@ open; a digest arrives, and what arrived with it is what was not there before.
 
 ## Still outstanding
 
+- **Release 0.14.4.** `compose.yaml` and docs/DEPLOY.md name it, and the
+  published 0.14.3 restarts over and over without a mapped `config.yaml`;
+  until 0.14.4 is out, the NAS instructions do not work.
+- **Europe, the Middle East, and Australia and Oceania**: planned, not built;
+  the steps and where to start are in [REGIONS.md](REGIONS.md#planned).
+- **Regional job sites in Asia**, where employers' boards cannot reach:
+  probe MyCareersFuture (SG), Glints (SEA), 104 (TW), Saramin or Worknet
+  (KR), GaijinPot (JP). Mexico has the same gap.
 - **The dashboard does not show the built-in employer boards** or let you
   switch them off or pick industries. `/api/sources` already returns them
   (`directory`: on or off, how many boards, countries, industries); the
   Sources page does not draw it yet. Until then it is `sources.directory`
   in config.yaml and `jobdork sources`.
-- **More built-in boards.** 322, past the 300 aimed for, 308 of them US.
-  More candidates in `scripts/candidates.csv` help most now: every system
-  on the test list has a reader, and of the 16 misses left, 4 sites refuse
-  scripts, 11 name no board Discover can find, and Shopify's names none.
-- **Users outside the US.** The built-in list is US first; Asia, Europe and
-  Australia get Workable, Adzuna (with a key), Himalayas, Kalibrr (PH, ID)
-  and multinationals' boards filtered to their country. Measure a default
-  scan per region first (Manila, Berlin, London, Sydney, Singapore), then
-  add sources where it is thinnest: candidates include Arbeitnow, the
-  German federal job search, Reed, EURES, MyCareersFuture and Australia's
-  government boards, and remote boards (RemoteOK, Remotive, We Work
-  Remotely, Working Nomads) for everyone. All unverified.
+- **More built-in boards.** 368, 308 of them US; 877 candidates. More
+  candidates help where employers name their boards; where they do not (most
+  large Asian and Mexican employers), regional job sites are the lever, and
+  SuccessFactors (13 misses) is the largest system still without a reader.
 - **A key proxy, deferred** until the Discover test list shows whether
   keyless sources leave real gaps: zero-setup access to keyed sources
   (Adzuna, USAJOBS, Google Jobs resellers) through a server the project runs.
@@ -3568,8 +3816,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
 - **SmartRecruiters answers 200 with `totalFound: 0`** for a throttle and for
   a board that is not there alike. An empty answer from it proves nothing
   either way.
-- **Uncommitted:** every entry above "list --json, and a connection left
-  open" exists only in the working tree. `b3f5f87` is the last commit.
 
 ---
 

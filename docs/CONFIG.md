@@ -621,6 +621,9 @@ always wins over the YAML.
 | `GEMINI_API_KEY` or `GOOGLE_API_KEY` | Gemini, from the terminal |
 | `OPENAI_API_KEY` | ChatGPT, from the terminal |
 | `JOBDORK_CONFIG` | Config path override |
+| `JOBDORK_ALLOW_HOSTS` | The dashboard: addresses besides the machine itself it may be opened by, comma separated (a NAS's network address, its Tailscale name); a wildcard is refused. See [DEPLOY.md](DEPLOY.md) |
+| `JOBDORK_DOCS_DIR` | Where the uploaded resume and generated documents are kept. The Docker image sets `/app/data/documents`, inside the kept volume |
+| `JOBDORK_TEMP_DOCS` | Opt-in instead: a temporary folder for the resume and documents, emptied when the dashboard starts and stops; wins over `JOBDORK_DOCS_DIR` |
 
 ---
 

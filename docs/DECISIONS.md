@@ -10,6 +10,51 @@ Newest first.
 
 ---
 
+## First-run onboarding: a resume-first wizard, and AI does not block scanning — 2026-10-02
+
+**Decided.** A new install opens a guided wizard, one step per screen,
+saved as each step is finished so it can be left and resumed:
+
+1. **Resume** (required), showing what was read so a bad upload is caught.
+2. **AI**: Ollama or a provider key, with Save and test. **Skippable**:
+   jobdork is built around a model (judging, letters, tailored resumes,
+   suggestions), but a scan does not need one, so a missing model shows an
+   "AI not set up" state rather than a locked Scan button.
+3. **What you are looking for**: with a model, it reads the resume and
+   suggests titles, titles to leave out, an industry and dealbreakers, which
+   you tick; without one, you type them.
+4. **Where**: the country, region and city picker, radius, work arrangement
+   and the countries you would work in.
+5. **Pay**, optional.
+6. **What will be searched**, in plain words, with optional fields for
+   keyed sources.
+7. **First scan**: a quick scan (keyword sources and the built-in boards for
+   your industry) whose results show within minutes, then the full scan in
+   the background; the page says the background scan is running and the
+   Dashboard shows it like any other run.
+
+New installs ship with no job titles. Every answer stays editable on the
+existing pages; the wizard writes the same config they do. The terminal gets
+the same questions as `jobdork init`.
+
+**Why.** Resume first because it lets the model fill in steps 3 to 5, which
+is most of the typing, for people who are not technical. AI not blocking
+scans, because someone without Ollama or a key would otherwise be stuck on
+step 2 of a tool they have not seen work yet. The quick first scan because a
+full default scan takes about 20 minutes for a US user (measured
+2026-10-01), which is a poor first experience; the industry chosen in step 3
+then keeps every later scan to the boards that matter.
+
+**Ruled out.** A checklist pointing at the existing pages (less guidance for
+the users who need it most); search before resume (no suggestions to give);
+AI as a hard gate (2026-09-30's plan, reversed here).
+
+**Revisit when** most installs come with a working model (the gate could
+return), or the full default scan drops to a few minutes (the quick scan
+would no longer be needed).
+
+---
+
 ## API keys for job sources, and a key proxy deferred — 2026-09-30
 
 ### The question
@@ -45,11 +90,13 @@ ship with the app, so nobody has to?
    providers' terms, which issue keys per developer or application.
 
 2. **Keyless sources carry the out-of-the-box experience.** A new user fills
-   in Search, Resume and AI and gets results with no key: the shipped
-   default employer boards (Workday, Greenhouse, Lever, Ashby,
-   SmartRecruiters, Breezy), Workable's search, Himalayas for remote work,
-   Kalibrr internationally, and the planned universal company-site reader.
-   Keyed sources are extras.
+   in the setup and gets results with no key: the shipped employer boards
+   (368 as of 2026-10-02, on Workday, Oracle, Eightfold, Taleo, Greenhouse,
+   Lever, Ashby, SmartRecruiters, Breezy and employers' own careers sites),
+   Workable's search, Himalayas for remote work, and Kalibrr for the
+   Philippines and Indonesia. Keyed sources are extras. (When this was
+   decided, the boards and the company-site reader were still planned; AI
+   no longer blocks a scan, see the onboarding decision above.)
 
 3. **A user who wants a keyed source pastes their own key into the app**
    (planned): a card per source on the Sources page with what it adds, a

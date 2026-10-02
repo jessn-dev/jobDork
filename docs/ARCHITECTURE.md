@@ -8,7 +8,8 @@ the way they are.
 ## The pipeline
 
 ```
-config.yaml ──┐
+config.yaml ──┐   your sources and boards, plus the built-in employer
+data/boards.csv┤   boards for your countries (search/directory.py)
               ▼
          ┌─────────┐   one adapter per source, run concurrently
          │  fetch  │   fetch/*.py         →  SourceResult(roles, errors, suspect)
@@ -50,17 +51,17 @@ nothing below imports from `web/`.
 
 | Package | Lines | Modules |
 |---|---|---|
-| `cli.py` | ~990 | Argument parsing and every command |
-| `core/` | ~1,080 | `config` (YAML, secrets from the environment), `telemetry` (what a running job is doing, readable from any process), `textutil` (HTML → text) |
-| `db/` | ~1,090 | `store` (schema, upsert, status, AI outputs), `migrations` (numbered, forwards-only), `grouping` (copies of one job) |
-| `fetch/` | ~1,640 | `http` (pacing, retries, circuit breaker — the only networking), one adapter per source, shared board helpers |
-| `search/` | ~3,020 | `scan` (orchestration, rescreen), `screen` (every filter and the score), `enrich` (full adverts), `discover` (an employer's board), `listing` (is it still open), `geo` (gazetteer, distance), `resume` (skills, fit) |
-| `ai/` | ~1,340 | `llm` (providers, keys in memory), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, resume review) |
-| `writing/` | ~850 | `generate` (`claude -p` drafts), `gates` (scripted checks), `humanize` (signs of AI writing) |
-| `web/` | ~2,110 | `serve` (HTTP), `api` (every command for the page, metrics), `live` (runs and events), `session` (token, port) |
-| `output/` | ~615 | `render` (static HTML and JSON), `digest` (email) |
-| `dork/` | ~1,190 | The original Google query generator, moved not rewritten |
-| `data/` | | `cities.csv` (places, with each one's region), `regions.csv` (region and country names), `dashboard.html`, the humanizer rules |
+| `cli.py` | ~1,060 | Argument parsing and every command |
+| `core/` | ~1,450 | `config` (YAML, secrets from the environment), `storage` (where the resume and documents are kept), `telemetry` (what a running job is doing, readable from any process), `textutil` (HTML → text) |
+| `db/` | ~1,270 | `store` (schema, upsert, status, AI outputs), `migrations` (numbered, forwards-only), `grouping` (copies of one job) |
+| `fetch/` | ~3,150 | `http` (pacing, retries, circuit breaker — the only networking), `robots` (robots.txt, RFC 9309), one adapter per source (keyword searches, employer boards on Greenhouse, Ashby, Lever, SmartRecruiters, Breezy, Workday, Oracle, Eightfold and Taleo, and an employer's own site), shared board helpers |
+| `search/` | ~4,660 | `scan` (orchestration, rescreen), `screen` (every filter and the score), `dealbreakers` (plain words into patterns), `directory` (the built-in employer boards), `freshness` (how old a post is), `enrich` (full adverts), `discover` (an employer's board), `listing` (is it still open), `geo` (gazetteer, distance), `resume` (skills, fit) |
+| `ai/` | ~2,220 | `llm` (providers, keys in memory), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, resume review) |
+| `writing/` | ~1,200 | `generate` (`claude -p` drafts), `gates` (scripted checks), `humanize` (signs of AI writing) |
+| `web/` | ~2,940 | `serve` (HTTP), `api` (every command for the page, metrics), `live` (runs and events), `session` (token, port) |
+| `output/` | ~900 | `render` (static HTML and JSON), `digest` (email) |
+| `dork/` | ~1,200 | The original Google query generator, moved not rewritten |
+| `data/` | | `boards.csv` (the built-in employer boards), `cities.csv` (places, with each one's region), `regions.csv` (region and country names), `dashboard.html`, the humanizer rules |
 
 ---
 
@@ -125,8 +126,10 @@ fetch managed to read.
 One `Fetcher` per run, shared by every adapter, thread-safe.
 
 **Per-host clocks.** `fetch.concurrency` governs how many *different* boards are
-read at once. How hard any one host is hit is set per host in `HOST_RATES` and
-is not user-configurable — raising concurrency reads more boards in parallel,
+read at once. How hard any one host is hit is set per host in `HOST_RATES`, per
+domain in `DOMAIN_RATES` (every `*.myworkdayjobs.com` host, every Oracle and
+Taleo host), or by the adapter for a host no table can name (an employer's own
+site, `Fetcher.pace`), and is not user-configurable — raising concurrency reads more boards in parallel,
 it does not make one board answer faster. Requests to different hosts
 interleave, so a long run of one platform does not park the pool on a single
 host.
@@ -214,8 +217,8 @@ or a company hiring the same title in two cities would lose one.
 
 ## The AI reader, and the guard
 
-Optional, and never a filter: a verdict sits beside the rule-based score and
-never hides a post.
+A scan runs without it, and it is never a filter: a verdict sits beside the
+rule-based score and never hides a post.
 
 **One entry point for every provider.** `ai/llm.py` asks for one JSON object
 matching a schema, from Ollama, Claude, Gemini or ChatGPT, and records the

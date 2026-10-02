@@ -375,7 +375,7 @@ Paced at 3/s.
 
 ## Kalibrr
 
-    GET https://www.kalibrr.com/kjs/job_board/search?text=...&limit=50&offset=0
+    GET https://www.kalibrr.com/kjs/job_board/search?text=...&country=Indonesia&limit=50&offset=0
 
 The search Kalibrr's own site reads. Philippine and Indonesian jobs, many of
 them from employers whose careers page Kalibrr hosts, so it reaches
@@ -390,8 +390,11 @@ closes only `/root` and `/candidate/profile`. Skipped when
 - `text` matches loosely: "software engineer" put a marketing internship
   first. Screening's title match does the real filtering (231 of 240 in the
   first live run).
-- No location parameter; results mix the Philippines and Indonesia, so the
-  country is read off each job and the radius measured locally.
+- **Ask for the country by name.** Without `country`, the search answers with
+  Philippine jobs only: an Indonesian search found 2 jobs for three titles
+  where `country=Indonesia` finds 380. Each country you want is searched
+  separately (`country=Philippines`, `country=Indonesia`); a two-letter code
+  is ignored. The radius is measured locally, from each job's address.
 - Pay counts only when `salary_shown` is true.
 - `is_work_from_home` / `is_hybrid` give the arrangement; both false is left
   unstated.
@@ -632,6 +635,15 @@ Discover recognises these by address and says so before sending anything,
 rather than reporting a refusal as if an employer had blocked it. JobStreet,
 JobsDB, Kalibrr and OnlineJobs.ph are in dork mode on request:
 `jobdork dork --sites jobstreet jobsdb kalibrr onlinejobs`.
+
+**Employer systems with no reader yet.** Discover names these when an
+employer's page links one, as "no adapter", rather than reporting nothing:
+SAP SuccessFactors (the largest group on the test lists: 13 employers),
+iCIMS, UKG, Taleo Enterprise (`careersection`), Jobvite, JazzHR, BambooHR,
+Paycom, ADP, Paylocity, Recruitee, Teamtailor, and in India TurboHire,
+Darwinbox and PeopleStrong. Several of those employers are read anyway,
+through their own careers site (State Farm on iCIMS, Kaiser Permanente on
+Taleo Enterprise), when the site marks its postings up for search engines.
 
 Adding a board to dork mode is one line. An API adapter is roughly a hundred
 plus its quirks — which is most of this document.

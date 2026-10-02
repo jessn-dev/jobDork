@@ -92,8 +92,15 @@ Both look like perfectly working boards until something compares the names.
 | `jobs.lever.co/**leverdemo**/abc-123` | lever | `leverdemo` |
 | `**acme**.breezy.hr/p/abc` | breezy | `acme` |
 | `jobs.smartrecruiters.com/**Acme**/123` | smartrecruiters | `Acme` |
+| `**nvidia**.**wd5**.myworkdayjobs.com/**NVIDIAExternalCareerSite**/job/…` | workday | `nvidia/wd5/NVIDIAExternalCareerSite` |
+| `**jpmc.fa.oraclecloud.com**/hcmUI/CandidateExperience/en/sites/**CX_1001**/…` | oracle | `jpmc.fa.oraclecloud.com/CX_1001` |
+| `**starbucks.eightfold.ai**/careers?domain=**starbucks.com**` | eightfold | `starbucks.eightfold.ai/starbucks.com` |
+| `**phf.tbe.taleo.net**/**phf02**/ats/careers/v2/…?org=**COSTCO**&cws=**41**` | taleo | `phf.tbe.taleo.net/phf02/COSTCO/41` |
+| `**https://jobs.mayoclinic.org**/job/…` (the site itself) | site | `https://jobs.mayoclinic.org` |
 
-Lever tokens are case-sensitive.
+Lever tokens are case-sensitive. Workday, Oracle, Eightfold and Taleo tokens
+have several parts, and an employer site's is its address; `jobdork
+discover` reads all of them off the careers page for you.
 
 Then:
 
@@ -183,9 +190,18 @@ It honours each site's `robots.txt` (the longest matching rule decides, as
 RFC 9309 says) and lists the pages it left unread because of it. A site that
 does not answer, or refuses (401, 403), is not asked again.
 
+An address that is itself a board (`razer.wd3.myworkdayjobs.com/Careers`)
+is read as one. With no board it can read, it tries the careers site itself:
+when the site's sitemap lists postings marked up for search engines, the site
+is the board (`site`, see [PLATFORMS.md](PLATFORMS.md#employer-site)); an
+Eightfold careers site on the employer's own host is tried the same way.
+A copy of a board that is a vendor's test (`hp-sandbox.eightfold.ai`) is
+ignored.
+
 A board found only on a page it followed, under a name that is not the
-site's, comes with a note to check it: `careers.marriott.com` links Marriott
-Vacations Worldwide's board from a brand page.
+site's, comes with a note to check it: `careers.marriott.com` linked Marriott
+Vacations Worldwide's board from a brand page (Marriott's own is now read on
+Oracle).
 
 Four outcomes, kept apart because they mean different things:
 
@@ -207,7 +223,7 @@ comments in a file that is mostly comments survive.
 
 ## The gazetteer
 
-`jobdork/data/cities.csv` — 69,933 places across 245 countries, 2.3MB, shipped
+`jobdork/data/cities.csv` — 70,026 places across 245 countries, 2.6MB, shipped
 in the repository.
 
 Almost no job source supports a radius. Adzuna does, in kilometres. USAJOBS
@@ -321,8 +337,10 @@ and the key proxy deferred until there is a reason for it, are in
 
 Stated rather than left for you to find.
 
-**Employers with no board on a platform here.** Coverage is keyword search plus
-the companies you name. Dork mode covers the rest.
+**Employers with no board on a platform here.** Coverage is keyword search,
+the built-in employer boards, the companies you name, and employers' own
+careers sites where they mark postings up for search engines. Dork mode
+covers the rest.
 
 **Adzuna, in countries it does not index.** It serves `gb us ca ie in de fr nl
 at be ch es it pl br mx za`, with `au nz sg` present but currently answering
@@ -333,25 +351,30 @@ returning an empty list.
 **USAJOBS, outside the US.** It skips itself when `US` is not in your
 countries, rather than searching a market you cannot work in.
 
-**Platforms with no adapter.** iCIMS, Taleo, SuccessFactors, Phenom,
-Avature, Oracle Recruiting Cloud, Jobvite, JazzHR, BambooHR, Paycom, ADP, UKG,
-Paylocity, Recruitee, Personio, Teamtailor, Pinpoint. All of these are in the
-dork board list and none has a fetcher.
+**Platforms with no adapter.** SAP SuccessFactors, iCIMS, UKG, Taleo
+Enterprise (`careersection`; Taleo Business Edition has a reader), Phenom,
+Avature, Jobvite, JazzHR, BambooHR, Paycom, ADP, Paylocity, Recruitee,
+Personio, Teamtailor, Pinpoint, and in India TurboHire, Darwinbox and
+PeopleStrong. They are in the dork board list; an employer on one of them is
+still read when its own careers site marks postings up for search engines
+(State Farm on iCIMS, Kaiser Permanente on Taleo Enterprise).
 
 **Aggregators with no public API.** Indeed, Glassdoor, LinkedIn, Dice, BuiltIn,
 ZipRecruiter, Monster, CareerBuilder, SimplyHired, FlexJobs, Wellfound, Y
 Combinator. See [PLATFORMS.md](PLATFORMS.md#not-supported).
 
-**Jobs not posted to an applicant tracking system at all.** Trades, retail
-floor work and most care work do not hire this way and are better served
-elsewhere.
+**Jobs not posted online in a system it can read.** Large employers' store,
+warehouse and care jobs are (Dollar Tree, Lowe's, Starbucks and the hospital
+systems in the built-in boards); small and local employers' trades, shop and
+care jobs mostly are not, and are better served elsewhere.
 
 **Salary, for most postings.** About 12% state a figure. That is the market,
 not a bug, and the salary rule is built around it.
 
 **Right to work.** A posting that states its sponsorship position is flagged,
-read from the advert. Most state nothing. Treat an unflagged role as unknown
-rather than as available.
+read from the advert, and the dealbreakers "us citizen" and "no visa
+sponsorship" act on it. Most state nothing. Treat an unflagged role as
+unknown rather than as available.
 
 **Anything an advert did not say.** A source that truncates its adverts —
 Adzuna caps at 500 characters — cannot be screened on, because dealbreakers and
@@ -413,5 +436,14 @@ which marks it suspect. This layer reports what happened.
 circuit breaker. A direct `requests` call bypasses all three and is how a host
 starts refusing.
 
-Then add the name to `KEYLESS_SOURCES` or `KEYED_SOURCES` in `jobdork/core/config.py`, and
-a row to [PLATFORMS.md](PLATFORMS.md) documenting what breaks on it.
+Then import the module in `jobdork/fetch/__init__.py`, add the name to
+`KEYLESS_SOURCES` or `KEYED_SOURCES` in `jobdork/core/config.py`, and a row
+and a section to [PLATFORMS.md](PLATFORMS.md) documenting what breaks on it.
+
+An **employer board** needs three more things, or nobody can find one:
+a pattern in `search/discover.py` (`BOARD_PATTERNS`) that reads its token off a
+careers page, with the platform in `SUPPORTED` and a way to verify a board
+(`_verify`); and, when its posting pages are drawn by script, readers for the
+still-open check (`search/listing.py`) and for `enrich`
+(`PLATFORM_READERS`). Then run `scripts/build_boards.py --add` so the
+built-in list picks up the employers on it.

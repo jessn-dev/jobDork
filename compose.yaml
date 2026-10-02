@@ -1,0 +1,38 @@
+# jobdork on a NAS or a home server, as a compose project.
+#
+# Paste this into your NAS's Docker app (Synology Container Manager → Project,
+# QNAP Container Station → Applications, UGREEN Docker → Project, TrueNAS →
+# Install via YAML, Portainer → Stacks), or run `docker compose up -d` in the
+# folder that holds it. Step by step: docs/DEPLOY.md.
+#
+# Change two things before starting it:
+#   1. the version tag on `image`, to the release you want (Docker Hub lists
+#      them: https://hub.docker.com/r/jessengolab/jobdork/tags);
+#   2. JOBDORK_ALLOW_HOSTS, to the addresses you will open the dashboard by.
+
+services:
+  jobdork:
+    # A version tag, so an update is your choice. `latest` is the newest release.
+    # 0.14.4 or newer: 0.14.3 and older need a config.yaml mapped in by hand.
+    image: jessengolab/jobdork:0.14.4
+    container_name: jobdork
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    environment:
+      # The NAS's home-network address and its Tailscale name, comma separated.
+      # Nothing else is let in, and a wildcard is refused.
+      JOBDORK_ALLOW_HOSTS: "192.168.1.50,my-nas.tail1234.ts.net"
+      # For a shared machine where nothing personal should outlive a run:
+      # the resume and letters go to a folder emptied at every start and stop.
+      # JOBDORK_TEMP_DOCS: /tmp/jobdork
+    volumes:
+      # Everything jobdork keeps: job posts, settings (config.yaml, created on
+      # the first start), your resume and letters. Without this they are
+      # deleted with the container, and the dashboard says so.
+      - ./data:/app/data
+    # Keys for keyed job sources (Adzuna, USAJOBS), one per line as NAME=value.
+    # Create the file first; a missing env_file stops the project from starting.
+    # env_file:
+    #   - ./.env
+    mem_limit: 1g

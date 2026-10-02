@@ -24,3 +24,9 @@ oracle,fa-euxw-saasfaprod1.fa.ocs.oraclecloud.com/CX_1,accept,Alorica's own Orac
 oracle,fa-euyk-saasfaprod1.fa.ocs.oraclecloud.com/PenskeCareers,accept,Penske's own Oracle board (site PenskeCareers); linked from gopenske.com/careers
 eightfold,hp-sandbox.eightfold.ai/hp-sandbox.com,reject,HP's Eightfold test environment (sandbox) linked from jobs.hp.com; not HP's real board
 eightfold,careers.lumen.com/lumen.com,accept,Lumen's own Eightfold board on its own host careers.lumen.com
+smartrecruiters,DeltaElectronics,accept,Delta Electronics' own SmartRecruiters board; linked from deltaww.com's global opportunities page
+breezy,wongnai-media-co-ltd,accept,LINE MAN Wongnai's own Breezy board (Wongnai Media); linked from careers.lmwn.com
+workday,maxine/wd3/Maxis-Career,accept,Maxis's own Workday board (tenant maxine); linked from maxis.com.my
+workday,maxine/wd3/Maxis-Early-Careers,accept,Maxis's early-careers Workday board (tenant maxine); linked from maxis.com.my
+site,https://jobs.takeda.com,accept,Takeda's own jobs site; takedajobs.com redirects to it
+oracle,ehaa.fa.ca2.oraclecloud.com/CNRL,accept,Canadian Natural Resources' own Oracle board (site CNRL); linked from cnrl.com/careers (Oracle host names are opaque codes)

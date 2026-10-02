@@ -193,6 +193,22 @@ def test_a_long_run_of_letters_does_not_stall_the_page_reader():
     assert [f.token for f in unsupported] == ["kp"]
 
 
+def test_an_address_that_is_the_board_is_read_as_one():
+    """razer.wd3.myworkdayjobs.com/Careers names its own board."""
+    class _Workday:
+        def get(self, url, **_):
+            return Response(url=url, status=200, body="<p>a script page</p>")
+
+        def post(self, url, json_body=None, **_):
+            return Response(url=url, status=200, json={"total": 100, "jobPostings": [], "facets": []})
+
+    report = discover.discover("https://razer.wd3.myworkdayjobs.com/Careers", _Workday())
+    assert [(f.platform, f.token, f.status) for f in report.found] == [
+        ("workday", "razer/wd3/Careers", "verified")]
+    api = "https://acme.wd5.myworkdayjobs.com/wday/cxs/acme/Ext/jobs"
+    assert discover._extract(api, api)[0] == []      # an API path names no site
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

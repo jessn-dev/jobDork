@@ -140,40 +140,69 @@ Download one on the AI machine with `ollama pull <model>`.
 ## 4. jobdork on the NAS
 
 **The image.** jobdork is published to Docker Hub as
-`<dockerhub-user>/jobdork`. Use a version tag (`1.2.3`) so an update is your
-choice; `latest` is the newest release. On UGREEN: Docker → Image → search for
-it and pull. Every published image is signed; [SECURITY.md](../SECURITY.md)
-shows how to check the signature and pin the exact image by its digest before
-you run it.
+[`jessengolab/jobdork`](https://hub.docker.com/r/jessengolab/jobdork/tags).
+Use a version tag (`0.14.4`) so an update is your choice; `latest` is the
+newest release. **Use 0.14.4 or newer:** older images do not create their own
+settings on the first start and restart over and over without a
+`config.yaml` mapped in. Every published image is signed;
+[SECURITY.md](../SECURITY.md) shows how to check the signature and pin the
+exact image by its digest before you run it.
 
 **A folder for its files.** Make an empty folder on the NAS, for example
 `docker/jobdork/data`. It holds everything jobdork keeps: the database of job
-posts, your settings' history, and `config.yaml`. There is no config to
+posts, `config.yaml`, your resume and your letters. There is no config to
 prepare: on the first start jobdork copies the example the image carries into
 `data/config.yaml`, and the dashboard's settings are saved there. (A
 `config.yaml` of your own mapped to `/app/config.yaml` is used instead, as
-before.)
+before.) **Without this folder mapped, everything is deleted with the
+container**; the log and the dashboard say so in red.
 
 The container runs as user and group **1000**, so the folder must be writable
 by 1000. Most NAS make their first user 1000 already; if saving fails with
 "permission denied", run over SSH `sudo chown -R 1000:1000 /path/to/docker/jobdork`.
 
-**The container.** In your NAS's Docker app, or as a command:
+**The container: the easy way, a compose project.** Most NAS Docker apps
+take a compose file pasted in, which fills every setting at once. Copy
+[`compose.yaml`](../compose.yaml) from the repository, change the version
+tag and `JOBDORK_ALLOW_HOSTS` (below), and paste it where your NAS asks for
+one. Put it in the `docker/jobdork` folder, so its `./data` is the folder
+above.
+
+| NAS | Where a compose file goes |
+|---|---|
+| Synology (Container Manager) | **Project** → **Create** → name `jobdork`, path `docker/jobdork`, source **Create docker-compose.yml** → paste → **Next** → **Done** |
+| QNAP (Container Station 3) | **Applications** → **Create** → name `jobdork` → paste → **Create** |
+| UGREEN (UGOS Pro) | **Docker** → **Project** → **Create** → name `jobdork`, storage path `docker/jobdork` → paste → **Deploy** |
+| TrueNAS SCALE (24.10 and later) | **Apps** → **Discover Apps** → the menu beside Custom App → **Install via YAML** → paste, with `./data` changed to the dataset's full path |
+| Portainer, on any of them | **Stacks** → **Add stack** → **Web editor** → paste → **Deploy the stack** |
+
+Menu names move between versions; each NAS's own guide, linked in step 1,
+has the current ones.
+
+**The container: setting by setting.** Unraid's Docker tab, and any app
+without compose, asks for each value instead:
 
 | Setting | Value |
 |---|---|
-| Image | `<dockerhub-user>/jobdork:<version>` |
+| Image | `jessengolab/jobdork:<version>` |
 | Port | NAS `8765` → container `8765` |
 | Volume | `…/docker/jobdork/data` → `/app/data`, read/write |
 | Environment | `JOBDORK_ALLOW_HOSTS` = the NAS's addresses, comma separated: its home-network address and its Tailscale name, e.g. `10.0.0.122,my-nas.tail1234.ts.net` |
 | Memory limit | 1 GB is plenty |
 | Auto restart | On |
 
+On Unraid: **Docker** → **Add Container** → Repository `jessengolab/jobdork:<version>`;
+then **Add another Path, Port, Variable, Label or Device** three times: a
+Port (8765 to 8765), a Path (container `/app/data`, host
+`/mnt/user/appdata/jobdork`) and a Variable (`JOBDORK_ALLOW_HOSTS`) → **Apply**.
+
+Or as a command:
+
 ```bash
 docker run -d --name jobdork --restart unless-stopped -p 8765:8765 \
   -e JOBDORK_ALLOW_HOSTS=10.0.0.122,my-nas.tail1234.ts.net \
   -v /volume1/docker/jobdork/data:/app/data \
-  <dockerhub-user>/jobdork:<version>
+  jessengolab/jobdork:<version>
 ```
 
 **Opening it.** The container's log prints the address with its access token,
@@ -182,10 +211,12 @@ Tailscale one from anywhere, or the home-network one at home. The token is
 new every time the container starts, so after a restart read it from the log
 again. Every request needs it; keep the link to yourself.
 
-**Your resume and letters are temporary here.** In a container, an uploaded
-resume and every document written from it are kept only until jobdork stops:
-upload the resume again after a restart, and Download a letter you want to
-keep. Your job posts, statuses and settings in `data/` are kept.
+**Your resume and letters are kept** in `data/documents`, with your job
+posts, statuses and settings, so a restart keeps them. If other people use
+the NAS and nothing personal should outlive a run, add
+`-e JOBDORK_TEMP_DOCS=/tmp/jobdork` to the `docker run`: the resume and
+letters then go to a temporary folder, emptied when jobdork starts and stops,
+and you upload the resume again after each restart.
 
 ---
 
@@ -230,3 +261,5 @@ about 3 GB, and a model on top leaves too little for the NAS's own work.
 | It works from a laptop but not from jobdork | Containers cannot reach Tailscale (step 2's test) |
 | "permission denied" saving settings | The folder is not writable by 1000 (step 4) |
 | The dashboard does not load at all | The container is stopped, or the port is not published; see its log |
+| The container restarts over and over, and its log says "No config found" | The image is 0.14.3 or older, which cannot create its own settings. Use 0.14.4 or newer, or map a `config.yaml` to `/app/config.yaml` |
+| A red notice: "Your data is deleted with this container" | `/app/data` is not mapped to a folder on the NAS (step 4's Volume). Add it and recreate the container; until then nothing is kept when the container is removed |
