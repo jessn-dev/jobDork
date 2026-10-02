@@ -86,6 +86,13 @@ KEYLESS_SOURCES = (
     "lever",
     "smartrecruiters",
     "breezy",
+    "kalibrr",          # Kalibrr's own search; Philippine and Indonesian jobs
+    "himalayas",        # remote jobs worldwide, filtered to your countries and hours
+    "workday",          # per-employer board; token tenant/dc/site, from discover
+    "oracle",           # per-employer board on Oracle Recruiting Cloud; token host/site
+    "eightfold",        # per-employer board on Eightfold; token host/domain
+    "taleo",            # per-employer board on Taleo Business Edition; token host/path/org/cws
+    "site",             # an employer's own careers site: sitemap + schema.org postings
 )
 
 # Sources that are registered but dormant until a key is present.
@@ -148,15 +155,22 @@ def load_dotenv(path: str | Path = ".env") -> None:
 
 @dataclass
 class Dealbreaker:
-    """A regex read against the job description, not the title.
+    """Words, or a regex, read against the job description, not the title.
 
-    `hard` hides the role. Otherwise it is shown with a warning, because
-    plenty of things that would put you off are worth seeing anyway.
+    `words` are plain phrases ("security clearance", "us citizen"), matched
+    the ways adverts write them (search/dealbreakers.py). `pattern` is a
+    regular expression, for whoever wants one. `hard` hides the role;
+    otherwise it is shown with a warning, because plenty of things that
+    would put you off are worth seeing anyway.
     """
     name: str
-    pattern: str
+    pattern: str = ""
     hard: bool = True
+    words: list[str] = field(default_factory=list)
     regex: re.Pattern | None = None
+    # A dealbreaker that is itself a negation ("no visa sponsorship"), so a
+    # "not" before a match does not cancel it.
+    negations_count: bool = False
 
 
 # Where a config that does not say is taken to be. Only a missing key takes
@@ -235,9 +249,23 @@ class Company:
 
 
 @dataclass
+class Directory:
+    """The employer boards jobdork ships with (data/boards.csv).
+
+    On by default: a fresh install should read named employers without
+    anyone running `discover` first. Empty `countries` follows
+    `locations.countries`; empty `industries` is every industry.
+    """
+    enabled: bool = True
+    countries: list[str] = field(default_factory=list)
+    industries: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Sources:
     keyless: list[str] = field(default_factory=lambda: list(KEYLESS_SOURCES))
     companies: list[Company] = field(default_factory=list)
+    directory: Directory = field(default_factory=Directory)
     usajobs_key: str = ""
     usajobs_email: str = ""
     adzuna_app_id: str = ""
@@ -513,15 +541,7 @@ def _build(raw: dict[str, Any]) -> Config:
     )
 
     for i, entry in enumerate(raw.get("dealbreakers") or []):
-        if not isinstance(entry, dict):
-            raise ConfigError(f"dealbreakers[{i}] must be a mapping with name and pattern")
-        cfg.dealbreakers.append(
-            Dealbreaker(
-                name=str(entry.get("name") or f"dealbreaker {i}"),
-                pattern=str(entry.get("pattern") or ""),
-                hard=bool(entry.get("hard", True)),
-            )
-        )
+        cfg.dealbreakers.append(_dealbreaker(i, entry))
 
     scr = raw.get("screening") or {}
     cfg.screening = Screening(
@@ -575,6 +595,7 @@ def _build(raw: dict[str, Any]) -> Config:
         adzuna_countries=[c.lower() for c in
                           _str_list(src.get("adzuna_countries"),
                                     "sources.adzuna_countries")],
+        directory=_directory(src.get("directory")),
     )
 
     out = raw.get("output") or {}
@@ -738,9 +759,16 @@ def _validate(cfg: Config) -> None:
                     "Left alone it would match nothing and look like a clean run."
                 ) from exc
 
+    from ..search import dealbreakers as phrases
+
     for db in cfg.dealbreakers:
-        if not db.pattern:
-            raise ConfigError(f"dealbreaker {db.name!r} has no pattern")
+        if not db.pattern and not db.words:
+            raise ConfigError(f"dealbreaker {db.name!r} has no words. Give the words "
+                              "to look for, as in `words: [security clearance]`.")
+        if db.words:
+            db.regex = phrases.compile_words(db.words)
+            db.negations_count = phrases.negates(db.words)
+            continue
         try:
             db.regex = re.compile(db.pattern, re.IGNORECASE)
         except re.error as exc:
@@ -748,6 +776,8 @@ def _validate(cfg: Config) -> None:
                 f"dealbreaker {db.name!r} has a broken pattern: {exc}. "
                 "Left alone it would match nothing and look like a clean run."
             ) from exc
+        # A pattern is taken as written: whoever wrote one meant every match.
+        db.negations_count = True
 
     # Checked on every load on purpose: a resume you moved should fail loudly
     # rather than quietly producing a document about a career you did not have.
@@ -825,6 +855,48 @@ def _validate(cfg: Config) -> None:
         raise ConfigError("llm.ollama_url must be an http(s) address")
     if not 1 <= cfg.llm.judge_top <= 500:
         raise ConfigError("llm.judge_top must be between 1 and 500")
+
+
+def _dealbreaker(i: int, entry) -> Dealbreaker:
+    """A phrase, `{name, words, hard}`, or `{name, pattern, hard}`.
+
+    A bare phrase ("security clearance") is the whole dealbreaker: its name,
+    its words, and whether it hides the post as the catalog has it.
+    """
+    from ..search import dealbreakers as catalog
+
+    if isinstance(entry, str):
+        known = catalog.known(entry)
+        return Dealbreaker(name=known.name if known else entry.strip(),
+                           words=[entry.strip()], hard=known.hard if known else True)
+    if not isinstance(entry, dict):
+        raise ConfigError(f"dealbreakers[{i}] must be a phrase, or a mapping with "
+                          "name and words (or pattern)")
+    words = entry.get("words") or []
+    if isinstance(words, str):
+        words = words.split(",")
+    words = [str(w).strip() for w in words if str(w).strip()]
+    name = str(entry.get("name") or (words[0] if words else "") or f"dealbreaker {i}")
+    return Dealbreaker(name=name, words=words, pattern=str(entry.get("pattern") or ""),
+                       hard=bool(entry.get("hard", True)))
+
+
+def _directory(raw) -> Directory:
+    """`sources.directory`: a mapping, or `false` to switch it off."""
+    if raw is None:
+        return Directory()
+    if isinstance(raw, bool):
+        return Directory(enabled=raw)
+    if not isinstance(raw, dict):
+        raise ConfigError("sources.directory must be a mapping, or false to "
+                          "switch the built-in employer boards off")
+    return Directory(
+        enabled=bool(raw.get("enabled", True)),
+        countries=[c.upper() for c in _str_list(raw.get("countries"),
+                                                "sources.directory.countries")],
+        industries=[i.lower() for i in _str_list(raw.get("industries"),
+                                                 "sources.directory.industries")],
+    )
 
 
 def _str_list(value: Any, field_name: str) -> list[str]:

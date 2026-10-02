@@ -13,9 +13,11 @@ Adzuna and USAJOBS all work this way. No list to maintain, no tokens, no
 per-employer setup — you name a job title and the platform answers for its
 whole market. This is where nearly all the volume comes from.
 
-**Employer boards.** One request, one company. Greenhouse, Ashby, Lever,
-Breezy and SmartRecruiters each publish a company's own openings. Coverage is
-exactly the companies you name, and nothing else.
+**Employer boards.** One company each. Greenhouse, Ashby, Lever, Breezy,
+SmartRecruiters, Workday, Oracle Recruiting Cloud, Eightfold and Taleo
+Business Edition each publish a company's own openings, and so does an employer's own careers site when it
+marks its postings up for search engines. Coverage is the companies jobdork
+ships with plus the ones you name, and nothing else.
 
 **Google dorks.** The original generator. Builds search URLs you click
 yourself. It reaches anything Google has indexed — including things no
@@ -26,35 +28,37 @@ The three are complementary, not redundant.
 | | Reaches | Data quality | Setup |
 |---|---|---|---|
 | Keyword search | whole platforms | structured rows | none |
-| Employer boards | named companies | best available | a token each |
+| Employer boards | named companies | best available | none for the built-in list; a token each for your own |
 | Dorks | anything indexed | a link | none |
 
 ---
 
-## Why not a bundled list of employers
+## A bundled list of employers, and what it costs
 
-Some tools ship a file of thousands of employer boards and read them all on
-every scan. That buys breadth and costs three things:
+jobdork ships a list of employer boards (see
+[below](#employer-boards-jobdork-ships-with)), and a list like that costs
+three things. Each is limited rather than ignored:
 
-**Time.** One request per employer, paced per host. Thousands of boards is an
-hour of wall clock, and one strict host can own most of it.
+**Time.** One request or more per employer, paced per host. The list is
+hundreds, not thousands, and a scan reads only the boards hiring in your
+countries (and, if you say so, your industries). A Workday board is asked
+for your countries first and costs one request when it has no jobs there.
 
 **Rot.** Boards migrate between systems, tokens get renamed, companies get
-acquired. A list is data and data decays; a stale entry is a company you have
-silently stopped watching.
+acquired; a stale entry is a company you have silently stopped watching. A
+weekly GitHub Action asks every board again, and one that has not answered
+with jobs for three weeks is removed by a reviewed pull request.
 
-**A crawler.** Building the list in the first place means crawling for it, and
-maintaining it means crawling again.
+**A crawler.** Building the list means reading employers' sites. It is done
+once a week by the project, not by every install, through `discover`: a few
+pages per employer, paced, honouring robots.txt.
 
-Keyword search sidesteps all three. Workable's search reaches every employer on
-Workable without knowing a single one of their names, and a company that joins
-tomorrow is included the day it posts.
-
-The trade is real and worth stating: **a bundled list reaches employers on
-platforms that have no keyword search.** Greenhouse and Ashby have no
-cross-employer search endpoint, so the only way to read a Greenhouse employer
-is to name them. That is what `sources.companies` is for, and what dork mode
-covers in bulk.
+Keyword search still does what a list cannot: Workable's search reaches every
+employer on Workable without knowing one name, including a company that
+joins tomorrow. The list reaches what keyword search cannot: Greenhouse,
+Ashby, Workday, Oracle, Eightfold and Taleo have no cross-employer search,
+so the only way to read those employers is to name them. Your own
+`sources.companies` and dork mode cover the rest.
 
 ---
 
@@ -133,6 +137,26 @@ A role added this way is stored **even if it fails your filters** — you asked
 for it by name, and a rule is not a better judge of that than you are. The
 mismatch is reported rather than silently applied.
 
+### Employer boards jobdork ships with
+
+A fresh install already reads named employers: `jobdork/data/boards.csv`
+lists employer boards across industries, US first, and a scan reads the ones
+hiring in your countries (`sources.directory`, on by default; see
+[CONFIG.md](CONFIG.md#sources)). `jobdork sources` says how many.
+
+None of it is typed in by hand. `scripts/build_boards.py --add` runs
+`discover` over `scripts/candidates.csv` (employer, industry, country,
+careers page) and writes in only boards found on the employer's own site that
+answered with jobs, with the countries they list jobs in. A board found deep
+in a site under another name (Marriott's page linking Marriott Vacations
+Worldwide's board) is left out for a person to check.
+
+Every Monday a GitHub Action (`.github/workflows/boards.yml`) runs
+`build_boards.py --reverify`: a board that answers with jobs is refreshed, one
+that has not for three weeks is removed, and the changes arrive as a pull
+request whose text lists what changed. To suggest an employer, add a line to
+`scripts/candidates.csv`.
+
 ### Finding one automatically
 
 ```bash
@@ -144,6 +168,24 @@ It fetches the employer's careers pages and takes the token out of the links
 they publish. It does not guess: a company name is refused rather than turned
 into a domain, and a token that was not read off their own site is never
 written down.
+
+Pages are read in this order, at most twelve, stopping at the first board it
+can read:
+
+1. the page you gave, as given (a job search or one posting works best);
+2. the site's front page;
+3. links on those pages to job pages on the same site (`careers.acme.com`
+   counts as `acme.com`), search pages first, six at most;
+4. the sitemap, for one or two postings, whose Apply links name the board;
+5. a few usual addresses (`/careers`, `/jobs`, `/jobs/search`…).
+
+It honours each site's `robots.txt` (the longest matching rule decides, as
+RFC 9309 says) and lists the pages it left unread because of it. A site that
+does not answer, or refuses (401, 403), is not asked again.
+
+A board found only on a page it followed, under a name that is not the
+site's, comes with a note to check it: `careers.marriott.com` links Marriott
+Vacations Worldwide's board from a brand page.
 
 Four outcomes, kept apart because they mean different things:
 
@@ -265,6 +307,16 @@ places returns unresolved with a note, and the role is kept and flagged.
 
 ---
 
+## Why keys are never shipped
+
+Keyed sources (Adzuna, USAJOBS) use each user's own free key. A key built
+into the public image would be readable by anyone who pulls it, however it
+was hidden, and would give every user one shared quota. The full reasoning,
+and the key proxy deferred until there is a reason for it, are in
+[DECISIONS.md](DECISIONS.md).
+
+---
+
 ## What this cannot reach
 
 Stated rather than left for you to find.
@@ -281,7 +333,7 @@ returning an empty list.
 **USAJOBS, outside the US.** It skips itself when `US` is not in your
 countries, rather than searching a market you cannot work in.
 
-**Platforms with no adapter.** Workday, iCIMS, Taleo, SuccessFactors, Phenom,
+**Platforms with no adapter.** iCIMS, Taleo, SuccessFactors, Phenom,
 Avature, Oracle Recruiting Cloud, Jobvite, JazzHR, BambooHR, Paycom, ADP, UKG,
 Paylocity, Recruitee, Personio, Teamtailor, Pinpoint. All of these are in the
 dork board list and none has a fetcher.

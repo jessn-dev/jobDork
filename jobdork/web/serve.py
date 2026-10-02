@@ -210,10 +210,32 @@ def _config_payload(cfg) -> dict:
         "resume_path": cfg.resume_path,
         "companies": [{"name": c.name, "platform": c.platform, "token": c.token}
                       for c in cfg.sources.companies],
-        "dealbreakers": [{"name": d.name, "pattern": d.pattern, "hard": d.hard}
+        "dealbreakers": [{"name": d.name, "words": d.words, "pattern": d.pattern,
+                          "hard": d.hard}
                          for d in cfg.dealbreakers],
+        "dealbreaker_suggestions": _deal_suggestions(),
         "path": cfg.path,
     }
+
+
+def _deal_row(d: dict) -> dict:
+    """One dealbreaker as config.yaml holds it: words, or an advanced pattern."""
+    words = d.get("words") or []
+    if isinstance(words, str):
+        words = words.split(",")
+    row = {"name": str(d.get("name") or "").strip()}
+    words = [str(w).strip() for w in words if str(w).strip()]
+    if words:
+        row["words"] = words
+    else:
+        row["pattern"] = str(d.get("pattern") or "")
+    row["hard"] = str(d.get("hard")).lower() in ("1", "true", "yes", "on")
+    return row
+
+
+def _deal_suggestions() -> list[dict]:
+    from ..search import dealbreakers
+    return dealbreakers.suggestions()
 
 
 def make_handler(cfg_holder: dict, session: Session, runner: Runner):
@@ -474,6 +496,11 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 if not raw.isdigit():
                     return self._reject(400, "not a cover letter id")
                 return self._wrap(api_mod.delete_letter, cfg_holder["cfg"], int(raw))
+            if path == "/api/dealbreakers/try":
+                form = self._body(limit=16 * 1024)
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.try_dealbreaker, form)
             if path == "/api/add":
                 return self._add()
             if path == "/api/advert":
@@ -894,11 +921,8 @@ def _rewrite_config(original: str, payload: dict) -> str:
     # Named fields only; the loader then refuses a broken pattern, a missing
     # token or an unknown board type, and the file is put back.
     if "dealbreakers" in payload:
-        data["dealbreakers"] = [
-            {"name": str(d.get("name") or "").strip(),
-             "pattern": str(d.get("pattern") or ""),
-             "hard": str(d.get("hard")).lower() in ("1", "true", "yes", "on")}
-            for d in payload["dealbreakers"] or [] if isinstance(d, dict)]
+        data["dealbreakers"] = [_deal_row(d) for d in payload["dealbreakers"] or []
+                                if isinstance(d, dict)]
     if "companies" in payload:
         data.setdefault("sources", {})["companies"] = [
             {"name": str(c.get("name") or "").strip(),

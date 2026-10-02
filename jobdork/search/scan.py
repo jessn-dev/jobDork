@@ -24,7 +24,7 @@ from ..core.config import Config
 from ..db import grouping
 from ..db.store import Role, Store
 from ..fetch.http import Fetcher
-from . import geo, screen
+from . import directory, geo, screen
 from . import resume as resume_mod
 
 log = logging.getLogger("jobdork.search.scan")
@@ -66,10 +66,11 @@ def _jobs_for(cfg: Config) -> list[tuple[str, dict]]:
     """Every (source, kwargs) pair this config asks for.
 
     Keyword sources run once. Employer boards run once per company, because
-    each needs its own token.
+    each needs its own token: yours from `sources.companies`, and the
+    directory's (see search/directory.py).
     """
     jobs: list[tuple[str, dict]] = []
-    keyword_sources = ("workable", "usajobs", "adzuna")
+    keyword_sources = ("workable", "kalibrr", "himalayas", "usajobs", "adzuna")
 
     for name in cfg.active_sources():
         if name in keyword_sources:
@@ -79,7 +80,9 @@ def _jobs_for(cfg: Config) -> list[tuple[str, dict]]:
     for name in cfg.dormant_sources():
         jobs.append((name, {}))
 
-    for company in cfg.sources.companies:
+    # Your own boards, then the ones jobdork ships with (data/boards.csv)
+    # for your countries and industries.
+    for company in directory.companies(cfg):
         if company.platform in cfg.sources.keyless:
             jobs.append((company.platform,
                          {"token": company.token, "company": company.name}))

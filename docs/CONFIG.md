@@ -252,23 +252,67 @@ on the role as `fit: has X, Y; wants Z`.
 
 ```yaml
 dealbreakers:
-  - name: on-call rotation
-    pattern: "on.?call rotation|24/7 on.?call"
+  - security clearance              # a phrase is the whole dealbreaker
+  - us citizen
+  - name: Client travel
+    words: [client-site travel, extensive travel]
     hard: false
 ```
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `name` | string | required | Shown on the role |
-| `pattern` | regex | required | Case-insensitive |
+| (a phrase) | string | | The words to look for; named and weighted as the list of common ones has it |
+| `name` | string | the first word | Shown on the role |
+| `words` | list, or text with commas | | Phrases to look for, in plain words |
+| `pattern` | regex | | Advanced: a regular expression instead of words |
 | `hard` | boolean | `true` | `true` hides, `false` warns |
 
 Read against the **job description**, not the title. That is the part that
 catches a role which looks right in a search result and is wrong in the third
 paragraph.
 
-**A pattern that does not compile stops the run.** Left alone it would match
-nothing and look like a clean scan.
+**Words are matched the way adverts write them.** Capitals never matter;
+words may be joined by a space, a hyphen or nothing ("client-site travel",
+"client site travel"); a short word in capitals may have dots ("US" finds
+"U.S."); the last word may end in s, es, ed, ing or ship ("us citizen" finds
+"U.S. citizenship"); and only whole words match ("us" never matches inside
+"focus").
+
+**Common dealbreakers come with their other wordings.** Type one of these
+and the usual ways adverts phrase it are looked for too:
+
+| Dealbreaker | Also finds | Effect |
+|---|---|---|
+| security clearance | TS/SCI, top secret, polygraph, secret clearance, public trust | hides |
+| us citizen | U.S. citizenship, United States citizen, must be a citizen | hides |
+| no visa sponsorship | unable to sponsor, cannot sponsor, without sponsorship | hides |
+| relocation required | must relocate, required to relocate | hides |
+| client-site travel | travel to client sites, client site, at client locations | 8 points |
+| heavy travel | extensive travel, frequent travel, travel up to 30 to 100% | 8 points |
+| on-call | on call rotation, 24/7 support, pager duty | 8 points |
+| night shift | overnight shift, graveyard shift, third shift | 8 points |
+| weekend work | weekends required, weekend shifts | 8 points |
+| fully on-site | 100% on site, five days in office | 8 points |
+| drug test | drug screen, drug-free workplace | 8 points |
+| driver's license | drivers license, CDL | 8 points |
+| heavy lifting | lift up to 40 lbs or more | 8 points |
+| contract or agency | C2C, corp to corp, staffing agency, 1099 | 8 points |
+| commission only | 100% commission, quota | 8 points |
+| unpaid take-home | take-home test or project, unpaid trial | 8 points |
+| bilingual required | must be bilingual | 8 points |
+
+The full list is `CATALOG` in `jobdork/search/dealbreakers.py`. A phrase not
+in it is matched as written.
+
+**A negation is not a match.** "No security clearance required" and "you do
+not need to be a US citizen" are the opposite of the dealbreaker, so a match
+with no, not, without or never in the few words before it, in the same
+sentence, is skipped. A dealbreaker that is itself a negation ("no visa
+sponsorship") counts its matches as they are.
+
+**A pattern that does not compile stops the run**, and so does a dealbreaker
+with nothing to look for. Left alone either would match nothing and look like
+a clean scan.
 
 A soft match costs 8 points and flags the role. A role with no advert text
 cannot be checked, and says so: `no advert text — dealbreakers not checked`.
@@ -276,13 +320,15 @@ Note that some sources truncate adverts — see
 [PLATFORMS.md](PLATFORMS.md) — and a dealbreaker cannot find what was cut off.
 
 On the dashboard they are on the Search page: a table you remove rows from,
-and a form that adds one. The form has samples, and a box that tries a pattern
-against a sentence you paste.
+a box to type the words in, the common ones as one-click buttons, and a box
+that tries the words against a sentence you paste. Regular expressions are
+under Advanced.
 
-### Writing a pattern
+### Advanced: writing a pattern
 
-A pattern is a Python regular expression, matched anywhere in the advert with
-capitals ignored. Plain words are a pattern already: `polygraph` finds
+For anything plain words cannot say. A pattern is a Python regular
+expression, taken as written (a "no" before a match does not cancel it),
+matched anywhere in the advert with capitals ignored. Plain words are a pattern already: `polygraph` finds
 "Polygraph" in any sentence. A few symbols cover almost every dealbreaker:
 
 | Write | Means | Example | Finds | Does not find |
@@ -342,23 +388,37 @@ Python flavour, which is what a scan uses.
 
 ```yaml
 sources:
-  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy]
+  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, workday, oracle, eightfold, taleo, site]
   companies:
     - name: Stripe
       platform: greenhouse
       token: stripe
+  directory:
+    enabled: true
+    countries: []        # empty: follow locations.countries
+    industries: []       # empty: every industry
   adzuna_countries: [us]
 ```
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `sources.keyless` | list | all six | Which no-credential sources to run |
+| `sources.keyless` | list | all thirteen | Which no-credential sources to run. A config that lists them keeps its own list: add `kalibrr`, `himalayas`, `workday`, `oracle`, `eightfold`, `taleo` and `site` to it by hand |
 | `sources.companies` | list of objects | `[]` | Employer boards to read |
+| `sources.directory.enabled` | bool | `true` | Read the employer boards jobdork ships with. `directory: false` also switches them off |
+| `sources.directory.countries` | list | `[]` | Only boards hiring in these countries; empty follows `locations.countries` |
+| `sources.directory.industries` | list | `[]` | Only these industries (`healthcare`, `banking`, `retail`…); empty is all |
 | `sources.adzuna_countries` | list | `[]` | Adzuna national indexes; empty follows `locations.countries` |
 
 Each company needs `name`, `platform` and `token`, and the platform must be one
 of the per-employer ones. **The token is the board id, not the company name** —
 see [SOURCES.md](SOURCES.md#board-tokens).
+
+The directory is a list of employer boards that ships with jobdork, in
+`jobdork/data/boards.csv`, every one found by `discover` on the employer's own
+site and verified with jobs. A board you also list in `companies` is read
+once. Only boards on a platform in `keyless` are read, and each costs
+requests: `jobdork sources` says how many your config reads. See
+[SOURCES.md](SOURCES.md#employer-boards-jobdork-ships-with).
 
 Leave `adzuna_countries` empty and it follows `locations.countries`, so a
 Berlin reader gets the `de` index without needing to know Adzuna calls it that.

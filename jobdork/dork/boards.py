@@ -90,6 +90,15 @@ SITE_DORKS: dict[str, tuple[str, str]] = {
     "wellfound":         ("site:wellfound.com",              "/jobs"),
     "ycombinator":       ("site:workatastartup.com",         ""),
 
+    # ── Southeast Asia (opt-in: --sites jobstreet kalibrr ...) ───────────────
+    # Searched through Google rather than read by jobdork: JobStreet and JobsDB
+    # refuse scripts, and their robots.txt closes their search API. Results
+    # open in your browser, which they allow. Kalibrr is also a scan source.
+    "jobstreet":         ("site:jobstreet.com",              "/job/"),
+    "jobsdb":            ("site:jobsdb.com",                 "/job/"),
+    "kalibrr":           ("site:kalibrr.com",                "/jobs/"),
+    "onlinejobs":        ("site:onlinejobs.ph",              "/jobseekers/job"),
+
     # ── ATS / company career portals ──────────────────────────────────────────
     # Greenhouse migrated to job-boards.greenhouse.io; the old domain still
     # carries older postings, so both are searched.

@@ -7,6 +7,7 @@
 | [SOURCES.md](SOURCES.md) | Where coverage comes from, board tokens, the gazetteer, what is out of reach |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the pipeline fits together and why, the package layout, the AI guard and run history |
 | [DEPLOY.md](DEPLOY.md) | Running it on a NAS or home server: Docker, Tailscale, Ollama on a separate AI machine, and opening it from anywhere |
+| [DECISIONS.md](DECISIONS.md) | Choices that shape jobdork, what was ruled out, and what would make each worth revisiting (API keys, the deferred key proxy) |
 | [CHANGELOG.md](CHANGELOG.md) | What changed, and every bug found on the way |
 
 ---

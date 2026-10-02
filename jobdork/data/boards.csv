@@ -1,0 +1,323 @@
+name,platform,token,countries,industry,site,verified,jobs
+Boeing,workday,boeing/wd1/EXTERNAL_CAREERS,US|AU|BE|BR|CA|CN|DE|FR|GB|HU|IE|IN|IT|JP|KW|MY|PL|QA|SA|TW|UA,aerospace,https://jobs.boeing.com/,2026-10-01,781
+GE Aerospace,workday,geaerospace/wd5/GE_ExternalSite,US,aerospace,https://careers.geaerospace.com/ca/fr/job/R5040315/Stagiaire-Qualité-stage-débutant-en-janvier-2027,2026-10-01,514
+RTX,workday,globalhr/wd5/REC_RTX_Ext_Gateway,US,aerospace,https://careers.rtx.com/global/en/c/aftermarket-service-jobs,2026-10-01,4918
+Spirit AeroSystems,site,https://careers.spiritaero.com,US,aerospace,https://careers.spiritaero.com/jobs/17569?lang=en-us,2026-10-01,221
+Ford Motor Company,site,https://www.careers.ford.com,US,automotive,https://www.careers.ford.com/job/united-states/employer-brand-creative-lead/48560/101413715648,2026-10-01,857
+General Motors,site,https://search-careers.gm.com,US|CA,automotive,https://search-careers.gm.com/en/jobs/jr-202621254/facilities-engineer/,2026-10-01,801
+Goodyear,workday,goodyear/wd1/GoodyearCareers,US|HU|IN|MX|RO|SI|TH,automotive,https://jobs.goodyear.com/,2026-10-01,16
+Honda North America,site,https://careers.honda.com,US,automotive,https://careers.honda.com/us/en/job/12360/Metrology-Specialist,2026-10-01,269
+Lucid Motors,site,https://lucidmotors.com,US,automotive,https://lucidmotors.com/careers/search/5231094007,2026-10-01,433
+Rivian,site,https://careers.rivian.com,US,automotive,https://careers.rivian.com/jobs/33954?lang=en-us,2026-10-01,790
+Toyota North America,workday,toyota/wd503/TMNA,US,automotive,https://careers.toyota.com/,2026-10-01,129
+Ally Financial,workday,ally/wd1/Ally,US,banking,https://www.ally.com/about/careers,2026-10-01,96
+American Express,oracle,egug.fa.us2.oraclecloud.com/CX_1,US|IN,banking,https://careers.americanexpress.com/,2026-10-01,463
+Ameriprise Financial,workday,ameriprise/wd5/Ameriprise,US|DE|GB|IN|NL,banking,https://www.ameriprise.com/careers,2026-10-01,225
+Bank of America,workday,ghr/wd1/lateral-us,US|JM,banking,https://careers.bankofamerica.com/,2026-10-01,1971
+BlackRock,site,https://careers.blackrock.com,US,banking,https://careers.blackrock.com/job/new-york/technical-product-manager-aladdin-next-vice-president/45831/101411812512,2026-10-01,321
+BNY,oracle,eofe.fa.us2.oraclecloud.com/BNY,US|GB|IN,banking,https://www.bny.com/corporate/global/en/careers.html,2026-10-01,1369
+Capital One,workday,capitalone/wd12/Capital_One,US,banking,https://www.capitalonecareers.com/,2026-10-01,1890
+Charles Schwab,site,https://www.schwabjobs.com,US,banking,https://www.schwabjobs.com/job/austin/manager-technology-risk-management/33727/101415822624,2026-10-01,352
+Citigroup,eightfold,citi.eightfold.ai/citi.com,US|GB|HU|IN|PH,banking,https://jobs.citi.com/,2026-10-01,3170
+Citizens Financial Group,oracle,hcgn.fa.us2.oraclecloud.com/CX_1,US,banking,https://jobs.citizensbank.com/,2026-10-01,417
+FIS,workday,fis/wd5/SearchJobs,US,banking,https://careers.fisglobal.com/,2026-10-01,507
+Fiserv,workday,fiserv/wd5/EXT,US,banking,https://careers.fiserv.com/us/en/search-results,2026-10-01,275
+JPMorgan Chase,oracle,jpmc.fa.oraclecloud.com/CX_1001,US|AR|GB|HK|IN|PH|SG,banking,https://careers.jpmorgan.com/,2026-10-01,7404
+M&T Bank,workday,mtb/wd5/MTB,US|GB|IE,banking,https://www.mtb.com/careers,2026-10-01,787
+Mastercard,workday,mastercard/wd1/CorporateCareers,US,banking,https://careers.mastercard.com/,2026-10-01,1045
+Moody's,site,https://careers.moodys.com,US,banking,https://careers.moodys.com/en/job/new-york/senior-epm-solutions-analyst/49841/101370690464,2026-10-01,334
+Morgan Stanley,eightfold,morganstanley.eightfold.ai/morganstanley.com,US|GB|HU|IN|SG,banking,https://www.morganstanley.com/careers/career-opportunities-search?opportunity=sg,2026-10-01,1363
+MSCI,site,https://careers.msci.com,US,banking,https://careers.msci.com/job/human-resources/new-york/regional-sales-training-lead-americas/2026-5937,2026-10-01,97
+Northern Trust,workday,ntrs/wd1/northerntrust,US|AU|CA|GB|IE|IN|LU|NL|PH|SA|SG,banking,https://careers.northerntrust.com/,2026-10-01,585
+PayPal,eightfold,paypal.eightfold.ai/paypal.com,US|AU|DE|ES|GB|JP,banking,https://careers.pypl.com/,2026-10-01,289
+Plaid,ashby,plaid,US,banking,https://plaid.com/careers/openings/brand-marketing/san-francisco-hq/content-producer/,2026-10-01,122
+PNC,workday,pnc/wd5/External,US,banking,https://careers.pnc.com/global/en/search-results,2026-10-01,2000
+Ramp,ashby,ramp,US|CA,banking,https://ramp.com/careers,2026-10-01,158
+Regions Bank,workday,regions/wd5/Regions_Careers,US,banking,https://careers.regions.com/us/en/job/R106279/Senior-Consumer-Relationship-Banker-Cowan-Road-Branch,2026-10-01,485
+S&P Global,workday,spgi/wd5/SPGI_Careers,US|AR|AU|BG|BR|CA|CN|CO|DE|ES|FR|GB|HK|ID|IE|IN|IT|JP|MX|MY|NL|PH|PK|PL|SA|SG|TH,banking,https://careers.spglobal.com/,2026-10-01,265
+State Street,workday,statestreet/wd1/Global,US|AU|CA|CN|DE|FR|GB|HK|IE|IN|IT|JP|LU|MX|NL|PH|PL|SA|SG|TW,banking,https://careers.statestreet.com/,2026-10-01,1073
+Synchrony,site,https://www.synchronycareers.com,US,banking,https://www.synchronycareers.com/job/charlotte/vp-relationship-manager-ashley/49398/101379420192,2026-10-01,44
+TD Bank,workday,td/wd3/TD_Bank_Careers,US|CA|GB|HK|IE|SG,banking,https://jobs.td.com/,2026-10-01,1693
+U.S. Bank,workday,usbank/wd1/US_Bank_Careers,US|GB|IE|IN|LU|PL,banking,https://careers.usbank.com/,2026-10-01,1255
+Vanguard,workday,vanguard/wd5/vanguard_external,US,banking,https://www.vanguardjobs.com/job/23943954/sr-editorial-manager-markets-and-investing-charlotte-nc/,2026-10-01,354
+Visa,workday,visa/wd5/Visa,US|AE|AU|BD|BG|BR|CA|CL|CN|CO|CR|CZ|DE|DK|DO|EG|ES|ET|FR|GB|GH|GT|HK|ID|IN|IT|JP|KE|LB|LV|MA|MN|MX|MY|NG|NL|NZ|PA|PE|PH|PK|PL|PT|QA|RO|RS|SA|SE|SG|TH|TW|UA|VE|VN|ZA,banking,https://corporate.visa.com/en/jobs,2026-10-01,779
+Wells Fargo,site,https://www.wellsfargojobs.com,US,banking,https://www.wellsfargojobs.com/en/jobs/r-560461/home-mortgage-consultant-safe/,2026-10-01,1724
+Bechtel,site,https://jobs.bechtel.com,US,construction,https://jobs.bechtel.com/us/en/job/BCFBCKUS297842EXTERNALENUS/Purchasing-Specialist,2026-10-01,1114
+Fluor,site,https://careers.fluor.com,US,construction,https://careers.fluor.com/careers/job/1099556375382-boilermaker-corsicana-us-tx-united-states?domain=fluor.com,2026-10-01,597
+Accenture,workday,accenture/wd103/AccentureCareers,IE|AE|AR|AT|AU|BE|BG|BR|CA|CH|CL|CO|CR|CZ|DE|DK|EG|ES|FI|FR|GB|GR|HU|ID|IL|IN|IT|JP|KW|LT|LU|LV|MA|MX|MY|NL|NO|NZ|PH|PL|PR|PT|QA|RO|RS|SA|SE|SG|SK|TH|US|VN|ZA,consulting,https://www.accenture.com/us-en/careers,2026-10-01,2000
+Boston Consulting Group,site,https://careers.bcg.com,US|GR,consulting,https://careers.bcg.com/ca/fr/job/52647/Consultant-INSEAD-MBA-Internship-Athens-Greece,2026-10-01,884
+Deloitte,site,https://apply.deloitte.com,US,consulting,https://apply.deloitte.com/en_US/careers/JobDetail/Manager-GBS-Operational-Finance-Transformation/361290,2026-10-01,1263
+Gartner,workday,gartner/wd5/EXT,US|AE|AT|AU|BE|BR|CA|CH|CN|CZ|DE|DK|ES|FI|FR|GB|HK|IE|IL|IN|IT|JP|LU|MT|MX|NL|NO|PL|PT|QA|SA|SE|SG|TW|ZA,consulting,https://jobs.gartner.com/jobs/job/88221-client-success-manager/,2026-10-01,755
+PwC,workday,pwc/wd3/US_Experienced_Careers,US,consulting,https://jobs-us.pwc.com/us/en/search-results,2026-10-01,546
+Estee Lauder,eightfold,elcompanies.eightfold.ai/elcompanies.com,US|CA,consumer goods,https://careers.elcompanies.com/,2026-10-01,1936
+General Mills,workday,genmills/wd1/GMI_External_Careers,US|AU|CA|ES|FR|GR|HK|IN|MX|SG|TW,consumer goods,https://careers.generalmills.com/,2026-10-01,352
+Hasbro,greenhouse,hasbro,US|CA|DE|GB|HK|IN|JP|MY|SG,consumer goods,https://jobs.hasbro.com/,2026-10-01,124
+Levi Strauss,workday,levistraussandco/wd5/External,US|AT|AU|BD|BE|BR|CA|CZ|DE|DK|ES|FR|GB|GR|HU|ID|IE|IN|IT|MX|MY|NL|NZ|PH|PK|PL|RO|SG|TH|VN|ZA,consumer goods,https://www.levistrauss.com/work-with-us,2026-10-01,1298
+Mars,workday,mars/wd3/External,US,consumer goods,https://careers.mars.com/us/en/c/supply-chain-engineering-jobs,2026-10-01,821
+Mattel,site,https://jobs.mattel.com,US,consumer goods,https://jobs.mattel.com/en/job/el-segundo/costing-engineer-innovation-ventures/2015/101411927056,2026-10-01,428
+Nike,workday,nike/wd1/nke,US,consumer goods,https://careers.nike.com/,2026-10-01,814
+Nike,workday,nike/wd1/nke2,US,consumer goods,https://careers.nike.com/,2026-10-01,416
+PepsiCo,site,https://www.pepsicojobs.com,US|CA,consumer goods,https://www.pepsicojobs.com/jobs/478112?lang=fr-ca,2026-10-01,3259
+Procter & Gamble,site,https://www.pgcareers.com,US|MX,consumer goods,https://www.pgcareers.com/mx/en/job/R000160187/Senior-Sales-Execution-Manager-Mérida,2026-10-01,801
+Tapestry,workday,tapestry/wd108/Tapestry_Careers,US|AT|AU|CA|CH|DE|ES|FR|GB|ID|IE|IT|JP|KH|MY|NL|NZ|PT|SG|VN,consumer goods,https://careers.tapestry.com/,2026-10-01,2000
+The Coca-Cola Company,workday,coke/wd1/coca-cola-careers,US|AR|BE|BG|BR|CA|CN|CR|DE|DO|EG|ES|FR|GB|GR|HU|ID|IE|IN|IT|JP|MX|PH|PK|PL|PR|SG,consumer goods,https://careers.coca-colacompany.com/,2026-10-01,217
+Unilever,workday,unilever/wd3/Unilever_Experienced_Professionals,GB|AR|AU|BE|BR|CA|CH|CR|DE|EG|ES|ET|FR|ID|IN|JP|KH|LB|LK|MM|MX|MY|NI|NL|NZ|PH|PL|RO|SA|SV|TH|US|VN|ZA,consumer goods,https://careers.unilever.com/,2026-10-01,240
+Bright Horizons,workday,brighthorizons/wd5/External-NorthAmerica,US,education,https://careers.brighthorizons.com/us/en/search-results,2026-10-01,645
+Duolingo,greenhouse,duolingo,US|CN|GB|JP,education,https://careers.duolingo.com/,2026-10-01,82
+McGraw Hill,site,https://careers.mheducation.com,US,education,https://careers.mheducation.com/jobs/7198?lang=en-us,2026-10-01,62
+Ohio State University,workday,osu/wd1/OSUCareers,US,education,https://hr.osu.edu/careers,2026-10-01,1001
+Pearson,oracle,hccz.fa.em3.oraclecloud.com/CX_2,GB|IN|PH|US,education,https://pearson.jobs/,2026-10-01,351
+Penn State,workday,psu/wd1/PSU_Academic,US,education,https://hr.psu.edu/careers/browse-positions,2026-10-01,416
+Penn State,workday,psu/wd1/PSU_Staff,US,education,https://hr.psu.edu/careers/browse-positions,2026-10-01,1455
+University of Chicago,workday,uchicago/wd5/External,US,education,https://uchicago.wd5.myworkdayjobs.com/External,2026-10-01,413
+University of Texas at Austin,workday,utaustin/wd1/UTstaff,US,education,https://utaustin.wd1.myworkdayjobs.com/UTstaff,2026-10-01,601
+Yale University,workday,yale/wd1/external_career_site,US,education,https://careers.yale.edu/us/en/job/YUCYUHUS138498WDEXTERNALENUS/Animal-Technician-3,2026-10-01,272
+Baker Hughes,site,https://careers.bakerhughes.com,US,energy,https://careers.bakerhughes.com/it/it/job/R169365/Intern-Co-op-Sourcing-Spring-2027-Opportunities,2026-10-01,676
+Chevron,site,https://careers.chevron.com,US|PH,energy,https://careers.chevron.com/job/makati-city/payroll-project-manager/38138/93449772112,2026-10-01,123
+ConocoPhillips,workday,conocophillips/wd1/External,US,energy,https://careers.conocophillips.com/,2026-10-01,53
+First Solar,oracle,fa-esbv-saasfaprod1.fa.ocs.oraclecloud.com/CX_1,US,energy,https://www.firstsolar.com/en/careers,2026-10-01,249
+First Solar,oracle,fa-esbv-saasfaprod1.fa.ocs.oraclecloud.com/CX_1001,US|MY,energy,https://www.firstsolar.com/en/careers,2026-10-01,1
+First Solar,oracle,fa-esbv-saasfaprod1.fa.ocs.oraclecloud.com/CX_2001,US|IN,energy,https://www.firstsolar.com/en/careers,2026-10-01,20
+First Solar,oracle,fa-esbv-saasfaprod1.fa.ocs.oraclecloud.com/CX_4,US|VN,energy,https://www.firstsolar.com/en/careers,2026-10-01,10
+General Electric Vernova,workday,gevernova/wd5/Vernova_ExternalSite,US|HK|KW|MT|SG,energy,https://careers.gevernova.com/,2026-10-01,2163
+Halliburton,site,https://careers.halliburton.com,US,energy,https://careers.halliburton.com/job/zanesville/service-supervisor-i-service-supervisor-ii-cementing/543/101407018624,2026-10-01,438
+Occidental Petroleum,workday,oxy/wd5/Corporate,US,energy,https://www.oxy.com/careers,2026-10-01,45
+Occidental Petroleum,workday,oxy/wd5/UniversityRelations,US,energy,https://www.oxy.com/careers,2026-10-01,26
+Shell,workday,shell/wd3/ShellCareers,GB|AU|BR|CA|CN|DE|DK|EG|HK|IN|MY|NL|PH|PL|QA|SG|TH|TT|US|VE,energy,https://www.shell.com/careers/jobs,2026-10-01,135
+Sunrun,workday,sunrun/wd5/Sunrun_Careers,US,energy,https://www.sunrun.com/careers,2026-10-01,272
+Williams Companies,workday,williams/wd5/External,US,energy,https://www.williams.com/careers,2026-10-01,124
+Williams Companies,workday,williams/wd5/PowerExternal,US,energy,https://www.williams.com/careers,2026-10-01,41
+Cargill,site,https://careers.cargill.com,US|BR,food,https://careers.cargill.com/en/job/casca/auxiliar-de-servicos-gerais-ii-casca-rs/23251/101415525760,2026-10-01,1339
+Conagra Brands,workday,conagrabrands/wd1/Careers_CAN,US,food,https://careers.conagrabrands.com/ca/fr/job/Req-039750/Supply-Chain-Planning-Optimization-Manager,2026-10-01,9
+Conagra Brands,workday,conagrabrands/wd1/Careers_US,US,food,https://careers.conagrabrands.com/us/en/job/Req-040377/Maintenance-Supervisor-Utilities,2026-10-01,258
+Constellation Brands,workday,cbrands/wd5/CBI_External_Careers,US|MX|NZ,food,https://www.cbrands.com/careers,2026-10-01,83
+Keurig Dr Pepper,eightfold,kdrp.eightfold.ai/kdrp.com,US|CA|MX,food,https://careers.keurigdrpepper.com/,2026-10-01,737
+Land O'Lakes,workday,landolakes/wd1/LandOLakes,US,food,https://careers.landolakesinc.com/,2026-10-01,190
+Post Holdings,site,https://jobs.postholdings.com,US,food,https://jobs.postholdings.com/jobs/31393?lang=en-us,2026-10-01,326
+Sysco,site,https://careers.sysco.com,US,food,https://careers.sysco.com/en/job/medley/warehouse-order-selector/1105/97895713792,2026-10-01,1492
+US Foods,workday,usfoods/wd1/usfoodscareersExternal,US,food,https://careers.usfoods.com/us/en/job/R282437/Pricing-Analyst,2026-10-01,680
+BAE Systems Inc.,site,https://jobs.baesystems.com,US,government contracting,https://jobs.baesystems.com/global/en/job/124705BR/Shipboard-Landing-Systems-Radar-Technician-III-IV,2026-10-01,1681
+Booz Allen Hamilton,workday,bah/wd1/BAH_Jobs,US,government contracting,https://careers.boozallen.com/,2026-10-01,2000
+KBR,workday,kbr/wd5/KBR_Careers,US|AE|AU|AZ|CA|CN|DE|ES|GB|ID|IN|JP|KR|MX|PL|QA|SA|SG|TR,government contracting,https://careers.kbr.com/us/en/job/R2128263/Static-technician-III,2026-10-01,1798
+L3Harris,site,https://careers.l3harris.com,US,government contracting,https://careers.l3harris.com/en/job/anaheim/demand-planner-siop-sr-spec-production-planning/4832/101409856528,2026-10-01,2228
+Lockheed Martin,eightfold,lockheedmartin.eightfold.ai/lockheedmartin.com,US,government contracting,https://www.lockheedmartinjobs.com/careers,2026-10-01,5543
+Northrop Grumman,eightfold,ngc.eightfold.ai/ngc.com,US,government contracting,https://www.northropgrumman.com/careers,2026-10-01,3773
+Peraton,site,https://www.careers.peraton.com,US,government contracting,https://www.careers.peraton.com/jobs/z-os-systems-programming-manager-undefined-undefined-168513-jobs--information-technology--,2026-10-01,1512
+AdventHealth,workday,adventhealth/wd12/AH_External_Career_Site,US,healthcare,https://jobs.adventhealth.com/,2026-10-01,2000
+Advocate Health,workday,aah/wd5/External,US,healthcare,https://careers.advocatehealth.com/,2026-10-01,2000
+Ascension,oracle,ibpcjb.fa.ocs.oraclecloud.com/CX_1004,US,healthcare,https://jobs.ascension.org/,2026-10-01,3624
+Baylor Scott & White Health,site,https://jobs.bswhealth.com,US,healthcare,https://jobs.bswhealth.com/us/en/job/BSWHUS25020029EXTERNALENUS/Patient-Care-Tech-PCT,2026-10-01,1753
+Cardinal Health,workday,cardinalhealth/wd1/EXT,US|AU|BR|CA|CN|CR|CY|DO|ES|IE|IN|JP|MX|PH|TH,healthcare,https://jobs.cardinalhealth.com/search/jobdetails/warehouse-associate---2nd-shift/8a847afa-ed75-4432-931a-335ffc1f49b0?utm_campaign=featuredjob,2026-10-01,821
+Cedars-Sinai,site,https://careers.cshs.org,US,healthcare,https://careers.cshs.org/job/beverly-hills/lvn-float-pool-beverly-hills-3-000-sign-on-bonus/252/101412517456,2026-10-01,857
+Cencora,workday,myhrabc/wd5/Global,US|AT|AU|BE|BG|BR|CA|CH|CO|CR|CY|CZ|DE|ES|FR|GB|GR|HU|IE|IN|IT|JP|LT|LV|MX|MY|NL|NO|PE|PH|PL|PR|PT|RO|SG|TH|TW|ZA,healthcare,https://careers.cencora.com/us/en/search-results,2026-10-01,997
+Children's Hospital of Philadelphia,workday,chop/wd108/CHOPExternalCareers,US,healthcare,https://careers.chop.edu/,2026-10-01,240
+Cleveland Clinic,workday,ccf/wd1/ClevelandClinicCareers,US,healthcare,https://jobs.clevelandclinic.org/,2026-10-01,2225
+CommonSpirit Health,site,https://www.commonspirit.careers,US,healthcare,https://www.commonspirit.careers/job/kirkland/dermatology-technician-clinic/35300/101413225296,2026-10-01,5689
+Corewell Health,workday,spectrumhealth/wd5/CorewellHealthCareers,US,healthcare,https://careers.corewellhealth.org/us/en/sign-on-bonus-careers,2026-10-01,2000
+CVS Health,workday,cvshealth/wd1/CVS_Health_Careers,US,healthcare,https://jobs.cvshealth.com/us/en/aetna-jobs,2026-10-01,19595
+DaVita,workday,davita/wd1/DKC_External,US,healthcare,https://careers.davita.com/search-results,2026-10-01,3433
+Fresenius Medical Care,workday,freseniusmedicalcare/wd3/fme,US|AR|AT|AU|BA|BE|BR|CA|CH|CL|CN|CO|CZ|DE|EG|ES|FR|GB|HK|HR|ID|IE|IN|IT|JP|MX|MY|NL|PE|PH|PK|PL|PT|RO|RS|SA|SG|SK|TH|TW|VN|ZA,healthcare,https://jobs.fmcna.com/,2026-10-01,2000
+Geisinger,workday,geisinger/wd5/GeisingerExternal,US,healthcare,https://jobs.geisinger.org/,2026-10-01,1390
+Hims & Hers,ashby,hims-and-hers,US|CA|GB,healthcare,https://www.hims.com/careers-professionals,2026-10-01,140
+Houston Methodist,workday,houstonmethodist/wd12/GTI,US,healthcare,https://careers.houstonmethodist.org/,2026-10-01,1356
+Intermountain Health,workday,imh/wd108/IntermountainCareers,US,healthcare,https://intermountainhealthcare.org/careers,2026-10-01,1455
+Johns Hopkins Medicine,site,https://jobs.hopkinsmedicine.org,US,healthcare,https://jobs.hopkinsmedicine.org/job/98368/rn-supervisor-home-infusion-nursing-management-leadership-us-md-baltimore-johns-hopkins-care-at-home/,2026-10-01,1003
+Kaiser Permanente,site,https://www.kaiserpermanentejobs.org,US,healthcare,https://www.kaiserpermanentejobs.org/job/santa-clara/occupational-therapist/641/101405528832,2026-10-01,3074
+Labcorp,workday,labcorp/wd1/External,US,healthcare,https://careers.labcorp.com/global/en/job/COVAGLOBAL2630754EXTERNALENGLOBAL/Specimen-Proccessor,2026-10-01,1850
+Mass General Brigham,workday,massgeneralbrigham/wd1/MGBExternal,US,healthcare,https://www.massgeneralbrigham.org/en/about/careers/development-jobs,2026-10-01,2000
+Mayo Clinic,oracle,fa-euwp-saasfaprod1.fa.ocs.oraclecloud.com/Mayo,US,healthcare,https://jobs.mayoclinic.org/,2026-10-01,1359
+McKesson,site,https://careers.mckesson.com,US,healthcare,https://careers.mckesson.com/en/job/conroe/night-shift-operations-supervisor/733/101398066944,2026-10-01,601
+Mount Sinai Health System,oracle,ejis.fa.us6.oraclecloud.com/CX,US,healthcare,https://careers.mountsinai.org/,2026-10-01,1844
+Northwell Health,oracle,eppr.fa.us2.oraclecloud.com/CX_2,US,healthcare,https://jobs.northwell.edu/,2026-10-01,1442
+Ochsner Health,workday,ochsner/wd1/Ochsner,US,healthcare,https://careers.ochsner.org/,2026-10-01,1889
+Providence,oracle,evac.fa.us2.oraclecloud.com/CX_1,US,healthcare,https://providence.jobs/,2026-10-01,2013
+Quest Diagnostics,oracle,hdox.fa.us6.oraclecloud.com/CX_1,US,healthcare,https://careers.questdiagnostics.com/,2026-10-01,2173
+Sanford Health,workday,sanford/wd5/SanfordHealth,US,healthcare,https://careers.sanfordhealth.org/,2026-10-01,2000
+St. Jude Children's Research Hospital,workday,stjude/wd1/stjude,US,healthcare,https://www.stjude.org/jobs/hospital.html,2026-10-01,209
+Stanford Health Care,workday,stanfordmedicine/wd115/SHC_External_Career_Site,US,healthcare,https://careers.stanfordhealthcare.org/,2026-10-01,352
+Sutter Health,site,https://jobs.sutterhealth.org,US,healthcare,https://jobs.sutterhealth.org/us/en/job/R-134324/Medical-Assistant-II-Pediatrics,2026-10-01,1285
+Teladoc Health,workday,teladoc/wd503/teladochealth_is_hiring,US|AR|CA|ES,healthcare,https://careers.teladochealth.com/,2026-10-01,48
+Tenet Healthcare,oracle,eodr.fa.us2.oraclecloud.com/CX_1001,US,healthcare,https://jobs.tenethealth.com/,2026-10-01,2829
+Trinity Health,site,https://jobs.trinity-health.org,US,healthcare,https://jobs.trinity-health.org/holycrossfl/job/TRHEUS00611713HOLYCROSSFLENUS/Patient-Care-Coordinator,2026-10-01,1896
+UnitedHealth Group,site,https://careers.unitedhealthgroup.com,US,healthcare,https://careers.unitedhealthgroup.com/job/new-york/essential-plan-account-manager-ny/34088/101411200000,2026-10-01,5564
+Universal Health Services,site,https://jobs.uhsinc.com,US,healthcare,https://jobs.uhsinc.com/jobs/353374?lang=en-us,2026-10-01,6077
+Chipotle,site,https://jobs.chipotle.com,US,hospitality,https://jobs.chipotle.com/job/spartanburg/crew-member/282/71244062096,2026-10-01,8186
+Choice Hotels,workday,choicehotels/wd5/External,US,hospitality,https://careers.choicehotels.com/,2026-10-01,47
+Choice Hotels,workday,choicehotels/wd5/HotelExternal,US,hospitality,https://careers.choicehotels.com/,2026-10-01,85
+Compass Group USA,site,https://careers.compass-usa.com,US,hospitality,https://careers.compass-usa.com/dining-services-director/job/CAC8121A962ACECBF3D7A86FDD9072EE,2026-10-01,15049
+Domino's,smartrecruiters,Dominos,US,hospitality,https://jobs.dominos.com/us/jobs/,2026-10-01,1000
+Hilton,oracle,efet.fa.us2.oraclecloud.com/CX_1,US|AE|GB|IN|JP|MY|SA,hospitality,https://jobs.hilton.com/,2026-10-01,4291
+Inspire Brands,workday,inspirebrands/wd5/InspireCareers,US,hospitality,https://careers.inspirebrands.com/jobs,2026-10-01,89
+Marriott International,oracle,ejwl.fa.us2.oraclecloud.com/CX,US|AE|AU|BR|CA|CN|CR|DE|EG|ES|GB|HK|ID|IN|IT|JO|JP|MX|MY|PH|QA|SA|SG|TH|TW|VN|ZA,hospitality,https://careers.marriott.com/,2026-10-01,12978
+MGM Resorts,workday,mgmresorts/wd5/MGMCareers,US,hospitality,https://careers.mgmresorts.com/jobs/268107/rep-events-promotions-borgata/,2026-10-01,434
+Papa John's,site,https://jobs.papajohns.com,US,hospitality,https://jobs.papajohns.com/job/34595/papa-johns-general-manager-peoria-il-area-restaurant-management-us-il-washington-2271-washington-rd/,2026-10-01,4799
+Restaurant Brands International,workday,rbi/wd3/RBI_External_Career_Site,US|BR|CA|CH|CN|MX|SG,hospitality,https://careers.rbi.com/global/en/job/R3815/Sr-Manager-Social-Media-Firehouse-Subs-US-C,2026-10-01,103
+Shake Shack,site,https://careers.shakeshack.com,US,hospitality,https://careers.shakeshack.com/restaurant-team-member/job/P1-5247650-0,2026-10-01,579
+Six Flags,site,https://jobs.sixflags.com,US,hospitality,https://jobs.sixflags.com/job/arlington/ride-operator/42509/99235618336,2026-10-01,265
+Sodexo,smartrecruiters,Sodexo,US|AU,hospitality,https://au.sodexo.com/careers,2026-10-01,160
+Starbucks,eightfold,starbucks.eightfold.ai/starbucks.com,US|CA,hospitality,https://careers.starbucks.com/,2026-10-01,21848
+Taco Bell,site,https://jobs.tacobell.com,US,hospitality,https://jobs.tacobell.com/job/assistant-general-manager/atlanta-ga/10814358/,2026-10-01,39264
+Texas Roadhouse,workday,texasroadhouse/wd12/externaljobboard,US,hospitality,https://careers.becomearoadie.com/us/en/dining-room-search-results,2026-10-01,6155
+Allstate,workday,allstate/wd5/allstate_careers,US|CA|GB|IN|MX,insurance,https://www.allstate.jobs/,2026-10-01,440
+American Family Insurance,workday,amfam/wd1/AmFamGroupInternCareers,US,insurance,https://careers.amfam.com/early-careers/internships/,2026-10-01,31
+Aon,site,https://jobs.aon.com,US,insurance,https://jobs.aon.com/jobs/102041?lang=en-us,2026-10-01,1033
+Blue Shield of California,oracle,ecge.fa.us2.oraclecloud.com/CX_1003,US,insurance,https://careers.blueshieldca.com/,2026-10-01,100
+Centene,workday,centene/wd5/centene_external,US,insurance,https://jobs.centene.com/,2026-10-01,343
+Cigna Group,workday,cigna/wd5/cignacareers,US|AE|BE|CA|CN|ES|GB|HK|IN|KE|MY|SA|SG,insurance,https://jobs.thecignagroup.com/,2026-10-01,576
+Elevance Health,workday,elevancehealth/wd1/ANT,US,insurance,https://careers.elevancehealth.com/,2026-10-01,258
+Highmark Health,workday,highmarkhealth/wd1/highmark,US,insurance,https://careers.highmarkhealth.org/,2026-10-01,1864
+Humana,workday,humana/wd5/CenterWell_External_Career_Site,US,insurance,https://careers.humana.com/us/en/search-results,2026-10-01,1841
+Humana,workday,humana/wd5/Humana_External_Career_Site,US,insurance,https://careers.humana.com/us/en/search-results,2026-10-01,306
+Marsh McLennan,workday,mmc/wd1/MMC,US|AE|AR|AT|AU|BE|BR|CA|CH|CN|CO|CY|DE|DK|DO|ES|FI|FR|GB|GR|HK|HR|HU|ID|IE|IN|IT|JO|JP|LU|MA|MX|MY|NL|NO|NZ|PA|PE|PH|PL|PT|QA|RO|SA|SE|SG|TH|TW|ZA,insurance,https://careers.marsh.com/ca/fr/job/R_358599/Analyste-principal-Administration-des-régimes-de-retraite,2026-10-01,1959
+MassMutual,site,https://careers.massmutual.com,US,insurance,https://careers.massmutual.com/job/springfield/product-owner-workflow-orchestration/724/101341471856,2026-10-01,68
+Molina Healthcare,oracle,hckd.fa.us2.oraclecloud.com/CX_1,US,insurance,https://careers.molinahealthcare.com/,2026-10-01,379
+Nationwide,workday,nationwide/wd1/Nationwide_Career,US,insurance,https://www.nationwide.com/personal/about-us/careers/types/finance/,2026-10-01,194
+Progressive,site,https://careers.progressive.com,US,insurance,https://careers.progressive.com/jobs/18300499-claims-administrative-support-specialist/,2026-10-01,100
+State Farm,site,https://jobs.statefarm.com,US,insurance,https://jobs.statefarm.com/jobs/46431?lang=en-us,2026-10-01,226
+The Hartford,workday,thehartford/wd5/Careers_External,US|GB|HK|IN,insurance,https://www.thehartford.com/careers,2026-10-01,225
+Travelers,workday,travelers/wd5/External,US|CA|GB|IE,insurance,https://careers.travelers.com/,2026-10-01,373
+USAA,workday,usaa/wd1/USAAJOBSWD,US,insurance,https://www.usaajobs.com/,2026-10-01,243
+WTW,site,https://careers.wtwco.com,US|GB,insurance,https://careers.wtwco.com/jobs/service-centre-agent-redhill-england-united-kingdom-741bad2d-c14d-4b14-becb-e34d03304a19,2026-10-01,183
+C.H. Robinson,workday,chrobinson/wd5/CHRobinson,US|AE|AU|BE|CA|CN|CO|DE|ES|ID|IN|MX|MY|NL|NZ|PL|RO|SG|TH|TW|VN,logistics,https://jobs.chrobinson.com/,2026-10-01,147
+DHL Supply Chain,site,https://careers.dhl.com,DE|US,logistics,https://careers.dhl.com/apac/en/job/DPDHGLOBAL11142642ENAPACEXTERNALTALENTREEF/Inventory-Control-Clerk,2026-10-01,3309
+FedEx,workday,fedex/wd1/FTN_APAC_External,US|AE|CN|HK|IN|MY|SG,logistics,https://careers.fedex.com/jobs,2026-10-01,18
+FedEx,workday,fedex/wd1/FXE-EU_External,US|AT|BE|BG|CY|CZ|DE|DK|ES|FI|FR|GB|GR|HU|IE|IL|IT|LV|NL|PL|PT|RO|SE,logistics,https://careers.fedex.com/jobs,2026-10-01,758
+FedEx,workday,fedex/wd1/FXE-LAC_External_Career_Site,US|AR|BR|CR|DO|HN|MX|UY,logistics,https://careers.fedex.com/jobs,2026-10-01,96
+FedEx,workday,fedex/wd1/FXE-MEISA-External,US|AE|IN|SA,logistics,https://careers.fedex.com/jobs,2026-10-01,37
+FedEx,workday,fedex/wd1/FXE_APAC_External,US|AU|CN|HK|ID|JP|MY|NZ|PH|SG|TH|TW|VN,logistics,https://careers.fedex.com/jobs,2026-10-01,98
+Flexport,greenhouse,flexport,US|AU|BE|BR|CA|CN|DE|DK|ES|FR|GB|ID|IN|IT|JP|KH|KR|MX|NL|PH|PL|SG|TH|TW|VN,logistics,https://www.flexport.com/careers,2026-10-01,200
+Old Dominion Freight Line,workday,odfl/wd1/ODFL_Careers,US,logistics,https://careers.odfl.com/,2026-10-01,222
+Penske,oracle,fa-euyk-saasfaprod1.fa.ocs.oraclecloud.com/PenskeCareers,US,logistics,https://www.gopenske.com/careers,2026-10-01,1588
+Ryder,workday,ryder/wd5/RyderCareers,US,logistics,https://www.ryder.com/en-us/careers,2026-10-01,465
+UPS,site,https://www.jobs-ups.com,US|DE,logistics,https://www.jobs-ups.com/eeu/pl/job/R26030880/CS-Representative,2026-10-01,440
+Werner Enterprises,workday,werner/wd501/Werner,US,logistics,https://www.werner.com/careers,2026-10-01,91
+Dover,workday,dover/wd103/Dover,US,manufacturing,https://careers.dovercorporation.com/,2026-10-01,624
+Dow,workday,dow/wd1/ExternalCareers,US|AR|AU|BE|BR|CA|CN|DE|ES|FR|ID|IN|IT|JP|MX|MY|NL|NZ|PH|SE|TH|TW|VN,manufacturing,https://corporate.dow.com/en-us/careers/hiring-process.html,2026-10-01,190
+DuPont,site,https://careers.dupont.com,US|FR,manufacturing,https://careers.dupont.com/br/pt/job/250409W/Technical-Service-Specialist-Services-and-Field-Support-m-f-d,2026-10-01,202
+Emerson,oracle,hdjq.fa.us2.oraclecloud.com/CX_1,US|AE|BR|CN|CR|DE|DK|FR|GB|HU|IN|IT|JP|MX|MY|PH|PL|RO|SG,manufacturing,https://www.emerson.com/en-us/careers,2026-10-01,1060
+Generac,workday,generac/wd5/ExternalCareers,US,manufacturing,https://careers.generac.com/de/jobs/,2026-10-01,55
+Honeywell,oracle,ibqbjb.fa.ocs.oraclecloud.com/CX_1,US|IN,manufacturing,https://careers.honeywell.com/,2026-10-01,1265
+Illinois Tool Works,workday,itw/wd5/External,US,manufacturing,https://careers.itw.com/us/en/job/JR10074/Summer-2027-Sales-Engineering-Intern,2026-10-01,776
+Johnson Controls,workday,jci/wd5/JCI,US,manufacturing,https://jobs.johnsoncontrols.com/,2026-10-01,2619
+Otis,workday,otis/wd504/REC_Ext_Gateway,US|AE|AR|AT|AU|BE|BG|BH|BR|CA|CH|CL|CN|CO|CY|CZ|DE|DK|EE|EG|ES|FI|FR|GB|GR|HK|HR|HU|ID|IN|IT|JP|KW|LU|MA|MX|MY|NL|NO|NZ|PA|PL|PT|QA|RO|RS|SA|SE|SG|SI|SK|TH|TW|UA|UY|VN|ZA,manufacturing,https://www.otis.com/en/us/careers,2026-10-01,1404
+PPG,workday,ppg/wd5/PPG_CAREERS,US|AT|AU|BE|BR|CA|CH|CN|CO|CZ|DE|DK|EC|ES|FI|FR|GB|GR|HK|HU|ID|IE|IT|JP|MX|MY|NL|PA|PH|PL|SE|SG|SK|TH|TW|VN,manufacturing,https://careers.ppg.com/us/en/c/accounting-finance-jobs,2026-10-01,707
+Sherwin-Williams,oracle,ejhp.fa.us6.oraclecloud.com/CX_2,US|BR|CA|DE|FR|GB|MX|PL,manufacturing,https://careers.sherwin-williams.com/,2026-10-01,2405
+Trane Technologies,workday,tranetechnologies/wd12/Trane_Technologies_Careers,US|AE|AT|AU|BE|BG|BR|CA|CH|CL|CN|CO|CZ|DE|DK|DO|ES|FI|FR|GB|HU|IE|IN|IT|JP|LU|MX|MY|NL|PA|PH|PL|PT|SE|SG|SK|TH|TW|VN,manufacturing,https://careers.tranetechnologies.com/global/en/search-results,2026-10-01,1685
+Xylem,workday,xylem/wd5/xylem-careers,US|AT|AU|BR|CA|CH|CL|CN|DE|DK|ES|FR|GB|HU|ID|IN|IT|JP|MX|NL|NO|PE|PL|PT|SE|SG|ZA,manufacturing,https://www.xylem.com/en-us/careers,2026-10-01,522
+Activision Blizzard,workday,xboxgaming/wd1/External,US|CA|CN,media,https://careers.activisionblizzard.com/search-results,2026-10-01,99
+The New York Times,greenhouse,thenewyorktimes,US|CN|GB|KR,media,https://www.nytco.com/careers/early-career-opportunities/local-investigations-fellowship/,2026-10-01,138
+Walt Disney Company,site,https://www.disneycareers.com,US,media,https://www.disneycareers.com/en/job/glendale/business-analytics-and-intelligence-manager/391/99734928064,2026-10-01,769
+Warner Bros. Discovery,workday,warnerbros/wd5/global,US|AR|BR|CA|CL|CN|DE|DK|ES|FR|GB|HK|HU|IN|JP|MX|NL|PL|SE|SG|TW,media,https://careers.wbd.com/global/en/search-results,2026-10-01,287
+Abbott,workday,abbott/wd5/abbottcareers,US|AR|AT|AU|BE|BR|BY|CA|CH|CL|CN|CO|CR|CZ|DE|DK|EG|ES|FI|FR|GB|HK|ID|IE|IL|IN|IT|JP|MA|MX|MY|NL|NO|NZ|PE|PH|PK|PL|PT|RS|SA|SE|SG|TH|TW|UA|VN|ZA,medical devices,https://www.jobs.abbott/,2026-10-01,2000
+Baxter,workday,baxter/wd1/baxter,US|AT|AU|BE|BR|CA|CH|CL|CN|CO|CR|DE|DO|ES|FR|GB|HK|HU|IN|IT|JP|MA|MT|MX|MY|NL|NZ|PH|PL|PT|SG|TH|TW|UA|VN,medical devices,https://jobs.baxter.com/,2026-10-01,498
+Becton Dickinson,workday,bdx/wd1/EXTERNAL_CAREER_SITE_USA,US,medical devices,https://jobs.bd.com/,2026-10-01,648
+Boston Scientific,eightfold,bostonscientific.eightfold.ai/bostonscientific.com,US|CA|MY,medical devices,https://jobs.bostonscientific.com/,2026-10-01,548
+Dexcom,eightfold,careers.dexcom.com/dexcom.com,US|DE|FR|GB|IE|IN|PH,medical devices,https://careers.dexcom.com/,2026-10-01,250
+GE HealthCare,workday,gehc/wd5/GEHC_ExternalSite,US|EG|SG|TN,medical devices,https://careers.gehealthcare.com/global/en/search-results,2026-10-01,958
+Illumina,workday,illumina/wd1/illumina-careers,US|AT|BR|CA|CN|CO|DE|ES|FR|GB|IE|IN|IT|JP|MX|NL|SE|SG|ZA,medical devices,https://www.illumina.com/company/careers.html,2026-10-01,152
+Intuitive Surgical,smartrecruiters,Intuitive,US|AT|BE|BG|BR|CA|CH|CL|DE|DK|ES|FR|GB|IE|IN|IT|JP|KR|MX|MY|NL|NO|PT|SE|SG|TW,medical devices,https://careers.intuitive.com/en/jobs/744000145375754/JOB218207/sr-product-manager-customer-asset-mgmt/,2026-10-01,752
+Philips,workday,philips/wd3/jobs-and-careers,NL|AE|AR|AT|AU|BE|BR|CA|CH|CL|CN|CO|CR|CZ|DE|EG|ES|FR|GB|HK|HU|ID|IL|IN|IT|JP|MX|MY|NO|NZ|PA|PH|PL|PT|RO|SA|SE|SG|TH|TW|US|VN,medical devices,https://www.careers.philips.com/global/en/search-results,2026-10-01,854
+Stryker,workday,stryker/wd1/StrykerCareers,US|AE|AT|AU|BE|BR|CA|CH|CN|CR|DE|DK|ES|FR|GB|HK|IE|IN|IT|JP|MX|MY|NL|NO|NZ|PL|RO|SA|SE|SG|TH|TW|ZA,medical devices,https://careers.stryker.com/,2026-10-01,1472
+Zimmer Biomet,site,https://careers.zimmerbiomet.com,US,medical devices,https://careers.zimmerbiomet.com/it/it/job/12339/Sales-Representative-Surgical,2026-10-01,434
+AbbVie,site,https://careers.abbvie.com,US,pharma,https://careers.abbvie.com/en/job/medical-director-early-development-oncology-in-florham-park-nj-jid-30941,2026-10-01,1631
+Amgen,site,https://careers.amgen.com,US|JP,pharma,https://careers.amgen.com/en/job/tokyo/care-ecosystem-activation-manager/87/101384856112,2026-10-01,1545
+AstraZeneca,eightfold,astrazeneca.eightfold.ai/astrazeneca.com,GB|CA|ES|IE|IN|US,pharma,https://careers.astrazeneca.com/,2026-10-01,812
+Biogen,workday,biibhr/wd3/external,US|AR|AU|BR|CH|CL|CN|DE|ES|FR|GB|IE|IN|IT|JP|MX|PL|PT|SE,pharma,https://www.biogen.com/careers.html,2026-10-01,249
+Bristol Myers Squibb,workday,bristolmyerssquibb/wd5/BMS,US|AR|AT|AU|BE|BR|CA|CH|CN|DE|DK|FI|HK|IE|IN|JP|MX|NL|NO|PL|RO|SE|TH|TW,pharma,https://careers.bms.com/,2026-10-01,689
+Danaher,workday,danaher/wd1/DanaherJobs,US|AE|AT|AU|BE|BR|CA|CH|CN|CO|CZ|DE|DK|ES|FI|FR|GB|HK|HR|HU|ID|IE|IL|IN|IT|JP|KW|MX|MY|NL|NZ|PL|PR|PT|SA|SE|SG|SN|TH|TW|VN|ZA,pharma,https://jobs.danaher.com/global/en/life-sciences-search-results,2026-10-01,1427
+Gilead Sciences,workday,gilead/wd1/gileadcareers,US,pharma,https://www.gilead.com/careers,2026-10-01,515
+GSK,workday,gsk/wd5/GSKCareers,GB|AE|AU|BE|BR|CA|CH|CN|CO|DE|EG|ES|FR|GR|HU|ID|IL|IN|IT|JP|MX|MY|NL|PA|PH|PK|PL|PT|SA|SG|TH|TW|UA|US|VN|ZA,pharma,https://jobs.gsk.com/us/en/search-results,2026-10-01,714
+Johnson & Johnson,workday,jj/wd5/JJ,US,pharma,https://www.careers.jnj.com/,2026-10-01,1827
+Merck,workday,msd/wd5/SearchJobs,US,pharma,https://jobs.merck.com/,2026-10-01,1024
+Moderna,workday,modernatx/wd1/M_tx,US,pharma,https://www.modernatx.com/careers,2026-10-01,233
+Novartis,site,https://www.novartis.com,CH|US,pharma,https://www.novartis.com/careers/career-search/job/details/req-10087078-scientific-computing-engineer-drug-product-process-modeling-data-science,2026-10-01,981
+Pfizer,workday,pfizer/wd1/PfizerCareers,US|AR|AT|AU|BE|BR|CA|CL|CN|CO|CR|DE|EG|ES|GB|GR|HR|ID|IE|IN|IT|JP|MA|MX|MY|PH|PL|SG|TH|TW|VN,pharma,https://www.pfizer.com/about/careers,2026-10-01,533
+Roche,workday,roche/wd3/roche-ext,CH|AR|AT|BA|BE|BR|CN|CO|CZ|DE|ES|FR|GB|HK|HU|IN|KR|NL|NO|PA|PH|SE|SG|SI|TH|US,pharma,https://careers.roche.com/global/en/search-results,2026-10-01,1196
+Sanofi,site,https://jobs.sanofi.com,FR|AU,pharma,https://jobs.sanofi.com/en/job/south-melbourne/medical-science-liaison/2649/45408963584,2026-10-01,736
+Thermo Fisher Scientific,workday,thermofisher/wd5/ThermoFisherCareers,US,pharma,https://jobs.thermofisher.com/global/en/c/clinical-research-jobs,2026-10-01,2936
+Zoetis,workday,zoetis/wd5/zoetis,US,pharma,https://www.zoetis.com/careers,2026-10-01,118
+Greystar,workday,greystar/wd1/External,US,real estate,https://www.greystar.com/careers,2026-10-01,1549
+Prologis,workday,prologis/wd5/Prologis_External_Careers,US|BR|CA|MX|NL,real estate,https://www.prologis.com/careers,2026-10-01,67
+Zillow,workday,zillow/wd5/Zillow_Group_External,US,real estate,https://www.zillow.com/careers,2026-10-01,119
+Advance Auto Parts,workday,advanceauto/wd5/AdvanceExternalCareers,US|CA|IN,retail,https://jobs.advanceautoparts.com/ca/fr/job/R-0612134/General-warehouse-worker,2026-10-01,2000
+Bath & Body Works,site,https://careers.bathandbodyworks.com,US,retail,https://careers.bathandbodyworks.com/fr-ca/seasonal-retail-sales-associate-valley-river-mall/job/059XU,2026-10-01,1252
+Chewy,site,https://careers.chewy.com,US,retail,https://careers.chewy.com/us/en/job/R31019/Associate-Director-Program-Manager,2026-10-01,255
+Costco,taleo,phf.tbe.taleo.net/phf02/COSTCO/41,US,retail,https://www.costco.com/career-opportunities.html,2026-10-01,16
+Dollar General,oracle,ibxwjb.fa.ocs.oraclecloud.com/CX_1,US,retail,https://careers.dollargeneral.com/,2026-10-01,90573
+Dollar Tree,workday,dollartree/wd5/dollartreeus,US,retail,https://careers.dollartree.com/us/en/search-results,2026-10-01,25020
+eBay,workday,ebay/wd5/apply,US|AU|CA|CN|DE|GB|IE|IN|IT|JP|LU|MY|NL|NO,retail,https://jobs.ebayinc.com/us/en/search-results,2026-10-01,296
+Five Below,workday,fivebelow/wd1/fivebelowcareers,US,retail,https://careers.fivebelow.com/us/en/job/JR76530/Store-Asset-Protection-Full-Time-Silver-Spring,2026-10-01,2000
+Foot Locker,site,https://careers.footlocker.com,US,retail,https://careers.footlocker.com/jobs/71558?lang=en-us,2026-10-01,3000
+Gap Inc.,site,https://www.gapinc.com,US,retail,https://www.gapinc.com/en-us/jobs/w46/02/seasonal-retail-sales-associate-125th-street-harle,2026-10-01,21
+JCPenney,site,https://jobs.jcp.com,US,retail,https://jobs.jcp.com/jobs/1095078?lang=en-us,2026-10-01,6556
+Kohl's,workday,kohls/wd504/kohlscareers,US,retail,https://careers.kohls.com/,2026-10-01,2000
+Kroger,oracle,eluq.fa.us2.oraclecloud.com/CX_2001,US,retail,https://www.krogerfamilycareers.com/,2026-10-01,11171
+Lowe's,workday,lowes/wd5/LWS_External_CS,US,retail,https://talent.lowes.com/us/en/search-results,2026-10-01,12732
+Macy's,oracle,ebwh.fa.us2.oraclecloud.com/CX_1,US,retail,https://www.macysjobs.com/,2026-10-01,6651
+Meijer,workday,meijer/wd5/Meijer_Market_Format,US,retail,https://jobs.meijer.com/,2026-10-01,8
+Meijer,workday,meijer/wd5/Meijer_Stores_Hourly,US,retail,https://jobs.meijer.com/,2026-10-01,1434
+Nordstrom,workday,nordstrom/wd501/nordstrom_careers,US,retail,https://careers.nordstrom.com/,2026-10-01,1336
+Petco,workday,petco/wd504/External,US,retail,https://careers.petco.com/,2026-10-01,2000
+Target,workday,target/wd5/targetcareers,US,retail,https://corporate.target.com/careers,2026-10-01,2000
+The Home Depot,workday,homedepot/wd5/CareerDepot,US,retail,https://careers.homedepot.com/,2026-10-01,984
+TJX Companies,site,https://jobs.tjx.com,US,retail,https://jobs.tjx.com/ca/fr/job/REQ147900/Assistant-Store-Manager,2026-10-01,2508
+Ulta Beauty,site,https://careers.ulta.com,US,retail,https://careers.ulta.com/jobs/470291?lang=en-us,2026-10-01,9920
+Walgreens,site,https://jobs.walgreens.com,US|PR,retail,https://jobs.walgreens.com/en/job/mayaguez/pharmacy-technician-pharm-tech-apprenticeship/1242/101414956944,2026-10-01,500
+Wegmans,workday,wegmans/wd1/Wegmans,US,retail,https://jobs.wegmans.com/,2026-10-01,564
+Whole Foods Market,site,https://careers.wholefoods.com,US,retail,https://careers.wholefoods.com/customer-service-e-commerce-supervisor-part-time/job/Req-202503027516,2026-10-01,1262
+Allied Universal,site,https://jobs.aus.com,US,services,https://jobs.aus.com/job/sunnyvale/security-officer-patrol-driver-operations/22950/101416549776,2026-10-01,10000
+Alorica,oracle,fa-euxw-saasfaprod1.fa.ocs.oraclecloud.com/CX_1,US|EG,services,https://alorica.com/careers/philippines/,2026-10-01,53
+Concentrix,workday,cnx/wd1/external_global,US|AE|AL|AR|AU|BE|BG|BR|CA|CN|CO|CR|CZ|DE|DK|DO|EG|ES|FI|FR|GB|GR|GT|HN|HU|ID|IE|IN|IT|JM|JO|JP|MA|MX|MY|NI|NL|NO|PE|PH|PL|PT|RO|RS|SA|SE|SG|SK|SN|SV|TH|TN|VN|ZA,services,https://jobs.concentrix.com/,2026-10-01,1619
+Republic Services,workday,republic/wd5/Republic,US,services,https://jobs.republicservices.com/us/en/job/ROURSAUSR185505EXTERNALENUS/Customer-Support-Specialist-III-ES-Division,2026-10-01,1698
+Securitas,oracle,ekaw.fa.us2.oraclecloud.com/CX,US,services,https://www.securitasinc.com/careers,2026-10-01,1290
+Sutherland,smartrecruiters,Sutherland,US|AE|BG|CA|CO|EG|ES|GB|IN|JM|JP|MX|MY|PH|RO|SA|XK|ZA,services,https://www.jobs.sutherlandglobal.com/zh-tw/job-details/bogot-especialista-en-atencin-al-cliente-en-espaol-i-mt-in-telecom-jobs-1743405,2026-10-01,417
+Telus Digital,site,https://jobs.telusdigital.com,CA,services,https://jobs.telusdigital.com/jobs/18301194-online-data-analyst-south-africa,2026-10-01,100
+Robert Half,site,https://www.roberthalf.com,US,staffing,https://www.roberthalf.com/us/en/job/lake-buena-vista-fl/product-manager/04838-0013498213-usen,2026-10-01,8304
+Adobe,workday,adobe/wd5/external_experienced,US|AU|BR|CA|CH|DE|DK|ES|FR|GB|HK|IE|IN|IT|JP|RO|SA|SE|SG,tech,https://careers.adobe.com/us/en/c/engineering-and-product-jobs,2026-10-01,533
+Airbnb,greenhouse,airbnb,US|AU|BR|CA|CN|DE|ES|FR|GB|IE|IN|IT|JP|KR|MX|PH|SG|TH|VN|ZA,tech,https://careers.airbnb.com/positions/8184174/,2026-10-01,152
+AMD,site,https://careers.amd.com,US,tech,https://careers.amd.com/jobs/92169?lang=en-us,2026-10-01,1254
+Applied Materials,eightfold,careers.appliedmaterials.com/appliedmaterials.com,US|IN|SG|TW,tech,https://careers.appliedmaterials.com/,2026-10-01,1967
+Cisco,workday,cisco/wd5/Cisco_Careers,US,tech,https://careers.cisco.com/global/en/splunk/search-page,2026-10-01,1354
+CrowdStrike,workday,crowdstrike/wd5/crowdstrikecareers,US|AE|AT|AU|BE|BR|CA|CH|DE|DK|DO|ES|FR|GB|HR|IE|IL|IN|IT|JP|MX|NL|NZ|PH|PL|RO|SA|SE|SG,tech,https://www.crowdstrike.com/careers,2026-10-01,361
+DocuSign,site,https://careers.docusign.com,US|DE,tech,https://careers.docusign.com/jobs/29800?lang=en-us,2026-10-01,258
+Expedia Group,site,https://careers.expediagroup.com,US|IT,tech,http://careers.expediagroup.com/job/software-development-engineer-ii/rome-roma/R-110132/,2026-10-01,193
+Grab,smartrecruiters,Grab,SG|CN|ID|IN|KH|MY|PH|RO|TH|VN,tech,https://www.grab.careers/en/jobs/744000152909100/marketing-associate-marketing-solutions-vn/,2026-10-01,447
+Hewlett Packard Enterprise,workday,hpe/wd5/Jobsathpe,US,tech,https://careers.hpe.com/us/en/search-results,2026-10-01,1410
+Intel,workday,intel/wd1/External,US,tech,https://jobs.intel.com/,2026-10-01,607
+Intuit,site,https://jobs.intuit.com,US,tech,https://jobs.intuit.com/job/mountain-view/manager-3-mid-market-intelligence/27595/101410847424,2026-10-01,573
+KLA,workday,kla/wd1/UR,US,tech,https://www.kla.com/careers/emerging-talent,2026-10-01,116
+Lam Research,eightfold,careers.lamresearch.com/lamresearch.com,US|SG,tech,https://careers.lamresearch.com/,2026-10-01,1346
+Micron Technology,eightfold,micron.eightfold.ai/micron.com,US|MX|TW,tech,https://careers.micron.com/,2026-10-01,2972
+Micron Technology,workday,micron/wd1/External,US,tech,https://careers.micron.com/,2026-10-01,3082
+NVIDIA,workday,nvidia/wd5/NVIDIAExternalCareerSite,US|AE|AM|AU|BR|CA|CH|CN|CZ|DE|DK|ES|FI|FR|GB|GR|HK|HU|IL|IN|IT|JP|KR|MX|NL|NO|PL|RO|SA|SE|SG|TH|TW|UA|VN,tech,https://jobs.nvidia.com/careers,2026-10-01,2000
+Okta,site,https://www.okta.com,US|IN,tech,https://www.okta.com/company/careers/senior-software-engineer-in-test-8239048/,2026-10-01,355
+Oracle,oracle,eeho.fa.us2.oraclecloud.com/CX_45001,US|GB|MY,tech,https://careers.oracle.com/,2026-10-01,2242
+Palantir,lever,palantir,US|AE|AU|DE|DK|ES|FR|GB|IL|JP|KR|LT|NL|NO|PL|SE|SG,tech,https://www.palantir.com/careers,2026-10-01,320
+Palo Alto Networks,workday,paloaltonetworks/wd5/panwexternalcareers,US,tech,https://jobs.paloaltonetworks.com/,2026-10-01,1505
+Paychex,site,https://careers.paychex.com,US,tech,https://careers.paychex.com/jobs/46380?lang=en-us,2026-10-01,508
+Qualcomm,eightfold,qualcomm.eightfold.ai/qualcomm.com,US|CA|IN|KR,tech,https://careers.qualcomm.com/,2026-10-01,2036
+Reddit,greenhouse,reddit,US|CA|DE|GB|IE|NL,tech,https://www.redditinc.com/careers,2026-10-01,149
+ServiceNow,smartrecruiters,ServiceNow,US|AT|AU|BE|BR|CA|CH|CR|DE|DK|ES|FI|FR|GB|HK|IE|IL|IN|IT|JP|KR|NL|NO|PL|SA|SE|SG|SI|TH,tech,https://careers.servicenow.com/jobs/744000145693831/staff-technical-product-manager-aillm-expertise-plus-ai-evaluation-science/,2026-10-01,711
+Snowflake,ashby,snowflake,US|AE|AU|BE|BR|CA|CN|CO|DK|FI|FR|GB|IL|IN|JP|KR|MX|MY|PL|SE|SG,tech,https://careers.snowflake.com/us/en/search-results,2026-10-01,346
+Spotify,lever,spotify,SE|AE|BE|ID|SG|TW|US|VN,tech,https://www.lifeatspotify.com/jobs/machine-learning-engineering-manager-music,2026-10-01,79
+Stripe,site,https://stripe.com,US,tech,https://stripe.com/careers/listing/aeo-and-geo-marketing-manager/7844214,2026-10-01,668
+Texas Instruments,oracle,edbz.fa.us2.oraclecloud.com/CX,US|CN|IN,tech,https://careers.ti.com/,2026-10-01,815
+Western Digital,smartrecruiters,WesternDigital,US|CN|DE|GB|JP|MY|PH|SG|TH,tech,https://jobs.westerndigital.com/,2026-10-01,326
+Workday,workday,workday/wd5/Workday,US|AU|CA|CR|CZ|DE|ES|FR|GB|HK|IE|IL|IN|IT|JP|MX|MY|NL|NZ|PL|SE|SG|TW|VN,tech,https://www.workday.com/en-us/company/careers/overview.html,2026-10-01,378
+AT&T,workday,att/wd1/ATTcollege,US,telecom,https://www.att.jobs/,2026-10-01,6
+AT&T,workday,att/wd1/ATTGeneral,US|CZ|FR|IN|SK,telecom,https://www.att.jobs/,2026-10-01,1176
+Charter Communications,site,https://jobs.spectrum.com,US,telecom,https://jobs.spectrum.com/job/riverside/fiber-technician-i/4673/101313247872,2026-10-01,1533
+Comcast,workday,comcast/wd115/Comcast_Careers,US,telecom,https://jobs.comcast.com/,2026-10-01,658
+Cox Enterprises,workday,cox/wd1/Cox_External_Career_Site_1,US,telecom,https://jobs.coxenterprises.com/en/career-areas/early-career/lead/,2026-10-01,744
+Lumen Technologies,eightfold,careers.lumen.com/lumen.com,US|AU,telecom,https://careers.lumen.com/careers?start=0&,2026-10-01,141
+T-Mobile,workday,tmobile/wd1/External,US,telecom,https://www.t-mobile.com/careers,2026-10-01,2000
+Verizon,workday,verizon/wd12/verizon-careers,US,telecom,https://mycareer.verizon.com/jobs/r-1101652/retail-sales-associate-spanish-bilingual/,2026-10-01,1094
+BNSF Railway,site,https://jobs.bnsf.com,US,transportation,https://jobs.bnsf.com/us/en/job/95569/Highway-Vehicle-Operator,2026-10-01,113
+Enterprise Mobility,site,https://www.enterprisemobility.com,US,transportation,https://www.enterprisemobility.com/en/careers/job.html/564410/muncie/management-trainee,2026-10-01,2580
+Southwest Airlines,workday,swa/wd1/external,US,transportation,https://careers.southwestair.com/us/en/search-results,2026-10-01,91
+United Airlines,site,https://careers.united.com,US|IN,transportation,https://careers.united.com/us/en/job/GGN00002620/Analyst-Data-Scientist-Machine-Learning,2026-10-01,131
+American Electric Power,workday,aep/wd1/AEPCareerSite,US,utilities,https://www.aep.com/careers,2026-10-01,316
+Consolidated Edison,oracle,ejcu.fa.us6.oraclecloud.com/CX_1033,US,utilities,https://www.coned.com/en/about-us/careers,2026-10-01,65
+PG&E,site,https://jobs.pge.com,US,utilities,https://jobs.pge.com/job/oakland/storage-platform-engineer/29673/100045378160,2026-10-01,135
+Vistra,workday,vst/wd5/vistra_careers,US,utilities,https://www.vistracorp.com/careers,2026-10-01,166
+Xcel Energy,workday,xcelenergy/wd1/External,US,utilities,https://jobs.xcelenergy.com/,2026-10-01,268

@@ -536,21 +536,26 @@ def test_a_config_changed_on_disk_is_picked_up_by_the_next_request():
     _with_server(check)
 
 
-def test_every_pattern_sample_on_the_page_compiles_in_python():
-    """The samples fill the Add form; a scan reads them with Python's re,
-    not the browser's, so each must compile there and find its example."""
-    import re
-    page = serve_mod.PAGE_PATH.read_text(encoding="utf-8")
-    block = page[page.index("const DEAL_SAMPLES = ["):]
-    block = block[:block.index("];")]
-    patterns = [p.replace("\\\\", "\\")
-                for p in re.findall(r"pattern: '((?:[^'\\\\]|\\\\.)*)'", block)]
-    assert len(patterns) >= 5, patterns
-    examples = ["an active TS/SCI clearance", "You must relocate to Austin",
-                "Travel up to 25% of the time", "Joins the on-call rotation",
-                "C2C only", "A take-home project", "Carries a quota"]
-    for pattern, example in zip(patterns, examples, strict=True):
-        assert re.compile(pattern, re.IGNORECASE).search(example), (pattern, example)
+def test_dealbreakers_are_words_tried_and_saved_through_the_server():
+    """Words, not a pattern: "try it" asks Python, and a save keeps the words."""
+    def check(run):
+        code, found = _post_json(run, "/api/dealbreakers/try", {
+            "words": ["security clearance"], "text": "Requires an active TS/SCI clearance."})
+        assert code == 200 and found["found"] == "TS/SCI", found
+        code, found = _post_json(run, "/api/dealbreakers/try", {
+            "words": "us citizen", "text": "You do not need to be a U.S. citizen."})
+        assert code == 200 and found["found"] == "", found
+        code, found = _post_json(run, "/api/dealbreakers/try", {"pattern": "on.?call(", "text": "x"})
+        assert code == 400
+        code, saved = _post_json(run, "/api/config", {"dealbreakers": [
+            {"name": "US citizen", "words": ["us citizen"], "hard": True},
+            {"name": "On-call", "pattern": "on.?call", "hard": False}]})
+        assert code == 200, saved
+        assert [(d["name"], d["words"], d["pattern"]) for d in saved["dealbreakers"]] == [
+            ("US citizen", ["us citizen"], ""), ("On-call", [], "on.?call")]
+        assert {k["name"] for k in saved["dealbreaker_suggestions"]} >= {
+            "Security clearance", "US citizen", "Client-site travel"}
+    _with_server(check)
 
 
 def test_where_you_are_is_saved_from_the_picker_and_must_resolve():

@@ -743,23 +743,41 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
       </div>
       <div class="sgroup wide">
       <h3>Dealbreakers</h3>
-      <p class="hint">A pattern read against the advert, not the title; case is
-        ignored. One that hides the job post drops it; one that costs points keeps
-        it, 8 points lower, with a warning. The pattern is a regular expression:
-        <code>security clearance|TS/SCI</code> matches either.</p>
+      <p class="hint">Words that rule a job post out, read in the advert, not the
+        title. Type them the way you would say them: <i>security clearance</i>,
+        <i>us citizen</i>, <i>client-site travel</i>. Capitals, hyphens, dots and
+        plurals do not matter, the usual other wordings are included ("security
+        clearance" also finds "TS/SCI" and "polygraph"), and "no clearance
+        required" does not count. One that hides the job post drops it; one that
+        costs points keeps it, 8 points lower, with a warning.</p>
       <div id="ed-deal"></div>
       <form class="bar addform" id="f-deal">
-        <input id="add-deal-name" placeholder="Name, e.g. Clearance" style="width:12rem">
-        <input id="add-deal-pattern" placeholder="Pattern, e.g. security clearance|TS/SCI" style="flex:1 1 20rem">
+        <input id="add-deal-words" placeholder="Words, e.g. security clearance" style="flex:1 1 18rem"
+          title="One dealbreaker. Several ways of saying it can be separated by commas: on call, pager duty">
         <select id="add-deal-hard"><option value="1">Hides the job post</option>
           <option value="0">Costs 8 points</option></select>
         <button data-icon="plus" class="act primary">Add</button><span id="msg-deal"></span>
       </form>
-      <details class="pathelp">
-        <summary>How to write a pattern, with samples</summary>
-        <p>A pattern is a <i>regular expression</i>: plain words, plus a few symbols
-          for "or", "maybe" and "any number". Plain words alone work: <code>polygraph</code>
-          finds "Polygraph" anywhere in the advert. Capitals never matter.</p>
+      <p class="hint" style="margin:.25rem 0">Common ones, one click to add:</p>
+      <div class="samples" id="deal-samples"></div>
+      <p class="hint" style="margin:.25rem 0"><b>Try it.</b> Paste a sentence from an
+        advert to see whether the words above (or the advanced pattern) find it.</p>
+      <div class="bar" style="margin:0 0 .5rem">
+        <input id="try-text" placeholder="e.g. This role requires an active TS/SCI clearance." style="flex:1 1 20rem;max-width:34rem">
+        <span id="try-out" class="hint"></span>
+      </div>
+      <details class="pathelp" id="deal-advanced">
+        <summary>Advanced: match with a regular expression</summary>
+        <p>For anything plain words cannot say. A pattern is a Python <i>regular
+          expression</i>, matched anywhere in the advert with capitals ignored, and
+          taken as written: a "no" before a match does not cancel it.</p>
+        <form class="bar addform" id="f-deal-re">
+          <input id="add-deal-name" placeholder="Name, e.g. Clearance" style="width:12rem">
+          <input id="add-deal-pattern" placeholder="Pattern, e.g. security clearance|TS/SCI" style="flex:1 1 20rem">
+          <select id="add-deal-re-hard"><option value="1">Hides the job post</option>
+            <option value="0">Costs 8 points</option></select>
+          <button data-icon="plus" class="act primary">Add</button><span id="msg-deal-re"></span>
+        </form>
         <div class="tbl-wrap"><table class="data">
           <tr><th>Write</th><th>Means</th><th>Example</th><th>Finds</th><th>Does not find</th></tr>
           <tr><td><code>|</code></td><td>Or</td><td><code>TS/SCI|top secret</code></td><td>"TS/SCI", "Top Secret"</td><td>"Secret Santa"</td></tr>
@@ -772,22 +790,11 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
           <tr><td><code>\s?</code></td><td>An optional space</td><td><code>\d{2}\s?%</code></td><td>"25%", "25 %"</td><td></td></tr>
         </table></div>
         <p>To match one of <code>. ? | ( ) [ ] { } + * ^ $ \</code> itself, put
-          <code>\</code> before it: <code>C\+\+</code> finds "C++".</p>
-        <p><b>Samples.</b> Click one to fill in the form, change it if you like, then Add.</p>
-        <div class="samples" id="deal-samples"></div>
-        <p><b>Try it.</b> Paste a sentence from an advert to see whether the pattern in
-          the form finds it.</p>
-        <div class="bar" style="margin:0">
-          <input id="try-text" placeholder="e.g. This role requires an active TS/SCI clearance." style="flex:1 1 20rem;max-width:34rem">
-          <span id="try-out" class="hint"></span>
-        </div>
-        <p class="hint">The page tries it in your browser; Add checks it again with
-          Python, which is what a scan uses. More: Python's
-          <a href="https://docs.python.org/3/howto/regex.html" target="_blank" rel="noopener noreferrer">Regular Expression HOWTO</a>
-          (a gentle introduction), the
-          <a href="https://docs.python.org/3/library/re.html#regular-expression-syntax" target="_blank" rel="noopener noreferrer">full syntax reference</a>,
+          <code>\</code> before it: <code>C\+\+</code> finds "C++". More: Python's
+          <a href="https://docs.python.org/3/howto/regex.html" target="_blank" rel="noopener noreferrer">Regular Expression HOWTO</a>,
+          the <a href="https://docs.python.org/3/library/re.html#regular-expression-syntax" target="_blank" rel="noopener noreferrer">full syntax reference</a>,
           and <a href="https://regex101.com/?flavor=python&amp;flags=i" target="_blank" rel="noopener noreferrer">regex101</a>
-          to test one against a whole advert (pick the Python flavour).</p>
+          (pick the Python flavour).</p>
       </details>
       </div>
       <div class="sgroup wide">
@@ -995,7 +1002,7 @@ const cap = s => { s = String(s ?? ''); return s ? s[0].toUpperCase() + s.slice(
 const capHtml = h => String(h ?? '').replace(/^((?:\s|<[^>]+>)*)([a-z])/, (_, a, b) => a + b.toUpperCase());
 // Platforms by their own spelling.
 const PLATFORMS = {greenhouse: 'Greenhouse', ashby: 'Ashby', lever: 'Lever', breezy: 'Breezy',
-  smartrecruiters: 'SmartRecruiters', workable: 'Workable', adzuna: 'Adzuna', usajobs: 'USAJOBS'};
+  smartrecruiters: 'SmartRecruiters', workable: 'Workable', kalibrr: 'Kalibrr', himalayas: 'Himalayas', workday: 'Workday', adzuna: 'Adzuna', usajobs: 'USAJOBS'};
 const platformName = p => PLATFORMS[p] || cap(p);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2526,11 +2533,13 @@ function drawLists() {
   const deals = cfg.dealbreakers || [];
   $('ed-deal').innerHTML = editorTable([
     {label: 'Name', cell: d => esc(d.name), name: d => d.name},
-    {label: 'Pattern', cell: d => `<code>${esc(d.pattern)}</code>`},
+    {label: 'Looks for', cell: d => (d.words || []).length ? esc(d.words.join(', '))
+      : `pattern <code>${esc(d.pattern)}</code>`},
     {label: 'Effect', cell: d => d.hard ? 'Hides the job post' : 'Costs 8 points'}],
     deals, 'None. No advert is dropped for what it says.', 'dealbreakers');
   wireRemove($('ed-deal'), deals,
     async next => await saveList('dealbreakers', next, 'msg-deal') && (drawLists(), true));
+  drawDealSamples();
 }
 
 // One add handler per form: read it, refuse the obvious, append, save.
@@ -2559,46 +2568,71 @@ wireAdd('f-countries', 'msg-countries', () =>
   $('add-country').value || {error: 'Choose a country first.'}, 'countries');
 wireAdd('f-titles', 'msg-titles', addWord('add-title', 'titles_include'), 'titles_include');
 wireAdd('f-exclude', 'msg-exclude', addWord('add-exclude', 'titles_exclude'), 'titles_exclude');
-// Samples for the pattern help: a common dealbreaker each, in plain words.
-const DEAL_SAMPLES = [
-  {name: 'Security clearance', pattern: 'security clearance|TS/SCI|top secret|polygraph', hard: true},
-  {name: 'Relocation required', pattern: 'must relocate|relocation (?:is )?required', hard: true},
-  {name: 'Heavy travel', pattern: 'travel up to \\d{2}\\s?%|(?:extensive|frequent) travel', hard: false},
-  {name: 'On-call', pattern: 'on.?call|24/7 support|pager ?duty', hard: false},
-  {name: 'Contract or agency', pattern: '\\bC2C\\b|corp.?to.?corp|staffing (?:agency|firm)', hard: false},
-  {name: 'Unpaid take-home', pattern: 'take.?home (?:test|project|assignment)|unpaid (?:trial|project)', hard: false},
-  {name: 'Sales quota', pattern: '\\bquota\\b|commission.?only', hard: false},
-];
-$('deal-samples').innerHTML = DEAL_SAMPLES.map((d, i) =>
-  `<button data-icon="lightbulb" type="button" class="act sample" data-i="${i}" title="${esc(d.pattern)}">${esc(d.name)}</button>`).join('');
-$('deal-samples').querySelectorAll('button').forEach(b => b.onclick = () => {
-  const d = DEAL_SAMPLES[+b.dataset.i];
-  $('add-deal-name').value = d.name; $('add-deal-pattern').value = d.pattern;
-  $('add-deal-hard').value = d.hard ? '1' : '0';
-  tryPattern(); $('add-deal-pattern').focus();
-});
+// Dealbreakers are words; the server turns them into a pattern, with the
+// usual other wordings (search/dealbreakers.py). A typed phrase that names a
+// common one takes its name and its usual effect.
+const dealWords = () => $('add-deal-words').value.split(',').map(w => w.trim()).filter(Boolean);
+const dealKnown = w => (cfg.dealbreaker_suggestions || [])
+  .find(k => k.name.toLowerCase() === w.toLowerCase());
+const dealHave = name => (cfg.dealbreakers || []).some(d => d.name.toLowerCase() === name.toLowerCase());
 
-// Try the pattern in the form against a pasted sentence. JavaScript's regex
-// agrees with Python's on everything in the help table; Add checks it with
-// Python anyway.
-function tryPattern() {
-  const out = $('try-out'), text = $('try-text').value, pattern = $('add-deal-pattern').value;
-  if (!text || !pattern) { out.className = 'hint'; out.textContent = ''; return; }
-  let m;
-  try { m = new RegExp(pattern, 'i').exec(text); }
-  catch (e) { out.className = 'err'; out.textContent = 'Not a valid pattern yet.'; return; }
-  out.className = m ? 'saved' : 'hint';
-  out.innerHTML = m ? `Found: "<b>${esc(m[0])}</b>"` : 'Not found in that sentence.';
+function drawDealSamples() {
+  const box = $('deal-samples');
+  const free = (cfg.dealbreaker_suggestions || []).filter(k => !dealHave(k.name));
+  box.innerHTML = free.length ? free.map(k =>
+    `<button data-icon="plus" type="button" class="act sample" data-name="${esc(k.name)}"
+      title="Also finds: ${esc(k.also.join(', '))}. ${k.hard ? 'Hides the job post' : 'Costs 8 points'}">${esc(k.name)}</button>`).join('')
+    : '<span class="hint">All added.</span>';
+  box.querySelectorAll('button').forEach(b => b.onclick = async () => {
+    const k = dealKnown(b.dataset.name);
+    if (await saveList('dealbreakers', [...(cfg.dealbreakers || []),
+        {name: k.name, words: k.words, hard: k.hard}], 'msg-deal')) drawLists();
+  });
 }
-$('try-text').oninput = tryPattern;
-$('add-deal-pattern').addEventListener('input', tryPattern);
+
+// Try the words (or, with Advanced open, the pattern) against a pasted
+// sentence. Asked of the server, so it is the same matching a scan does.
+let tryTimer = null;
+function tryDeal() {
+  clearTimeout(tryTimer);
+  tryTimer = setTimeout(async () => {
+    const out = $('try-out'), text = $('try-text').value;
+    const words = dealWords(), pattern = $('add-deal-pattern').value.trim();
+    const useRe = $('deal-advanced').open && pattern && !words.length;
+    if (!text || (!words.length && !useRe)) { out.className = 'hint'; out.textContent = ''; return; }
+    const r = await api('/api/dealbreakers/try', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(useRe ? {pattern, text} : {words, text})});
+    if (!r.ok) { out.className = 'err'; out.textContent = cap(await r.text()); return; }
+    const res = await r.json();
+    out.className = res.found ? 'saved' : 'hint';
+    out.innerHTML = res.found ? `Found: "<b>${esc(res.found)}</b>"`
+      : 'Not found in that sentence' + (/\b(no|not|without|never)\b|n't/i.test(text) && !useRe
+        ? ' (a "no" or "not" before it means the advert does not ask for it).' : '.');
+  }, 250);
+}
+$('try-text').oninput = tryDeal;
+$('add-deal-words').addEventListener('input', tryDeal);
+$('add-deal-pattern').addEventListener('input', tryDeal);
 
 wireAdd('f-deal', 'msg-deal', () => {
+  const words = dealWords();
+  if (!words.length) return {error: 'Type the words first, e.g. security clearance.'};
+  const k = words.length === 1 && dealKnown(words[0]);
+  const name = k ? k.name : words[0];
+  if (dealHave(name)) return {error: 'A dealbreaker has that name already.'};
+  return {name, words, hard: $('add-deal-hard').value === '1'};
+}, 'dealbreakers');
+$('add-deal-words').addEventListener('change', () => {
+  const k = dealKnown($('add-deal-words').value.trim());
+  if (k) $('add-deal-hard').value = k.hard ? '1' : '0';
+});
+
+wireAdd('f-deal-re', 'msg-deal-re', () => {
   const name = $('add-deal-name').value.trim(), pattern = $('add-deal-pattern').value.trim();
   if (!name || !pattern) return {error: 'Give it a name and a pattern.'};
-  if ((cfg.dealbreakers || []).some(d => d.name.toLowerCase() === name.toLowerCase()))
-    return {error: 'A dealbreaker has that name already.'};
-  return {name, pattern, hard: $('add-deal-hard').value === '1'};
+  if (dealHave(name)) return {error: 'A dealbreaker has that name already.'};
+  return {name, pattern, hard: $('add-deal-re-hard').value === '1'};
 }, 'dealbreakers');
 
 // ── Where you are: country, then region, then city ──────────────────────────

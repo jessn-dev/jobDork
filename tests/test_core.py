@@ -544,9 +544,9 @@ def test_platforms_without_an_adapter_are_named_not_hidden():
     """'No adapter' and 'nothing found' are different statements."""
     from jobdork.search.discover import _extract
     _, unsupported = _extract(
-        'href="https://acme.wd5.myworkdayjobs.com/careers"',
+        'href="https://acme.icims.com/jobs"',
         "https://acme.test/careers")
-    assert unsupported and unsupported[0].platform == "workday"
+    assert unsupported and unsupported[0].platform == "icims"
 
 
 def test_an_unverified_board_is_never_addable():
@@ -556,7 +556,7 @@ def test_an_unverified_board_is_never_addable():
         assert not Found(platform="greenhouse", token="x", status=status).addable
     assert Found(platform="greenhouse", token="x", status="verified").addable
     # Even verified, a platform with no adapter cannot be written.
-    assert not Found(platform="workday", token="x", status="verified").addable
+    assert not Found(platform="icims", token="x", status="verified").addable
 
 
 def test_add_preserves_comments_and_appends():

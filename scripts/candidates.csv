@@ -1,0 +1,646 @@
+name,industry,country,url
+Walmart,retail,US,https://careers.walmart.com
+Target,retail,US,https://corporate.target.com/careers
+The Home Depot,retail,US,https://careers.homedepot.com
+Lowe's,retail,US,https://talent.lowes.com
+Kroger,retail,US,https://www.krogerfamilycareers.com
+Costco,retail,US,https://www.costco.com/jobs.html
+Best Buy,retail,US,https://jobs.bestbuy.com
+Macy's,retail,US,https://www.macysjobs.com
+Nordstrom,retail,US,https://careers.nordstrom.com
+Kohl's,retail,US,https://careers.kohls.com
+TJX Companies,retail,US,https://jobs.tjx.com
+Ross Stores,retail,US,https://jobs.rossstores.com
+Dollar General,retail,US,https://careers.dollargeneral.com
+Dollar Tree,retail,US,https://careers.dollartree.com
+Walgreens,retail,US,https://jobs.walgreens.com
+CVS Health,healthcare,US,https://jobs.cvshealth.com
+Albertsons,retail,US,https://www.albertsonscompanies.com/careers
+Publix,retail,US,https://corporate.publix.com/careers
+Ulta Beauty,retail,US,https://careers.ulta.com
+Sephora,retail,US,https://jobs.sephora.com
+Gap Inc.,retail,US,https://www.gapinc.com/en-us/careers
+Dick's Sporting Goods,retail,US,https://careers.dicks.com
+Tractor Supply,retail,US,https://tractorsupply.jobs
+AutoZone,retail,US,https://careers.autozone.com
+O'Reilly Auto Parts,retail,US,https://jobs.oreillyauto.com
+Advance Auto Parts,retail,US,https://jobs.advanceautoparts.com
+PetSmart,retail,US,https://careers.petsmart.com
+Petco,retail,US,https://careers.petco.com
+Williams-Sonoma,retail,US,https://careers.williams-sonomainc.com
+Bath & Body Works,retail,US,https://careers.bathandbodyworks.com
+Victoria's Secret,retail,US,https://careers.victoriassecret.com
+Foot Locker,retail,US,https://careers.footlocker.com
+Burlington,retail,US,https://jobs.burlington.com
+Five Below,retail,US,https://careers.fivebelow.com
+Big Lots,retail,US,https://jobs.biglots.com
+Wayfair,retail,US,https://www.aboutwayfair.com/careers
+Chewy,retail,US,https://careers.chewy.com
+Etsy,retail,US,https://careers.etsy.com
+eBay,retail,US,https://jobs.ebayinc.com
+Amazon,retail,US,https://www.amazon.jobs
+Hy-Vee,retail,US,https://careers.hy-vee.com
+Meijer,retail,US,https://jobs.meijer.com
+H-E-B,retail,US,https://careers.heb.com
+Wegmans,retail,US,https://jobs.wegmans.com
+Sprouts Farmers Market,retail,US,https://careers.sprouts.com
+Whole Foods Market,retail,US,https://careers.wholefoodsmarket.com
+Ace Hardware,retail,US,https://careers.acehardware.com
+Michaels,retail,US,https://jobs.michaels.com
+JCPenney,retail,US,https://jobs.jcp.com
+Dillard's,retail,US,https://careers.dillards.com
+Academy Sports + Outdoors,retail,US,https://careers.academy.com
+Lululemon,retail,US,https://careers.lululemon.com
+Nike,consumer goods,US,https://careers.nike.com
+Procter & Gamble,consumer goods,US,https://www.pgcareers.com
+PepsiCo,consumer goods,US,https://www.pepsicojobs.com
+The Coca-Cola Company,consumer goods,US,https://careers.coca-colacompany.com
+Colgate-Palmolive,consumer goods,US,https://jobs.colgate.com
+Kimberly-Clark,consumer goods,US,https://careers.kimberly-clark.com
+General Mills,consumer goods,US,https://careers.generalmills.com
+Kellanova,consumer goods,US,https://www.kellanova.com/us/en/careers.html
+Mondelez International,consumer goods,US,https://www.mondelezinternational.com/careers
+Kraft Heinz,consumer goods,US,https://careers.kraftheinz.com
+Hershey,consumer goods,US,https://careers.thehersheycompany.com
+Mars,consumer goods,US,https://careers.mars.com
+Clorox,consumer goods,US,https://www.thecloroxcompany.com/careers
+Estee Lauder,consumer goods,US,https://careers.elcompanies.com
+Hasbro,consumer goods,US,https://jobs.hasbro.com
+Mattel,consumer goods,US,https://jobs.mattel.com
+VF Corporation,consumer goods,US,https://careers.vfc.com
+Levi Strauss,consumer goods,US,https://www.levistrauss.com/work-with-us
+Ralph Lauren,consumer goods,US,https://careers.ralphlauren.com
+Tapestry,consumer goods,US,https://careers.tapestry.com
+Hanesbrands,consumer goods,US,https://careers.hanes.com
+Under Armour,consumer goods,US,https://careers.underarmour.com
+Tyson Foods,food,US,https://careers.tysonfoods.com
+Cargill,food,US,https://careers.cargill.com
+ADM,food,US,https://www.adm.com/en-us/culture-careers
+Hormel Foods,food,US,https://careers.hormelfoods.com
+Conagra Brands,food,US,https://careers.conagrabrands.com
+Campbell's,food,US,https://careers.campbellsoupcompany.com
+J.M. Smucker,food,US,https://jobs.jmsmucker.com
+McCormick,food,US,https://careers.mccormick.com
+Sysco,food,US,https://careers.sysco.com
+US Foods,food,US,https://www.usfoods.com/careers.html
+Performance Food Group,food,US,https://careers.pfgc.com
+Keurig Dr Pepper,food,US,https://careers.keurigdrpepper.com
+Constellation Brands,food,US,https://www.cbrands.com/careers
+Molson Coors,food,US,https://www.molsoncoors.com/careers
+Anheuser-Busch,food,US,https://www.anheuser-busch.com/careers
+Land O'Lakes,food,US,https://careers.landolakesinc.com
+Post Holdings,food,US,https://www.postholdings.com/careers
+McDonald's,hospitality,US,https://careers.mcdonalds.com
+Starbucks,hospitality,US,https://careers.starbucks.com
+Chipotle,hospitality,US,https://jobs.chipotle.com
+Yum! Brands,hospitality,US,https://careers.yum.com
+Taco Bell,hospitality,US,https://jobs.tacobell.com
+Darden Restaurants,hospitality,US,https://www.darden.com/careers
+Domino's,hospitality,US,https://jobs.dominos.com
+Papa John's,hospitality,US,https://jobs.papajohns.com
+Wendy's,hospitality,US,https://careers.wendys.com
+Chick-fil-A,hospitality,US,https://careers-chickfila.icims.com
+Panera Bread,hospitality,US,https://www.panerabread.com/en-us/careers.html
+Restaurant Brands International,hospitality,US,https://careers.rbi.com
+Inspire Brands,hospitality,US,https://careers.inspirebrands.com
+Texas Roadhouse,hospitality,US,https://careers.texasroadhouse.com
+Bloomin' Brands,hospitality,US,https://careers.bloominbrands.com
+Brinker International,hospitality,US,https://jobs.brinker.com
+Cracker Barrel,hospitality,US,https://jobs.crackerbarrel.com
+Shake Shack,hospitality,US,https://careers.shakeshack.com
+Sweetgreen,hospitality,US,https://www.sweetgreen.com/careers
+Marriott International,hospitality,US,https://careers.marriott.com
+Hilton,hospitality,US,https://jobs.hilton.com
+Hyatt,hospitality,US,https://careers.hyatt.com
+IHG Hotels & Resorts,hospitality,GB,https://careers.ihg.com
+Wyndham Hotels & Resorts,hospitality,US,https://careers.wyndhamhotels.com
+Choice Hotels,hospitality,US,https://careers.choicehotels.com
+MGM Resorts,hospitality,US,https://careers.mgmresorts.com
+Caesars Entertainment,hospitality,US,https://careers.caesars.com
+Las Vegas Sands,hospitality,US,https://www.sands.com/careers
+Wynn Resorts,hospitality,US,https://www.wynnresortscareers.com
+Aramark,hospitality,US,https://careers.aramark.com
+Compass Group USA,hospitality,US,https://www.compassgroupcareers.com
+Sodexo,hospitality,US,https://us.sodexo.com/careers.html
+Royal Caribbean Group,hospitality,US,https://jobs.royalcaribbeangroup.com
+Carnival Corporation,hospitality,US,https://www.carnivalcorp.com/careers
+Norwegian Cruise Line Holdings,hospitality,US,https://careers.nclhltd.com
+Walt Disney Company,media,US,https://jobs.disneycareers.com
+Universal Parks & Resorts,hospitality,US,https://www.universalparksjobs.com
+Six Flags,hospitality,US,https://www.sixflagsjobs.com
+Live Nation,media,US,https://careers.livenationentertainment.com
+Airbnb,tech,US,https://careers.airbnb.com
+Booking Holdings,tech,US,https://careers.bookingholdings.com
+Expedia Group,tech,US,https://careers.expediagroup.com
+HCA Healthcare,healthcare,US,https://careers.hcahealthcare.com
+Kaiser Permanente,healthcare,US,https://www.kaiserpermanentejobs.org
+UnitedHealth Group,healthcare,US,https://careers.unitedhealthgroup.com
+Mayo Clinic,healthcare,US,https://jobs.mayoclinic.org
+Cleveland Clinic,healthcare,US,https://jobs.clevelandclinic.org
+Johns Hopkins Medicine,healthcare,US,https://jobs.hopkinsmedicine.org
+Mass General Brigham,healthcare,US,https://www.massgeneralbrigham.org/en/careers
+CommonSpirit Health,healthcare,US,https://www.commonspirit.careers
+Ascension,healthcare,US,https://jobs.ascension.org
+Trinity Health,healthcare,US,https://jobs.trinity-health.org
+Providence,healthcare,US,https://providence.jobs
+Tenet Healthcare,healthcare,US,https://jobs.tenethealth.com
+Community Health Systems,healthcare,US,https://www.chs.net/careers
+Universal Health Services,healthcare,US,https://jobs.uhsinc.com
+Advocate Health,healthcare,US,https://careers.advocatehealth.com
+Atrium Health,healthcare,US,https://jobs.atriumhealth.org
+AdventHealth,healthcare,US,https://jobs.adventhealth.com
+Sutter Health,healthcare,US,https://jobs.sutterhealth.org
+Intermountain Health,healthcare,US,https://intermountainhealthcare.org/careers
+Banner Health,healthcare,US,https://careers.bannerhealth.com
+Baylor Scott & White Health,healthcare,US,https://jobs.bswhealth.com
+Northwell Health,healthcare,US,https://jobs.northwell.edu
+NYU Langone Health,healthcare,US,https://jobs.nyulangone.org
+Mount Sinai Health System,healthcare,US,https://careers.mountsinai.org
+UPMC,healthcare,US,https://careers.upmc.com
+Cedars-Sinai,healthcare,US,https://jobs.cedars-sinai.edu
+Stanford Health Care,healthcare,US,https://careers.stanfordhealthcare.org
+Ochsner Health,healthcare,US,https://careers.ochsner.org
+Corewell Health,healthcare,US,https://careers.corewellhealth.org
+Memorial Hermann,healthcare,US,https://careers.memorialhermann.org
+Houston Methodist,healthcare,US,https://careers.houstonmethodist.org
+Penn Medicine,healthcare,US,https://careers.pennmedicine.org
+Geisinger,healthcare,US,https://jobs.geisinger.org
+Novant Health,healthcare,US,https://www.novanthealth.org/careers
+Sanford Health,healthcare,US,https://careers.sanfordhealth.org
+Children's Hospital of Philadelphia,healthcare,US,https://careers.chop.edu
+Boston Children's Hospital,healthcare,US,https://jobs.childrenshospital.org
+St. Jude Children's Research Hospital,healthcare,US,https://www.stjude.org/jobs.html
+DaVita,healthcare,US,https://careers.davita.com
+Fresenius Medical Care,healthcare,US,https://jobs.fmcna.com
+Labcorp,healthcare,US,https://careers.labcorp.com
+Quest Diagnostics,healthcare,US,https://careers.questdiagnostics.com
+Elevance Health,insurance,US,https://careers.elevancehealth.com
+Cigna Group,insurance,US,https://jobs.thecignagroup.com
+Humana,insurance,US,https://careers.humana.com
+Centene,insurance,US,https://jobs.centene.com
+Molina Healthcare,insurance,US,https://careers.molinahealthcare.com
+Aetna,insurance,US,https://jobs.cvshealth.com/us/en/aetna
+Blue Shield of California,insurance,US,https://careers.blueshieldca.com
+Highmark Health,insurance,US,https://careers.highmarkhealth.org
+Oscar Health,insurance,US,https://www.hioscar.com/careers
+Cardinal Health,healthcare,US,https://jobs.cardinalhealth.com
+McKesson,healthcare,US,https://careers.mckesson.com
+Cencora,healthcare,US,https://careers.cencora.com
+Owens & Minor,healthcare,US,https://careers.owens-minor.com
+Henry Schein,healthcare,US,https://careers.henryschein.com
+Teladoc Health,healthcare,US,https://careers.teladochealth.com
+Oak Street Health,healthcare,US,https://careers.oakstreethealth.com
+One Medical,healthcare,US,https://www.onemedical.com/careers
+Hims & Hers,healthcare,US,https://www.forhims.com/careers
+Pfizer,pharma,US,https://www.pfizer.com/about/careers
+Johnson & Johnson,pharma,US,https://www.careers.jnj.com
+Merck,pharma,US,https://jobs.merck.com
+AbbVie,pharma,US,https://careers.abbvie.com
+Bristol Myers Squibb,pharma,US,https://careers.bms.com
+Eli Lilly,pharma,US,https://careers.lilly.com
+Amgen,pharma,US,https://careers.amgen.com
+Gilead Sciences,pharma,US,https://www.gilead.com/careers
+Regeneron,pharma,US,https://careers.regeneron.com
+Vertex Pharmaceuticals,pharma,US,https://careers.vrtx.com
+Biogen,pharma,US,https://www.biogen.com/careers.html
+Moderna,pharma,US,https://www.modernatx.com/careers
+Zoetis,pharma,US,https://www.zoetis.com/careers
+Thermo Fisher Scientific,pharma,US,https://jobs.thermofisher.com
+Danaher,pharma,US,https://jobs.danaher.com
+Abbott,medical devices,US,https://www.jobs.abbott
+Medtronic,medical devices,US,https://jobs.medtronic.com
+Stryker,medical devices,US,https://careers.stryker.com
+Boston Scientific,medical devices,US,https://jobs.bostonscientific.com
+Becton Dickinson,medical devices,US,https://jobs.bd.com
+Baxter,medical devices,US,https://jobs.baxter.com
+Edwards Lifesciences,medical devices,US,https://www.edwards.com/careers
+Intuitive Surgical,medical devices,US,https://careers.intuitive.com
+Zimmer Biomet,medical devices,US,https://careers.zimmerbiomet.com
+GE HealthCare,medical devices,US,https://careers.gehealthcare.com
+Illumina,medical devices,US,https://www.illumina.com/company/careers.html
+Dexcom,medical devices,US,https://careers.dexcom.com
+ResMed,medical devices,US,https://careers.resmed.com
+Hologic,medical devices,US,https://careers.hologic.com
+IQVIA,pharma,US,https://jobs.iqvia.com
+JPMorgan Chase,banking,US,https://careers.jpmorgan.com
+Bank of America,banking,US,https://careers.bankofamerica.com
+Wells Fargo,banking,US,https://www.wellsfargojobs.com
+Citigroup,banking,US,https://jobs.citi.com
+Goldman Sachs,banking,US,https://www.goldmansachs.com/careers
+Morgan Stanley,banking,US,https://www.morganstanley.com/careers
+Capital One,banking,US,https://www.capitalonecareers.com
+U.S. Bank,banking,US,https://careers.usbank.com
+PNC,banking,US,https://careers.pnc.com
+Truist,banking,US,https://careers.truist.com
+TD Bank,banking,US,https://jobs.td.com
+Fifth Third Bank,banking,US,https://www.53.com/content/fifth-third/en/careers.html
+KeyBank,banking,US,https://www.key.com/about/careers.html
+Huntington Bank,banking,US,https://www.huntington.com/careers
+Citizens Financial Group,banking,US,https://jobs.citizensbank.com
+M&T Bank,banking,US,https://www.mtb.com/careers
+Regions Bank,banking,US,https://careers.regions.com
+Ally Financial,banking,US,https://www.ally.com/about/careers
+Discover Financial,banking,US,https://jobs.discover.com
+Synchrony,banking,US,https://www.synchronycareers.com
+American Express,banking,US,https://careers.americanexpress.com
+Charles Schwab,banking,US,https://www.schwabjobs.com
+Fidelity Investments,banking,US,https://jobs.fidelity.com
+Vanguard,banking,US,https://www.vanguardjobs.com
+BlackRock,banking,US,https://careers.blackrock.com
+State Street,banking,US,https://careers.statestreet.com
+BNY,banking,US,https://www.bny.com/corporate/global/en/careers.html
+Northern Trust,banking,US,https://careers.northerntrust.com
+Raymond James,banking,US,https://www.raymondjames.com/careers
+Edward Jones,banking,US,https://careers.edwardjones.com
+Ameriprise Financial,banking,US,https://www.ameriprise.com/careers
+Navy Federal Credit Union,banking,US,https://www.navyfederal.org/careers
+USAA,insurance,US,https://www.usaajobs.com
+Visa,banking,US,https://corporate.visa.com/en/jobs
+Mastercard,banking,US,https://careers.mastercard.com
+PayPal,banking,US,https://careers.pypl.com
+Block,banking,US,https://block.xyz/careers
+Fiserv,banking,US,https://careers.fiserv.com
+FIS,banking,US,https://careers.fisglobal.com
+Global Payments,banking,US,https://jobs.globalpayments.com
+Robinhood,banking,US,https://careers.robinhood.com
+SoFi,banking,US,https://www.sofi.com/careers
+Chime,banking,US,https://careers.chime.com
+Affirm,banking,US,https://www.affirm.com/careers
+Brex,banking,US,https://www.brex.com/careers
+Ramp,banking,US,https://ramp.com/careers
+Plaid,banking,US,https://plaid.com/careers
+Coinbase,banking,US,https://www.coinbase.com/careers
+Nasdaq,banking,US,https://www.nasdaq.com/about/careers
+Intercontinental Exchange,banking,US,https://careers.ice.com
+CME Group,banking,US,https://www.cmegroup.com/careers.html
+S&P Global,banking,US,https://careers.spglobal.com
+Moody's,banking,US,https://careers.moodys.com
+MSCI,banking,US,https://careers.msci.com
+State Farm,insurance,US,https://jobs.statefarm.com
+Allstate,insurance,US,https://www.allstate.jobs
+Progressive,insurance,US,https://careers.progressive.com
+GEICO,insurance,US,https://www.geico.careers
+Liberty Mutual,insurance,US,https://jobs.libertymutualgroup.com
+Nationwide,insurance,US,https://www.nationwide.com/personal/about-us/careers
+Travelers,insurance,US,https://careers.travelers.com
+The Hartford,insurance,US,https://www.thehartford.com/careers
+Chubb,insurance,US,https://careers.chubb.com
+MetLife,insurance,US,https://www.metlife.com/careers
+Prudential Financial,insurance,US,https://www.prudential.com/careers
+Aflac,insurance,US,https://careers.aflac.com
+Principal Financial Group,insurance,US,https://www.principal.com/about-us/careers
+Lincoln Financial,insurance,US,https://jobs.lincolnfinancial.com
+Northwestern Mutual,insurance,US,https://careers.northwesternmutual.com
+New York Life,insurance,US,https://www.newyorklife.com/careers
+MassMutual,insurance,US,https://careers.massmutual.com
+Farmers Insurance,insurance,US,https://www.farmers.com/careers
+American Family Insurance,insurance,US,https://www.amfam.com/careers
+Erie Insurance,insurance,US,https://www.erieinsurance.com/careers
+Marsh McLennan,insurance,US,https://careers.marshmclennan.com
+Aon,insurance,US,https://jobs.aon.com
+Arthur J. Gallagher,insurance,US,https://jobs.ajg.com
+WTW,insurance,US,https://careers.wtwco.com
+Lemonade,insurance,US,https://makers.lemonade.com
+UPS,logistics,US,https://www.jobs-ups.com
+FedEx,logistics,US,https://careers.fedex.com
+J.B. Hunt,logistics,US,https://careers.jbhunt.com
+XPO,logistics,US,https://jobs.xpo.com
+C.H. Robinson,logistics,US,https://jobs.chrobinson.com
+Ryder,logistics,US,https://ryder.com/careers
+Old Dominion Freight Line,logistics,US,https://careers.odfl.com
+Landstar,logistics,US,https://www.landstar.com/careers
+Schneider,logistics,US,https://schneiderjobs.com
+Werner Enterprises,logistics,US,https://www.werner.com/careers
+Knight-Swift,logistics,US,https://knightswift.com/careers
+GXO Logistics,logistics,US,https://jobs.gxo.com
+Expeditors,logistics,US,https://www.expeditors.com/careers
+ArcBest,logistics,US,https://arcb.com/careers
+Saia,logistics,US,https://www.saia.com/careers
+Penske,logistics,US,https://www.gopenske.com
+Flexport,logistics,US,https://www.flexport.com/careers
+DHL Supply Chain,logistics,DE,https://careers.dhl.com
+United States Postal Service,logistics,US,https://about.usps.com/careers
+Delta Air Lines,transportation,US,https://www.delta.com/us/en/careers/overview
+American Airlines,transportation,US,https://jobs.aa.com
+United Airlines,transportation,US,https://careers.united.com
+Southwest Airlines,transportation,US,https://careers.southwestair.com
+Alaska Airlines,transportation,US,https://careers.alaskaair.com
+JetBlue,transportation,US,https://careers.jetblue.com
+Hawaiian Airlines,transportation,US,https://careers.hawaiianairlines.com
+Union Pacific,transportation,US,https://www.up.jobs
+BNSF Railway,transportation,US,https://jobs.bnsf.com
+CSX,transportation,US,https://www.csx.com/index.cfm/working-at-csx
+Norfolk Southern,transportation,US,https://www.nscorp.com/content/nscorp/en/careers.html
+Amtrak,transportation,US,https://careers.amtrak.com
+Uber,transportation,US,https://www.uber.com/us/en/careers
+Lyft,transportation,US,https://www.lyft.com/careers
+DoorDash,tech,US,https://careers.doordash.com
+Instacart,tech,US,https://instacart.careers
+Hertz,transportation,US,https://jobs.hertz.com
+Enterprise Mobility,transportation,US,https://careers.enterprise.com
+Avis Budget Group,transportation,US,https://careers.avisbudgetgroup.com
+Boeing,aerospace,US,https://jobs.boeing.com
+Lockheed Martin,government contracting,US,https://www.lockheedmartinjobs.com
+RTX,aerospace,US,https://careers.rtx.com
+Northrop Grumman,government contracting,US,https://www.northropgrumman.com/careers
+General Dynamics,government contracting,US,https://www.gd.com/careers
+L3Harris,government contracting,US,https://careers.l3harris.com
+Booz Allen Hamilton,government contracting,US,https://careers.boozallen.com
+Leidos,government contracting,US,https://careers.leidos.com
+SAIC,government contracting,US,https://jobs.saic.com
+CACI,government contracting,US,https://careers.caci.com
+ManTech,government contracting,US,https://www.mantech.com/careers
+Peraton,government contracting,US,https://careers.peraton.com
+Parsons,government contracting,US,https://www.parsons.com/careers
+KBR,government contracting,US,https://careers.kbr.com
+Jacobs,engineering,US,https://careers.jacobs.com
+AECOM,engineering,US,https://aecom.jobs
+Huntington Ingalls Industries,government contracting,US,https://careers.huntingtoningalls.com
+BAE Systems Inc.,government contracting,US,https://jobs.baesystems.com
+Textron,aerospace,US,https://careers.textron.com
+GE Aerospace,aerospace,US,https://careers.geaerospace.com
+Honeywell,manufacturing,US,https://careers.honeywell.com
+SpaceX,aerospace,US,https://www.spacex.com/careers
+Blue Origin,aerospace,US,https://www.blueorigin.com/careers
+Anduril,government contracting,US,https://www.anduril.com/careers
+Palantir,tech,US,https://www.palantir.com/careers
+Spirit AeroSystems,aerospace,US,https://careers.spiritaero.com
+Howmet Aerospace,aerospace,US,https://careers.howmet.com
+General Motors,automotive,US,https://search-careers.gm.com
+Ford Motor Company,automotive,US,https://corporate.ford.com/careers.html
+Stellantis,automotive,US,https://www.stellantis.com/en/careers
+Tesla,automotive,US,https://www.tesla.com/careers
+Rivian,automotive,US,https://careers.rivian.com
+Lucid Motors,automotive,US,https://lucidmotors.com/careers
+Toyota North America,automotive,US,https://careers.toyota.com
+Honda North America,automotive,US,https://careers.honda.com
+Hyundai Motor America,automotive,US,https://www.hyundaiusa.com/us/en/careers
+BorgWarner,automotive,US,https://www.borgwarner.com/careers
+Aptiv,automotive,US,https://aptiv.com/careers
+Lear Corporation,automotive,US,https://www.lear.com/careers
+Goodyear,automotive,US,https://jobs.goodyear.com
+Cummins,manufacturing,US,https://careers.cummins.com
+PACCAR,automotive,US,https://www.paccar.com/careers
+Caterpillar,manufacturing,US,https://careers.caterpillar.com
+Deere & Company,manufacturing,US,https://www.deere.com/en/our-company/john-deere-careers
+3M,manufacturing,US,https://www.3m.com/3M/en_US/careers-us
+General Electric Vernova,energy,US,https://careers.gevernova.com
+Emerson,manufacturing,US,https://www.emerson.com/en-us/careers
+Eaton,manufacturing,US,https://www.eaton.com/us/en-us/company/careers.html
+Parker Hannifin,manufacturing,US,https://careers.parker.com
+Illinois Tool Works,manufacturing,US,https://careers.itw.com
+Rockwell Automation,manufacturing,US,https://careers.rockwellautomation.com
+Dover,manufacturing,US,https://careers.dovercorporation.com
+Johnson Controls,manufacturing,US,https://jobs.johnsoncontrols.com
+Carrier,manufacturing,US,https://careers.carrier.com
+Trane Technologies,manufacturing,US,https://careers.tranetechnologies.com
+Otis,manufacturing,US,https://www.otis.com/en/us/careers
+Whirlpool,manufacturing,US,https://www.whirlpoolcareers.com
+Stanley Black & Decker,manufacturing,US,https://www.stanleyblackanddecker.com/careers
+Dow,manufacturing,US,https://corporate.dow.com/en-us/careers.html
+DuPont,manufacturing,US,https://careers.dupont.com
+LyondellBasell,manufacturing,US,https://careers.lyondellbasell.com
+Eastman Chemical,manufacturing,US,https://www.eastman.com/en/careers
+PPG,manufacturing,US,https://careers.ppg.com
+Sherwin-Williams,manufacturing,US,https://careers.sherwin-williams.com
+Nucor,manufacturing,US,https://www.nucor.com/careers
+U.S. Steel,manufacturing,US,https://www.ussteel.com/careers
+Alcoa,manufacturing,US,https://www.alcoa.com/global/en/careers
+International Paper,manufacturing,US,https://careers.internationalpaper.com
+WestRock,manufacturing,US,https://careers.smurfitwestrock.com
+Ball Corporation,manufacturing,US,https://www.ball.com/careers
+Corning,manufacturing,US,https://www.corning.com/worldwide/en/careers.html
+Owens Corning,manufacturing,US,https://www.owenscorning.com/en-us/corporate/careers
+Mohawk Industries,manufacturing,US,https://careers.mohawkind.com
+Polaris,manufacturing,US,https://careers.polaris.com
+Harley-Davidson,manufacturing,US,https://careers.harley-davidson.com
+Generac,manufacturing,US,https://careers.generac.com
+Xylem,manufacturing,US,https://www.xylem.com/en-us/careers
+AGCO,manufacturing,US,https://careers.agcocorp.com
+Oshkosh Corporation,manufacturing,US,https://jobs.oshkoshcorp.com
+Westinghouse Electric,energy,US,https://careers.westinghousenuclear.com
+ExxonMobil,energy,US,https://jobs.exxonmobil.com
+Chevron,energy,US,https://careers.chevron.com
+ConocoPhillips,energy,US,https://careers.conocophillips.com
+Phillips 66,energy,US,https://careers.phillips66.com
+Marathon Petroleum,energy,US,https://jobs.marathonpetroleum.com
+Valero,energy,US,https://www.valero.com/careers
+Occidental Petroleum,energy,US,https://www.oxy.com/careers
+Halliburton,energy,US,https://careers.halliburton.com
+SLB,energy,US,https://careers.slb.com
+Baker Hughes,energy,US,https://careers.bakerhughes.com
+EOG Resources,energy,US,https://www.eogresources.com/careers
+Kinder Morgan,energy,US,https://www.kindermorgan.com/Careers
+Williams Companies,energy,US,https://www.williams.com/careers
+Enterprise Products,energy,US,https://www.enterpriseproducts.com/careers
+NextEra Energy,utilities,US,https://jobs.nexteraenergy.com
+Duke Energy,utilities,US,https://www.duke-energy.com/our-company/careers
+Southern Company,utilities,US,https://www.southerncompany.com/careers.html
+Dominion Energy,utilities,US,https://careers.dominionenergy.com
+Exelon,utilities,US,https://www.exeloncorp.com/careers
+American Electric Power,utilities,US,https://www.aep.com/careers
+Xcel Energy,utilities,US,https://jobs.xcelenergy.com
+Entergy,utilities,US,https://www.entergy.com/careers
+PG&E,utilities,US,https://jobs.pge.com
+Edison International,utilities,US,https://www.edison.com/careers
+Consolidated Edison,utilities,US,https://www.coned.com/en/about-us/careers
+Sempra,utilities,US,https://www.sempra.com/careers
+DTE Energy,utilities,US,https://careers.dteenergy.com
+CenterPoint Energy,utilities,US,https://www.centerpointenergy.com/en-us/corporate/about-us/careers
+FirstEnergy,utilities,US,https://www.firstenergycorp.com/careers.html
+PSEG,utilities,US,https://careers.pseg.com
+Constellation Energy,utilities,US,https://www.constellationenergy.com/our-company/careers.html
+American Water,utilities,US,https://www.amwater.com/corp/careers
+NRG Energy,utilities,US,https://www.nrg.com/about/careers.html
+Vistra,utilities,US,https://www.vistracorp.com/careers
+First Solar,energy,US,https://www.firstsolar.com/en/careers
+Enphase Energy,energy,US,https://enphase.com/careers
+Sunrun,energy,US,https://www.sunrun.com/careers
+AT&T,telecom,US,https://www.att.jobs
+Verizon,telecom,US,https://mycareer.verizon.com
+T-Mobile,telecom,US,https://www.t-mobile.com/careers
+Comcast,telecom,US,https://jobs.comcast.com
+Charter Communications,telecom,US,https://jobs.spectrum.com
+Lumen Technologies,telecom,US,https://jobs.lumen.com
+Frontier Communications,telecom,US,https://frontier.com/corporate/careers
+Cox Enterprises,telecom,US,https://jobs.coxenterprises.com
+Altice USA,telecom,US,https://jobs.alticeusa.com
+Dish Network,telecom,US,https://careers.echostar.com
+Paramount,media,US,https://careers.paramount.com
+Warner Bros. Discovery,media,US,https://careers.wbd.com
+NBCUniversal,media,US,https://www.nbcunicareers.com
+Fox Corporation,media,US,https://www.foxcareers.com
+Netflix,media,US,https://jobs.netflix.com
+Spotify,tech,SE,https://www.lifeatspotify.com
+The New York Times,media,US,https://www.nytco.com/careers
+Gannett,media,US,https://www.gannett.com/careers
+iHeartMedia,media,US,https://careers.iheart.com
+Electronic Arts,media,US,https://www.ea.com/careers
+Activision Blizzard,media,US,https://careers.activisionblizzard.com
+Take-Two Interactive,media,US,https://careers.take2games.com
+Roblox,media,US,https://careers.roblox.com
+Epic Games,media,US,https://www.epicgames.com/site/en-US/careers
+Riot Games,media,US,https://www.riotgames.com/en/work-with-us
+Omnicom,media,US,https://www.omnicomgroup.com/careers
+Interpublic Group,media,US,https://www.interpublic.com/careers
+Accenture,consulting,IE,https://www.accenture.com/us-en/careers
+Deloitte,consulting,US,https://apply.deloitte.com
+PwC,consulting,US,https://www.pwc.com/us/en/careers.html
+EY,consulting,US,https://careers.ey.com
+KPMG,consulting,US,https://www.kpmguscareers.com
+McKinsey & Company,consulting,US,https://www.mckinsey.com/careers
+Boston Consulting Group,consulting,US,https://careers.bcg.com
+Bain & Company,consulting,US,https://www.bain.com/careers
+Thoughtworks,consulting,US,https://www.thoughtworks.com/careers
+Capgemini,consulting,FR,https://www.capgemini.com/careers
+Cognizant,consulting,US,https://careers.cognizant.com
+Infosys,consulting,IN,https://www.infosys.com/careers
+Gartner,consulting,US,https://jobs.gartner.com
+Robert Half,staffing,US,https://www.roberthalf.com/us/en/about/careers
+ManpowerGroup,staffing,US,https://www.manpowergroup.com/careers
+Kelly Services,staffing,US,https://www.kellyservices.com/us/about-us/careers
+Insight Global,staffing,US,https://jobs.insightglobal.com
+TEKsystems,staffing,US,https://careers.teksystems.com
+ADP,tech,US,https://jobs.adp.com
+Paychex,tech,US,https://careers.paychex.com
+Workday,tech,US,https://www.workday.com/en-us/company/careers/overview.html
+Intuit,tech,US,https://jobs.intuit.com
+Microsoft,tech,US,https://careers.microsoft.com
+Apple,tech,US,https://jobs.apple.com
+Google,tech,US,https://careers.google.com
+Meta,tech,US,https://www.metacareers.com
+IBM,tech,US,https://www.ibm.com/careers
+Oracle,tech,US,https://careers.oracle.com
+Salesforce,tech,US,https://careers.salesforce.com
+Adobe,tech,US,https://careers.adobe.com
+Cisco,tech,US,https://jobs.cisco.com
+Intel,tech,US,https://jobs.intel.com
+NVIDIA,tech,US,https://jobs.nvidia.com/careers
+AMD,tech,US,https://careers.amd.com
+Qualcomm,tech,US,https://careers.qualcomm.com
+Broadcom,tech,US,https://www.broadcom.com/company/careers
+Texas Instruments,tech,US,https://careers.ti.com
+Micron Technology,tech,US,https://careers.micron.com
+Applied Materials,tech,US,https://careers.appliedmaterials.com
+Lam Research,tech,US,https://careers.lamresearch.com
+KLA,tech,US,https://www.kla.com/careers
+Analog Devices,tech,US,https://careers.analog.com
+Western Digital,tech,US,https://jobs.westerndigital.com
+Seagate,tech,US,https://www.seagate.com/careers
+Dell Technologies,tech,US,https://jobs.dell.com
+HP Inc.,tech,US,https://jobs.hp.com
+Hewlett Packard Enterprise,tech,US,https://careers.hpe.com
+VMware,tech,US,https://careers.vmware.com
+ServiceNow,tech,US,https://careers.servicenow.com
+Snowflake,tech,US,https://careers.snowflake.com
+Databricks,tech,US,https://www.databricks.com/company/careers
+MongoDB,tech,US,https://www.mongodb.com/company/careers
+Datadog,tech,US,https://careers.datadoghq.com
+Splunk,tech,US,https://www.splunk.com/en_us/careers.html
+Palo Alto Networks,tech,US,https://jobs.paloaltonetworks.com
+CrowdStrike,tech,US,https://www.crowdstrike.com/careers
+Fortinet,tech,US,https://www.fortinet.com/corporate/careers
+Zscaler,tech,US,https://www.zscaler.com/careers
+Okta,tech,US,https://www.okta.com/company/careers
+Cloudflare,tech,US,https://www.cloudflare.com/careers
+Twilio,tech,US,https://www.twilio.com/en-us/company/jobs
+Zoom,tech,US,https://careers.zoom.us
+Dropbox,tech,US,https://jobs.dropbox.com
+Box,tech,US,https://careers.box.com
+DocuSign,tech,US,https://careers.docusign.com
+HubSpot,tech,US,https://www.hubspot.com/careers
+Atlassian,tech,AU,https://www.atlassian.com/company/careers
+Shopify,tech,CA,https://www.shopify.com/careers
+Stripe,tech,US,https://stripe.com/jobs/search
+Pinterest,tech,US,https://www.pinterestcareers.com
+Snap,tech,US,https://careers.snap.com
+Reddit,tech,US,https://www.redditinc.com/careers
+LinkedIn,tech,US,https://careers.linkedin.com
+Yelp,tech,US,https://www.yelp.careers
+Zillow,real estate,US,https://www.zillow.com/careers
+Redfin,real estate,US,https://www.redfin.com/careers
+Compass,real estate,US,https://www.compass.com/careers
+CBRE,real estate,US,https://careers.cbre.com
+JLL,real estate,US,https://careers.jll.com
+Cushman & Wakefield,real estate,US,https://careers.cushwake.com
+Equity Residential,real estate,US,https://careers.equityapartments.com
+Greystar,real estate,US,https://www.greystar.com/careers
+Prologis,real estate,US,https://www.prologis.com/careers
+Simon Property Group,real estate,US,https://careers.simon.com
+Lennar,construction,US,https://www.lennar.com/careers
+D.R. Horton,construction,US,https://www.drhorton.com/careers
+PulteGroup,construction,US,https://www.pultegroupcareers.com
+Toll Brothers,construction,US,https://www.tollbrothers.com/careers
+Bechtel,construction,US,https://jobs.bechtel.com
+Fluor,construction,US,https://careers.fluor.com
+Kiewit,construction,US,https://www.kiewit.com/careers
+Turner Construction,construction,US,https://www.turnerconstruction.com/careers
+Quanta Services,construction,US,https://www.quantaservices.com/careers
+EMCOR,construction,US,https://www.emcorgroup.com/careers
+Waste Management,services,US,https://careers.wm.com
+Republic Services,services,US,https://jobs.republicservices.com
+Cintas,services,US,https://careers.cintas.com
+ABM Industries,services,US,https://careers.abm.com
+Rollins,services,US,https://careers.rollins.com
+ServiceMaster,services,US,https://www.servicemaster.com/careers
+H&R Block,services,US,https://careers.hrblock.com
+Allied Universal,services,US,https://jobs.aus.com
+Securitas,services,US,https://www.securitasinc.com/careers
+University of Michigan,education,US,https://careers.umich.edu
+University of California,education,US,https://jobs.universityofcalifornia.edu
+Harvard University,education,US,https://hr.harvard.edu/jobs
+Stanford University,education,US,https://careersearch.stanford.edu
+Yale University,education,US,https://your.yale.edu/work-yale/careers
+Columbia University,education,US,https://opportunities.columbia.edu
+University of Texas at Austin,education,US,https://utaustin.wd1.myworkdayjobs.com/UTstaff
+Ohio State University,education,US,https://hr.osu.edu/careers
+University of Washington,education,US,https://hr.uw.edu/jobs
+Penn State,education,US,https://hr.psu.edu/careers
+University of Florida,education,US,https://explore.jobs.ufl.edu
+Arizona State University,education,US,https://cfo.asu.edu/applicant
+Purdue University,education,US,https://careers.purdue.edu
+Duke University,education,US,https://careers.duke.edu
+Northwestern University,education,US,https://www.northwestern.edu/hr/careers
+University of Chicago,education,US,https://uchicago.wd5.myworkdayjobs.com/External
+New York University,education,US,https://www.nyu.edu/employees/careers.html
+Cornell University,education,US,https://hr.cornell.edu/jobs
+Johns Hopkins University,education,US,https://jobs.jhu.edu
+University of Pennsylvania,education,US,https://careers.upenn.edu
+Pearson,education,GB,https://pearson.jobs
+McGraw Hill,education,US,https://careers.mheducation.com
+Chegg,education,US,https://www.chegg.com/careers
+Coursera,education,US,https://careers.coursera.org
+Duolingo,education,US,https://careers.duolingo.com
+KinderCare,education,US,https://www.kindercare.com/careers
+Bright Horizons,education,US,https://careers.brighthorizons.com
+American Red Cross,nonprofit,US,https://www.redcross.org/about-us/careers.html
+Goodwill Industries,nonprofit,US,https://www.goodwill.org/jobs-training/careers
+YMCA of the USA,nonprofit,US,https://www.ymca.org/careers
+Feeding America,nonprofit,US,https://www.feedingamerica.org/about-us/careers
+Unilever,consumer goods,GB,https://careers.unilever.com
+Grab,tech,SG,https://www.grab.careers
+Canva,tech,AU,https://www.lifeatcanva.com
+Globe Telecom,telecom,PH,https://www.globe.com.ph/careers
+BPI,banking,PH,https://www.bpi.com.ph/careers
+Concentrix,services,US,https://jobs.concentrix.com
+Teleperformance,services,FR,https://www.teleperformance.com/en-us/careers
+TaskUs,services,US,https://www.taskus.com/careers
+TTEC,services,US,https://careers.ttec.com
+Alorica,services,US,https://www.alorica.com/careers
+Foundever,services,US,https://foundever.com/careers
+Sutherland,services,US,https://www.sutherlandglobal.com/careers
+Telus Digital,services,CA,https://jobs.telusdigital.com
+Nestle,consumer goods,CH,https://www.nestle.com/jobs
+Siemens,manufacturing,DE,https://jobs.siemens.com
+SAP,tech,DE,https://jobs.sap.com
+Philips,medical devices,NL,https://www.careers.philips.com
+Novartis,pharma,CH,https://www.novartis.com/careers
+Roche,pharma,CH,https://careers.roche.com
+AstraZeneca,pharma,GB,https://careers.astrazeneca.com
+GSK,pharma,GB,https://jobs.gsk.com
+Sanofi,pharma,FR,https://jobs.sanofi.com
+HSBC,banking,GB,https://www.hsbc.com/careers
+Standard Chartered,banking,GB,https://www.sc.com/en/careers
+Shell,energy,GB,https://www.shell.com/careers.html
+BP,energy,GB,https://www.bp.com/en/global/corporate/careers.html
+Maersk,logistics,DK,https://www.maersk.com/careers

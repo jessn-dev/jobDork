@@ -18,6 +18,12 @@ proposal.md
 !requirements.txt
 # The gazetteer is data the tool ships with, not output.
 !jobdork/data/cities.csv
+# Discover's test list: the benchmark reads it.
+!scripts/employers.csv
+# The employer boards jobdork ships, and how they are built and reviewed.
+!jobdork/data/boards.csv
+!scripts/candidates.csv
+!scripts/boards_review.csv
 !jobdork/data/regions.csv
 
 # Your search is yours. None of this belongs in a repository.

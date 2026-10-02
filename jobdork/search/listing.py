@@ -177,25 +177,116 @@ class Checker:
         platform = row["platform"] or ""
         if not url:
             return Finding("unknown", "no posting URL stored")
-        if platform == "adzuna":
-            return self._adzuna(row, scanned)
+        if platform in UNREADABLE:
+            return self._listed_only(row, scanned)
         if platform == "ashby":
             found = self._ashby(url)
             if found:
                 return found
+        if platform == "workday":
+            found = self._workday(url)
+            if found:
+                return found
+        if platform == "oracle":
+            found = self._oracle(url)
+            if found:
+                return found
+        if platform == "eightfold":
+            found = self._eightfold(url)
+            if found:
+                return found
+        if platform == "taleo":
+            found = self._taleo(url)
+            if found:
+                return found
         return self._page(row)
 
-    def _adzuna(self, row, adzuna_run: str) -> Finding:
+    def _listed_only(self, row, last_run: str) -> Finding:
+        """A source whose pages refuse scripts: its own closing date, else its word.
+
+        Kalibrr states when applications close, and that is hard evidence.
+        Otherwise all that can be said is whether the post was still in the
+        source's results the last time it was scanned.
+        """
+        name = UNREADABLE[row["platform"]]
+        closes = _closing_date(row)
+        if closes and closes < time.strftime("%Y-%m-%d"):
+            return Finding("closed", f"{name} says applications closed {closes}", hard=True)
         seen = (row["last_seen"] or "")[:10]
-        if not adzuna_run:
-            return Finding("unknown", "Adzuna pages refuse scripts, and no "
-                           "completed scan has read Adzuna to compare with")
-        if (row["last_seen"] or "") < adzuna_run:
-            return Finding("unlisted", f"not in Adzuna's results since {seen}. "
-                           "Adzuna pages refuse scripts, so this cannot be "
+        if not last_run:
+            return Finding("unknown", f"{name} pages refuse scripts, and no "
+                           f"completed scan has read {name} to compare with")
+        if (row["last_seen"] or "") < last_run:
+            return Finding("unlisted", f"not in {name}'s results since {seen}. "
+                           f"{name} pages refuse scripts, so this cannot be "
                            "confirmed. Open the posting to check")
-        return Finding("listed", "it was in Adzuna's latest results; its pages "
+        return Finding("listed", f"it was in {name}'s latest results; its pages "
                        "refuse scripts, so the posting itself was not read")
+
+    def _taleo(self, url: str) -> Finding | None:
+        """Taleo answers 200 for a removed job, with a page that says so."""
+        resp = self.fetcher.get(url, expect_json=False)
+        if resp.status in (404, 410):
+            return Finding("closed", f"Taleo answers {resp.status} for this posting", hard=True)
+        if not resp.ok:
+            return None
+        if re.search(r"job has moved or is no longer available", resp.body or "", re.I):
+            return Finding("closed", "Taleo says the job has moved or is no longer available",
+                           hard=True)
+        return None                              # the page check reads the rest
+
+    def _eightfold(self, url: str) -> Finding | None:
+        """The position's own record; a removed one answers 404."""
+        from ..fetch import eightfold
+
+        info, answered = eightfold.record(self.fetcher, url)
+        if not answered:
+            return None
+        if not info:
+            return Finding("closed", "Eightfold answers 404 for this posting", hard=True)
+        return Finding("open", "Eightfold lists the posting as open")
+
+    def _oracle(self, url: str) -> Finding | None:
+        """The requisition's own record; a removed one answers with no items.
+
+        The page is a script, like Workday's, and says nothing by itself.
+        """
+        from ..fetch import oracle
+
+        info, answered = oracle.record(self.fetcher, url)
+        if not answered:
+            return None
+        if not info:
+            return Finding("closed", "Oracle Recruiting no longer lists this posting", hard=True)
+        return Finding("open", "Oracle Recruiting lists the posting as open")
+
+    def _workday(self, url: str) -> Finding | None:
+        """The posting's own record, from the JSON the careers site reads.
+
+        The page is a script that renders the same shell for any path, so it
+        cannot say; the detail call answers 404 for a removed posting and
+        `posted: false` for one taken down.
+        """
+        parts = urlsplit(url)
+        segments = [p for p in parts.path.split("/") if p]
+        if not parts.netloc.endswith(".myworkdayjobs.com") or "job" not in segments:
+            return None
+        tenant = parts.netloc.split(".")[0]
+        at = segments.index("job")
+        site = segments[at - 1] if at else ""
+        if not site:
+            return None
+        resp = self.fetcher.get(
+            f"https://{parts.netloc}/wday/cxs/{tenant}/{site}/{'/'.join(segments[at:])}",
+            headers={"Accept": "application/json"})
+        if resp.status in (404, 410):
+            return Finding("closed", f"Workday answers {resp.status} for this posting", hard=True)
+        info = (resp.json or {}).get("jobPostingInfo") if resp.ok and isinstance(resp.json, dict) else None
+        if not info:
+            return None
+        if info.get("posted") is False or info.get("canApply") is False:
+            return Finding("closed", "Workday says the posting is no longer open", hard=True)
+        return Finding("open", "Workday lists the posting as open")
 
     def _ashby(self, url: str) -> Finding | None:
         parts = [p for p in urlsplit(url).path.split("/") if p]
@@ -286,6 +377,24 @@ def _days_since(stamp: str) -> float | None:
     except (TypeError, ValueError):
         return None
     return (time.time() - then) / 86400
+
+
+# Sources whose posting pages refuse anything but a browser, by display name.
+UNREADABLE = {"adzuna": "Adzuna", "kalibrr": "Kalibrr", "himalayas": "Himalayas"}
+_CLOSES = re.compile(r"^applications close (\d{4}-\d{2}-\d{2})$")
+
+
+def _closing_date(row) -> str:
+    """The closing date a source stated, kept as a flag (fetch/kalibrr.py)."""
+    try:
+        flags = json.loads(row["flags"] or "[]")
+    except (json.JSONDecodeError, TypeError, IndexError, KeyError):
+        return ""
+    for flag in flags if isinstance(flags, list) else []:
+        m = _CLOSES.match(str(flag))
+        if m:
+            return m.group(1)
+    return ""
 
 
 def last_scans(store) -> dict[str, str]:

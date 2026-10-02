@@ -79,11 +79,18 @@ from . import (  # noqa: E402,F401
     adzuna,
     ashby,
     breezy,
+    eightfold,
     greenhouse,
+    himalayas,
+    kalibrr,
     lever,
+    oracle,
+    site,
     smartrecruiters,
+    taleo,
     usajobs,
     workable,
+    workday,
 )
 
 __all__ = ["REGISTRY", "Role", "SourceResult", "get", "register"]

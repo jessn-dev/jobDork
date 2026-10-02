@@ -730,6 +730,20 @@ def cmd_serve(args) -> int:
                            token=args.token)
 
 
+def directory_line(cfg) -> str:
+    """One line on the built-in employer boards this config reads."""
+    from .search import directory
+
+    d = cfg.sources.directory
+    if not d.enabled:
+        return "directory        off (sources.directory.enabled)"
+    chosen = directory.select(cfg)
+    countries = ", ".join(d.countries or cfg.locations.countries) or "every country"
+    industries = ", ".join(d.industries) or "every industry"
+    return (f"directory        {len(chosen)} built-in employer boards "
+            f"({countries}; {industries})")
+
+
 def cmd_sources(args) -> int:
     cfg = _load(args)
     print("Active:")
@@ -737,6 +751,7 @@ def cmd_sources(args) -> int:
         print(f"  {name}")
     for company in cfg.sources.companies:
         print(f"  {company.platform:16} {company.name} (token {company.token})")
+    print(f"  {directory_line(cfg)}")
     dormant = cfg.dormant_sources()
     if dormant:
         print("\nRegistered but not running:")
