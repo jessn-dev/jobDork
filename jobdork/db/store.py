@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import threading
 import time
 import urllib.parse
 from collections.abc import Iterable
@@ -34,6 +35,11 @@ from typing import Any
 from ..core.config import SETTLED_STATUSES, STATUSES
 from . import grouping
 from .migrations import SCHEMA_VERSION, migrate
+
+# Dropped job posts (the `dropped` table) are kept this long, and at most this
+# many: enough to look back over the last few scans, not a second database.
+DROPPED_DAYS = 14
+DROPPED_KEPT = 20000
 
 # Tracking parameters that change per click and would otherwise mint a new
 # uid for a posting already stored.
@@ -144,6 +150,39 @@ CREATE TABLE IF NOT EXISTS activity_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_activity ON activity_events(activity_id);
+
+-- Warnings and errors from outside any job: the server, setup, a config that
+-- stopped loading. A job's own go in activity_events (core/telemetry.py).
+CREATE TABLE IF NOT EXISTS app_events (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    at      TEXT NOT NULL,
+    level   TEXT NOT NULL,
+    source  TEXT,
+    text    TEXT
+);
+
+-- Job posts a scan's filters left out, with the rule and the reason, so Job
+-- posts can show them on request ("Dropped by your filters"). Only what a
+-- card needs, never the advert: a scan of the built-in boards drops tens of
+-- thousands. Kept for DROPPED_DAYS and at most DROPPED_KEPT rows.
+CREATE TABLE IF NOT EXISTS dropped (
+    uid              TEXT PRIMARY KEY,
+    platform         TEXT NOT NULL,
+    company          TEXT,
+    title            TEXT,
+    url              TEXT,
+    location_raw     TEXT,
+    distance_mi      REAL,
+    work_mode        TEXT,
+    salary_min       REAL,
+    salary_max       REAL,
+    salary_currency  TEXT,
+    salary_stated    INTEGER NOT NULL DEFAULT 0,
+    posted_at        TEXT,
+    rule             TEXT,
+    reason           TEXT,
+    seen_at          TEXT NOT NULL
+);
 
 -- Job posts you deleted. A scan skips these, or a deleted post still listed
 -- by its source would come straight back as new.
@@ -296,6 +335,9 @@ def _now() -> str:
 # ── Store ──────────────────────────────────────────────────────────────────────
 
 
+_OPENING = threading.Lock()
+
+
 class Store:
     """Thin wrapper over sqlite3. Open it with a `with` block."""
 
@@ -304,7 +346,12 @@ class Store:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(self.path)
         try:
-            self._open()
+            # One opening at a time in this process. The dashboard's first
+            # page load opens a database that does not exist yet from several
+            # requests at once, and two of them switching it to WAL and
+            # creating its tables together failed with "database is locked".
+            with _OPENING:
+                self._open()
         except BaseException:
             # A refused database (newer than this code, a failed migration)
             # must not leave its connection open: it leaked, and on Windows
@@ -665,6 +712,51 @@ class Store:
         with self.conn:
             cur = self.conn.execute("DELETE FROM roles WHERE origin = 'scan'")
         return cur.rowcount
+
+    # ── dropped by your filters ───────────────────────────────────────────────
+
+    def save_dropped(self, items: Iterable[tuple[Role, str, str]]) -> int:
+        """Remember the posts a scan's filters left out: (role, rule, reason).
+
+        A later scan that drops one again updates it; one it keeps is
+        forgotten (`forget_dropped`). Old rows are pruned here, so the table
+        stays the size of the last few scans.
+        """
+        now = _now()
+        rows = [(r.uid, r.platform, r.company, r.title, canonical_url(r.url),
+                 r.location_raw, r.distance_mi, r.work_mode, r.salary_min,
+                 r.salary_max, r.salary_currency, int(r.salary_stated),
+                 r.posted_at, rule, reason, now) for r, rule, reason in items]
+        cutoff = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(
+            time.time() - DROPPED_DAYS * 86400))
+        with self.conn:
+            self.conn.executemany(
+                "INSERT OR REPLACE INTO dropped(uid, platform, company, title, url, "
+                "location_raw, distance_mi, work_mode, salary_min, salary_max, "
+                "salary_currency, salary_stated, posted_at, rule, reason, seen_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+            self.conn.execute("DELETE FROM dropped WHERE seen_at < ?", (cutoff,))
+            self.conn.execute(
+                "DELETE FROM dropped WHERE uid NOT IN (SELECT uid FROM dropped "
+                "ORDER BY seen_at DESC LIMIT ?)", (DROPPED_KEPT,))
+        return len(rows)
+
+    def forget_dropped(self, uids: Iterable[str]) -> None:
+        """A post now kept, by a scan or by you, is no longer a dropped one."""
+        with self.conn:
+            self.conn.executemany("DELETE FROM dropped WHERE uid = ?",
+                                  [(u,) for u in uids])
+
+    def list_dropped(self) -> list[sqlite3.Row]:
+        """Dropped posts, newest first. Not ones stored since, nor deleted."""
+        return self.conn.execute(
+            "SELECT * FROM dropped WHERE uid NOT IN (SELECT uid FROM roles) "
+            "AND uid NOT IN (SELECT uid FROM deleted) "
+            "ORDER BY seen_at DESC, company, title").fetchall()
+
+    def get_dropped(self, uid: str) -> sqlite3.Row | None:
+        return self.conn.execute(
+            "SELECT * FROM dropped WHERE uid = ?", (uid,)).fetchone()
 
     def deleted_uids(self) -> set[str]:
         return {r[0] for r in self.conn.execute("SELECT uid FROM deleted")}

@@ -43,12 +43,15 @@ class JudgeReport:
     failed: list[str] = field(default_factory=list)
     skipped_thin: int = 0
     model: str = ""
+    disagreed: int = 0                 # the second model scored it 20+ apart
 
     def lines(self) -> list[str]:
         out = [f"{self.model}: judged {self.judged}"]
         if self.flagged:
             out.append(f"{self.flagged} with a claim the advert and resume do "
                        "not support")
+        if self.disagreed:
+            out.append(f"{self.disagreed} where the second model disagrees")
         if self.skipped_thin:
             out.append(f"{self.skipped_thin} skipped, advert too short to judge")
         if self.failed:
@@ -76,7 +79,9 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
         raise LLMError("no resume configured. Upload one on the Resume page")
     resume_text = resume_mod.load(cfg.resume_path).text
 
-    report = JudgeReport(model=settings.label)
+    report = JudgeReport(model=settings.label + (
+        f", checked by {settings.usable_checker().label}"
+        if settings.usable_checker() else ""))
     if uid:
         row = store.get(uid)
         rows = [row] if row is not None else []
@@ -115,6 +120,10 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
                     or "could not reach" in str(exc):
                 raise
             continue
+        second_opinion(settings, role, resume_text, verdict)
+        if verdict.get("disagree"):
+            report.disagreed += 1
+            telemetry.tick(count="models disagree")
         check_verdict(settings, store, row, verdict, resume_text,
                       enabled=cfg.llm.guard)
         if verdict.get("guard", {}).get("unsupported"):
@@ -125,9 +134,37 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
         telemetry.tick(done=report.judged + len(report.failed),
                        count=verdict["verdict"])
         if progress:
+            second = verdict.get("second") or {}
+            also = (f"  (second model: {second['score']}"
+                    f"{', disagrees' if verdict.get('disagree') else ''})"
+                    if "score" in second else "")
             progress(f"  {verdict['score']:>3} {verdict['verdict']:<8} "
-                     f"{row['uid']}  {verdict['summary'][:80]}")
+                     f"{row['uid']}  {verdict['summary'][:80]}{also}")
     return report
+
+
+# Points apart, out of 100, at which the two models' scores are called a
+# disagreement: more than one verdict band (llm.verdict_for) is 30.
+DISAGREE_POINTS = 20
+
+
+def second_opinion(settings, role: dict, resume_text: str, verdict: dict) -> None:
+    """The second model scores the same job post; adds `second` and `disagree`.
+
+    Never blocks the verdict: a failure is recorded on it, and the first
+    model's score stands either way.
+    """
+    checker = settings.usable_checker()
+    if checker is None:
+        return
+    try:
+        other = judge(checker, role, resume_text)
+    except LLMError as exc:
+        verdict["second"] = {"model": checker.label, "error": str(exc)[:300]}
+        return
+    verdict["second"] = {"model": checker.label, "score": other["score"],
+                         "verdict": other["verdict"], "summary": other["summary"]}
+    verdict["disagree"] = abs(other["score"] - verdict["score"]) >= DISAGREE_POINTS
 
 
 def verdict_text(verdict: dict) -> str:

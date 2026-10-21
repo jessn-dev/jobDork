@@ -307,6 +307,7 @@ def fetch(fetcher, cfg, token: str = "", company: str = "",
         # Addresses are ids only: newest first, a few.
         chosen = list(listed)
         limit = MAX_UNTITLED
+    # lambda: sort key, (url, date) pairs by date, newest first.
     chosen.sort(key=lambda pair: pair[1], reverse=True)
 
     if hasattr(fetcher, "pace"):

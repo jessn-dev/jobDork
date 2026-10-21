@@ -102,14 +102,14 @@ ALL_SOURCES = KEYLESS_SOURCES + KEYED_SOURCES
 
 CONFIG_CANDIDATES = ("config.local.yaml", "config.yaml", "data/config.yaml")
 
-# A container starts from the example the image carries, copied into the kept
-# volume. Both conditions, as for binding beyond loopback in web.serve: the
-# variable is set by the Dockerfile, the marker file by the runtime, so the
-# variable alone on a bare host never writes a config nobody asked for.
+# Where a first run writes its config: beside the code on your own machine,
+# and in the kept volume in a container, where anything else is lost with the
+# container. Both conditions, as for binding beyond loopback in web.serve: the
+# variable is set by the Dockerfile, the marker file by the runtime.
 CONTAINER_ENV = "JOBDORK_IN_CONTAINER"
 CONTAINER_MARKERS = ("/.dockerenv", "/run/.containerenv")
-EXAMPLE_CONFIG = "config.example.yaml"
-SEEDED_CONFIG = "data/config.yaml"
+NEW_CONFIG = "config.yaml"
+NEW_CONFIG_IN_CONTAINER = "data/config.yaml"
 
 # Currencies a floor can be stated in. A salary in any other currency is kept
 # and flagged "not compared", never converted.
@@ -148,6 +148,47 @@ def load_dotenv(path: str | Path = ".env") -> None:
         value = value.strip().strip('"').strip("'")
         if key and key not in os.environ:
             os.environ[key] = value
+
+
+# Job-source keys typed into the app (setup, the Sources page) are kept here,
+# beside the database, so they survive a restart and, in a container, live
+# in the kept volume. Never in config.yaml. The environment and .env win.
+SOURCE_KEYS_FILE = "source-keys.env"
+SOURCE_KEY_NAMES = ("ADZUNA_APP_ID", "ADZUNA_APP_KEY", "USAJOBS_API_KEY", "USAJOBS_EMAIL")
+
+
+def source_keys_path(cfg: Config) -> Path:
+    return Path(cfg.db_path).parent / SOURCE_KEYS_FILE
+
+
+def write_source_keys(cfg: Config, values: dict[str, str]) -> None:
+    """Set (or, given "", remove) job-source keys in the app's keys file.
+
+    Only the four known names. The file is readable by its owner alone, and
+    this process sees the change at once.
+    """
+    path = source_keys_path(cfg)
+    held: dict[str, str] = {}
+    if path.is_file():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            key, sep, value = line.partition("=")
+            if sep and key.strip() in SOURCE_KEY_NAMES:
+                held[key.strip()] = value.strip()
+    for name, value in values.items():
+        if name not in SOURCE_KEY_NAMES:
+            raise ConfigError(f"{name} is not a job-source key")
+        value = str(value or "").strip()
+        if any(c in value for c in "\r\n=\"'"):
+            raise ConfigError(f"{name} has characters a key does not")
+        if value:
+            held[name] = value
+            os.environ[name] = value
+        elif held.pop(name, None) is not None:
+            os.environ.pop(name, None)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch(mode=0o600, exist_ok=True)
+    path.chmod(0o600)
+    path.write_text("".join(f"{k}={v}\n" for k, v in held.items()), encoding="utf-8")
 
 
 # ── Dataclasses ────────────────────────────────────────────────────────────────
@@ -202,6 +243,8 @@ class Screening:
     """
     # Words that change the job rather than reword it, blocking a loose title
     # match: "Engineering Program Manager" is not an engineering manager.
+    # lambda: default_factory needs a callable, so each config gets its own
+    # copy of the list; a shared list would leak edits between configs.
     blockers: list[str] = field(default_factory=lambda: list(DEFAULT_BLOCKERS))
     # How many unrelated words may sit between the words of a title phrase
     # before the loose pass stops believing it is the same title.
@@ -220,11 +263,16 @@ class Freshness:
     Tiers: new up to `new_days`, first week up to `week_days`, older up to
     `older_days`, stale beyond, and past `ghost_days` a ghost, dropped.
     `ghost_days: 0` never drops for age.
+
+    `show_days` is how old a post Job posts shows: older ones not yet acted
+    on are hidden, never deleted, and "Show older" brings them back. `0`
+    shows every age. It does not change scanning or the score.
     """
     new_days: int = 2
     week_days: int = 7
     older_days: int = 21
     ghost_days: int = 90
+    show_days: int = 0
     new_points: float = 5.0
     older_points: float = -5.0
     stale_points: float = -15.0
@@ -263,6 +311,8 @@ class Directory:
 
 @dataclass
 class Sources:
+    # lambda: default_factory needs a callable that makes a fresh list per
+    # instance.
     keyless: list[str] = field(default_factory=lambda: list(KEYLESS_SOURCES))
     companies: list[Company] = field(default_factory=list)
     directory: Directory = field(default_factory=Directory)
@@ -284,6 +334,8 @@ class Sources:
 @dataclass
 class Output:
     dir: str = "out"
+    # lambda: default_factory needs a callable that makes a fresh list per
+    # instance.
     formats: list[str] = field(default_factory=lambda: ["html", "json"])
 
 
@@ -317,6 +369,11 @@ class Llm:
     # Tokens an Ollama model may use per call (llm.DEFAULT_CONTEXT). Ignored
     # by hosted models, which size themselves.
     context: int = 16_384
+    # A second model that checks the first (ai/guard.py): it runs the claim
+    # checks on everything the first writes or judges, and scores each judged
+    # job post itself. Off when empty. Same Ollama address and context.
+    checker_provider: str = ""
+    checker_model: str = ""
 
 
 @dataclass
@@ -329,12 +386,17 @@ class Config:
     freshness: Freshness = field(default_factory=Freshness)
     dealbreakers: list[Dealbreaker] = field(default_factory=list)
     resume_path: str = ""
+    # Certifications and licenses you hold, as you write them ("RN",
+    # "IAT I"): an advert's are checked against these as well as the resume.
+    credentials: list[str] = field(default_factory=list)
     sources: Sources = field(default_factory=Sources)
     output: Output = field(default_factory=Output)
     fetch: Fetch = field(default_factory=Fetch)
     llm: Llm = field(default_factory=Llm)
     db_path: str = "data/jobdork.db"
-    path: str = ""          # where this config was read from
+    path: str = ""          # where this config was read from, or will be written
+    # The first-run step still to do; empty once set up. See core.setup.
+    setup_step: str = ""
 
     # Warnings collected during load. Not fatal, but worth printing once.
     warnings: list[str] = field(default_factory=list)
@@ -413,38 +475,36 @@ def in_container() -> bool:
             and any(Path(m).exists() for m in CONTAINER_MARKERS))
 
 
-def _seed_from_example() -> Path | None:
-    """In a container with no config, copy the image's example into data/."""
-    example, seeded = Path(EXAMPLE_CONFIG), Path(SEEDED_CONFIG)
-    if not (in_container() and example.is_file()):
-        return None
-    try:
-        seeded.parent.mkdir(parents=True, exist_ok=True)
-        seeded.write_text(example.read_text(encoding="utf-8"), encoding="utf-8")
-    except OSError as exc:
-        raise ConfigError(
-            f"No config, and {seeded} could not be created from the example: "
-            f"{exc}. The folder mapped to /app/data must be writable by user "
-            "1000 (chown -R 1000:1000 on the host)."
-        ) from exc
-    return seeded
+def new_config_path() -> str:
+    """Where a first run writes the config it builds."""
+    env = os.environ.get("JOBDORK_CONFIG", "")
+    if env:
+        return str(Path(env).expanduser())
+    return NEW_CONFIG_IN_CONTAINER if in_container() else NEW_CONFIG
 
 
 def load(explicit: str = "", require: bool = True) -> Config:
-    """Read, validate and return the config. Raises ConfigError on anything wrong."""
+    """Read, validate and return the config. Raises ConfigError on anything wrong.
+
+    With no config file and `require` off, the result is a config waiting for
+    first-run setup: defaults, `setup_step` at the first step, and `path`
+    where setup will write it.
+    """
     load_dotenv()
+    if not explicit and not require and not _configured():
+        cfg = _build({})
+        cfg.path = new_config_path()
+        cfg.setup_step = "welcome"
+        load_dotenv(source_keys_path(cfg))
+        _apply_env_secrets(cfg)
+        _validate(cfg)
+        return cfg
     path = find_config(explicit)
-    seeded = False
-    if path is None and not explicit:
-        path = _seed_from_example()
-        seeded = path is not None
     if path is None:
-        if require:
-            raise ConfigError(
-                "No config found. Run `jobdork setup`, or copy "
-                "config.example.yaml to config.yaml and edit it."
-            )
-        return Config()
+        raise ConfigError(
+            "No config found. Run `jobdork setup` to answer a few questions "
+            "in the terminal, or `jobdork serve` to do it in the browser."
+        )
 
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -455,14 +515,28 @@ def load(explicit: str = "", require: bool = True) -> Config:
 
     cfg = _build(raw)
     cfg.path = str(path)
-    if seeded:
-        cfg.warnings.append(
-            f"No config found, so {path} was created from {EXAMPLE_CONFIG}. "
-            "Change it from the dashboard's settings; it is kept in data/."
-        )
+    load_dotenv(source_keys_path(cfg))
     _apply_env_secrets(cfg)
     _validate(cfg)
     return cfg
+
+
+def _configured() -> bool:
+    """A config file exists where find_config looks, $JOBDORK_CONFIG included."""
+    env = os.environ.get("JOBDORK_CONFIG", "")
+    if env:
+        return Path(env).expanduser().is_file()
+    return find_config() is not None
+
+
+def require_set_up(cfg: Config) -> None:
+    """Refuse a command that needs the answers first-run setup collects."""
+    if cfg.setup_step:
+        from .setup import title
+        raise ConfigError(
+            f"Setup is not finished (next: {title(cfg.setup_step)}). Finish it "
+            "with `jobdork setup`, or in the browser with `jobdork serve`."
+        )
 
 
 def apply_overrides(cfg: Config, **overrides: Any) -> Config:
@@ -564,6 +638,7 @@ def _build(raw: dict[str, Any]) -> Config:
             new_days=int(fr.get("new_days", 2)), week_days=int(fr.get("week_days", 7)),
             older_days=int(fr.get("older_days", 21)),
             ghost_days=int(fr.get("ghost_days", 90)),
+            show_days=int(fr.get("show_days") or 0),
             new_points=float(pts.get("new", 5)), older_points=float(pts.get("older", -5)),
             stale_points=float(pts.get("stale", -15)))
     except (TypeError, ValueError) as exc:
@@ -631,9 +706,19 @@ def _build(raw: dict[str, Any]) -> Config:
         read_pages=bool(ai.get("read_pages", False)),
         guard=bool(ai.get("guard", True)),
         context=_context(ai.get("context")),
+        checker_provider=str(ai.get("checker_provider") or "").strip().lower(),
+        checker_model=str(ai.get("checker_model") or "").strip(),
     )
 
     cfg.db_path = str(raw.get("db") or "data/jobdork.db")
+    cfg.credentials = _str_list(raw.get("credentials"), "credentials")
+    setup = raw.get("setup") or {}
+    if not isinstance(setup, dict):
+        raise ConfigError("setup must be a mapping, such as {step: resume}")
+    cfg.setup_step = str(setup.get("step") or "").strip()
+    # Pay and the job sources were two steps until 2026-10-03.
+    if cfg.setup_step == "sources":
+        cfg.setup_step = "pay"
     return cfg
 
 
@@ -680,7 +765,15 @@ def _apply_env_secrets(cfg: Config) -> None:
 # ── Validation ─────────────────────────────────────────────────────────────────
 
 def _validate(cfg: Config) -> None:
-    if not cfg.titles_include:
+    from .setup import STEP_NAMES
+    if cfg.setup_step and cfg.setup_step not in STEP_NAMES:
+        raise ConfigError(
+            f"setup.step is {cfg.setup_step!r}. Accepted: {', '.join(STEP_NAMES)}; "
+            "remove the setup section once set up."
+        )
+    # Titles are asked for partway through setup, so a half-set-up config
+    # has none yet; require_set_up keeps it from being scanned.
+    if not cfg.titles_include and not cfg.setup_step:
         raise ConfigError(
             "titles.include is empty. Without it there is nothing to search for, "
             "and every keyword source needs a term to expand."
@@ -697,7 +790,8 @@ def _validate(cfg: Config) -> None:
             ) from None
     if loc.radius != RADIUS_EXACT and float(loc.radius) <= 0:
         raise ConfigError("locations.radius must be positive")
-    if loc.radius != RADIUS_EXACT and not loc.anchor:
+    # A new config has no place until setup's Where step gives one.
+    if loc.radius != RADIUS_EXACT and not loc.anchor and not cfg.setup_step:
         raise ConfigError(
             f"locations.radius is {loc.radius} but locations.anchor is empty. "
             "A radius needs somewhere to measure from, e.g. "
@@ -746,6 +840,8 @@ def _validate(cfg: Config) -> None:
         raise ConfigError(
             f"freshness.ghost_days ({f.ghost_days}) must be past older_days "
             f"({f.older_days}), or 0 to never drop a post for its age")
+    if f.show_days < 0:
+        raise ConfigError("freshness.show_days cannot be negative; 0 shows every age")
 
     if cfg.screening.loose_gap < 0:
         raise ConfigError("screening.loose_gap cannot be negative")
@@ -851,6 +947,14 @@ def _validate(cfg: Config) -> None:
         raise ConfigError(
             f"llm.provider is {cfg.llm.provider!r}. Accepted: "
             f"{', '.join(PROVIDERS)}, or empty for off.")
+    if cfg.llm.checker_provider and cfg.llm.checker_provider not in PROVIDERS:
+        raise ConfigError(
+            f"llm.checker_provider is {cfg.llm.checker_provider!r}. Accepted: "
+            f"{', '.join(PROVIDERS)}, or empty for no second model.")
+    if (cfg.llm.checker_provider and cfg.llm.checker_provider == cfg.llm.provider
+            and cfg.llm.checker_model and cfg.llm.checker_model == cfg.llm.model):
+        raise ConfigError("llm.checker_model is the model it would check; choose "
+                          "another model, or none")
     if not re.match(r"https?://[^\s/]+", cfg.llm.ollama_url):
         raise ConfigError("llm.ollama_url must be an http(s) address")
     if not 1 <= cfg.llm.judge_top <= 500:

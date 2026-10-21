@@ -27,8 +27,8 @@ services:
       # the resume and letters go to a folder emptied at every start and stop.
       # JOBDORK_TEMP_DOCS: /tmp/jobdork
     volumes:
-      # Everything jobdork keeps: job posts, settings (config.yaml, created on
-      # the first start), your resume and letters. Without this they are
+      # Everything jobdork keeps: job posts, settings (config.yaml, written by
+      # first-run setup), your resume and letters. Without this they are
       # deleted with the container, and the dashboard says so.
       - ./data:/app/data
     # Keys for keyed job sources (Adzuna, USAJOBS), one per line as NAME=value.

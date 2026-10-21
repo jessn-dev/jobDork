@@ -85,6 +85,9 @@ class GuardReport:
     checked: bool = False
     claims: list[ClaimCheck] = field(default_factory=list)
     error: str = ""
+    model: str = ""         # the model that checked
+    second: bool = False    # a second model, not the one that wrote it
+    note: str = ""          # why a chosen second model was not used
 
     @property
     def unsupported(self) -> list[ClaimCheck]:
@@ -97,7 +100,8 @@ class GuardReport:
     def to_dict(self) -> dict:
         return {"checked": self.checked, "error": self.error,
                 "claims": len(self.claims), "unsupported": len(self.unsupported),
-                "rate": self.rate,
+                "rate": self.rate, "model": self.model, "second": self.second,
+                "note": self.note,
                 "flagged": [{"claim": c.claim, "verdict": c.verdict}
                             for c in self.unsupported]}
 
@@ -171,13 +175,28 @@ def verify(settings: Settings, claims: list[str],
 
 
 def check(settings: Settings, text: str, sources: dict[str, str]) -> GuardReport:
-    """Extract and verify. Never raises; a failure is `checked=False`."""
-    if settings.problem():
-        return GuardReport(error=settings.problem())
+    """Extract and verify. Never raises; a failure is `checked=False`.
+
+    With a second model chosen (llm.checker_*) and ready, that model checks:
+    one model marking its own work misses what it got wrong the same way
+    twice. A second model that cannot be called (no key held, say) falls back
+    to the first, and the report says so.
+    """
+    use, note = settings, ""
+    if settings.checker is not None:
+        if settings.usable_checker():
+            use = settings.checker
+        else:
+            note = (f"second model {settings.checker.label} not used: "
+                    f"{settings.checker.problem()}")
+    base = {"model": use.label if use.provider else "", "second": use is not settings,
+            "note": note}
+    if use.problem():
+        return GuardReport(error=use.problem(), **base)
     try:
-        claims = extract_claims(settings, text)
+        claims = extract_claims(use, text)
         if not claims:
-            return GuardReport(checked=True)
-        return GuardReport(checked=True, claims=verify(settings, claims, sources))
+            return GuardReport(checked=True, **base)
+        return GuardReport(checked=True, claims=verify(use, claims, sources), **base)
     except LLMError as exc:
-        return GuardReport(error=str(exc))
+        return GuardReport(error=str(exc), **base)

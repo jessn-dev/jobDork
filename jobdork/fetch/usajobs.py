@@ -172,8 +172,9 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
     if not cfg.sources.usajobs_ready():
         return SourceResult(
             source="usajobs",
-            skipped="no USAJOBS_API_KEY / USAJOBS_EMAIL in .env. "
-                    "Get a free key at https://developer.usajobs.gov",
+            skipped="no key. Get a free one at https://developer.usajobs.gov "
+                    "and paste it in setup, or set USAJOBS_API_KEY / USAJOBS_EMAIL "
+                    "in .env",
         )
 
     headers = {

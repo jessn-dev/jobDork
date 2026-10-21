@@ -15,7 +15,10 @@ tier, and the tier moves its score:
     ghost    beyond `ghost_days` (90)    dropped at screening
 
 Nothing but a ghost is hidden: a stale post for the job you want most is
-still worth a try, so it is marked and ranked lower, never removed.
+still worth a try, so it is marked and ranked lower, never removed on its
+own. You can remove them yourself: Job posts, and the dashboard after each
+scan, offer to delete the risky, stale and ghost ones not yet acted on
+(web/api.py aged_preview, aged_run).
 
 **The age is measured in code, from dates, never by a model.** A model has no
 clock and no reliable way to tell a posting's date from the dates in a

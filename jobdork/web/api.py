@@ -30,10 +30,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 from pathlib import Path
 
+from ..core import feedback as feedback_mod
 from ..core.textutil import platform_name
 
 log = logging.getLogger("jobdork.web.api")
@@ -153,9 +155,22 @@ def role_detail(cfg, uid: str) -> dict:
         "flags": flags,
         "description": row["description"] or "",
         "advert_chars": len(row["description"] or ""),
+        "credentials": _credentials(cfg, row["description"] or ""),
         "artifacts": artifacts,
         "copies": copies,
     }
+
+
+def _credentials(cfg, advert: str) -> list[dict]:
+    """Certifications and licenses the advert asks for, against the resume."""
+    from ..search import credentials
+    from ..search import resume as resume_mod
+
+    try:
+        resume_text = resume_mod.load(cfg.resume_path).text if cfg.resume_path else ""
+    except resume_mod.ResumeError:
+        resume_text = ""
+    return credentials.find(advert, resume_text, cfg.credentials)
 
 
 def _gates(raw: str) -> tuple[dict, int | None]:
@@ -254,6 +269,7 @@ def resume_view(cfg) -> dict:
     This is what a scan scores against and what a model is given, so it is
     what to check when a fit score or a draft looks wrong.
     """
+    from ..core import setup
     from ..search import resume as resume_mod
 
     if not cfg.resume_path:
@@ -276,6 +292,7 @@ def resume_view(cfg) -> dict:
     return {"name": Path(cfg.resume_path).name, "text": parsed.text,
             "type": suffix.lstrip("."), "markdown": markdown,
             "chars": len(parsed.text),
+            "note": setup.resume_note(len(parsed.text)),
             "skills": [resume_mod.skill_name(s) for s in sorted(parsed.skills)],
             "years": resume_mod.years_claimed(parsed.text)}
 
@@ -738,6 +755,20 @@ def _ago(stamp: str) -> str:
     return f"{minutes:.0f} min ago" if minutes >= 1 else "just now"
 
 
+def _merge_counts(a: dict, b: dict) -> dict:
+    """Two runs' counts as one: totals added, sources summed."""
+    out = {k: a.get(k, 0) + b.get(k, 0) for k in ("fetched", "kept", "stored", "new")}
+    sources = dict(a.get("sources") or {})
+    for s, n in (b.get("sources") or {}).items():
+        sources[s] = sources.get(s, 0) + n
+    out["sources"] = sources
+    # Skipped in both, or skipped in one and not read by the other.
+    sa, sb = set(a.get("skipped") or []), set(b.get("skipped") or [])
+    ra, rb = set(a.get("sources") or {}), set(b.get("sources") or {})
+    out["skipped"] = sorted((sa & sb) | (sa - rb) | (sb - ra))
+    return out
+
+
 def _last_scan(conn) -> dict:
     """The latest scan from the scan history, with what went wrong in it."""
     runs = conn.execute("SELECT id, started_at, finished_at, counts_json "
@@ -748,23 +779,36 @@ def _last_scan(conn) -> dict:
                 "warnings": ["No scan has finished yet."]}
     last = done[0]
     counts = json.loads(last["counts_json"] or "{}")
+    earlier = done[1:]
+    if counts.get("part") == "rest" and earlier:
+        # A first scan read the keyword sources in its quick part and the
+        # rest of the boards after it: one scan, not one missing half.
+        quick = json.loads(earlier[0]["counts_json"] or "{}")
+        if quick.get("part") == "quick":
+            counts = _merge_counts(quick, counts)
+            last, earlier = earlier[0], earlier[1:]
     sources = counts.get("sources") or {}
     warnings = []
     if _days(last["started_at"]) > SCAN_STALE_DAYS:
         warnings.append(f"Last scan was {_ago(last['started_at'])}; posts found "
                         f"then may be gone.")
+    skipped = set(counts.get("skipped") or [])
     for source, n in sorted(sources.items()):
-        if not n:
+        if not n and source not in skipped:
             warnings.append(f"{platform_name(source)} returned 0 job posts.")
     # A source that returned posts before and did not run at all this time.
-    before = {s for r in done[1:] for s, n in
+    before = {s for r in earlier for s, n in
               (json.loads(r["counts_json"] or "{}").get("sources") or {}).items() if n}
     for source in sorted(before - set(sources)):
         warnings.append(f"{platform_name(source)} did not run in the last scan.")
     unfinished = [r for r in runs if not r["finished_at"] and r["id"] > last["id"]]
+    # One still going is the scan running now, not one that died.
+    alive = any(_age(r["heartbeat_at"]) < QUIET_SECONDS for r in conn.execute(
+        "SELECT heartbeat_at FROM activity WHERE state = 'running' AND heartbeat_at"))
     if unfinished:
-        warnings.append(f"A scan started {unfinished[0]['started_at'][:16].replace('T', ' ')} "
-                        "never finished.")
+        started = unfinished[0]['started_at'][:16].replace('T', ' ')
+        warnings.append(f"A scan started {started} is still running." if alive
+                        else f"A scan started {started} never finished.")
     per = ", ".join(f"{platform_name(s)} {n}" for s, n in sorted(sources.items()))
     return {"kind": "scan", "when": last["started_at"], "ago": _ago(last["started_at"]),
             "summary": f"{counts.get('fetched', 0):,} fetched, {counts.get('kept', 0):,} kept, "
@@ -838,6 +882,7 @@ def activity_report(cfg, job_id: int = 0) -> dict:
             "WHERE COALESCE(s.status, 'new') NOT IN ('rejected','withdrawn','skipped','closed') "
             "   OR r.listing_state = 'closed' "
             "GROUP BY 1").fetchall())
+        problems = _problems(conn)
         last_scan = store.last_run()
         last_runs = [
             _last_scan(conn),
@@ -852,12 +897,36 @@ def activity_report(cfg, job_id: int = 0) -> dict:
         "chosen": chosen,
         "last_runs": last_runs,
         "events": events,
+        "problems": problems,
         "database": {
             "checked_10m": checked[0], "last_checked": checked[1] or "",
             "listing_states": states,
             "last_scan": dict(last_scan) if last_scan else None,
         },
     }
+
+
+PROBLEM_DAYS = 7
+PROBLEMS_SHOWN = 60
+
+
+def _problems(conn) -> list[dict]:
+    """The last week's warnings and errors, newest first: every job's, and the app's.
+
+    A job's come from its log lines marked warning or error (telemetry); the
+    rest — the server, setup, a config that stopped loading — from
+    app_events. `job` names the job, or is "" for the app.
+    """
+    since = time.strftime("%Y-%m-%dT%H:%M:%S",
+                          time.localtime(time.time() - PROBLEM_DAYS * 86400))
+    return [dict(r) for r in conn.execute(
+        "SELECT at, level, text, '' AS job, 0 AS job_id, source FROM app_events "
+        "WHERE at >= ? "
+        "UNION ALL "
+        "SELECT e.at, e.level, e.text, a.job, a.id, '' FROM activity_events e "
+        "JOIN activity a ON a.id = e.activity_id "
+        "WHERE e.level IN ('warning', 'error') AND e.at >= ? "
+        "ORDER BY at DESC LIMIT ?", (since, since, PROBLEMS_SHOWN))]
 
 
 # ── metrics ───────────────────────────────────────────────────────────────────
@@ -1099,6 +1168,243 @@ def _backup(cfg, store, label: str) -> Path:
     return backup
 
 
+# ── risky and stale ───────────────────────────────────────────────────────────
+# Screening keeps an old post, marked and ranked lower (freshness.py): one
+# for the job you want most is still worth a try. These let you drop them
+# all at once instead, after a scan or from Job posts, on your say-so.
+
+AGED_TIERS = ("older", "stale", "ghost")
+# Only posts not yet acted on: one you marked interested, or applied to, is
+# yours to settle.
+AGED_STATUSES = ("new", "viewed")
+
+
+def _aged(cfg, store) -> tuple[list[dict], list[str]]:
+    """Risky, stale and ghost posts not acted on: one per job, and every copy's uid.
+
+    Counted per job as Job posts shows them (grouping.py), so the number on
+    the button is the number of posts you see go; their copies go with them,
+    or the next copy would take the deleted one's place in the list.
+    """
+    from ..db import grouping
+    from ..search import freshness
+
+    posts, uids = [], []
+    for row in store.list_roles():
+        if row["status"] not in AGED_STATUSES:
+            continue
+        part = next((p for p in score_parts(row) if p.get("part") == "freshness"), None)
+        tier = freshness.now(part, row["posted_at"] or "", row["first_seen"] or "",
+                             cfg.freshness).tier
+        if tier in AGED_TIERS:
+            posts.append({"title": row["title"] or "", "company": row["company"] or "",
+                          "tier": tier})
+            uids.extend(grouping.uids(store.conn, row["uid"]))
+    return posts, uids
+
+
+def aged_preview(cfg) -> dict:
+    """The risky, stale and ghost posts a removal would delete. Deletes nothing."""
+    from ..db.store import Store
+
+    with Store(cfg.db_path) as store:
+        posts, uids = _aged(cfg, store)
+    by_tier: dict[str, int] = {}
+    for p in posts:
+        by_tier[p["tier"]] = by_tier.get(p["tier"], 0) + 1
+    return {"count": len(posts), "copies": len(uids), "by_tier": by_tier,
+            "older_days": cfg.freshness.older_days, "week_days": cfg.freshness.week_days,
+            "sample": [f"{p['title']} at {p['company']}" for p in posts[:5]]}
+
+
+def aged_run(cfg, expect: int = -1) -> dict:
+    """Back the database up, then delete what aged_preview showed.
+
+    Refused when the count has moved since the preview, as cleanup_run is.
+    Deleted posts are remembered, so a later scan does not bring them back.
+    """
+    from ..db.store import Store
+
+    with Store(cfg.db_path) as store:
+        posts, uids = _aged(cfg, store)
+        if int(expect) != len(posts):
+            raise ApiError(f"the count changed from {expect} to {len(posts)} "
+                           "since the preview; preview again", 409)
+        if not posts:
+            return {"deleted": 0, "copies": 0, "backup": ""}
+        backup = _backup(cfg, store, "aged")
+        copies = store.delete_many(uids, "risky or stale, removed by you")
+    return {"deleted": len(posts), "copies": copies, "backup": str(backup)}
+
+
+# ── dropped by your filters ───────────────────────────────────────────────────
+# A scan keeps only what passes your filters; the rest is remembered for a
+# while (store.save_dropped) so Job posts can show it on request, with the
+# rule and the reason, and one can be kept anyway.
+
+def dropped_list(cfg) -> dict:
+    """Dropped posts as Job posts cards, and how many each rule dropped."""
+    from ..db.store import DROPPED_DAYS, Store
+    from ..search import freshness, geo
+    from ..search.screen import DROP_RULES
+
+    units = cfg.locations.units or "mi"
+    posts, by_rule = [], dict.fromkeys(DROP_RULES, 0)
+    with Store(cfg.db_path) as store:
+        rows = store.list_dropped()
+    for row in rows:
+        rule = row["rule"] or "other"
+        by_rule[rule] = by_rule.get(rule, 0) + 1
+        # The board's date only: `seen_at` moves with every scan, so it says
+        # nothing about the post's age.
+        a = freshness.age(row["posted_at"] or "", "", cfg.freshness)
+        stated = bool(row["salary_stated"])
+        top = row["salary_max"] if row["salary_max"] is not None else row["salary_min"]
+        posts.append({
+            "uid": row["uid"], "title": row["title"] or "", "company": row["company"] or "",
+            "url": row["url"] or "", "platform": row["platform"] or "",
+            "location": row["location_raw"] or "", "work_mode": row["work_mode"] or "",
+            "distance": geo.distance_label(row["distance_mi"], units),
+            "dist": None if row["distance_mi"] is None
+            else round(geo.from_miles(row["distance_mi"], units), 1),
+            "pay_top": top if stated else None,
+            "pay_currency": (row["salary_currency"] or "") if stated else "",
+            "age": {"days": a.days, "tier": a.tier, "text": a.text(), "source": a.source},
+            "rule": rule, "reason": row["reason"] or "", "seen": (row["seen_at"] or "")[:10],
+        })
+    return {"dropped": posts, "by_rule": {k: v for k, v in by_rule.items() if v},
+            "days": DROPPED_DAYS}
+
+
+def dropped_keep(cfg, uid: str) -> dict:
+    """Keep a dropped post anyway: into Job posts, marked interested, with a note.
+
+    Keeping it is a decision, so it is marked as one: re-applying filters,
+    the age limit and the risky-and-stale removal all leave an interested
+    post alone. It has no score: the rules dropped it, and a score from them
+    would rank it as if they had not.
+    """
+    from ..db.store import Role, Store
+
+    with Store(cfg.db_path) as store:
+        row = store.get_dropped(uid)
+        if row is None:
+            raise ApiError("that dropped post is no longer remembered", 404)
+        role = Role(platform=row["platform"], company=row["company"] or "",
+                    title=row["title"] or "", url=row["url"] or "",
+                    location_raw=row["location_raw"] or "", posted_at=row["posted_at"] or "",
+                    distance_mi=row["distance_mi"], work_mode=row["work_mode"] or "",
+                    salary_min=row["salary_min"], salary_max=row["salary_max"],
+                    salary_currency=row["salary_currency"] or "",
+                    salary_stated=bool(row["salary_stated"]),
+                    flags=[f"kept by you; your filters dropped it: {row['reason']}"])
+        store.upsert(role)
+        store.conn.commit()
+        store.set_status(role.uid, "interested", f"Kept anyway. Dropped for: {row['reason']}")
+        store.forget_dropped([uid])
+    return {"uid": role.uid, "kept": True}
+
+
+# ── start over ────────────────────────────────────────────────────────────────
+# Setup again from the welcome screen, with nothing of the old run left:
+# the settings file, the database (job posts, statuses, notes, AI verdicts,
+# runs), the uploaded resume, the documents written for job posts, the
+# reports in the output folder, the job-source keys file and the AI keys
+# held in memory. Only files jobdork wrote: a resume you pointed the config
+# at yourself, and anything else in your folders, are left alone.
+
+START_OVER_WORDS = "start over"
+
+
+def _start_over_targets(cfg) -> dict:
+    """What a start-over would delete, as paths that exist now."""
+    from ..core import storage
+    from ..core.config import source_keys_path
+    from ..db.store import Store
+
+    db = Path(cfg.db_path)
+    files, documents, posts = [], [], 0
+    if cfg.path and Path(cfg.path).is_file():
+        files.append(Path(cfg.path))
+    if db.is_file():
+        files += [p for p in (db, Path(f"{db}-wal"), Path(f"{db}-shm")) if p.is_file()]
+        with Store(cfg.db_path) as store:
+            posts = store.conn.execute("SELECT COUNT(*) FROM roles").fetchone()[0]
+            documents = [Path(r[0]) for r in store.conn.execute(
+                "SELECT DISTINCT path FROM artifacts WHERE COALESCE(path, '') <> ''")
+                if Path(r[0]).is_file()]
+    if cfg.resume_path and storage.is_uploaded_resume(cfg.resume_path, cfg) \
+            and Path(cfg.resume_path).expanduser().is_file():
+        files.append(Path(cfg.resume_path).expanduser())
+    if source_keys_path(cfg).is_file():
+        files.append(source_keys_path(cfg))
+    # Reports, only from an output folder beside the config: one pointed
+    # somewhere else may hold more than jobdork's own files.
+    out = Path(cfg.output.dir)
+    home = Path(cfg.path).parent if cfg.path else Path.cwd()
+    if not out.is_absolute():
+        out = home / out
+    try:
+        inside = out.resolve().is_relative_to(home.resolve())
+    except OSError:
+        inside = False
+    reports = [p for p in out.glob("*") if p.is_file()] if inside and out.is_dir() else []
+    return {"files": files, "documents": documents, "reports": reports, "posts": posts}
+
+
+def start_over_preview(cfg) -> dict:
+    """What starting over deletes. Deletes nothing."""
+    t = _start_over_targets(cfg)
+    return {"posts": t["posts"], "documents": len(t["documents"]),
+            "reports": len(t["reports"]),
+            "settings": bool(cfg.path and Path(cfg.path).is_file()),
+            "resume": next((p.name for p in t["files"] if p.stem == "resume"), ""),
+            "files": [str(p) for p in t["files"]],
+            "words": START_OVER_WORDS}
+
+
+def start_over(cfg, words: str, backup: bool = True) -> dict:
+    """Delete everything start_over_preview listed. Needs the words typed.
+
+    With `backup`, the settings, database and resume are copied first into
+    a folder of their own beside the database, which a start-over leaves
+    alone; keys are never copied.
+    """
+    import shutil
+
+    from ..ai import llm
+    from ..core.config import source_keys_path
+
+    if (words or "").strip().lower() != START_OVER_WORDS:
+        raise ApiError(f'type "{START_OVER_WORDS}" to confirm')
+    t = _start_over_targets(cfg)
+    kept = ""
+    if backup:
+        folder = (Path(cfg.db_path).parent / "backups" /
+                  f"start-over-{time.strftime('%Y%m%d-%H%M%S')}")
+        folder.mkdir(parents=True, exist_ok=True)
+        db = Path(cfg.db_path)
+        if db.is_file():
+            import sqlite3
+            target = sqlite3.connect(folder / db.name)
+            with sqlite3.connect(db) as source, target:
+                source.backup(target)
+            target.close()
+        for p in t["files"]:
+            if p != source_keys_path(cfg) and not p.name.startswith(db.name):
+                shutil.copy2(p, folder / p.name)
+        kept = str(folder)
+    removed = 0
+    for p in [*t["documents"], *t["reports"], *t["files"]]:
+        try:
+            p.unlink()
+            removed += 1
+        except FileNotFoundError:
+            pass
+    llm.VAULT.wipe()
+    return {"removed": removed, "backup": kept}
+
+
 # ── fresh scan ────────────────────────────────────────────────────────────────
 
 
@@ -1203,6 +1509,10 @@ def llm_state(cfg) -> dict:
         "keys": {p: llm.key_for(p)[1] for p in llm.KEYED},
         "problem": settings.problem(),
         "label": settings.label if cfg.llm.provider else "",
+        "checker_provider": cfg.llm.checker_provider,
+        "checker_model": cfg.llm.checker_model,
+        "checker_problem": settings.checker.problem() if settings.checker else "",
+        "checker_label": settings.checker.label if settings.checker else "",
     }
 
 
@@ -1243,25 +1553,178 @@ def llm_forget(provider: str) -> dict:
 
 
 def llm_test(cfg) -> dict:
+    """Ask the model, and the second model when one is chosen, to answer."""
     from ..ai import llm
 
+    settings = llm.Settings.from_config(cfg)
     try:
-        return llm.ping(llm.Settings.from_config(cfg))
+        out = llm.ping(settings)
     except llm.LLMError as exc:
+        raise ApiError(str(exc), 502) from exc
+    if settings.checker is not None:
+        try:
+            if settings.checker.problem():
+                raise llm.LLMError(settings.checker.problem())
+            out["checker"] = llm.ping(settings.checker)
+        except llm.LLMError as exc:
+            out["checker"] = {"error": str(exc)}
+    return out
+
+
+# ── first-run setup ───────────────────────────────────────────────────────────
+
+
+def setup_choices(cfg) -> dict:
+    """What "What you are looking for" offers, and what is chosen already."""
+    from ..ai.suggest import known_industries
+    from ..search import dealbreakers
+
+    catalog = dealbreakers.suggestions()
+    # Ones already in the config but not in the catalog are offered too, so
+    # saving the step keeps them.
+    names = {d["name"] for d in catalog}
+    catalog += [{"name": d.name, "words": d.words, "pattern": d.pattern, "hard": d.hard}
+                for d in cfg.dealbreakers if d.name not in names]
+    from ..search import credentials
+    from ..search import resume as resume_mod
+    try:
+        resume_text = resume_mod.load(cfg.resume_path).text if cfg.resume_path else ""
+    except resume_mod.ResumeError:
+        resume_text = ""
+    return {"industries": known_industries(),
+            "dealbreakers": catalog,
+            # Certifications and licenses the resume names, offered ticked.
+            "credentials_found": credentials.named_in(resume_text),
+            "chosen": {"titles": cfg.titles_include, "exclude": cfg.titles_exclude,
+                       "industries": cfg.sources.directory.industries,
+                       "dealbreakers": [d.name for d in cfg.dealbreakers],
+                       "credentials": cfg.credentials}}
+
+
+def setup_sources(cfg) -> dict:
+    """What a scan will read, in plain words, and the two optional keys."""
+    from ..core.config import source_keys_path
+    from ..fetch.adzuna import ISO_TO_INDEX
+    from ..search import directory
+
+    countries = list(cfg.locations.countries)
+    searched = [{"name": "Workable", "what": "its job search, by your job titles"},
+                {"name": "Himalayas", "what": "remote jobs worldwide, kept to your countries"}]
+    if {"PH", "ID"} & set(countries) or not countries:
+        searched.append({"name": "Kalibrr",
+                         "what": "Philippine and Indonesian jobs, by your job titles"})
+    d = cfg.sources.directory
+    held = source_keys_path(cfg).read_text(encoding="utf-8") if \
+        source_keys_path(cfg).is_file() else ""
+
+    def where(names: tuple[str, ...]) -> str:
+        if not all(os.environ.get(n) for n in names):
+            return ""
+        return "app" if all(f"{n}=" in held for n in names) else "environment"
+
+    adzuna_here = not countries or any(c in ISO_TO_INDEX for c in countries)
+    keyed = [
+        {"name": "adzuna", "label": "Adzuna",
+         "what": "many job boards at once, searched by your job titles",
+         "offer": f"It searches many job boards at once, in {len(ISO_TO_INDEX)} countries.",
+         "applies": adzuna_here,
+         "why_not": "" if adzuna_here else "Adzuna does not cover your countries",
+         "ready": cfg.sources.adzuna_ready(),
+         "held": where(("ADZUNA_APP_ID", "ADZUNA_APP_KEY")),
+         "fields": [{"name": "ADZUNA_APP_ID", "label": "App ID"},
+                    {"name": "ADZUNA_APP_KEY", "label": "App key"}],
+         "signup": "https://developer.adzuna.com/signup"},
+        {"name": "usajobs", "label": "USAJOBS",
+         "what": "US federal government jobs",
+         "offer": "It lists US federal government jobs.",
+         "applies": cfg.usajobs_in_scope(),
+         "why_not": "" if cfg.usajobs_in_scope() else "US federal jobs only, and the US "
+                                                       "is not in your countries",
+         "ready": cfg.sources.usajobs_ready(),
+         "held": where(("USAJOBS_API_KEY", "USAJOBS_EMAIL")),
+         "fields": [{"name": "USAJOBS_API_KEY", "label": "API key"},
+                    {"name": "USAJOBS_EMAIL", "label": "Email you signed up with"}],
+         "signup": "https://developer.usajobs.gov/APIRequest/Index"},
+    ]
+    return {
+        "titles": cfg.titles_include,
+        "searched": searched,
+        "boards": {"enabled": d.enabled, "count": len(directory.select(cfg)),
+                   "industries": d.industries, "countries": d.countries or countries},
+        "own_boards": len(cfg.sources.companies),
+        "keyed": keyed,
+    }
+
+
+def setup_keys(cfg, form: dict) -> None:
+    """Save or remove one source's keys. Nothing typed is ever sent back."""
+    from ..core.config import SOURCE_KEY_NAMES, ConfigError, write_source_keys
+
+    values = {k: str(form.get(k) or "") for k in SOURCE_KEY_NAMES if k in form}
+    if not values:
+        raise ApiError("no key given")
+    if not form.get("remove") and not all(values.values()):
+        raise ApiError("fill in both boxes")
+    try:
+        write_source_keys(cfg, {k: "" if form.get("remove") else v
+                                for k, v in values.items()})
+    except ConfigError as exc:
+        raise ApiError(str(exc)) from exc
+
+
+# How far the suggestion call has got, for the page to poll while it waits:
+# one server, one person setting up, so one record.
+SUGGEST_PROGRESS = {"fraction": 0.0, "label": ""}
+
+
+def setup_suggest(cfg, progress=None) -> dict:
+    """The model's suggestions from the resume. Slow on a local model."""
+    from ..ai import llm
+    from ..ai.suggest import suggest
+    from ..search import resume as resume_mod
+
+    def note(fraction, label):
+        SUGGEST_PROGRESS.update(fraction=fraction, label=label)
+        if progress:
+            progress(fraction, label)
+    try:
+        text = resume_mod.load(cfg.resume_path).text if cfg.resume_path else ""
+        return suggest(llm.Settings.from_config(cfg), text, progress=note)
+    except (llm.LLMError, resume_mod.ResumeError) as exc:
         raise ApiError(str(exc), 502) from exc
 
 
 # ── long jobs, run through the Runner ─────────────────────────────────────────
 
 
-def scan_job(cfg):
+def first_scan_jobs(cfg) -> list[tuple[str, object]]:
+    """Setup's last step: a quick scan, which finishes setup, then the rest.
+
+    The quick part reads the keyword sources and a sample of the built-in
+    boards, so job posts are there within a minute or two; setup is marked
+    done when it ends, and the page opens on the Dashboard while the rest of
+    the boards are read as a background scan of their own.
+    """
+    from ..core import setup
+
+    quick = scan_job(cfg, part="quick")
+
+    def first(progress):
+        summary = quick(progress)
+        setup.write(cfg.path, {"setup_step": setup.DONE})
+        progress("setup finished; reading the rest of the employer boards next")
+        return summary
+    return [("first scan", first), ("full scan", scan_job(cfg, part="rest"))]
+
+
+def scan_job(cfg, part: str = "all"):
     def work(progress):
         from ..db.store import Store
         from ..output import render
         from ..search import scan as scan_mod
 
         with Store(cfg.db_path) as store:
-            report = scan_mod.run(cfg, store, progress=progress)
+            report = scan_mod.run(cfg, store, progress=progress, part=part)
             summary = " · ".join(report.lines())
             if cfg.llm.judge_on_scan:
                 summary += " · " + _judge_after_scan(cfg, store, progress)
@@ -1586,6 +2049,37 @@ def feedback(cfg, output_id, value) -> dict:
             raise ApiError("no such AI output", 404)
     return {"id": output_id, "feedback": value or None}
 
+
+
+def report_preview(cfg, form: dict) -> dict:
+    """The problem report or idea, exactly as it would be sent (core/feedback.py)."""
+    report = _report(cfg, form)
+    return {"subject": report.subject(), "text": report.text(),
+            "issue_url": report.issue_url(), "can_send": bool(feedback_mod.relay_url()),
+            "screenshots": len(report.screenshots)}
+
+
+def report_send(cfg, form: dict) -> dict:
+    report = _report(cfg, form)
+    try:
+        answer = feedback_mod.send(report)
+    except feedback_mod.FeedbackError as exc:
+        raise ApiError(str(exc), 502) from exc
+    log.info("feedback sent: %s", report.subject())
+    return {"sent": True, "issue_url": str(answer.get("issue_url") or "")}
+
+
+def _report(cfg, form: dict):
+    from ..db.store import Store
+
+    problems = []
+    if form.get("logs"):
+        with Store(cfg.db_path) as store:
+            problems = _problems(store.conn)
+    try:
+        return feedback_mod.build(form, cfg, problems)
+    except feedback_mod.FeedbackError as exc:
+        raise ApiError(str(exc)) from exc
 
 def digest_job(cfg, email: str, new_only: bool = True, attach_csv: bool = False):
     def work(progress):

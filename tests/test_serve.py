@@ -36,9 +36,13 @@ class _Running:
     def __init__(self):
         self.tmp = tempfile.TemporaryDirectory()
         config_file = Path(self.tmp.name) / "config.yaml"
+        # Its own database: a save re-reads this file, and without `db:` the
+        # server would then use data/jobdork.db wherever the tests run from,
+        # which in the repository is the live one.
         config_file.write_text(
             "titles: {include: [software engineer]}\n"
-            "locations: {anchor: 'Chicago, IL', radius: exact, countries: [US]}\n",
+            "locations: {anchor: 'Chicago, IL', radius: exact, countries: [US]}\n"
+            f"db: {Path(self.tmp.name) / 'serve.db'}\n",
             encoding="utf-8")
         self.config_path = str(config_file)
         self.cfg = Config(
@@ -217,6 +221,28 @@ def test_settled_roles_are_hidden_until_asked_for():
         run.post("/api/action", {"uid": run.uid, "status": "skipped"})
         assert json.loads(run.get("/api/roles?scope=open")[1])["roles"] == []
         assert len(json.loads(run.get("/api/roles?scope=all")[1])["roles"]) == 1
+    _with_server(check)
+
+
+def test_posts_past_the_age_limit_are_hidden_until_asked_for():
+    def check(run):
+        old = (__import__("datetime").date.today()
+               - __import__("datetime").timedelta(days=45)).isoformat()
+        with Store(run.cfg.db_path) as store:
+            for name in ("old", "old_applied"):
+                role = Role(platform="workable", title="Software Engineer",
+                            company=name, url=f"https://x.test/{name}",
+                            location_raw="Chicago, Illinois", posted_at=old)
+                store.upsert(role)
+                if name == "old_applied":
+                    store.set_status(role.uid, "applied")
+            store.conn.commit()
+        run.cfg_now.freshness.show_days = 30
+        d = json.loads(run.get("/api/roles?scope=open")[1])
+        assert {r["company"] for r in d["roles"]} == {"Acme", "old_applied"}
+        assert d["older"] == 1 and d["show_days"] == 30
+        d = json.loads(run.get("/api/roles?scope=open&older=1")[1])
+        assert len(d["roles"]) == 3 and d["older"] == 0
     _with_server(check)
 
 
@@ -732,6 +758,107 @@ def test_the_temporary_folder_is_emptied_and_forgotten():
                 os.environ.pop(storage.TEMP_ENV, None)
             else:
                 os.environ[storage.TEMP_ENV] = saved
+    _with_server(check)
+
+
+def test_a_first_run_serves_setup_and_writes_the_config_when_answered():
+    from jobdork.core.config import Config
+
+    def check(run):
+        target = Path(run.tmp.name) / "data" / "config.yaml"
+        run.holder["cfg"] = Config(path=str(target), setup_step="welcome",
+                                   db_path=run.cfg.db_path)
+        code, body = run.get("/api/state")
+        state = json.loads(body)
+        assert code == 200 and state["setup"]["step"] == "welcome"
+        assert state["setup"]["steps"][0]["name"] == "welcome"
+
+        code, _ = run.post("/api/scan", {})
+        assert code == 409, "nothing to search for yet"
+        assert not target.exists()
+
+        code, _ = _post_json(run, "/api/config", {"setup_step": "resume"})
+        assert code == 200 and target.is_file()
+        assert json.loads(run.get("/api/state")[1])["setup"]["step"] == "resume"
+    _with_server(check)
+
+
+def test_setup_offers_industries_and_dealbreakers_and_saves_industries():
+    def check(run):
+        code, body = run.get("/api/setup/choices")
+        choices = json.loads(body)
+        assert code == 200 and "healthcare" in choices["industries"]
+        assert any(d["name"] == "Night shift" for d in choices["dealbreakers"])
+        assert choices["chosen"]["titles"] == ["software engineer"]
+        code, _ = _post_json(run, "/api/config", {"industries": ["Healthcare"]})
+        assert code == 200
+        assert run.holder["cfg"].sources.directory.industries == ["healthcare"]
+    _with_server(check)
+
+
+def test_a_chain_runs_its_jobs_in_turn_and_stops_at_a_failure():
+    import time as _time
+    runner, ran = Runner(), []
+
+    def job(name, fail=False):
+        def work(progress):
+            ran.append((name, runner.current))
+            if fail:
+                raise RuntimeError("boom")
+            return name
+        return work
+    runner.start("first", job("first"), then=[("second", job("second", fail=True)),
+                                             ("third", job("third"))])
+    for _ in range(50):
+        if not runner.busy:
+            break
+        _time.sleep(0.05)
+    assert ran == [("first", "first"), ("second", "second")]
+    assert runner.current == "" and runner.last_summary == "second failed"
+
+
+def test_the_first_scan_starts_only_at_setups_last_step():
+    from jobdork.core import setup
+
+    def check(run):
+        code, _ = run.post("/api/setup/scan", {})
+        assert code == 409, "a set-up config does not run setup's scan"
+        resume = Path(run.tmp.name) / "r.md"
+        resume.write_text("# Me\n\nNurse\n", encoding="utf-8")
+        target = Path(run.tmp.name) / "setup.yaml"
+        # Its own database: reloading a config without `db:` would point at
+        # data/jobdork.db in whatever folder the tests run from.
+        target.write_text(f"db: {run.cfg.db_path}\n", encoding="utf-8")
+        run.holder["cfg"] = setup.write(str(target), {
+            "resume_path": str(resume), "titles_include": ["nurse"],
+            "anchor": "Chicago, IL", "setup_step": "scan"})
+        saved = serve_mod.api_mod.first_scan_jobs
+        serve_mod.api_mod.first_scan_jobs = lambda cfg: [
+            ("first scan", lambda progress: "quick"), ("full scan", lambda progress: "rest")]
+        try:
+            code, body = run.post("/api/setup/scan", {})
+        finally:
+            serve_mod.api_mod.first_scan_jobs = saved
+        assert code == 202 and json.loads(body)["job"] == "first scan"
+        # Setup ends when the scan starts: the page goes to the Dashboard.
+        assert run.holder["cfg"].setup_step == ""
+        assert "setup:" not in target.read_text()
+    _with_server(check)
+
+
+def test_your_credentials_are_saved_and_an_advert_is_checked_against_them():
+    def check(run):
+        code, saved = _post_json(run, "/api/config", {"credentials": ["IAT I", "CISSP"]})
+        assert code == 200 and saved["credentials"] == ["IAT I", "CISSP"]
+        with serve_mod.Store(run.cfg.db_path) as store:
+            store.conn.execute(
+                "UPDATE roles SET description = ? WHERE uid = ?",
+                ("Certifications (one or more required):\nIAT I\nCISSP or CISM required",
+                 run.uid))
+            store.conn.commit()
+        detail = json.loads(run.get(f"/api/role?uid={run.uid}")[1])
+        assert [(c["line"], c["have"]) for c in detail["credentials"]] == [
+            ("IAT I", ["IAT I"]), ("CISSP or CISM required", ["CISSP"])]
     _with_server(check)
 
 

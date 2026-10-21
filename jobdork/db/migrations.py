@@ -42,7 +42,7 @@ log = logging.getLogger("jobdork.db.migrations")
 
 # The version a fresh database is created at, and the version this code
 # understands. Bumped by adding a step below.
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 10
 
 
 class MigrationError(Exception):
@@ -176,6 +176,7 @@ def _v5_to_v6(conn: sqlite3.Connection) -> None:
             and not (m[3] == "closed" and m[4].startswith("check:")
                      and not every_copy_closed)
         ]
+        # lambda: max key, the latest decision by its timestamp (m[5]).
         chosen = max(decisions, key=lambda m: m[5]) if decisions else None
         status = chosen[3] if chosen else "new"
         note = chosen[4] if chosen else ""
@@ -235,6 +236,40 @@ def _v7_to_v8(conn: sqlite3.Connection) -> None:
 )''')
 
 
+def _v8_to_v9(conn: sqlite3.Connection) -> None:
+    """Warnings and errors from outside any job, for the Activity page."""
+    conn.execute('''CREATE TABLE IF NOT EXISTS app_events (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    at      TEXT NOT NULL,
+    level   TEXT NOT NULL,
+    source  TEXT,
+    text    TEXT
+)''')
+
+
+
+def _v9_to_v10(conn: sqlite3.Connection) -> None:
+    """Job posts a scan's filters left out, so Job posts can show them."""
+    conn.execute('''CREATE TABLE IF NOT EXISTS dropped (
+    uid              TEXT PRIMARY KEY,
+    platform         TEXT NOT NULL,
+    company          TEXT,
+    title            TEXT,
+    url              TEXT,
+    location_raw     TEXT,
+    distance_mi      REAL,
+    work_mode        TEXT,
+    salary_min       REAL,
+    salary_max       REAL,
+    salary_currency  TEXT,
+    salary_stated    INTEGER NOT NULL DEFAULT 0,
+    posted_at        TEXT,
+    rule             TEXT,
+    reason           TEXT,
+    seen_at          TEXT NOT NULL
+)''')
+
+
 # Numbered, ordered, append-only. The key is the version a step produces.
 STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     2: _v1_to_v2,
@@ -244,6 +279,8 @@ STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     6: _v5_to_v6,
     7: _v6_to_v7,
     8: _v7_to_v8,
+    9: _v8_to_v9,
+    10: _v9_to_v10,
 }
 
 

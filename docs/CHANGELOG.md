@@ -6,6 +6,591 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-21 — Send feedback from the Dashboard
+
+- **Tools is now Feedback.** The unfinished "Email a digest" form is gone
+  from the page (`jobdork digest` and `scan --email` are unchanged). In its
+  place: a problem, an idea or a question, with a title, details, an
+  optional reply address, up to three screenshots (PNG, JPEG, WebP, 2 MB
+  each) and two ticks: the last 7 days' warnings and errors, and the app's
+  version and system.
+- **Preview first.** The page shows the report word for word before
+  anything leaves the machine. Keys, tokens, `key=` values, email
+  addresses, network addresses and your home folder are taken out of the
+  logs and the text (core/feedback.py `scrub`). Never the resume, job posts
+  or config. The reply address is kept off the public issue.
+- **Send** posts it to a relay (`JOBDORK_FEEDBACK_URL`, or `RELAY_URL` set
+  by a packaged build). The app holds no Resend or GitHub key. The relay
+  in `relay/feedback/` (a Cloudflare Worker, not deployed yet) opens the
+  GitHub issue and emails the maintainers with the screenshots and Reply-To.
+  Without a relay, **Open as a GitHub issue** opens a prefilled issue in the
+  browser (cut to fit an address), and **Save as a file** downloads it.
+- New endpoints `/api/report/preview` and `/api/report`; tests in
+  tests/test_feedback.py.
+
+## Fixed — 2026-10-21 — Shorter scan summary; board counts summed
+
+- A scan's summary had one line per employer board, so a full scan's ran
+  to hundreds of entries on the Activity page. It now has one line per kind
+  of board ("greenhouse: 45 roles from 120 boards, 2 skipped, 1 with
+  errors"). Each board's own line still shows in the run's log as it
+  finishes.
+- The scan history kept only the last board's count for each kind, so
+  Greenhouse could show "returned 0 job posts" on the Dashboard while other
+  Greenhouse boards had found posts. Counts are now summed.
+
+## Added — 2026-10-15 — Job posts: see what your filters dropped
+
+- **"Dropped by your filters"** in the Job posts menu lists the posts a scan
+  left out, each with the rule (title, too old, closed, work arrangement,
+  place, pay, dealbreaker) and the reason in words. A menu filters by rule,
+  with counts. **Keep anyway** stores one in Job posts, marked interested
+  with a note; your filters are not changed.
+- Scans now remember dropped posts in a `dropped` table (schema 10): the
+  card's fields only, never the advert, kept 14 days and at most 20,000.
+  A post a later scan keeps, or one you deleted, is not listed.
+
+## Added — 2026-10-15 — Job posts: place, distance and pay filters
+
+- A second row under the Job posts menus: work arrangement (remote, hybrid,
+  on-site, not stated), a place box (matches the post's location), "within
+  N mi/km" (remote posts always pass), "pay at least" and "pay stated only".
+  Pay in another currency is never converted, so it is not compared. They
+  narrow the list on the page, for stored and dropped posts alike; "Clear
+  filters" resets them. Nothing about scanning changes.
+
+## Added — 2026-10-15 — How old a job post you still want to see
+
+- New setting `freshness.show_days`. Job posts hides posts older than it
+  that you have not acted on, never deletes them, and the count line says
+  how many are hidden with a **show them** link. Change it from the menu on
+  Job posts. Setup's last step (and `jobdork setup`) asks, suggesting one
+  month; an existing config keeps every age (0).
+
+## Changed — 2026-10-15 — "Add a posting" is under Search
+
+- Moved from Tools to the bottom of the Search page. Tools now holds only
+  the email digest, which is still under development.
+
+## Fixed — 2026-10-15 — Failed AI calls say why
+
+- The Dashboard counted failed AI calls but nothing said why. Each failure
+  is now logged as a warning with the model, what the call was for and the
+  reason, so it shows under Activity's warnings and errors (a refused or
+  missing key is labelled as a key problem). Calls that failed before this
+  change have no reason recorded.
+
+## Added — 2026-10-14 — `./run.sh clean` clears local test data
+
+- **`./run.sh clean`** deletes this folder's local test data: `config.yaml`,
+  `config.local.yaml`, `data/` (database, uploaded resume, source keys),
+  `out/`, `logs/`, `dork_results.txt` and `job-applications/`. It lists
+  what it found and needs `yes` typed; `./run.sh clean --yes` skips the
+  question. A dashboard started from this folder is stopped first, since
+  it holds the database open. `.env` and anything else is kept, and nothing
+  outside the folder is touched. The next `./run.sh` opens onboarding.
+
+## Fixed — 2026-10-14 — AI page: every loaded model is offered
+
+- "Load models" said "46 available" but the list showed one. The model box
+  was a text box with a suggestion list, and a browser only suggests what
+  matches the text already in it, so once the first model was filled in it
+  was the only one offered. Now a loaded list is a real dropdown of every
+  model, with "Other: type a model name" for one it does not have. The
+  same for the second model.
+
+## Added — 2026-10-14 — Dashboard: Start over (setup again, from nothing)
+
+- **A red "Start over" button on the Dashboard**, with a hover warning like
+  the other deletes. Pressed, it lists exactly what goes: the settings, the
+  number of job posts (with statuses, notes, AI verdicts and run history),
+  the uploaded resume by name, the documents written for job posts, the
+  report files, and the job-source and AI keys.
+- **Confirmed twice**: type "start over", then press "Delete everything and
+  start setup". Cancel leaves everything as it was. Refused while a scan or
+  any other job is running.
+- **"Keep a backup copy first"**, ticked by default: the settings, the
+  database and the resume are copied to `data/backups/start-over-<time>/`.
+  Keys are never copied.
+- **Only what jobdork wrote is deleted**: a resume the settings point at
+  elsewhere, an output folder outside the config's folder, and anything
+  else in your folders are left alone. The AI keys in memory are forgotten.
+- Then the page reloads into setup at Welcome, and setup writes the new
+  settings where the old ones were.
+- `POST /api/start-over/preview` and `/api/start-over` (`words`, `backup`).
+
+## Added — 2026-10-14 — AI: a second model checks the first
+
+- **AI page: "Second model, to check the first".** Off unless chosen. Pick
+  its provider (Ollama, Claude, Gemini, ChatGPT), hold its key in memory if
+  it needs one, and pick its model. Saved as `llm.checker_provider` and
+  `llm.checker_model`; the same model as the first is refused. "Save and
+  test" asks both to answer.
+- **It runs the claim checks** (`ai/guard.py`) on everything the first
+  model judges, writes and suggests: verdicts, cover letters, tailored
+  resumes, resume reviews and the AI tools (ATS keywords, highlights,
+  tailored edits, feedback, revisions). One model marking its own work
+  misses what it got wrong the same way twice. Every result says which
+  model checked ("checked by …"). A chosen second model that cannot be
+  called (no key held) falls back to the first, and the result says why.
+- **It scores each judged job post itself.** Its score, verdict and summary
+  are shown in the AI badge's tooltip; 20 or more points apart, the badge
+  shows "≠ N" and the tooltip "Models disagree". Judging runs and the
+  Activity counters count disagreements. The first model's score stands.
+- Never blocks or hides anything. Costs about three more calls per output
+  on its key; a local Ollama model costs nothing. Setup's title and
+  industry suggestions are not checked: they are choices, not claims.
+
+## Changed — 2026-10-14 — Tools: "Email a digest" off, under development
+
+- **Every control is disabled**: the address, both boxes and Send. The
+  heading says "(under development)", and hovering the block, or reaching
+  it with Tab, shows a tooltip: not ready yet, turned off for now, your
+  job posts are under Job posts. Send is no longer re-enabled when a job
+  finishes. The Tools menu's description says so too.
+- `jobdork digest` in the terminal and `/api/digest` are unchanged.
+
+## Added — 2026-10-14 — Activity: warnings and errors from the app and every scan
+
+- **Warnings and errors reach the dashboard.** What jobdork logged as a
+  warning or error (a host blocked for rate limiting, a source that raised,
+  a resume it could not read, a prompt too long for the model) went to the
+  terminal only. Now each one lands in the running job's log, marked, or,
+  outside a job, in a new `app_events` table (schema 9): the server, setup,
+  a config that stopped loading, and the config's own warnings at start.
+  Scans run from the terminal are included.
+- **A failed or stopped job says so in its log**, as an error or a
+  warning line, not only in its summary. A source that returned errors is
+  logged as a warning with the first three.
+- **Activity page: "Warnings and errors".** The last 7 days, newest first,
+  each tagged ERROR or WARN and with its job (or "app"); pick a job's line
+  to show that run. The job log colours warnings amber and errors red.
+- **A missing or refused key is a warning that says so.** "Missing or
+  refused key (job source): adzuna: skipped (no key …). You see this
+  because the job source key is not set or was not accepted; see
+  docs/CONFIG.md, sections "sources" and "Environment"." The AI's points at
+  the "llm" section or the AI page. A keyed source chosen without its key
+  is now logged each scan; skips by design (a country a source does not
+  serve) are not.
+
+## Added — 2026-10-14 — Remove risky and stale job posts, on your say-so
+
+- **After a scan, and in Job posts, jobdork offers to remove them.** When
+  any job post you have not acted on (status new or viewed) is risky
+  (posted 8 to 21 days ago), stale (over 21 days) or a ghost listing (over
+  90, already hidden), a box says how many of each, with "Remove N job
+  posts" and "Not now". Remove shows examples and asks once more; the
+  delete carries the previewed count and is refused if it moved, as Clean
+  up is. The database is backed up to `data/backups/` first, and removed
+  posts stay removed: later scans leave them out.
+- **Counted per job, copies included.** The number is the posts you see in
+  Job posts; each one's grouped copies go with it, or the next copy would
+  take its place in the list.
+- **Never touched:** posts marked interested, applied, submitted,
+  interviewing or offer. Nothing is removed without the button: screening
+  still keeps old posts, marked and ranked lower.
+- "Not now" holds until the number changes. The day limits are the
+  `freshness` settings (`week_days`, `older_days`, `ghost_days`).
+- `POST /api/cleanup/aged/preview` and `/api/cleanup/aged` (`expect`). A
+  job's "done" event now names the job, so the page knows a scan finished.
+
+## Changed — 2026-10-14 — Job posts: the count says how many copies were found
+
+- **The list's count matches the scan's "kept".** A scan counts every copy
+  it stores; the list shows one post per job. "19 of 19 · 19 duplicates
+  grouped" read as if 19 had been lost against a scan that kept 38. It now
+  says "19 of 19 · 38 copies found, 19 grouped".
+
+## Changed — 2026-10-06 — Setup: a designed welcome screen
+
+- **The welcome screen says what jobdork does and what setup asks.** It used
+  to be a heading, one paragraph, a bare list of step names and a small
+  Start button. Now: the logo and "Find the job posts worth your time";
+  three cards (reads the boards for you, checks every job post, stays on
+  your computer — only the AI you choose reads it); each of the six steps
+  numbered with one line on what it asks and a Required or Optional tag;
+  "Have your resume ready" above a large "Get started" button, which has
+  focus, and "Each answer is saved as you go" below it.
+- Wider than the other steps (46rem), one card per row on a phone, works in
+  light and dark, a short fade-in that is off when the system asks for
+  reduced motion. The button's blue (#2563eb) keeps white text readable
+  (5.2:1). A step added to `core/setup.py` later still shows, by its title.
+
+## Changed — 2026-10-03 — Setup: pay and job sources in one step; your credentials
+
+- **Six steps after Welcome, not seven.** Pay and "What will be searched"
+  are one step, "Pay and job sources": the salary floor, then what every
+  scan reads. A config saved at the old `sources` step resumes at this one.
+- **The keyed sources are a question, and only where they can work.**
+  "Use Adzuna? It searches many job boards at once, in 20 countries." with
+  "Yes, add a free key" opening its boxes; with the US among your countries
+  also "Use USAJOBS? It lists US federal government jobs."; outside the US
+  only Adzuna, and neither where Adzuna covers none of your countries (the
+  Philippines alone). The sentence on where a pasted key is kept is gone.
+  The terminal asks the same.
+- **Your certifications and licenses.** Step 3 asks for them, with the ones
+  your resume names already ticked (BLS, ACLS on a nurse's), and the Search
+  page has the list to edit (`credentials:` in the config). An opened job
+  post checks its advert against them as well as the resume, and one of
+  yours that the built-in list does not know still counts when the advert
+  names it ("IAT I"). The terminal's step 3 asks too, keeping capitals.
+- **Tests no longer reach the repository's database.** The dashboard tests'
+  config had no `db:`, so a test that saved settings left the server
+  pointing at `data/jobdork.db` in the repository, the live one while you
+  test (they only read from it). Their config now names its own.
+- Three new tests.
+
+---
+
+## Added — 2026-10-03 — Certifications and licenses an advert asks for
+
+- An opened job post shows, above the advert, the certifications and
+  licenses it asks for, each marked Required or Preferred and with the
+  credentials it names as chips, green with a check when your resume has
+  them; the same lines are highlighted in the advert.
+- Read from the advert's lines (`search/credentials.py`): a line that talks
+  about one ("certification", "licensed", "board certified"), or names one
+  of about 80 across healthcare, finance, technology, trades, law and
+  teaching (RN, BLS, ACLS, CPA, PMP, CISSP, CDL, Series 7…) and says it is
+  required or preferred or sits under a requirements heading, since "RN"
+  alone is in every line of a nurse's advert. Every line under a
+  "Certifications" heading counts, named or not ("IAT I"). Left out: a line
+  saying none is needed, the employer's own ("a certified B-Corp", ISO
+  27001), and long boilerplate. Short names match case and whole words, so
+  "RN" is not found in "learn".
+- On a test database it found credentials in 361 of 1,346 adverts long
+  enough to read (CISSP 54, Security+ 28, AWS Certified 22 in a tech-heavy
+  search). Display only: screening and the AI read the advert as stored.
+- Six new tests.
+
+---
+
+## Changed — 2026-10-03 — Setup turns on AI judging after each scan
+
+- When the AI test passes in setup, Continue also turns on "After each scan,
+  judge the top 15 job posts not yet judged" (`llm.judge_on_scan`,
+  `llm.judge_top: 15`), so the AI reads the best new posts against your
+  resume from the first scan on; the screen says so, and it can be changed
+  on the AI page. Skip for now leaves it off. `jobdork setup` in a terminal
+  does the same after its test.
+
+---
+
+## Changed — 2026-10-03 — The first scan is watched on the Dashboard
+
+- Setup's last step no longer keeps you on its screen while the quick part
+  runs. "Start the first scan" ends setup and starts the scan in one go, and
+  the Dashboard opens at once, where the scan is shown as any other: a
+  notice says the first scan is running and job posts appear within a few
+  minutes, then that the rest of the employer boards are being read.
+  The setup screen's own log and source counter are gone. `jobdork setup`
+  in a terminal still runs the quick part in front of you.
+
+---
+
+## Changed — 2026-10-03 — Every lambda says why it is a lambda
+
+- Each of the 33 lambdas in `jobdork/` and `scripts/` has a comment above it
+  starting `# lambda:` that says why: a sort or max key, a `default_factory`
+  that must make a fresh list per instance, a call deferred until later (a
+  timer, a writer run only for its format), a path read at each use so a
+  config change is followed, or an adapter between two call shapes. New
+  code follows the same rule.
+
+---
+
+## Changed — 2026-10-03 — Setup step 3 shows a real progress bar
+
+- "Reading your resume…" was a line of text for as long as the model took.
+  It is now a bar that moves with the model's answer: a local model's reply
+  is streamed (`llm.complete_json(on_text=…)`, Ollama only), and since the
+  schema fixes the order of the answer's keys, reaching each one is real
+  progress: reading your resume, choosing job titles (moving with each
+  title written), titles to keep out, industries, dealbreakers, done
+  (`suggest.stage`). The page polls `/api/setup/suggest/progress`; when the
+  answer arrives the bar gives way to "Suggested from your resume. Untick
+  what does not fit." The terminal prints each stage as it is reached.
+  Hosted models answer in one piece and in seconds, so their bar shows the
+  reading stage until then.
+- Removed from the Welcome screen: "Each answer is saved as you go…".
+- One new test (stages never go backwards; a streamed answer is read and
+  cleaned as before).
+
+---
+
+## Changed — 2026-10-03 — An opened job post, reorganised and readable
+
+- **Opening a job post no longer opens Match's explanation.** The dialog
+  put focus on the first thing it could, the Match badge, whose tip a focus
+  shows; the dialog now takes the focus itself.
+- **The header holds still.** Badges and the title on the left, wrapping as
+  far as a long title needs; Open posting (now a button) and Close at the
+  top right, where a 130-character title used to push them down a line.
+- **No job post ids** in the list or the dialog (`4aadaa36db52`). `jobdork
+  list` still prints them for the terminal.
+- **The advert tab is the advert.** Drafting and the AI buttons (Ask AI,
+  write a cover letter or tailored resume, review the resume) moved to the
+  AI tools tab; the advert keeps Check if still open and a Replace the
+  advert button, which opens the paste box (Paste the full advert, and a
+  note, for one too short to screen).
+- **The advert is formatted for reading:** short lines without a full stop
+  become headings ("Key Responsibilities", "Required:"), runs of short lines
+  under a heading become a list (the boards' text loses its bullets),
+  bullets and numbered lines become list items, and stray spaces and blank
+  lines go. Display only: screening and the AI read the text as stored.
+
+---
+
+## Added — 2026-10-03 — Job posts sort by match or fit, or show the unscored
+
+- A menu beside the Job posts filters: Match high to low (the order they
+  came in) or low to high, Fit high to low or low to high, and Unscored
+  only, the posts with no match or no fit score (on a test database, 9 of
+  1,810, all with no fit). A post with no score goes last whichever way
+  round, and equal ones keep their order (best match, then newest). It
+  works with search, status and "posted within" together.
+
+---
+
+## Fixed — 2026-10-03 — AI calls made outside a job are counted
+
+- Setup's "Save and test" and its suggestions from the resume called the
+  model (Gemma on Ollama), yet the Dashboard's AI calls and P50 latency
+  tiles said 0: a model call was recorded only inside a job (a scan, a
+  judging run, a letter), and these run in no job. Such a call is now
+  written to `llm_calls` with no job, wherever `jobdork serve` or
+  `jobdork setup` runs (`telemetry.record_calls_to`), so the tiles count
+  it; a failed write is ignored rather than breaking the call. The scan's
+  own "No AI calls in this job" was right: a scan judges with AI only when
+  "After each scan, judge the top…" is on, which it is not by default.
+- **The path is made absolute when it is set.** Tests that ran `jobdork
+  setup` set a relative `data/jobdork.db`, and the tests after them, run
+  from the repository, wrote their fake calls into the real database there
+  (16 rows of "test, 1.0 s" and "model m"). The tests now also clear the
+  setting after each such test; a full run adds nothing to it.
+- One new test.
+
+---
+
+## Changed — 2026-10-03 — Network, by host: five a page, sortable
+
+- The Dashboard's per-host table listed every host a run touched: 140 after
+  a first scan with the built-in boards. It now shows five, with Previous
+  and Next ("6 to 10 of 140"), the same pager as the Search page's lists
+  (now one `paged()` helper for both). Showing another run starts again at
+  page one.
+- Every column sorts by a click on its heading: Requests (the default,
+  busiest first), 2xx/3xx, 4xx, 429, Failed, Avg, Slowest and Host. A new
+  column starts biggest first (A to Z for hosts); the same heading again
+  turns it round, with ▼ or ▲ beside it.
+
+---
+
+## Added — 2026-10-02 — Setup step 7: the first scan, quick then in the background
+
+- **Quick first, then the rest.** "Start the first scan" reads the keyword
+  sources, your own boards and 8 of the built-in boards, the smallest in
+  each of your industries first (`directory.quick`), then marks setup done
+  and opens the Dashboard. The rest of the built-in boards are read straight
+  after as a scan of their own, "full scan", while a notice on the Dashboard
+  says so. No board is read twice (`scan.run(part="quick" | "rest")`).
+  Measured on a US healthcare search: 52 s and 110 job posts before the
+  Dashboard opened. Taking the first 20 boards instead took 3.5 min, because
+  one 2,000-job Workday board alone needed 180 paced requests.
+- **The runner chains jobs** (`Runner.start(..., then=[...])`): each is its
+  own job in the event stream and on the Activity page, the runner stays busy
+  between them so nothing else starts, and a failed part stops the rest.
+- **The setup screen** streams each source as it is read and counts
+  "6 of 13 sources read"; a failure offers "Try again", and coming back to
+  the page mid-scan does not offer a second start.
+- **Opening the Dashboard after setup kept the token.** The page reloaded to
+  a bare address and got "missing or wrong token", since the token lives
+  only in the page; it now passes it for that one load.
+- **Terminal:** `jobdork setup` runs the quick part with its progress, says
+  setup is done, and offers the rest now or later with `jobdork scan`.
+- **Fixed on the Dashboard's Last scan card** (seen during this): a scan
+  still running was reported as "never finished", and a source skipped for
+  want of a key or outside your countries as "returned 0 job posts". A run
+  now records which sources were skipped, and a scan with a live heartbeat
+  is "still running". The skip messages for Adzuna and USAJOBS say the key
+  can be pasted in setup, not only put in `.env`.
+- **The card reads a first scan's two parts as one scan.** Read alone, the
+  background part (employer boards only, by design) made the card say
+  Adzuna, USAJOBS, Himalayas and Workable "did not run", though the quick
+  part had read 1,700 posts from them. A run now records its part, and a
+  rest run is added to the quick run before it. A source also counts as
+  skipped only when every board of it skipped: one Workday board skipping
+  had marked all of Workday skipped, which would have hidden a real
+  "returned 0".
+- **README Install** now starts with `jobdork serve` and the setup it opens;
+  copying `config.example.yaml` is the alternative.
+- Six new tests (the sample and the split, smallest first, the chain, the
+  route, the terminal step, the Last scan card).
+
+---
+
+## Added — 2026-10-02 — Setup step 6: what will be searched
+
+- **A plain summary** of what every scan reads: Workable's search,
+  Himalayas' remote jobs, Kalibrr where the Philippines or Indonesia is in
+  your countries, and the built-in employer boards with their count for
+  your industries and countries (38 for healthcare in the US), above the
+  titles they are searched for.
+- **Adzuna and USAJOBS keys can be pasted in the app**, as decided on
+  2026-09-30 ("users paste their own in the app, stored in data/"). They go
+  to `data/source-keys.env`, beside the database (the kept volume in
+  Docker), created readable by its owner alone, never into `config.yaml`,
+  and are never sent back to the page: it says "Ready", where the key came
+  from, and offers Remove for one saved in the app. `.env` and the
+  environment still win. Only the four job-source names are accepted, and
+  half a pair is refused. A source that cannot apply says why (USAJOBS
+  without the US in your countries, Adzuna outside its countries).
+- **Terminal:** the same summary; for each keyed source that applies,
+  "Add a key now? [y/N]", with the key typed hidden.
+- `_yes()` in the CLI takes a default, so an optional question defaults
+  to no. One new test (saved, file mode 0600, read back after a restart,
+  never in the report or the config, removed, foreign names refused); the
+  terminal flows now run through this step to the first scan.
+
+---
+
+## Added — 2026-10-02 — Setup step 5: pay (optional)
+
+- **Dashboard:** the same form as Where, showing only the salary floor and
+  its currency, which the Where step already set from the country (pesos
+  for the Philippines). The screen says it is optional, that a post with no
+  salary is always kept, and that the floor is yearly: hourly and daily
+  rates are annualised before comparing, and an hourly rate times 2,080 is
+  the figure to type. Empty hides nothing for pay.
+- **Terminal:** the yearly floor (commas allowed, a non-number asked
+  again), then the currency, defaulting to the country's; blank is no
+  floor. The terminal Where step now sets that currency too, as the page
+  does.
+- One new test; the Where test now runs on through Pay with no answer.
+
+---
+
+## Added — 2026-10-02 — Setup step 4: where
+
+- **Dashboard:** the Search page's own place picker, radius, work
+  arrangements and countries list, shown inside setup (the salary floor
+  waits for the Pay step). Nothing is filled in: a new user chooses a
+  country and city, rather than starting from the Naperville the picker
+  offers a config without a place. Continue saves through the same code as
+  the Search page's Save, which also lists the chosen country under
+  countries to keep when none are listed; with no city it says so.
+- **New configs start with no place and every country.** Before, a config
+  without `locations` was measured from Naperville, IL and limited to the
+  United States. A place is required to finish the step.
+- **Units follow the country** chosen in the picker, here and on the Search
+  page: kilometres for the Philippines, miles for the United States, as
+  the currency already did.
+- **Terminal:** a country by name, code or the start of its name; a region
+  the same way, or any; the city from the place list (a short numbered list
+  when several match); radius, arrangements, and other countries by code.
+- One new test (Baguio, Cordillera, Philippines; remote; PH and US); the
+  setup test also checks the new config's empty place and the refusal.
+
+---
+
+## Added — 2026-10-02 — Setup step 3: what you are looking for
+
+- **With AI set up**, the model reads the resume and fills in four lists:
+  job titles as employers write them, titles to keep out (similar words, a
+  different job), the industries whose built-in employer boards to read, and
+  dealbreakers the resume gives a reason for. Titles, excludes and industries
+  come ticked; a suggested dealbreaker is only marked, since it is a
+  preference the resume cannot settle. Industries and dealbreakers are
+  chosen from jobdork's own lists, and anything else the model says there is
+  dropped (`ai/suggest.py`). On a nurse's sample resume a local 26B model
+  answered in 4 s with "registered nurse", "icu nurse", "critical care
+  nurse"… and kept out "nurse practitioner"; a 3B model was weaker.
+- **Without AI**, or when the model fails, the same screen asks for the
+  titles to be typed.
+- Each list takes additions; nothing is saved until Continue, and at least
+  one job title is required to go on. Industries are saved to
+  `sources.directory.industries` (none ticked reads every industry).
+  Coming back shows what was saved instead of asking the model again.
+- **Terminal:** the same lists, numbered: Enter keeps them, numbers drop
+  entries, and more can be typed; dealbreakers are turned on by number.
+- Four new tests.
+
+---
+
+## Added — 2026-10-02 — Setup step 2: AI (skippable)
+
+- **Dashboard:** the AI page itself, inside setup: Off, Ollama, Claude,
+  Gemini or ChatGPT; the Ollama address or a key held in memory; a model,
+  filled in with the first one offered so nobody stalls on an empty box; and
+  Save and test. Continue appears once the model has answered; "Skip for
+  now" is always there, because scanning works without AI. The screen says
+  a typed key is forgotten when jobdork stops and to keep one in `.env` (or
+  the container's environment), and in Docker gives the address Ollama on
+  the same computer is reached at. The when-to-use options keep their
+  defaults; they stay on the AI page.
+- **Terminal:** `jobdork setup` lists the four, asks for the Ollama address
+  or reads the key from `.env` or the environment (a terminal run has no
+  memory to hold one in, so it says where to put it), lists models to pick
+  from, saves, and asks the model to answer; blank skips.
+- One new test (no key, then Ollama, a model, a passing test, moved on).
+
+---
+
+## Fixed — 2026-10-02 — A new database no longer fails the first page load
+
+- The dashboard's first load opens the database from several requests at
+  once. When the file did not exist yet, two of them creating it together
+  could fail with "database is locked", so a new user's first screen came up
+  with errors. Opening a database is now one at a time within a process
+  (`db/store.py`). One new test; it failed 6 runs in 30 before the fix.
+
+---
+
+## Added — 2026-10-02 — Setup step 1: your resume (required)
+
+- **Dashboard:** choose a PDF, Word, Markdown or text file. It is read at
+  once and the screen shows what was read: characters, years of experience
+  claimed, skills recognised, and the full text, so a resume that lost half
+  of itself on the way in is seen before anything is scored against it.
+  Under 800 characters it says so and suggests another export. Choosing
+  another file replaces it; Continue moves on to AI. Coming back shows the
+  resume already uploaded.
+- **Terminal:** `jobdork setup` asks for the file path (a dragged-in, quoted
+  path works), prints the same summary and the start of the text, and asks
+  "Use this resume?"; blank stops, and the next run carries on there.
+- **Required:** no step after it can be saved without a resume file, from
+  the page, the terminal or a hand-edited request (`core/setup.py`).
+- Two new tests (the step cannot be skipped; the terminal flow, stopped and
+  resumed).
+
+---
+
+## Changed — 2026-10-02 — A first run opens setup, the same in Docker and on your machine
+
+- **`jobdork serve` starts with no config** and the dashboard opens on a
+  setup screen (no menu) instead of exiting with "No config found". The
+  welcome step lists the questions to come and saves as you go; closing the
+  page and coming back resumes at the same step. The other steps are still to
+  build, one per screen.
+- **`jobdork setup`**, the command the old error message already named, now
+  exists: the same steps in the terminal, resuming from the same place as the
+  browser.
+- **Docker no longer copies the example config** into `data/config.yaml`. A
+  new user there was searching for software engineer jobs nobody asked for,
+  and the container behaved differently from a local install. Now both wait
+  for setup; the config is written on the first answer (`data/config.yaml` in
+  a container, `config.yaml` otherwise, `$JOBDORK_CONFIG` if set). A config
+  already in `data/` is read as before.
+- Progress is kept in the config as `setup: {step: …}`, removed when setup
+  ends; configs without it count as set up. Until then other commands refuse
+  with "Setup is not finished", and the dashboard refuses a scan with no job
+  titles.
+- The code that writes the config moved from `web/serve.py` to
+  `core/setup.py`, shared by the dashboard and the terminal. Three tests
+  replace the seeding ones, plus one for the dashboard's first run.
+
+---
+
 ## Added — 2026-10-02 — How jobdork got here, and how it differs from a job board
 
 - **docs/HISTORY.md**: from a 900-line Google search builder in March to
@@ -3770,6 +4355,12 @@ open; a digest arrives, and what arrived with it is what was not there before.
 - **Release 0.14.4.** `compose.yaml` and docs/DEPLOY.md name it, and the
   published 0.14.3 restarts over and over without a mapped `config.yaml`;
   until 0.14.4 is out, the NAS instructions do not work.
+- **The resume's skill list is tech-only.** `SKILL_TERMS` in
+  `search/resume.py` knows languages, frameworks, cloud and security tools,
+  so a nurse's resume (Epic, ACLS, IV therapy) shows almost no skills and
+  fit scores outside tech rest on next to nothing. Needs terms for every
+  industry jobdork serves, grouped so a scan only weighs the ones near the
+  user's own.
 - **Europe, the Middle East, and Australia and Oceania**: planned, not built;
   the steps and where to start are in [REGIONS.md](REGIONS.md#planned).
 - **Regional job sites in Asia**, where employers' boards cannot reach:

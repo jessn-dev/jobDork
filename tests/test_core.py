@@ -926,6 +926,8 @@ def _restoring_the_environment(fn):
         try:
             fn()
         finally:
+            from jobdork.core import telemetry
+            telemetry._calls_db = None     # `jobdork setup` sets it; never keep it
             os.chdir(cwd)
             config.CONTAINER_MARKERS = markers
             for k, v in saved.items():
@@ -938,28 +940,38 @@ def _restoring_the_environment(fn):
 
 
 @_restoring_the_environment
-def test_a_container_with_no_config_starts_from_the_example_in_data():
+def test_with_no_config_setup_starts_and_nothing_is_written():
+    """No example is copied in: a first run waits for setup, in a container or not.
+
+    The variable alone, or the marker alone, is not a container, so the new
+    config goes beside the code there and into the kept volume only in one.
+    """
     import tempfile
     from pathlib import Path
 
     from jobdork.core import config
-    with tempfile.TemporaryDirectory() as tmp:
-        _in_a_fake_container(tmp, marker=True, variable=True)
-        cfg = config.load()
-        seeded = Path(tmp) / "data" / "config.yaml"
-        assert seeded.is_file(), "the example should be copied into data/"
-        assert cfg.path == "data/config.yaml"
-        assert any("created from config.example.yaml" in w for w in cfg.warnings)
-        # A second start reads the kept copy and does not announce it again.
-        seeded.write_text(seeded.read_text() + "\n# edited\n")
-        again = config.load()
-        assert again.path == "data/config.yaml"
-        assert "# edited" in seeded.read_text(), "a kept config is never overwritten"
-        assert not any("created from" in w for w in again.warnings)
+    from jobdork.core.config import ConfigError
+    for marker, variable, where in ((True, True, "data/config.yaml"),
+                                    (False, True, "config.yaml"),
+                                    (True, False, "config.yaml")):
+        with tempfile.TemporaryDirectory() as tmp:
+            _in_a_fake_container(tmp, marker=marker, variable=variable)
+            try:
+                config.load()
+            except ConfigError as exc:
+                assert "jobdork setup" in str(exc)
+            else:
+                raise AssertionError("a command that needs a config must stop")
+            cfg = config.load(require=False)
+            assert cfg.setup_step == "welcome"
+            assert cfg.path == where
+            assert cfg.titles_include == [], "nobody starts with another's titles"
+            assert not (Path(tmp) / "config.yaml").exists()
+            assert not (Path(tmp) / "data" / "config.yaml").exists()
 
 
 @_restoring_the_environment
-def test_a_mapped_config_yaml_still_wins_over_the_seeded_one():
+def test_a_mapped_config_yaml_is_read_in_a_container():
     import tempfile
     from pathlib import Path
 
@@ -967,29 +979,393 @@ def test_a_mapped_config_yaml_still_wins_over_the_seeded_one():
     with tempfile.TemporaryDirectory() as tmp:
         _in_a_fake_container(tmp, marker=True, variable=True)
         (Path(tmp) / "config.yaml").write_text("titles: {include: [nurse]}\n")
-        cfg = config.load()
-        assert cfg.path == "config.yaml"
+        cfg = config.load(require=False)
+        assert cfg.path == "config.yaml" and cfg.setup_step == ""
         assert not (Path(tmp) / "data" / "config.yaml").exists()
 
 
+def test_setup_writes_the_config_a_step_at_a_time():
+    import tempfile
+    from pathlib import Path
+
+    from jobdork.core import config, setup
+    from jobdork.core.config import ConfigError
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "data" / "config.yaml"
+        cfg = setup.write(str(path), {"setup_step": "resume"})
+        assert path.is_file() and cfg.setup_step == "resume"
+        try:
+            config.require_set_up(cfg)
+        except ConfigError as exc:
+            assert "Your resume" in str(exc)
+        else:
+            raise AssertionError("a half-set-up config must not be scanned")
+
+        # The resume is required: no step after it without one.
+        try:
+            setup.write(str(path), {"setup_step": "ai"})
+        except ValueError as exc:
+            assert "resume" in str(exc)
+        else:
+            raise AssertionError("the resume step cannot be skipped")
+        assert "step: resume" in path.read_text(), "a refused step changes nothing"
+        resume = Path(tmp) / "resume.md"
+        resume.write_text("# Me\n\nNurse\n", encoding="utf-8")
+        cfg = setup.write(str(path), {"resume_path": str(resume), "setup_step": "ai"})
+        assert cfg.setup_step == "ai"
+
+        cfg = setup.write(str(path), {"titles_include": ["nurse"],
+                                      "setup_step": "where"})
+        assert cfg.locations.anchor == "" and cfg.locations.countries == [], \
+            "a new config has no default place or country"
+        try:
+            setup.write(str(path), {"setup_step": setup.DONE})
+        except ValueError as exc:
+            assert "city" in str(exc)
+        else:
+            raise AssertionError("set up with no place must be refused")
+        cfg = setup.write(str(path), {"anchor_pick": {"country": "US", "region": "IL",
+                                                      "city": "Chicago"},
+                                      "setup_step": setup.DONE})
+        assert cfg.setup_step == "" and "\nsetup:" not in path.read_text()
+        config.require_set_up(cfg)
+
+        # Finishing with nothing to search for is refused, and a refused
+        # first save leaves no file behind.
+        fresh = Path(tmp) / "other.yaml"
+        try:
+            setup.write(str(fresh), {"setup_step": setup.DONE})
+        except (ConfigError, ValueError):
+            pass
+        else:
+            raise AssertionError("set up with no titles must be refused")
+        assert not fresh.exists()
+        assert setup.next_step("welcome") == "resume"
+        assert setup.resume_note(200) and not setup.resume_note(5000)
+        assert setup.next_step(setup.STEP_NAMES[-1]) == setup.DONE
+
+
+def _answer(answers):
+    """The next typed answer; when they run out, the terminal closes (EOF)."""
+    try:
+        return next(answers)
+    except StopIteration:
+        raise EOFError from None
+
+
 @_restoring_the_environment
-def test_outside_a_container_no_config_is_written():
-    """The variable alone, or the marker alone, is not a container."""
+def test_jobdork_setup_in_a_terminal_asks_for_the_resume_and_resumes_later():
+    import builtins
+    import tempfile
+    from pathlib import Path
+
+    from jobdork import cli
+    from jobdork.core import config
+    with tempfile.TemporaryDirectory() as tmp:
+        _in_a_fake_container(tmp, marker=False, variable=False)
+        mine = Path(tmp) / "Jane Doe.md"
+        mine.write_text("# Jane Doe\n\nRegistered nurse, ICU. " + "Care. " * 200,
+                        encoding="utf-8")
+        answers = iter(["", "/no/such/file.pdf", f"'{mine}'", "n", ""])
+        asked = []
+        saved_input = builtins.input
+        builtins.input = lambda q="": asked.append(q) or _answer(answers)
+        try:
+            # Start; a wrong path; the right one, quoted as a drag-and-drop
+            # gives it; "n" to the summary; then stop at the path question.
+            assert cli.main(["setup"]) == 0
+            cfg = config.load(require=False)
+            assert cfg.setup_step == "resume", "not used, so not past the step"
+            assert Path(cfg.resume_path).read_text().startswith("# Jane Doe")
+
+            # Run again: it carries on at the resume, shows it, and moves on;
+            # then blank at the AI question skips it, which is allowed.
+            answers = iter(["", ""])
+            assert cli.main(["setup"]) == 0
+            assert config.load(require=False).setup_step == "search"
+        finally:
+            builtins.input = saved_input
+        assert any("Path to your resume" in q for q in asked)
+
+
+@_restoring_the_environment
+def test_jobdork_setup_ai_step_picks_a_model_tests_it_and_moves_on():
+    import builtins
+    import os
+    import tempfile
+    from pathlib import Path
+
+    from jobdork import cli
+    from jobdork.ai import llm
+    from jobdork.core import config, setup
+    with tempfile.TemporaryDirectory() as tmp:
+        _in_a_fake_container(tmp, marker=False, variable=False)
+        resume = Path(tmp) / "r.md"
+        resume.write_text("# Me\n\nNurse\n", encoding="utf-8")
+        setup.write("config.yaml", {"resume_path": str(resume), "setup_step": "ai"})
+        for name in llm.ENV_KEYS["anthropic"]:
+            os.environ.pop(name, None)
+        # Claude with no key says where a key goes and asks again; then
+        # Ollama at the default address, its first model, and a passing test.
+        answers = iter(["2", "1", "", "1"])
+        saved = builtins.input, llm.list_models, llm.ping
+        builtins.input = lambda q="": _answer(answers)
+        llm.list_models = lambda settings: ["gemma3:4b", "qwen3:8b"]
+        llm.ping = lambda settings: {"ok": True, "model": settings.label, "seconds": 0.1}
+        try:
+            assert cli.main(["setup"]) == 0
+        finally:
+            builtins.input, llm.list_models, llm.ping = saved
+        cfg = config.load(require=False)
+        assert cfg.setup_step == "search"
+        assert (cfg.llm.provider, cfg.llm.model) == ("ollama", "gemma3:4b")
+        assert (cfg.llm.judge_on_scan, cfg.llm.judge_top) == (True, 15), \
+            "a passing test turns on judging after each scan"
+        assert "key" not in Path("config.yaml").read_text().split("llm:")[1]
+
+
+def test_suggestions_keep_only_what_can_be_used():
+    from jobdork.ai.suggest import clean
+    got = clean({"titles": ["Registered Nurse", "registered nurse.", "ICU Nurse",
+                            "x" * 80],
+                 "exclude": ["icu nurse", "Nurse Practitioner"],
+                 "industries": ["Healthcare", "astrology"],
+                 "dealbreakers": ["night shift", "Hates mondays"]},
+                ["healthcare", "retail"], ["Night shift", "On-call"])
+    assert got["titles"] == ["registered nurse", "icu nurse"]
+    assert got["exclude"] == ["nurse practitioner"], "never a title also searched for"
+    assert got["industries"] == ["healthcare"]
+    assert got["dealbreakers"] == ["Night shift"]
+
+
+@_restoring_the_environment
+def test_jobdork_setup_search_step_ticks_suggestions_and_saves_them():
+    import builtins
+    import tempfile
+    from pathlib import Path
+
+    from jobdork import cli
+    from jobdork.core import config, setup
+    from jobdork.web import api
+    with tempfile.TemporaryDirectory() as tmp:
+        _in_a_fake_container(tmp, marker=False, variable=False)
+        resume = Path(tmp) / "r.md"
+        resume.write_text("# Me\n\nNurse\n", encoding="utf-8")
+        setup.write("config.yaml", {"resume_path": str(resume), "setup_step": "search",
+                                    "llm": {"provider": "ollama", "model": "m"}})
+        try:
+            setup.write("config.yaml", {"setup_step": "where"})
+        except ValueError as exc:
+            assert "job title" in str(exc)
+        else:
+            raise AssertionError("no step after this one without a job title")
+
+        catalog = [d["name"] for d in api.setup_choices(config.load(require=False))
+                   ["dealbreakers"]]
+        # Drop the second title, add one; keep the excludes; keep the
+        # suggested industry; turn on the first dealbreaker; then stop.
+        answers = iter(["2", "charge nurse", "", "", "BLS, ACLS", "", "1"])
+        saved = builtins.input, api.setup_suggest
+        builtins.input = lambda q="": _answer(answers)
+        api.setup_suggest = lambda cfg, progress=None: {
+            "titles": ["registered nurse", "nurse manager"],
+            "exclude": ["nurse practitioner"], "industries": ["healthcare"],
+            "dealbreakers": ["Night shift"]}
+        try:
+            assert cli.main(["setup"]) == 0
+        finally:
+            builtins.input, api.setup_suggest = saved
+        cfg = config.load(require=False)
+        assert cfg.setup_step == "where"
+        assert cfg.titles_include == ["registered nurse", "charge nurse"]
+        assert cfg.titles_exclude == ["nurse practitioner"]
+        assert cfg.sources.directory.industries == ["healthcare"]
+        assert [d.name for d in cfg.dealbreakers] == [catalog[0]]
+        assert cfg.credentials == ["BLS", "ACLS"], "capitals kept"
+
+
+@_restoring_the_environment
+def test_jobdork_setup_where_step_places_you_and_keeps_your_countries():
+    import builtins
+    import tempfile
+    from pathlib import Path
+
+    from jobdork import cli
+    from jobdork.core import config, setup
+    with tempfile.TemporaryDirectory() as tmp:
+        _in_a_fake_container(tmp, marker=False, variable=False)
+        resume = Path(tmp) / "r.md"
+        resume.write_text("# Me\n\nNurse\n", encoding="utf-8")
+        setup.write("config.yaml", {"resume_path": str(resume),
+                                    "titles_include": ["nurse"], "setup_step": "where"})
+        # A country by the start of its name, a region by name, a city typed
+        # in full, the default radius, remote only, and the US as well.
+        answers = iter(["philip", "cordillera", "Baguio", "", "remote", "us"])
+        saved = builtins.input
+        builtins.input = lambda q="": _answer(answers)
+        try:
+            assert cli.main(["setup"]) == 0
+        finally:
+            builtins.input = saved
+        cfg = config.load(require=False)
+        assert cfg.setup_step == "scan", "pay and keys are optional: no answer is none"
+        assert cfg.salary.currency == "PHP" and cfg.salary.floor is None
+        assert cfg.locations.anchor.startswith("Baguio")
+        assert cfg.locations.countries == ["PH", "US"]
+        assert (cfg.locations.radius, cfg.locations.units) == (25.0, "km")
+        assert cfg.locations.work_modes == ["remote"]
+
+
+@_restoring_the_environment
+def test_jobdork_setup_pay_step_takes_a_yearly_floor():
+    import builtins
+    import tempfile
+    from pathlib import Path
+
+    from jobdork import cli
+    from jobdork.core import config, setup
+    with tempfile.TemporaryDirectory() as tmp:
+        _in_a_fake_container(tmp, marker=False, variable=False)
+        resume = Path(tmp) / "r.md"
+        resume.write_text("# Me\n\nNurse\n", encoding="utf-8")
+        setup.write("config.yaml", {"resume_path": str(resume), "titles_include": ["nurse"],
+                                    "anchor": "Chicago, IL", "currency": "USD",
+                                    "setup_step": "pay"})
+        answers = iter(["about 60k", "65,000", "eur"])
+        saved = builtins.input
+        builtins.input = lambda q="": _answer(answers)
+        try:
+            assert cli.main(["setup"]) == 0
+        finally:
+            builtins.input = saved
+        cfg = config.load(require=False)
+        assert (cfg.salary.floor, cfg.salary.currency) == (65000.0, "EUR")
+        assert cfg.setup_step == "scan"
+
+
+@_restoring_the_environment
+def test_source_keys_typed_into_the_app_are_kept_beside_the_database():
+    import os
+    import stat
     import tempfile
     from pathlib import Path
 
     from jobdork.core import config
-    from jobdork.core.config import ConfigError
-    for marker, variable in ((False, True), (True, False)):
+    from jobdork.web import api
+    names = config.SOURCE_KEY_NAMES
+    saved = {n: os.environ.pop(n, None) for n in names}
+    try:
         with tempfile.TemporaryDirectory() as tmp:
-            _in_a_fake_container(tmp, marker=marker, variable=variable)
+            _in_a_fake_container(tmp, marker=False, variable=False)
+            Path("config.yaml").write_text("titles: {include: [nurse]}\n"
+                                           "locations: {countries: [US]}\n")
+            cfg = config.load()
+            assert not cfg.sources.adzuna_ready()
             try:
-                config.load()
-            except ConfigError as exc:
-                assert "No config found" in str(exc)
+                api.setup_keys(cfg, {"ADZUNA_APP_ID": "abc", "ADZUNA_APP_KEY": ""})
+            except api.ApiError as exc:
+                assert "both" in str(exc)
             else:
-                raise AssertionError("no config outside a container must stop the run")
-            assert not (Path(tmp) / "data" / "config.yaml").exists()
+                raise AssertionError("half a key pair is refused")
+            api.setup_keys(cfg, {"ADZUNA_APP_ID": "abc", "ADZUNA_APP_KEY": "k3y"})
+            held = Path("data") / config.SOURCE_KEYS_FILE
+            assert stat.S_IMODE(held.stat().st_mode) == 0o600
+            assert "k3y" not in Path("config.yaml").read_text()
+
+            for n in ("ADZUNA_APP_ID", "ADZUNA_APP_KEY"):
+                os.environ.pop(n)
+            cfg = config.load()                  # a restart reads them back
+            assert cfg.sources.adzuna_ready()
+            report = api.setup_sources(cfg)
+            adzuna = next(k for k in report["keyed"] if k["name"] == "adzuna")
+            assert adzuna["held"] == "app" and "k3y" not in str(report)
+
+            api.setup_keys(cfg, {"remove": True, "ADZUNA_APP_ID": "", "ADZUNA_APP_KEY": ""})
+            assert not config.load().sources.adzuna_ready()
+            try:
+                config.write_source_keys(cfg, {"OPENAI_API_KEY": "x"})
+            except config.ConfigError:
+                pass
+            else:
+                raise AssertionError("only the four job-source keys")
+    finally:
+        for n, v in saved.items():
+            if v is None:
+                os.environ.pop(n, None)
+            else:
+                os.environ[n] = v
+
+
+@_restoring_the_environment
+def test_jobdork_setup_first_scan_finishes_setup_and_offers_the_rest():
+    import builtins
+    import tempfile
+    from pathlib import Path
+
+    from jobdork import cli
+    from jobdork.core import config, setup
+    from jobdork.web import api
+    with tempfile.TemporaryDirectory() as tmp:
+        _in_a_fake_container(tmp, marker=False, variable=False)
+        resume = Path(tmp) / "r.md"
+        resume.write_text("# Me\n\nNurse\n", encoding="utf-8")
+        setup.write("config.yaml", {"resume_path": str(resume), "titles_include": ["nurse"],
+                                    "anchor": "Chicago, IL", "setup_step": "scan"})
+        parts = []
+
+        def jobs(cfg):
+            def first(progress):
+                parts.append("quick")
+                setup.write(cfg.path, {"setup_step": setup.DONE})
+                return "fetched 3, kept 2"
+            return [("first scan", first),
+                    ("full scan", lambda progress: parts.append("rest") or "fetched 9")]
+        answers = iter(["", "", "n"])     # default age limit; start; not the rest now
+        saved = builtins.input, api.first_scan_jobs
+        builtins.input = lambda q="": _answer(answers)
+        api.first_scan_jobs = jobs
+        try:
+            assert cli.main(["setup"]) == 0
+        finally:
+            builtins.input, api.first_scan_jobs = saved
+        assert parts == ["quick"]
+        assert config.load().setup_step == "", "set up, so every command works"
+        assert config.load().freshness.show_days == 30, "the default age limit"
+
+
+def test_the_suggestion_progress_follows_what_the_model_has_written():
+    from jobdork.ai import llm, suggest
+
+    answer = ('{"titles": ["registered nurse", "icu nurse", "charge nurse"], '
+              '"exclude": ["nurse practitioner"], "industries": ["healthcare"], '
+              '"dealbreakers": []}')
+    seen = [suggest.stage(answer[:n]) for n in range(len(answer) + 1)]
+    fractions = [f for f, _ in seen]
+    assert fractions == sorted(fractions), "never goes backwards"
+    assert seen[0] == (0.1, "Reading your resume")
+    assert {label for _, label in seen} >= {"Choosing job titles", "Choosing industries",
+                                            "Checking dealbreakers"}
+
+    # Streamed from Ollama a chunk at a time, then cleaned as before.
+    class Fake:
+        status_code, ok = 200, True
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def iter_lines(self):
+            import json
+            for i in range(0, len(answer), 20):
+                yield json.dumps({"message": {"content": answer[i:i + 20]}}).encode()
+            yield b'{"done": true}'
+    saved = llm.requests.post
+    llm.requests.post = lambda *a, **kw: Fake()
+    told = []
+    try:
+        got = suggest.suggest(llm.Settings(provider="ollama", model="m"),
+                              "# Me\n\nRegistered nurse", progress=lambda f, _label: told.append(f))
+    finally:
+        llm.requests.post = saved
+    assert got["titles"] == ["registered nurse", "icu nurse", "charge nurse"]
+    assert told[0] == 0.1 and told[-1] == 1.0 and len(told) > 5
 
 
 # ── keep this block LAST ───────────────────────────────────────────────────────
@@ -1048,7 +1424,7 @@ def test_a_rescan_does_not_replace_a_fuller_advert_with_a_teaser():
                  locations=Locations(anchor="", radius="any", countries=[]),
                  salary=Salary())
     original_jobs, original_get = scan._jobs_for, fetch.get
-    scan._jobs_for = lambda _cfg: [("fake", {})]
+    scan._jobs_for = lambda _cfg, _part="all": [("fake", {})]
     fetch.get = lambda _name: adapter
     try:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1129,6 +1505,29 @@ def test_rescreening_is_not_seeing_the_role_again():
             seen = store.conn.execute("SELECT last_seen FROM roles").fetchone()[0]
             assert seen == "2026-01-01T00:00:00", seen
 
+
+
+def test_scan_summary_has_one_line_per_kind_of_board():
+    from jobdork import fetch
+    from jobdork.search.scan import ScanReport
+
+    def role(n):
+        return Role(platform="greenhouse", company="c", title="t",
+                    url=f"https://x.test/{n}")
+
+    report = ScanReport(per_source=[
+        fetch.SourceResult(source="greenhouse", roles=[role(1), role(2)], requests_made=1),
+        fetch.SourceResult(source="greenhouse", requests_made=1),
+        fetch.SourceResult(source="greenhouse", roles=[role(3)], errors=["timeout"]),
+        fetch.SourceResult(source="greenhouse", skipped="not your countries"),
+        fetch.SourceResult(source="adzuna", skipped="no key"),
+    ])
+    assert report.source_lines() == [
+        "greenhouse: 3 roles from 3 boards, 1 skipped, 1 with errors",
+        "adzuna: skipped (no key)",
+    ], report.source_lines()
+    # Summed over the boards, not the last board's count.
+    assert report.counts_by_source() == {"greenhouse": 3, "adzuna": 0}
 
 if __name__ == "__main__":
     failures = 0
