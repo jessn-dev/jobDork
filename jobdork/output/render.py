@@ -354,6 +354,8 @@ def write_all(rows: list[sqlite3.Row], cfg, report=None) -> list[Path]:
     the page.
     """
     out = Path(cfg.output.dir)
+    # lambda: each writer runs only if its format is asked for; calling them
+    # here would write every format.
     writers = {
         "html": lambda: to_html(rows, out / "index.html", cfg, report),
         "json": lambda: to_json(rows, out / "roles.json"),

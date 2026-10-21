@@ -87,6 +87,7 @@ def load(path: Path | str = BOARDS_FILE) -> list[Board]:
 def save(boards: list[Board], path: Path | str = BOARDS_FILE) -> None:
     """Written sorted by industry then name, so a weekly diff reads as changes."""
     path = Path(path)
+    # lambda: sort key, industry then name, so the file's order is stable.
     ordered = sorted(boards, key=lambda b: (b.industry, b.name.lower(), b.key))
     with path.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=FIELDS, lineterminator="\n")
@@ -113,6 +114,30 @@ def select(cfg: Config, boards: list[Board] | None = None) -> list[Board]:
             if b.platform in readable
             and (not countries or countries.intersection(b.countries))
             and (not industries or b.industry in industries)]
+
+
+def quick(cfg: Config, count: int,
+          boards: list[Board] | None = None) -> set[tuple[str, str]]:
+    """Keys of `count` boards for a first, quick scan: taken in turn from each
+    industry, so a search across every industry samples all of them rather
+    than the alphabet's first, and the smallest boards first in each. A board
+    is read a page at a time, paced per host, so one with 2,000 jobs took over
+    three minutes alone; the big ones are left to the background scan."""
+    by_industry: dict[str, list[Board]] = {}
+    # lambda: sort key, fewest jobs first; an unknown count (0) sorts last.
+    smallest = sorted(select(cfg, boards), key=lambda b: b.jobs or 10**9)
+    for board in smallest:
+        by_industry.setdefault(board.industry, []).append(board)
+    queues = list(by_industry.values())
+    picked: list[tuple[str, str]] = []
+    while queues and len(picked) < count:
+        for q in list(queues):
+            if len(picked) >= count:
+                break
+            picked.append(q.pop(0).key)
+            if not q:
+                queues.remove(q)
+    return set(picked)
 
 
 def companies(cfg: Config, boards: list[Board] | None = None) -> list[Company]:

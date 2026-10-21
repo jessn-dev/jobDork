@@ -4,6 +4,7 @@ jobdork.cli
 The command line. Everything the dashboard can do has a command here, and the
 dashboard is a convenience rather than the product.
 
+    jobdork setup                    first-run questions, as the dashboard asks them
     jobdork scan                     read the sources, screen, store
     jobdork list --new               what appeared since the last scan
     jobdork add <url>                fetch one posting into the database
@@ -64,10 +65,21 @@ RECORDED = ("scan", "enrich", "check", "judge", "rescreen", "generate",
             "letter", "review", "tailor")
 
 
-def _load(args) -> config.Config:
-    cfg = config.load(getattr(args, "config", "") or "")
+def _load(args, first_run: bool = False) -> config.Config:
+    """The config, with command-line overrides applied.
+
+    `first_run` is for the commands that do setup: they start without a
+    config file, and with one only partly set up. Every other command needs
+    setup finished.
+    """
+    cfg = config.load(getattr(args, "config", "") or "", require=not first_run)
+    if not first_run:
+        config.require_set_up(cfg)
     for warning in cfg.warnings:
         print(f"warning: {warning}", file=sys.stderr)
+    # A scan from the terminal shows its warnings on the Activity page too.
+    from .core import telemetry
+    telemetry.capture_logs(cfg.db_path)
 
     radius = getattr(args, "radius", None)
     if radius is not None and radius != "exact":
@@ -136,6 +148,8 @@ def cmd_scan(args) -> int:
     with Store(cfg.db_path) as store:
         report = scan_mod.run(
             cfg, store, limit=args.limit,
+            # lambda: scan.run calls progress(line) with one argument; this
+            # indents it for the terminal, and --quiet passes None instead.
             progress=(lambda line: _say(f"  {line}")) if not args.quiet else None,
         )
         print()
@@ -724,10 +738,486 @@ def cmd_prune(args) -> int:
 def cmd_serve(args) -> int:
     from .web import serve as serve_mod
 
-    cfg = _load(args)
+    cfg = _load(args, first_run=True)
     return serve_mod.serve(cfg, port=args.port,
                            open_browser=not args.no_open,
                            token=args.token)
+
+
+def cmd_setup(args) -> int:
+    """First-run questions in the terminal, the same steps as the dashboard's."""
+    from .core import setup
+
+    cfg = _load(args, first_run=True)
+    from .core import telemetry
+    telemetry.record_calls_to(cfg.db_path)     # the AI step's test, its suggestions
+    if not cfg.setup_step:
+        print(f"Already set up: {cfg.path}. Change settings in the dashboard "
+              "(`jobdork serve`) or in that file.")
+        return 0
+    steps = {"welcome": _setup_welcome, "resume": _setup_resume, "ai": _setup_ai,
+             "search": _setup_search, "where": _setup_where, "pay": _setup_pay,
+             "scan": _setup_scan}
+    while cfg.setup_step in steps:
+        cfg = steps[cfg.setup_step](cfg)
+        if cfg is None:
+            print("\nStopped. Run `jobdork setup` again to carry on from here.")
+            return 0
+    if cfg.setup_step:                     # a step only the browser asks
+        print(f"\nNext: {setup.title(cfg.setup_step)}. Carry on in the browser "
+              "with `jobdork serve`.")
+    return 0
+
+
+def _setup_welcome(cfg):
+    from .core import setup
+
+    print("Welcome to jobdork. It reads job boards and employers' own "
+          "boards,\nscreens every post against what you ask for, and "
+          "keeps the ones that pass.\n")
+    print("Setup asks, one step at a time:")
+    for _name, label in setup.STEPS[1:]:
+        print(f"  {label}")
+    print("\nEach answer is saved as you go; stop any time and run "
+          "`jobdork setup` again to carry on.")
+    if not _yes("Start?"):
+        return None
+    cfg = setup.write(cfg.path, {"setup_step": setup.next_step("welcome")})
+    print(f"saved: {cfg.path}")
+    return cfg
+
+
+def _setup_resume(cfg):
+    """Ask for the resume until one reads, then show what was read."""
+    from .core import setup
+    from .search import resume as resume_mod
+    from .web import api
+
+    print(f"\n── {setup.title('resume')} ──")
+    print("jobdork scores every job post against your resume, and the AI reads "
+          "it to suggest\nwhat to search for. It stays on this computer.")
+    while True:
+        parsed = None
+        if cfg.resume_path:
+            try:
+                parsed = resume_mod.load(cfg.resume_path)
+            except resume_mod.ResumeError as exc:
+                print(f"\nThe resume set before no longer reads: {exc}")
+        if parsed:
+            chars = len(parsed.text)
+            years = resume_mod.years_claimed(parsed.text)
+            print(f"\nRead {Path(cfg.resume_path).name}: {chars:,} characters"
+                  + (f", {years} years of experience claimed" if years else ""))
+            note = setup.resume_note(chars)
+            if note:
+                print(f"warning: {note}")
+            if parsed.skills:
+                print("Skills: " + ", ".join(
+                    resume_mod.skill_name(s) for s in sorted(parsed.skills)))
+            print("Start of the text read:\n")
+            print("  " + parsed.text[:600].strip().replace("\n", "\n  ") + " …\n")
+            if _yes("Use this resume?"):
+                return setup.write(cfg.path, {"setup_step": setup.next_step("resume")})
+        try:
+            raw = input("Path to your resume (PDF, Word, Markdown or text), "
+                        "blank to stop: ").strip().strip("'\"")
+        except EOFError:
+            return None
+        if not raw:
+            return None
+        source = Path(raw).expanduser()
+        if not source.is_file():
+            print(f"No file at {source}.")
+            continue
+        if source.stat().st_size > api.MAX_RESUME_BYTES:
+            print(f"Not used: over the {api.MAX_RESUME_BYTES // 1_000_000}MB limit.")
+            continue
+        try:
+            saved = api.save_resume(cfg, source.name, source.read_bytes())
+        except api.ApiError as exc:
+            print(f"Not used: {exc}")
+            continue
+        cfg = setup.write(cfg.path, {"resume_path": saved["path"]})
+
+
+def _setup_ai(cfg):
+    """Choose a model and prove it answers, or skip: scanning works without."""
+    from .ai import llm
+    from .core import setup
+
+    print(f"\n── {setup.title('ai')} ──")
+    print("A model reads each job post against your resume, suggests what to "
+          "search for,\nand drafts cover letters. Scanning works without it; "
+          "skip now and set it up\nlater on the dashboard's AI page.\n")
+    names = list(llm.PROVIDERS)
+    for i, name in enumerate(names, 1):
+        cost = "on this computer, free" if name == "ollama" else "spends tokens on your key"
+        print(f"  {i}. {llm.PROVIDERS[name]} ({cost})")
+    skip = {"setup_step": setup.next_step("ai")}
+    while True:
+        pick = _pick("Which one? Number, or blank to skip for now: ", len(names))
+        if pick is None:
+            return setup.write(cfg.path, skip)
+        provider = names[pick]
+        url = cfg.llm.ollama_url or llm.DEFAULT_OLLAMA_URL
+        if provider == "ollama":
+            if config.in_container() and "localhost" in url:
+                print("Inside Docker, Ollama on this computer is at "
+                      f"{llm.OLLAMA_FROM_DOCKER}")
+            url = _ask(f"Ollama address [{url}]: ") or url
+        elif not llm.key_for(provider)[0]:
+            # A terminal run ends, so there is no memory to hold a key in.
+            env = llm.ENV_KEYS[provider][0]
+            print(f"No {llm.PROVIDERS[provider]} key found. Put {env}=<your key> "
+                  "in .env (or the environment) and run `jobdork setup` again, "
+                  "or type the key in the browser with `jobdork serve`.")
+            continue
+        try:
+            models = llm.list_models(llm.Settings(provider=provider, ollama_url=url))
+        except llm.LLMError as exc:
+            print(f"Could not list models: {exc}")
+            continue
+        if not models:
+            print("No models to choose from"
+                  + (" (pull one first: ollama pull gemma3)" if provider == "ollama" else ""))
+            continue
+        for i, name in enumerate(models[:20], 1):
+            print(f"  {i}. {name}")
+        chosen = _pick("Model number: ", min(len(models), 20))
+        if chosen is None:
+            continue
+        cfg = setup.write(cfg.path, {"llm": {"provider": provider,
+                                              "model": models[chosen],
+                                              "ollama_url": url}})
+        print("Asking the model…")
+        try:
+            answer = llm.ping(llm.Settings.from_config(cfg))
+        except llm.LLMError as exc:
+            print(f"It did not answer: {exc}")
+            continue
+        print(f"{answer['model']} answered in {answer['seconds']}s. Each scan will "
+              f"have it read the {setup.JUDGE_TOP} best new job posts against your "
+              "resume (change it on the AI page).")
+        return setup.write(cfg.path, {**skip, "llm": {"judge_on_scan": True,
+                                                       "judge_top": setup.JUDGE_TOP}})
+
+
+def _setup_search(cfg):
+    """Titles, titles to keep out, industries, dealbreakers: suggested, then ticked."""
+    from .ai import llm
+    from .core import setup
+    from .web import api
+
+    print(f"\n── {setup.title('search')} ──")
+    choices = api.setup_choices(cfg)
+    chosen = choices["chosen"]
+    got = {"titles": [], "exclude": [], "industries": [], "dealbreakers": []}
+    if chosen["titles"]:
+        got = {k: list(chosen[k]) for k in got}
+    elif llm.Settings.from_config(cfg).problem():
+        print("No AI set up, so type the job titles you want.")
+    else:
+        said = []
+
+        def stage(fraction, label):
+            if label not in said and label != "Done":
+                said.append(label)
+                print(f"  {round(fraction * 100):3}%  {label}…")
+        try:
+            got = api.setup_suggest(cfg, progress=stage)
+            print("Suggested from your resume:")
+        except api.ApiError as exc:
+            print(f"The AI could not suggest anything ({exc}). Type them yourself.")
+
+    titles = _keep("Job titles to search for", got["titles"])
+    while not titles:
+        titles = _added("Give at least one job title, comma separated: ")
+        if not titles and not _ask_more():
+            return None
+    exclude = _keep("Never show these titles", got["exclude"])
+    creds = _keep("Your certifications and licenses (an advert's are checked "
+                  "against these)",
+                  chosen["credentials"] or choices["credentials_found"], lower=False)
+
+    industries = choices["industries"]
+    print("\nIndustries: jobdork also reads employers' own job boards in these. "
+          "None reads every one.")
+    print("  " + ", ".join(industries))
+    default = ", ".join(got["industries"])
+    raw = _ask(f"Industries, comma separated [{default or 'every industry'}]: ")
+    picked = [i.strip().lower() for i in raw.split(",") if i.strip()] if raw \
+        else list(got["industries"])
+    unknown = [i for i in picked if i not in industries]
+    if unknown:
+        print(f"Not an industry jobdork knows, left out: {', '.join(unknown)}")
+    picked = [i for i in picked if i in industries]
+
+    catalog = choices["dealbreakers"]
+    print("\nDealbreakers: words in a job post you would rather not see.")
+    for i, d in enumerate(catalog, 1):
+        mark = " (suggested)" if d["name"] in got["dealbreakers"] else ""
+        on = " [on]" if d["name"] in chosen["dealbreakers"] else ""
+        effect = "hides the post" if d["hard"] else "lowers its score"
+        print(f"  {i:2}. {d['name']}: {effect}{mark}{on}")
+    raw = _ask("Numbers to turn on, comma separated (blank for none): ")
+    nums = {int(n) for n in re.findall(r"\d+", raw)}
+    deals = [{k: d[k] for k in ("name", "words", "pattern", "hard") if k in d}
+             for i, d in enumerate(catalog, 1)
+             if i in nums or (not raw and d["name"] in chosen["dealbreakers"])]
+
+    return setup.write(cfg.path, {
+        "titles_include": titles, "titles_exclude": exclude,
+        "industries": picked, "dealbreakers": deals, "credentials": creds,
+        "setup_step": setup.next_step("search")})
+
+
+def _setup_where(cfg):
+    """Country, region, city; radius; work arrangements; countries to keep."""
+    from .core import setup
+    from .search import geo
+
+    print(f"\n── {setup.title('where')} ──")
+    print("Where you are, how far you would travel to an office, and which kinds "
+          "of work to keep.\nRemote jobs are kept whatever the distance.")
+    countries = geo.picker_countries()
+    country = _match_place("Country (name or code): ", countries)
+    if country is None:
+        return None
+    regions = geo.picker_regions(country["code"])
+    region = {"code": "", "name": ""}
+    if regions["regions"]:
+        label = regions["label"].lower()
+        region = _match_place(f"{regions['label']} (name or code, blank for any "
+                              f"{label}): ", regions["regions"], optional=True) or region
+    city = ""
+    while not city:
+        typed = _ask("City (start of its name): ")
+        if not typed:
+            return None
+        found = geo.picker_cities(country["code"], region["code"], typed, limit=10)
+        exact = [c for c in found if c.lower() == typed.lower()]
+        if exact or len(found) == 1:
+            city = (exact or found)[0]
+        elif found:
+            for i, name in enumerate(found, 1):
+                print(f"  {i}. {name}")
+            pick = _pick("Which one? Number, or blank to type again: ", len(found))
+            city = found[pick] if pick is not None else ""
+        else:
+            print("Not in the place list; try a bigger city nearby.")
+
+    units = geo.default_units([country["code"]])
+    radius = _ask(f"How far would you travel, in {units}? A number, or 'exact' for "
+                  "your city only [25]: ").lower() or "25"
+    while radius != "exact" and not re.fullmatch(r"\d+(\.\d+)?", radius):
+        radius = _ask("A number, or 'exact': ").lower() or "25"
+    modes = [m for m in re.split(r"[,\s]+", _ask(
+        "Keep which: remote, hybrid, office (comma separated, blank for all "
+        "three): ").lower()) if m in config.WORK_MODES]
+
+    print(f"\nJob posts are kept from {country['name']}. A remote job for an "
+          "employer elsewhere\n(say, US employers while living in the Philippines) "
+          "needs that country too.")
+    codes = {c["code"] for c in countries}
+    extra = [c.strip().upper() for c in _ask(
+        "Other countries, as two-letter codes (comma separated, blank for "
+        "none): ").split(",") if c.strip()]
+    unknown = [c for c in extra if c not in codes]
+    if unknown:
+        print(f"Not a country code jobdork knows, left out: {', '.join(unknown)}")
+    keep = list(dict.fromkeys([country["code"], *(c for c in extra if c in codes)]))
+
+    return setup.write(cfg.path, {
+        "anchor_pick": {"country": country["code"], "region": region["code"],
+                        "city": city},
+        "radius": radius if radius == "exact" else float(radius), "units": units,
+        "work_modes": modes, "countries": keep,
+        # Pay is asked next, in the country's currency where a floor can use it.
+        **({"currency": country["currency"]}
+           if country["currency"] in config.CURRENCIES else {}),
+        "setup_step": setup.next_step("where")})
+
+
+def _setup_pay(cfg):
+    """An optional yearly salary floor, in a currency a floor can use."""
+    from .core import setup
+
+    print(f"\n── {setup.title('pay')} ──")
+    print("Optional. A job post is hidden only when it states a salary and even "
+          "the top of it\nis below this; most state none, and those are kept. "
+          "A yearly amount: hourly\nrates in posts are turned into yearly pay "
+          "first (for an hourly rate, multiply by 2,080).")
+    payload = {}
+    while True:
+        raw = _ask("Lowest yearly pay you would take (blank for none): ")
+        amount = raw.replace(",", "").strip()
+        if not amount:
+            payload["salary_floor"] = None
+            break
+        if re.fullmatch(r"\d+(\.\d+)?", amount):
+            payload["salary_floor"] = float(amount)
+            break
+        print("A number, such as 65000.")
+    if payload["salary_floor"] is not None:
+        currency = _ask(f"Currency [{cfg.salary.currency}]: ").upper() or cfg.salary.currency
+        while currency not in config.CURRENCIES:
+            currency = _ask(f"One of {', '.join(config.CURRENCIES)}: ").upper() \
+                or cfg.salary.currency
+        payload["currency"] = currency
+    cfg = setup.write(cfg.path, payload)
+    _setup_sources(cfg)                 # the same step: what will be searched
+    return setup.write(cfg.path, {"setup_step": setup.next_step("pay")})
+
+
+def _setup_scan(cfg):
+    """The quick first scan, which finishes setup, then the rest if wanted."""
+    from .core import setup, telemetry
+    from .web import api
+
+    print(f"\n── {setup.title('scan')} ──")
+    print("How old a job post do you still want to see? Older ones are hidden "
+          "from Job posts\non the dashboard, never deleted (freshness.show_days). "
+          "After three weeks a post\nis often being interviewed for already.")
+    while True:
+        raw = _ask("Days, or 0 for any age [30]: ").strip() or "30"
+        if raw.isdigit():
+            cfg = setup.write(cfg.path, {"show_days": int(raw)})
+            break
+        print("A whole number of days, such as 30.")
+    print("\njobdork reads the job boards now: first the keyword sources and a "
+          "sample of the\nemployer boards, which takes a minute or two.")
+    if not _yes("Start?"):
+        return None
+    (name, first), (rest_name, rest) = api.first_scan_jobs(cfg)
+    try:
+        with telemetry.job(cfg.db_path, name, "terminal"):
+            summary = first(_say)
+            telemetry.summary(summary)
+    except Exception as exc:
+        print(f"The scan failed: {exc}. Run `jobdork setup` to try again.")
+        return None
+    print(f"\n{summary}\nSet up. `jobdork list --new` shows what was found, "
+          "`jobdork serve` the dashboard.")
+    if _yes("\nRead the rest of the employer boards now? It takes several "
+            "minutes; `jobdork scan` does it later."):
+        with telemetry.job(cfg.db_path, rest_name, "terminal"):
+            summary = rest(_say)
+            telemetry.summary(summary)
+        print(summary)
+    return config.load(cfg.path)
+
+
+def _setup_sources(cfg) -> None:
+    """What a scan reads, and the keyed sources your countries can use."""
+    import getpass
+
+    from .web import api
+
+    print("\nWhat will be searched")
+    d = api.setup_sources(cfg)
+    print("Every scan reads these, then keeps only the job posts that pass what "
+          "you chose:")
+    for x in d["searched"]:
+        print(f"  {x['name']}: {x['what']}")
+    b = d["boards"]
+    print(f"  Employers' own job boards: {b['count']} built in, for "
+          f"{', '.join(b['industries']) or 'every industry'} in "
+          f"{', '.join(b['countries']) or 'every country'}")
+    # Only the ones your countries can use: USAJOBS with the US among them,
+    # Adzuna where it covers one of them.
+    for k in [k for k in d["keyed"] if k["applies"]]:
+        if k["ready"]:
+            print(f"  {k['label']}: ready.")
+            continue
+        print(f"\nUse {k['label']}? {k['offer']} It needs a free key: {k['signup']}")
+        if not _yes(f"Add a {k['label']} key now?", default=False):
+            continue
+        values = {}
+        for f in k["fields"]:
+            ask = _ask if "EMAIL" in f["name"] else getpass.getpass
+            try:
+                values[f["name"]] = ask(f"{k['label']} {f['label']}: ").strip()
+            except EOFError:
+                values[f["name"]] = ""
+        try:
+            api.setup_keys(cfg, values)
+            print(f"  {k['label']}: saved.")
+        except api.ApiError as exc:
+            print(f"  {k['label']}: not saved ({exc}).")
+
+
+def _match_place(question: str, rows: list[dict], optional: bool = False):
+    """A row whose code or name is what was typed; a short list when unsure."""
+    while True:
+        typed = _ask(question).strip()
+        if not typed:
+            return None
+        low = typed.lower()
+        exact = [r for r in rows if low in (r["code"].lower(), r["name"].lower())]
+        if exact:
+            return exact[0]
+        near = [r for r in rows if r["name"].lower().startswith(low)][:10]
+        if len(near) == 1:
+            return near[0]
+        if near:
+            for i, r in enumerate(near, 1):
+                print(f"  {i}. {r['name']}")
+            pick = _pick("Which one? Number, or blank to type again: ", len(near))
+            if pick is not None:
+                return near[pick]
+        else:
+            print("Not found." + (" Blank skips it." if optional else ""))
+
+
+def _keep(label: str, items: list[str], lower: bool = True) -> list[str]:
+    """Show a list, let numbers drop entries, then let more be added.
+
+    `lower` for titles, matched in lower case; a credential keeps its capitals.
+    """
+    print(f"\n{label}:")
+    for i, item in enumerate(items, 1):
+        print(f"  {i}. {item}")
+    if items:
+        raw = _ask("Enter to keep all, or numbers to drop (e.g. 2,4): ")
+        drop = {int(n) for n in re.findall(r"\d+", raw)}
+        items = [t for i, t in enumerate(items, 1) if i not in drop]
+    return list(dict.fromkeys(items + _added("Add more, comma separated "
+                                             "(blank for none): ", lower)))
+
+
+def _added(question: str, lower: bool = True) -> list[str]:
+    return [t.strip().lower() if lower else t.strip()
+            for t in _ask(question).split(",") if t.strip()]
+
+
+def _ask_more() -> bool:
+    return _yes("A search needs a job title. Try again?")
+
+
+def _ask(question: str) -> str:
+    try:
+        return input(question).strip()
+    except EOFError:
+        return ""
+
+
+def _pick(question: str, count: int) -> int | None:
+    """A 0-based choice from a numbered list, or None for blank."""
+    while True:
+        raw = _ask(question)
+        if not raw:
+            return None
+        if raw.isdigit() and 1 <= int(raw) <= count:
+            return int(raw) - 1
+        print(f"Give a number from 1 to {count}.")
+
+
+def _yes(question: str, default: bool = True) -> bool:
+    try:
+        answer = input(f"{question} {'[Y/n]' if default else '[y/N]'} ").strip().lower()
+    except EOFError:
+        return False
+    return answer in ("y", "yes") or (default and answer == "")
 
 
 def directory_line(cfg) -> str:
@@ -767,7 +1257,8 @@ def cmd_sources(args) -> int:
             print(f"  {name:16} {reason}")
         if any(not getattr(cfg.sources, f"{n}_ready")() for n in dormant
                if hasattr(cfg.sources, f"{n}_ready")):
-            print("\nKeys go in .env, never config.yaml.")
+            print("\nKeys go in .env, or are pasted in setup (kept in "
+                  f"data/{config.SOURCE_KEYS_FILE}); never in config.yaml.")
     return 0
 
 
@@ -989,6 +1480,10 @@ def build_parser() -> argparse.ArgumentParser:
                                               "(default ~/Documents/job-applications)")
     p.add_argument("-q", "--quiet", action="store_true")
     p.set_defaults(func=cmd_review)
+
+    p = subs.add_parser("setup", help="first-run questions: resume, what and where "
+                                      "you are looking, then a first scan")
+    p.set_defaults(func=cmd_setup)
 
     p = subs.add_parser("serve", parents=[over], help="the dashboard, at 127.0.0.1:8765")
     p.add_argument("--port", type=int, default=8765)

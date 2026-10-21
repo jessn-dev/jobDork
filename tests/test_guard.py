@@ -86,6 +86,61 @@ def test_a_failed_check_is_reported_not_raised():
     assert report.to_dict()["rate"] is None
 
 
+def test_a_second_model_checks_when_one_is_chosen_and_ready():
+    seen = []
+
+    def fake(settings, *a, **k):
+        seen.append(settings.model)
+        return ({"claims": ["Seven years of Python"]} if len(seen) == 1 else
+                {"results": [{"claim": "Seven years of Python", "verdict": "supported",
+                              "source": "resume", "quote": "Seven years of Python"}]})
+
+    original = guard.complete_json
+    guard.complete_json = fake
+    try:
+        first = _Ready("ollama", "writer", checker=_Ready("ollama", "checker"))
+        report = guard.check(first, "text", {"resume": RESUME})
+    finally:
+        guard.complete_json = original
+    assert seen == ["checker", "checker"]
+    assert report.second and report.model.endswith("· checker") and not report.note
+
+
+def test_a_second_model_that_cannot_be_called_falls_back_and_says_so():
+    original = guard.complete_json
+    guard.complete_json = _fake([{"claims": []}])
+    try:
+        # No key held for it, so Settings.problem() names that.
+        first = _Ready("ollama", "writer", checker=llm.Settings("anthropic", "x"))
+        report = guard.check(first, "text", {"resume": RESUME})
+    finally:
+        guard.complete_json = original
+    assert report.checked and not report.second
+    assert report.note.startswith("second model ") and "x not used" in report.note
+
+
+def test_two_scores_far_apart_are_marked_as_a_disagreement():
+    from jobdork.ai import judging
+
+    original = judging.judge
+    try:
+        judging.judge = lambda s, role, resume: {"score": 40, "verdict": "weak",
+                                                 "summary": "thin match"}
+        verdict = {"score": 85, "verdict": "strong"}
+        judging.second_opinion(_Ready("ollama", "a", checker=_Ready("ollama", "b")),
+                               {}, RESUME, verdict)
+        assert verdict["disagree"] and verdict["second"]["score"] == 40
+        close = {"score": 50, "verdict": "possible"}
+        judging.second_opinion(_Ready("ollama", "a", checker=_Ready("ollama", "b")),
+                               {}, RESUME, close)
+        assert not close["disagree"]
+        alone = {"score": 85}
+        judging.second_opinion(_Ready("ollama", "a"), {}, RESUME, alone)
+        assert "second" not in alone
+    finally:
+        judging.judge = original
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

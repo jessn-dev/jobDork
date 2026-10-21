@@ -78,8 +78,8 @@ def test_an_old_database_is_upgraded_without_losing_anything():
         _v1_database(path)
 
         with Store(path) as store:
-            assert store.applied_migrations == [2, 3, 4, 5, 6, 7, 8], store.applied_migrations
-            assert migrations.current_version(store.conn) == 8
+            assert store.applied_migrations == [2, 3, 4, 5, 6, 7, 8, 9, 10], store.applied_migrations
+            assert migrations.current_version(store.conn) == 10
             assert {"fit", "score_parts", "llm_score", "listing_state"} \
                 <= migrations._columns(store.conn, "roles")
 
@@ -95,7 +95,7 @@ def test_migrating_twice_does_nothing_the_second_time():
         path = Path(tmp) / "old.db"
         _v1_database(path)
         with Store(path) as store:
-            assert store.applied_migrations == [2, 3, 4, 5, 6, 7, 8]
+            assert store.applied_migrations == [2, 3, 4, 5, 6, 7, 8, 9, 10]
         with Store(path) as store:
             assert store.applied_migrations == [], "already at the version"
 
@@ -200,6 +200,31 @@ def test_resume_loses_its_accents_in_what_jobdork_wrote_but_not_in_adverts():
         assert conn.execute("SELECT job, last_line FROM activity").fetchone() == (
             "resume review", "4 resume points")
         conn.close()
+
+
+def test_a_new_database_opened_by_many_requests_at_once_opens_for_all():
+    """A first dashboard load: several requests create the same new file."""
+    import tempfile
+    import threading
+
+    from jobdork.db.store import Store
+    for _ in range(20):
+        with tempfile.TemporaryDirectory() as tmp:
+            errors, start = [], threading.Barrier(8)
+
+            def open_it(path=Path(tmp) / "new.db", start=start, errors=errors):
+                start.wait()
+                try:
+                    with Store(path):
+                        pass
+                except Exception as exc:
+                    errors.append(exc)
+            threads = [threading.Thread(target=open_it) for _ in range(8)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+            assert not errors, errors[0]
 
 
 # ── keep this block LAST ───────────────────────────────────────────────────────

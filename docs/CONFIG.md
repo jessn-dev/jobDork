@@ -491,6 +491,7 @@ never by a model.
 | `freshness.older_days` | int | `21` | Up to this: older, risky; beyond it, stale |
 | `freshness.ghost_days` | int | `90` | Beyond this: a ghost listing, dropped. `0` never drops for age |
 | `freshness.points` | map | `{new: 5, older: -5, stale: -15}` | Score points per tier |
+| `freshness.show_days` | int | `0` | Job posts hides posts older than this that you have not acted on; hidden, never deleted, and "show them" brings them back. Setup asks (30 suggested). `0` shows every age. Scanning and scores are unchanged |
 
 **Only a ghost is dropped.** A stale post may be filled or reposted by a
 script, but the job you want most may still be worth a try, so it is marked
@@ -531,6 +532,8 @@ it off a resume you use with a hosted model if that matters to you.
 | `llm.judge_top` | int | `25` | How many a judging run reads, 1 to 500. Bounds what a scan can spend on a paid API |
 | `llm.read_pages` | bool | `false` | When checking postings, ask the model about pages that do not say whether the job is open |
 | `llm.guard` | bool | `true` | Check each verdict and draft for claims the resume and the advert do not support. Two more model calls per output |
+| `llm.checker_provider` | string | empty (none) | A second model that checks the first: `ollama`, `anthropic`, `gemini` or `openai`. It runs the `guard` checks instead of the first model, and scores each judged job post itself; scores 20 or more points apart are marked "models disagree". Never blocks or hides anything. Its key, if it needs one, is held in memory like the first's |
+| `llm.checker_model` | string | empty | The second model's name. Must differ from `llm.model` when the provider is the same |
 
 **Keys are never read from this file.** `llm.key`, `llm.api_key` or
 `llm.token` stops the load with an error rather than a warning. Type a key on
@@ -621,6 +624,7 @@ always wins over the YAML.
 | `GEMINI_API_KEY` or `GOOGLE_API_KEY` | Gemini, from the terminal |
 | `OPENAI_API_KEY` | ChatGPT, from the terminal |
 | `JOBDORK_CONFIG` | Config path override |
+| `JOBDORK_FEEDBACK_URL` | The Feedback page's relay (an `https://` address; see [relay/feedback](../relay/feedback/README.md)). Without it, Send is off and a report opens as a GitHub issue or is saved as a file. No Resend or GitHub key is ever read by the app for this |
 | `JOBDORK_ALLOW_HOSTS` | The dashboard: addresses besides the machine itself it may be opened by, comma separated (a NAS's network address, its Tailscale name); a wildcard is refused. See [DEPLOY.md](DEPLOY.md) |
 | `JOBDORK_DOCS_DIR` | Where the uploaded resume and generated documents are kept. The Docker image sets `/app/data/documents`, inside the kept volume |
 | `JOBDORK_TEMP_DOCS` | Opt-in instead: a temporary folder for the resume and documents, emptied when the dashboard starts and stops; wins over `JOBDORK_DOCS_DIR` |

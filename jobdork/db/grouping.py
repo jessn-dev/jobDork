@@ -51,6 +51,8 @@ def _sql_lower(text: str) -> str:
 
 def key_of(role) -> str:
     """key_sql() for a Role not yet stored, after screening resolved its place."""
+    # lambda: a one-line helper matching SQLite's trim(), used for each field
+    # below.
     trim = lambda t: (t or "").strip(" ")  # noqa: E731  sqlite trim(): spaces only
     if role.work_mode == "remote":
         place = "remote"

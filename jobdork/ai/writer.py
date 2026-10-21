@@ -273,6 +273,8 @@ def _found(text: str, source: str) -> bool:
     """In the resume, whatever its spacing, case or PDF ligatures."""
     import unicodedata
 
+    # lambda: a one-line normaliser applied to both sides of the comparison
+    # below.
     fold = lambda t: _norm(unicodedata.normalize("NFKC", t or ""))  # noqa: E731
     return bool(fold(text)) and fold(text) in fold(source)
 
@@ -300,11 +302,12 @@ def guard_gate(report: guard.GuardReport) -> gates_mod.Gate:
         return gates_mod.Gate(GUARD_GATE, passed=True,
                               detail=f"not checked: {report.error or 'no model'}")
     bad = report.unsupported
+    by = f" (checked by {report.model}, a second model)" if report.second else ""
     return gates_mod.Gate(
         GUARD_GATE, passed=not bad,
         detail=(f"{len(bad)} of {len(report.claims)} claims not supported by "
-                "your resume or the advert" if bad
-                else f"all {len(report.claims)} claims supported"),
+                f"your resume or the advert{by}" if bad
+                else f"all {len(report.claims)} claims supported{by}"),
         items=[f"{c.verdict}: {c.claim}" for c in bad])
 
 

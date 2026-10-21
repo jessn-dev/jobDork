@@ -43,12 +43,13 @@ class ScanReport:
     blocked_hosts: list[str] = field(default_factory=list)
 
     def lines(self) -> list[str]:
-        out = [result.summary() for result in self.per_source]
+        out = self.source_lines()
         out.append(
             f"fetched {self.fetched}, kept {self.kept}, "
             f"stored {self.stored} ({self.newly_seen} new)"
         )
         if self.dropped:
+            # lambda: sort key, (reason, count) pairs by count, most first.
             top = sorted(self.dropped.items(), key=lambda kv: -kv[1])[:6]
             out.append("dropped: " + "; ".join(f"{n}x {why}" for why, n in top))
         if self.previously_deleted:
@@ -61,9 +62,53 @@ class ScanReport:
             )
         return out
 
+    def source_lines(self) -> list[str]:
+        """One line per kind of source, however many boards of it were read.
 
-def _jobs_for(cfg: Config) -> list[tuple[str, dict]]:
-    """Every (source, kwargs) pair this config asks for.
+        A full scan reads hundreds of employer boards, mostly of a few kinds;
+        one line each made the run's summary a wall of text. A kind read
+        once keeps its own line, which says more (why it skipped, say).
+        Each board's own line still goes to progress as it finishes.
+        """
+        by_source: dict[str, list[fetch.SourceResult]] = {}
+        for result in self.per_source:
+            by_source.setdefault(result.source, []).append(result)
+        out = []
+        for source, results in by_source.items():
+            if len(results) == 1:
+                out.append(results[0].summary())
+                continue
+            ran = [r for r in results if not r.skipped]
+            parts = [f"{source}: {sum(len(r.roles) for r in ran)} roles "
+                     f"from {len(ran)} boards"]
+            if len(ran) < len(results):
+                parts.append(f"{len(results) - len(ran)} skipped")
+            suspect = sum(r.suspect for r in ran)
+            if suspect:
+                parts.append(f"{suspect} SUSPECT (answered empty)")
+            failed = sum(bool(r.errors) for r in ran)
+            if failed:
+                parts.append(f"{failed} with errors")
+            out.append(", ".join(parts))
+        return out
+
+    def counts_by_source(self) -> dict[str, int]:
+        """Job posts per kind of source, summed over its boards."""
+        counts: dict[str, int] = {}
+        for result in self.per_source:
+            counts[result.source] = counts.get(result.source, 0) + len(result.roles)
+        return counts
+
+
+# A first scan's quick part: the keyword sources, your own boards, and this
+# many of the smallest built-in boards (directory.quick), so the first job
+# posts arrive within a few minutes. The rest follow as a scan of their own.
+QUICK_BOARDS = 8
+PARTS = ("all", "quick", "rest")
+
+
+def _jobs_for(cfg: Config, part: str = "all") -> list[tuple[str, dict]]:
+    """Every (source, kwargs) pair this config asks for, or one part of them.
 
     Keyword sources run once. Employer boards run once per company, because
     each needs its own token: yours from `sources.companies`, and the
@@ -72,18 +117,25 @@ def _jobs_for(cfg: Config) -> list[tuple[str, dict]]:
     jobs: list[tuple[str, dict]] = []
     keyword_sources = ("workable", "kalibrr", "himalayas", "usajobs", "adzuna")
 
-    for name in cfg.active_sources():
-        if name in keyword_sources:
-            jobs.append((name, {}))
+    if part != "rest":
+        for name in cfg.active_sources():
+            if name in keyword_sources:
+                jobs.append((name, {}))
 
-    # Dormant keyed sources still get a turn so they can say why they skipped.
-    for name in cfg.dormant_sources():
-        jobs.append((name, {}))
+        # Dormant keyed sources still get a turn so they can say why they skipped.
+        for name in cfg.dormant_sources():
+            jobs.append((name, {}))
 
     # Your own boards, then the ones jobdork ships with (data/boards.csv)
     # for your countries and industries.
+    own = {(c.platform.lower(), c.token.lower()) for c in cfg.sources.companies}
+    sample = directory.quick(cfg, QUICK_BOARDS) if part != "all" else set()
     for company in directory.companies(cfg):
-        if company.platform in cfg.sources.keyless:
+        if company.platform not in cfg.sources.keyless:
+            continue
+        key = (company.platform.lower(), company.token.lower())
+        early = key in own or key in sample
+        if part == "all" or (part == "quick") == early:
             jobs.append((company.platform,
                          {"token": company.token, "company": company.name}))
 
@@ -107,8 +159,11 @@ def _load_resume(cfg: Config):
 
 
 def run(cfg: Config, store: Store, limit: int = 0,
-        progress=None) -> ScanReport:
-    """Fetch, screen and store. `limit` caps roles kept, for a quick look."""
+        progress=None, part: str = "all") -> ScanReport:
+    """Fetch, screen and store. `limit` caps roles kept, for a quick look.
+
+    `part` is "all", or a first scan's "quick" part and the "rest" after it.
+    """
     report = ScanReport()
     fetcher = Fetcher(
         user_agent=cfg.fetch.user_agent,
@@ -123,10 +178,11 @@ def run(cfg: Config, store: Store, limit: int = 0,
         )
 
     cv = _load_resume(cfg)
-    jobs = _jobs_for(cfg)
+    jobs = _jobs_for(cfg, part)
     run_id = store.start_run()
     deleted = store.deleted_uids()
     keepers: list[Role] = []
+    left_out: list[tuple[Role, str, str]] = []      # (role, rule, reason)
 
     telemetry.tick(total=len(jobs))
     sources_done = 0
@@ -147,6 +203,14 @@ def run(cfg: Config, store: Store, limit: int = 0,
                 log.exception("%s raised", name)
                 result = fetch.SourceResult(source=name, errors=[str(exc)])
             report.per_source.append(result)
+            if result.skipped.startswith("no key"):
+                # A keyed source you chose, with no key to run on. Other skips
+                # (a country it does not serve) are by design, not a warning.
+                log.warning("%s: skipped (%s)", name, result.skipped)
+            if result.errors:
+                # Logged so the Activity page shows it as a warning, not as
+                # one more progress line.
+                log.warning("%s: %s", name, "; ".join(map(str, result.errors[:3])))
             sources_done += 1
             telemetry.tick(done=sources_done)
             if progress:
@@ -178,13 +242,20 @@ def run(cfg: Config, store: Store, limit: int = 0,
                 else:
                     why = verdict.reasons[0] if verdict.reasons else "unknown"
                     report.dropped[why] = report.dropped.get(why, 0) + 1
+                    left_out.append((role, verdict.rule, why))
 
+    # lambda: sort key; a role with no score sorts as 0 rather than failing on
+    # None.
     keepers.sort(key=lambda r: r.score or 0, reverse=True)
     if limit:
         keepers = keepers[:limit]
 
     report.kept = len(keepers)
     report.stored, report.newly_seen = store.upsert_many(keepers)
+    # Shown on request in Job posts ("Dropped by your filters"); a post kept
+    # this time is no longer a dropped one.
+    store.forget_dropped(r.uid for r in keepers)
+    store.save_dropped(left_out)
     report.blocked_hosts = sorted(fetcher.blocked_hosts)
 
     store.finish_run(run_id, {
@@ -192,7 +263,16 @@ def run(cfg: Config, store: Store, limit: int = 0,
         "kept": report.kept,
         "stored": report.stored,
         "new": report.newly_seen,
-        "sources": {r.source: len(r.roles) for r in report.per_source},
+        # Summed: many boards share one kind (greenhouse), and keeping the
+        # last board's count made "returned 0" warnings out of busy kinds.
+        "sources": report.counts_by_source(),
+        # Did not run at all (no key, not your countries): not "returned 0".
+        # Only when every board of that kind skipped: one Workday board
+        # skipping says nothing about the other Workday boards.
+        "skipped": sorted({r.source for r in report.per_source}
+                          - {r.source for r in report.per_source if not r.skipped}),
+        # A first scan's two parts, which the Dashboard reads as one scan.
+        "part": part,
     })
     return report
 

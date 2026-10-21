@@ -146,8 +146,9 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
     if not cfg.sources.adzuna_ready():
         return SourceResult(
             source="adzuna",
-            skipped="no ADZUNA_APP_ID / ADZUNA_APP_KEY in .env. "
-                    "Get a free key at https://developer.adzuna.com/signup",
+            skipped="no key. Get a free one at https://developer.adzuna.com/signup "
+                    "and paste it in setup, or set ADZUNA_APP_ID / ADZUNA_APP_KEY "
+                    "in .env",
         )
 
     countries = _indexes(cfg)

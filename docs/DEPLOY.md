@@ -151,8 +151,8 @@ exact image by its digest before you run it.
 **A folder for its files.** Make an empty folder on the NAS, for example
 `docker/jobdork/data`. It holds everything jobdork keeps: the database of job
 posts, `config.yaml`, your resume and your letters. There is no config to
-prepare: on the first start jobdork copies the example the image carries into
-`data/config.yaml`, and the dashboard's settings are saved there. (A
+prepare: on the first start the dashboard opens on setup, and your answers
+are saved to `data/config.yaml`. (A
 `config.yaml` of your own mapped to `/app/config.yaml` is used instead, as
 before.) **Without this folder mapped, everything is deleted with the
 container**; the log and the dashboard say so in red.

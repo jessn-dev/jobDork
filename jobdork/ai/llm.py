@@ -62,6 +62,8 @@ ENV_KEYS = {
     "openai": ("OPENAI_API_KEY",),
 }
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
+# Ollama on the same computer, as a container reaches it (Docker Desktop).
+OLLAMA_FROM_DOCKER = "http://host.docker.internal:11434"
 
 # What each side of a prompt may carry. A local 3B model has a real context
 # budget, and an advert past this length is almost always boilerplate
@@ -170,15 +172,27 @@ class Settings:
     model: str = ""
     ollama_url: str = DEFAULT_OLLAMA_URL
     context: int = DEFAULT_CONTEXT
+    # The second model that checks this one's work (llm.checker_*), or None.
+    checker: Settings | None = None
 
     @classmethod
     def from_config(cls, cfg) -> Settings:
         llm = getattr(cfg, "llm", None)
         if llm is None:
             return cls()
-        return cls(provider=llm.provider, model=llm.model,
-                   ollama_url=llm.ollama_url or DEFAULT_OLLAMA_URL,
-                   context=int(getattr(llm, "context", 0) or DEFAULT_CONTEXT))
+        url = llm.ollama_url or DEFAULT_OLLAMA_URL
+        context = int(getattr(llm, "context", 0) or DEFAULT_CONTEXT)
+        checker = None
+        if getattr(llm, "checker_provider", ""):
+            checker = cls(provider=llm.checker_provider, model=llm.checker_model,
+                          ollama_url=url, context=context)
+        return cls(provider=llm.provider, model=llm.model, ollama_url=url,
+                   context=context, checker=checker)
+
+    def usable_checker(self) -> Settings | None:
+        """The second model, when one is chosen and ready to call."""
+        c = self.checker
+        return c if c is not None and not c.problem() else None
 
     def problem(self) -> str:
         """Why this cannot be used right now, or "" when it can."""
@@ -235,11 +249,13 @@ def redact(text: str) -> str:
 
 def complete_json(settings: Settings, system: str, user: str,
                   schema: dict, max_tokens: int = 2000,
-                  purpose: str = "") -> dict:
+                  purpose: str = "", on_text=None) -> dict:
     """Ask for one JSON object matching `schema`. Raises LLMError.
 
     `purpose` names the call in telemetry (judge, page_read, guard_verify…).
     A hosted model gets the prompt with contact details removed (redact).
+    `on_text`, if given, is called with the answer so far as a local model
+    writes it, for a progress bar; hosted models answer in one piece.
     """
     why = settings.problem()
     if why:
@@ -252,11 +268,19 @@ def complete_json(settings: Settings, system: str, user: str,
 
     started = time.time()
     try:
-        text = call(settings, system, user, schema, max_tokens)
+        if settings.provider == "ollama" and on_text:
+            text = _ollama(settings, system, user, schema, max_tokens, on_text)
+        else:
+            text = call(settings, system, user, schema, max_tokens)
         answer = _parse_object(text)
-    except LLMError:
+    except LLMError as exc:
         telemetry.llm(settings.label, time.time() - started, ok=False,
                       purpose=purpose)
+        # Logged, so the failed call the AI tiles count also has its reason
+        # under Activity's warnings and errors. The messages name a host at
+        # most, never a key.
+        log.warning("AI call failed (%s, %s): %s", settings.label,
+                    purpose or "unnamed", exc)
         raise
     telemetry.llm(settings.label, time.time() - started, ok=True,
                   purpose=purpose)
@@ -306,31 +330,62 @@ def _post(url: str, body: dict, headers: dict, timeout: int) -> dict:
 
 
 def _ollama(s: Settings, system: str, user: str, schema: dict,
-            max_tokens: int) -> str:
+            max_tokens: int, on_text=None) -> str:
     # Roughly 3.5 characters a token for English. A prompt that may not fit
     # is said so in the log; Ollama would otherwise cut it without a word.
     needed = (len(system) + len(user)) // 3 + max_tokens
     if needed > s.context:
         log.warning("prompt of about %d tokens may not fit llm.context %d; "
                     "Ollama drops the start of what does not fit", needed, s.context)
-    data = _post(
-        s.ollama_url.rstrip("/") + "/api/chat",
-        {
-            "model": s.model,
-            "messages": [{"role": "system", "content": system},
-                         {"role": "user", "content": user}],
-            "stream": False,
-            # Thinking models (gemma4) otherwise spend the whole token budget
-            # reasoning and are cut off mid-answer. The schema does the
-            # structuring; non-thinking models accept and ignore this.
-            "think": False,
-            # Ollama constrains decoding to the schema itself.
-            "format": schema,
-            "options": {"temperature": 0, "num_predict": max_tokens,
-                        "num_ctx": s.context},
-        },
-        {}, LOCAL_TIMEOUT)
+    url = s.ollama_url.rstrip("/") + "/api/chat"
+    body = {
+        "model": s.model,
+        "messages": [{"role": "system", "content": system},
+                     {"role": "user", "content": user}],
+        "stream": bool(on_text),
+        # Thinking models (gemma4) otherwise spend the whole token budget
+        # reasoning and are cut off mid-answer. The schema does the
+        # structuring; non-thinking models accept and ignore this.
+        "think": False,
+        # Ollama constrains decoding to the schema itself.
+        "format": schema,
+        "options": {"temperature": 0, "num_predict": max_tokens,
+                    "num_ctx": s.context},
+    }
+    if on_text:
+        return _ollama_stream(url, body, on_text)
+    data = _post(url, body, {}, LOCAL_TIMEOUT)
     return (data.get("message") or {}).get("content", "")
+
+
+def _ollama_stream(url: str, body: dict, on_text) -> str:
+    """The same call, read a line at a time: one JSON object per chunk."""
+    text = ""
+    try:
+        with requests.post(url, json=body, stream=True, timeout=LOCAL_TIMEOUT) as resp:
+            if resp.status_code == 404:
+                raise LLMError("model not found. Pick one from the list")
+            if not resp.ok:
+                raise LLMError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+            for line in resp.iter_lines():
+                if not line:
+                    continue
+                try:
+                    chunk = json.loads(line)
+                except ValueError:
+                    continue
+                if chunk.get("error"):
+                    raise LLMError(str(chunk["error"])[:200])
+                text += (chunk.get("message") or {}).get("content", "")
+                on_text(text)
+                if chunk.get("done"):
+                    break
+    except requests.Timeout:
+        raise LLMError(f"no answer within {LOCAL_TIMEOUT}s") from None
+    except requests.RequestException as exc:
+        raise LLMError(f"could not reach {url.split('/')[2]}: "
+                       f"{type(exc).__name__}") from None
+    return text
 
 
 def _openai(s: Settings, system: str, user: str, schema: dict,

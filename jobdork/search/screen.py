@@ -55,10 +55,18 @@ _NO_SPONSORSHIP = re.compile(
     r"\bno visa sponsorship\b|\bwithout sponsorship\b", re.IGNORECASE)
 
 
+# The rules that can drop a post, in the order they run. Job posts' "Dropped
+# by your filters" groups by these.
+DROP_RULES = ("title", "age", "closed", "work mode", "location", "salary",
+              "dealbreaker")
+
+
 @dataclass
 class Verdict:
     keep: bool = True
     reasons: list[str] = field(default_factory=list)   # why it was dropped
+    # Which rule dropped it, one of DROP_RULES; "" while kept.
+    rule: str = ""
     flags: list[str] = field(default_factory=list)     # what to know if kept
     score: float = 0.0
     # How `score` was reached, one entry per rule, for the dashboard to show
@@ -445,7 +453,7 @@ def screen(
 
     matched, why, points = title_verdict(role.title, cfg)
     if not matched:
-        verdict.keep = False
+        verdict.keep, verdict.rule = False, "title"
         verdict.reasons.append(why)
         return verdict
     verdict.add("title", points, 30, why + (
@@ -454,7 +462,7 @@ def screen(
     fresh = cfg.freshness
     old = freshness.age(role.posted_at, first_seen, fresh, today)
     if old.tier == "ghost":
-        verdict.keep = False
+        verdict.keep, verdict.rule = False, "age"
         verdict.reasons.append(
             f"{old.text().split(' (')[0]}, past freshness.ghost_days "
             f"({fresh.ghost_days}): likely an evergreen or abandoned listing")
@@ -462,7 +470,7 @@ def screen(
 
     over = freshness.CLOSED_TEXT.search(role.description or "")
     if over:
-        verdict.keep = False
+        verdict.keep, verdict.rule = False, "closed"
         verdict.reasons.append(f'the advert says the post is over: "{over.group(0)}"')
         return verdict
 
@@ -478,7 +486,7 @@ def screen(
         verdict.add("arrangement", 0.0, 10,
                     "the posting does not say remote, hybrid or office: 0")
     elif cfg.locations.work_modes and mode not in cfg.locations.work_modes:
-        verdict.keep = False
+        verdict.keep, verdict.rule = False, "work mode"
         verdict.reasons.append(
             f"{mode} is not in locations.work_modes "
             f"({', '.join(cfg.locations.work_modes)})"
@@ -490,7 +498,7 @@ def screen(
     keep, why, points, flags = location_verdict(role, cfg, anchor, mode)
     verdict.flags.extend(flags)
     if not keep:
-        verdict.keep = False
+        verdict.keep, verdict.rule = False, "location"
         verdict.reasons.append(why)
         return verdict
     verdict.add("location", points, 30,
@@ -499,7 +507,7 @@ def screen(
     keep, why, points, flags = salary_verdict(role, cfg)
     verdict.flags.extend(flags)
     if not keep:
-        verdict.keep = False
+        verdict.keep, verdict.rule = False, "salary"
         verdict.reasons.append(why)
         return verdict
     verdict.add("salary", points, 20, _explain_salary(role, cfg))
@@ -507,7 +515,7 @@ def screen(
     keep, why, points, flags = dealbreaker_verdict(role, cfg)
     verdict.flags.extend(flags)
     if not keep:
-        verdict.keep = False
+        verdict.keep, verdict.rule = False, "dealbreaker"
         verdict.reasons.append(why)
         return verdict
     if points:

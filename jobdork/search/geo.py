@@ -1052,6 +1052,7 @@ def picker_countries() -> list[dict]:
     codes = {p.country for bucket in by_city.values() for p in bucket}
     rows = [{"code": c, "name": names.get(c) or country_name(c),
              "currency": _CURRENCIES.get(c, "")} for c in codes]
+    # lambda: sort key, by name folded for accents and case.
     return sorted(rows, key=lambda r: _key(r["name"]))
 
 
@@ -1059,6 +1060,7 @@ def picker_regions(country: str) -> dict:
     """A country's regions, and what that country calls them."""
     country = (country or "").upper()
     regions, _ = _load_regions()
+    # lambda: sort key, by the region's name (r[1]), folded.
     listed = sorted(regions.get(country, []), key=lambda r: _key(r[1]))
     return {"label": REGION_LABELS.get(country, "Region"),
             "regions": [{"code": c, "name": n} for c, n in listed]}

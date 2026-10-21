@@ -51,6 +51,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from ..ai.llm import VAULT
+from ..core import feedback as feedback_mod
 from ..core.config import (
     CONTAINER_ENV,
     CONTAINER_MARKERS,
@@ -77,7 +78,7 @@ HOST = "127.0.0.1"
 # nothing listening. The variable is set by the Dockerfile; the marker file
 # is set by the runtime. Both are required, so exporting the variable on a
 # bare host changes nothing. CONTAINER_ENV and CONTAINER_MARKERS live in
-# core.config, which uses the same test to seed a config in a container.
+# core.config, which uses the same test to pick where a new config goes.
 
 # Opening the dashboard from another machine, such as a Mac reaching a NAS,
 # takes naming the address it is opened by: "192.168.1.50" or "nas.local".
@@ -143,6 +144,14 @@ def _age(row, parts: list, fresh) -> dict:
     return {"days": a.days, "tier": a.tier, "text": a.text(), "source": a.source}
 
 
+def _pay(row) -> dict:
+    """The top of a stated pay range, for "pay at least" on Job posts."""
+    stated = bool(row["salary_stated"])
+    top = row["salary_max"] if row["salary_max"] is not None else row["salary_min"]
+    return {"pay_top": top if stated else None,
+            "pay_currency": (row["salary_currency"] or "") if stated else ""}
+
+
 def _row_to_dict(row, units: str, fresh=None) -> dict:
     try:
         flags = json.loads(row["flags"] or "[]")
@@ -176,6 +185,10 @@ def _row_to_dict(row, units: str, fresh=None) -> dict:
         "location": row["location_raw"] or "",
         # Stored in miles; shown in the reader's units, converted.
         "distance": geo.distance_label(row["distance_mi"], units),
+        # Numbers for the page's distance and pay filters.
+        "dist": None if row["distance_mi"] is None
+        else round(geo.from_miles(row["distance_mi"], units), 1),
+        **_pay(row),
         "work_mode": row["work_mode"] or "arrangement not stated",
         "salary": salary,
         "platform": row["platform"] or "",
@@ -207,7 +220,10 @@ def _config_payload(cfg) -> dict:
         "work_modes": cfg.locations.work_modes,
         "salary_floor": cfg.salary.floor,
         "currency": cfg.salary.currency,
+        "show_days": cfg.freshness.show_days,
+        "older_days": cfg.freshness.older_days,
         "resume_path": cfg.resume_path,
+        "credentials": cfg.credentials,
         "companies": [{"name": c.name, "platform": c.platform, "token": c.token}
                       for c in cfg.sources.companies],
         "dealbreakers": [{"name": d.name, "words": d.words, "pattern": d.pattern,
@@ -218,24 +234,22 @@ def _config_payload(cfg) -> dict:
     }
 
 
+def _setup_state(cfg) -> dict | None:
+    """First-run progress for the page, or None once set up."""
+    from ..ai.llm import OLLAMA_FROM_DOCKER, Settings
+    from ..core import setup
+    from ..core.config import in_container
+    if not cfg.setup_step:
+        return None
+    return {"step": cfg.setup_step, "path": cfg.path, "in_container": in_container(),
+            "ollama_from_docker": OLLAMA_FROM_DOCKER if in_container() else "",
+            "ai_ready": not Settings.from_config(cfg).problem(),
+            "steps": [{"name": n, "title": t} for n, t in setup.STEPS]}
+
+
 def _unkept(cfg) -> str:
     from ..core import storage
     return storage.unkept_data_dir(cfg)
-
-
-def _deal_row(d: dict) -> dict:
-    """One dealbreaker as config.yaml holds it: words, or an advanced pattern."""
-    words = d.get("words") or []
-    if isinstance(words, str):
-        words = words.split(",")
-    row = {"name": str(d.get("name") or "").strip()}
-    words = [str(w).strip() for w in words if str(w).strip()]
-    if words:
-        row["words"] = words
-    else:
-        row["pattern"] = str(d.get("pattern") or "")
-    row["hard"] = str(d.get("hard")).lower() in ("1", "true", "yes", "on")
-    return row
 
 
 def _deal_suggestions() -> list[dict]:
@@ -375,6 +389,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 return self._page()
             if path == "/api/roles":
                 return self._roles()
+            if path == "/api/dropped":
+                return self._wrap(api_mod.dropped_list, cfg_holder["cfg"])
             if path == "/api/config":
                 return self._json(200, _config_payload(cfg_holder["cfg"]))
             if path.startswith("/api/places/"):
@@ -389,6 +405,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                     "ai": ai["label"],
                     "ai_problem": ai["problem"],
                     "unkept_data": _unkept(cfg_holder["cfg"]),
+                    "setup": _setup_state(cfg_holder["cfg"]),
                 })
             if path == "/api/events":
                 return self._events()
@@ -446,6 +463,12 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             if path == "/api/metrics":
                 raw = parse_qs(urlsplit(self.path).query).get("days", ["30"])[0]
                 return self._wrap(api_mod.metrics, cfg_holder["cfg"], raw)
+            if path == "/api/setup/sources":
+                return self._wrap(api_mod.setup_sources, cfg_holder["cfg"])
+            if path == "/api/setup/suggest/progress":
+                return self._json(200, api_mod.SUGGEST_PROGRESS)
+            if path == "/api/setup/choices":
+                return self._wrap(api_mod.setup_choices, cfg_holder["cfg"])
             if path == "/api/review/latest":
                 return self._wrap(api_mod.latest_review, cfg_holder["cfg"])
             return self._reject(404, "no such path")
@@ -457,6 +480,10 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             path = urlsplit(self.path).path
             if path == "/api/action":
                 return self._action()
+            if (path in ("/api/scan", "/api/scan/fresh", "/api/rescreen")
+                    and not cfg_holder["cfg"].titles_include):
+                return self._reject(409, "no job titles to search for yet; "
+                                         "finish setup first")
             if path == "/api/scan":
                 return self._scan()
             if path == "/api/scan/fresh/preview":
@@ -519,6 +546,27 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 if form is None:
                     return self._reject(400, "bad request body")
                 return self._wrap(api_mod.try_dealbreaker, form)
+            if path == "/api/setup/scan":
+                cfg = cfg_holder["cfg"]
+                if cfg.setup_step != "scan":
+                    return self._reject(409, "the first scan is setup's last step")
+                if runner.busy:
+                    return self._reject(409, f"{runner.current} is already running")
+                # Setup ends here, not when the scan does: the scan is watched
+                # on the Dashboard rather than waited for on this screen.
+                try:
+                    cfg = self._write_config({"setup_step": "done"})
+                except Exception as exc:
+                    return self._reject(400, f"not saved: {exc}")
+                (name, work), *then = api_mod.first_scan_jobs(cfg)
+                started, why = runner.start(name, work, then=then)
+                if not started:
+                    return self._reject(409, why)
+                return self._json(202, {"started": True, "job": name})
+            if path == "/api/setup/keys":
+                return self._source_keys()
+            if path == "/api/setup/suggest":
+                return self._wrap(api_mod.setup_suggest, cfg_holder["cfg"])
             if path == "/api/add":
                 return self._add()
             if path == "/api/advert":
@@ -541,6 +589,38 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 except (TypeError, ValueError):
                     return self._reject(400, "preview first")
                 return self._wrap(api_mod.cleanup_run, cfg, days, statuses, expect)
+            if path in ("/api/start-over/preview", "/api/start-over"):
+                return self._start_over(path)
+            if path == "/api/dropped/keep":
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                if runner.busy:
+                    return self._reject(409, f"{runner.current} is running; "
+                                        "keep it when it has finished")
+                return self._wrap(api_mod.dropped_keep, cfg_holder["cfg"],
+                                  str(form.get("uid") or ""))
+            if path in ("/api/cleanup/aged/preview", "/api/cleanup/aged"):
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                cfg = cfg_holder["cfg"]
+                if path == "/api/cleanup/aged/preview":
+                    return self._wrap(api_mod.aged_preview, cfg)
+                if runner.busy:
+                    return self._reject(409, f"{runner.current} is running; "
+                                        "delete when it has finished")
+                try:
+                    expect = int(form.get("expect"))
+                except (TypeError, ValueError):
+                    return self._reject(400, "preview first")
+                return self._wrap(api_mod.aged_run, cfg, expect)
+            if path in ("/api/report/preview", "/api/report"):
+                form = self._body(limit=feedback_mod.MAX_BODY)
+                if form is None:
+                    return self._reject(400, "bad request body, or screenshots too big")
+                fn = api_mod.report_preview if path.endswith("preview") else api_mod.report_send
+                return self._wrap(fn, cfg_holder["cfg"], form)
             if path == "/api/feedback":
                 form = self._body()
                 if form is None:
@@ -735,9 +815,20 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                     p["age"]["tier"] == "ghost" and p["status"] in ("new", "viewed"))]
                 ghosts = len(payload) - len(kept)
                 payload = kept
+            # Older than freshness.show_days and not acted on: hidden from the
+            # list, never deleted, and counted so "Show older" can bring them
+            # back. A post with no date cannot be called old, so it stays.
+            older, limit = 0, cfg.freshness.show_days
+            if limit and (query.get("older") or [""])[0] != "1":
+                kept = [p for p in payload if not (
+                    p["status"] in ("new", "viewed") and p["age"]["days"] is not None
+                    and p["age"]["days"] > limit)]
+                older = len(payload) - len(kept)
+                payload = kept
             settled = sum(counts.get(s, 0) for s in SETTLED_STATUSES)
             self._json(200, {"roles": payload, "counts": counts,
-                             "settled": settled, "ghosts": ghosts})
+                             "settled": settled, "ghosts": ghosts,
+                             "older": older, "show_days": limit})
 
         def _events(self) -> None:
             """Server-sent events. Held open for the life of the page."""
@@ -818,15 +909,35 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 return self._reject(409, why)
             self._json(202, {"started": True})
 
+        def _source_keys(self) -> None:
+            """Adzuna or USAJOBS keys into the app's keys file, then re-read."""
+            from ..core import config as config_mod
+
+            form = self._body(limit=2 * 1024)
+            if form is None:
+                return self._reject(400, "bad request body")
+            cfg = cfg_holder["cfg"]
+            try:
+                api_mod.setup_keys(cfg, form)
+            except api_mod.ApiError as exc:
+                return self._reject(exc.status, str(exc))
+            # Keys are read into the config when it loads.
+            if Path(cfg.path).is_file():
+                cfg_holder["cfg"] = config_mod.load(cfg.path)
+            return self._wrap(api_mod.setup_sources, cfg_holder["cfg"])
+
         def _places(self, what: str) -> None:
             """Country, region and city lists for the Where you are picker."""
             q = parse_qs(urlsplit(self.path).query)
+            # lambda: a one-line reader over this request's query, used three
+            # times below; a def would read the same.
             arg = lambda k: (q.get(k, [""])[0] or "")[:80]    # noqa: E731
             if what == "countries":
                 # A currency is offered only where a salary floor can use it.
                 from ..core.config import CURRENCIES
                 return self._json(200, {"countries": [
-                    {**c, "currency": c["currency"] if c["currency"] in CURRENCIES else ""}
+                    {**c, "currency": c["currency"] if c["currency"] in CURRENCIES else "",
+                     "units": geo.default_units([c["code"]])}
                     for c in geo.picker_countries()], "currencies": list(CURRENCIES)})
             if what == "regions":
                 return self._json(200, geo.picker_regions(arg("country")))
@@ -853,127 +964,48 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 return self._reject(400, f"not saved: {exc}")
             self._json(200, _config_payload(fresh))
 
-        def _write_config(self, payload: dict):
-            """Write, then re-read through the normal loader.
-
-            An edit that would not survive `jobdork scan` cannot be saved here
-            either, and a rejected edit leaves the file exactly as it was.
-            """
+        def _start_over(self, path: str) -> None:
+            """Delete this run's settings and data, then open setup again."""
             from ..core import config as config_mod
+
+            form = self._body()
+            if form is None:
+                return self._reject(400, "bad request body")
+            cfg = cfg_holder["cfg"]
+            if path == "/api/start-over/preview":
+                return self._wrap(api_mod.start_over_preview, cfg)
+            if runner.busy:
+                return self._reject(409, f"{runner.current} is running; start over "
+                                    "when it has finished")
+            try:
+                done = api_mod.start_over(
+                    cfg, str(form.get("words") or ""),
+                    backup=str(form.get("backup") or "") in ("1", "true", "yes", "on"))
+            except api_mod.ApiError as exc:
+                return self._reject(exc.status, str(exc))
+            # Setup writes the new config where the old one was.
+            fresh = config_mod.load("", require=False) if not config_mod._configured() \
+                else config_mod.Config()
+            fresh.path, fresh.setup_step = cfg.path, "welcome"
+            cfg_holder["cfg"], cfg_holder["mtime"] = fresh, None
+            return self._json(200, done)
+
+        def _write_config(self, payload: dict):
+            """Write through core.setup, which creates the file on a first run."""
+            from ..core import setup
 
             cfg = cfg_holder["cfg"]
             if not cfg.path:
                 raise ValueError("this run has no config file to write to")
-            path = Path(cfg.path)
-            original = path.read_text(encoding="utf-8")
-            try:
-                path.write_text(_rewrite_config(original, payload),
-                                encoding="utf-8")
-                fresh = config_mod.load(str(path))
-            except Exception:
-                path.write_text(original, encoding="utf-8")   # put it back
-                raise
+            fresh = setup.write(cfg.path, payload)
             cfg_holder["cfg"] = fresh
-            cfg_holder["mtime"] = path.stat().st_mtime
+            cfg_holder["mtime"] = Path(fresh.path).stat().st_mtime
             return fresh
 
         def log_message(self, fmt: str, *args) -> None:
             log.debug("%s - %s", self.address_string(), fmt % args)
 
     return Handler
-
-
-def _rewrite_config(original: str, payload: dict) -> str:
-    """Replace the editable settings in a config file, keeping its comments.
-
-    Rewritten as text rather than dumped through YAML, because a dump strips
-    every comment out of a file that is mostly comments explaining what the
-    settings mean.
-    """
-    import yaml
-
-    data = yaml.safe_load(original) or {}
-    if not isinstance(data, dict):
-        raise ValueError("config.yaml is not a mapping")
-
-    titles = data.setdefault("titles", {})
-    if "titles_include" in payload:
-        titles["include"] = [str(t).strip() for t in payload["titles_include"]
-                             if str(t).strip()]
-    if "titles_exclude" in payload:
-        titles["exclude"] = [str(t).strip() for t in payload["titles_exclude"]
-                             if str(t).strip()]
-
-    locations = data.setdefault("locations", {})
-    if "anchor_pick" in payload:
-        # The picker's three choices, written as text resolve() reads back.
-        # A city not in the gazetteer is refused rather than saved unplaced,
-        # which would quietly turn the radius off.
-        pick = payload["anchor_pick"] or {}
-        city = str(pick.get("city") or "").strip()
-        country = str(pick.get("country") or "").strip().upper()
-        region = str(pick.get("region") or "").strip().upper()
-        if not city or not country:
-            raise ValueError("choose a country and a city")
-        anchor = geo.picker_anchor(city, region, country)
-        where = geo.resolve_anchor(anchor, (country,))
-        if (not where.located or where.country != country
-                or (region and geo.region_at(where) != region)):
-            raise ValueError(f"{city!r} is not in the place list for that "
-                             "country and region; choose one from the suggestions")
-        payload = {**payload, "anchor": anchor}
-    for key, field in (("anchor", "anchor"), ("radius", "radius"),
-                       ("units", "units"), ("countries", "countries"),
-                       ("work_modes", "work_modes")):
-        if key in payload:
-            locations[field] = payload[key]
-
-    salary = data.setdefault("salary", {})
-    if "salary_floor" in payload:
-        floor = payload["salary_floor"]
-        salary["floor"] = None if floor in (None, "", "null") else float(floor)
-    if "currency" in payload:
-        salary["currency"] = str(payload["currency"]).upper()
-
-    # Whole lists, as the page's tables hold them after an add or a delete.
-    # Named fields only; the loader then refuses a broken pattern, a missing
-    # token or an unknown board type, and the file is put back.
-    if "dealbreakers" in payload:
-        data["dealbreakers"] = [_deal_row(d) for d in payload["dealbreakers"] or []
-                                if isinstance(d, dict)]
-    if "companies" in payload:
-        data.setdefault("sources", {})["companies"] = [
-            {"name": str(c.get("name") or "").strip(),
-             "platform": str(c.get("platform") or "").strip().lower(),
-             "token": str(c.get("token") or "").strip()}
-            for c in payload["companies"] or [] if isinstance(c, dict)]
-
-    if "resume_path" in payload:
-        data.setdefault("resume", {})["path"] = payload["resume_path"]
-
-    if "llm" in payload:
-        given = payload["llm"] or {}
-        section = data.setdefault("llm", {})
-        # Named fields only: whatever else the page sends, a key included,
-        # never reaches the file.
-        for key, cast in (("provider", str), ("model", str),
-                          ("ollama_url", str), ("judge_top", int)):
-            if key in given:
-                section[key] = cast(given[key]).strip() if cast is str \
-                    else cast(given[key])
-        for key in ("judge_on_scan", "read_pages", "guard"):
-            if key in given:
-                section[key] = str(given[key]).lower() in ("1", "true", "yes", "on")
-
-    dumped = yaml.safe_dump(data, sort_keys=False, allow_unicode=True,
-                            default_flow_style=False)
-    header = (
-        "# Written by the jobdork dashboard.\n"
-        "# Comments from a hand-edited config are not preserved through a\n"
-        "# save here; keep annotations in config.local.yaml if you want them.\n"
-        "# API keys are never written to this file; they live in .env.\n\n"
-    )
-    return header + dumped
 
 
 def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
@@ -985,7 +1017,16 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
     bind = bind_address()
     session = new_session(HOST, preferred_port=port, token=token)
     cfg_holder = {"cfg": cfg}
+    # lambda: looked up on every use, so a config edit that moves the database
+    # is followed; passing the path itself would freeze it.
     runner = Runner(db_path=lambda: cfg_holder["cfg"].db_path)
+    from ..core import telemetry
+    # lambda: the same reason, read at each call rather than now.
+    telemetry.record_calls_to(lambda: cfg_holder["cfg"].db_path)
+    # lambda: read at each call, for the same reason.
+    telemetry.capture_logs(lambda: cfg_holder["cfg"].db_path)
+    for warning in cfg.warnings:
+        log.warning("config: %s", warning)
     # In a container the resume and documents live in a temporary folder
     # that does not outlive a run: emptied now, and again on the way out.
     cleared = api_mod.forget_temporary(cfg)
@@ -1003,6 +1044,8 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
     if session.port != port:
         print(f"port {port} was busy; using {session.port}")
     print(f"jobdork dashboard: {session.url}")
+    if cfg.setup_step:
+        print(f"Not set up yet: the dashboard opens on setup, and saves to {cfg.path}.")
     from ..core import storage
     unkept = storage.unkept_data_dir(cfg)
     if unkept:
@@ -1026,6 +1069,8 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
     else:
         print("Local only, token expires with this process, Ctrl-C to stop.")
     if open_browser:
+        # lambda: Timer runs it later, once the server is listening; calling
+        # open() here would race the server.
         threading.Timer(0.4, lambda: webbrowser.open(session.url)).start()
 
     stop = threading.Event()

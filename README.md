@@ -77,21 +77,21 @@ behalf. [What it cannot do](#what-it-cannot-do) has the full list.
 git clone <your-fork>
 cd jobDork
 python3 -m venv .venv && .venv/bin/pip install -e '.[pdf]'
-cp config.example.yaml config.yaml     # then edit two lines
 .venv/bin/python scripts/build_gazetteer.py
-.venv/bin/python -m jobdork scan
+.venv/bin/python -m jobdork serve      # opens setup in your browser
 ```
 
-The two lines are your job titles and where you live. Everything else has a
-default. For the AI reader, add `'.[ai]'` to use Claude; a local Ollama, Gemini
-and ChatGPT need nothing extra.
+With no config, the dashboard opens on setup, one question per screen: your
+resume, an AI model (or skip it), the job titles to look for (suggested from
+your resume when AI is set up), where you are, pay, and what will be searched.
+It ends with a first scan: a quick one, so job posts are there in about a
+minute, then the rest of the employer boards in the background. Answers are
+saved as you go, to `config.yaml`; stop any time and you come back to the same
+step. `jobdork setup` asks the same in the terminal. For the AI reader, add
+`'.[ai]'` to use Claude; a local Ollama, Gemini and ChatGPT need nothing extra.
 
-```yaml
-titles:
-  include: [software engineer, security analyst]
-locations:
-  anchor: "Chicago, IL"
-```
+Prefer a file? Copy `config.example.yaml` to `config.yaml` and edit it; a config
+you write yourself skips setup.
 
 **There is no `config.yaml` in the repository.** It is gitignored, along with
 `.env`, `data/` and `out/`, so a fresh clone has none and nothing you put in
@@ -131,8 +131,8 @@ docker run -d --restart unless-stopped -p 8765:8765 \
   -v /volume1/docker/jobdork/data:/app/data jessengolab/jobdork:0.14.4
 ```
 
-With no config mapped, the first start copies the image's example to
-`data/config.yaml`, and the dashboard's settings are saved there.
+With no config mapped, the dashboard opens on first-run setup, and your
+answers are saved to `data/config.yaml`.
 
 `JOBDORK_ALLOW_HOSTS` takes addresses separated by commas (`192.168.1.50`,
 `nas.local`), on any port, or `address:port` for one port only. Nothing else
@@ -194,7 +194,9 @@ answers is not proof you found the right company: on Ashby, `primer` is a
 Florida micro-schools operator. Only a board found on their site **and**
 returning jobs can be added; everything else is reported and refused.
 
-Two more are registered and dormant until you add a free key to `.env`. They
+Two more are registered and dormant until you add a free key: paste it in
+setup's "What will be searched" step (kept in `data/source-keys.env`, readable
+by you alone, never in `config.yaml`), or put it in `.env`, which wins. They
 report why they skipped rather than silently not running — a source that
 vanishes looks exactly like a source that found nothing:
 
@@ -671,7 +673,7 @@ in the source. None of them calls a real model or a real site.
 
 ```
 .
-├── run.sh                 # shell wrapper (auto-detects the venv)
+├── run.sh                 # shell wrapper (auto-detects the venv); `./run.sh clean` clears local test data
 ├── config.example.yaml    # copy to config.yaml
 ├── Dockerfile             # the published image
 ├── compose.yaml           # jobdork on a NAS, as a compose project

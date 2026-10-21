@@ -241,6 +241,7 @@ def _build(wanted: set[str], source: Path | None = None) -> int:
         print("no rows parsed — the file format may have changed", file=sys.stderr)
         return 1
 
+    # lambda: sort key, biggest population (r[0]) first.
     rows.sort(key=lambda r: -r[0])
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", encoding="utf-8", newline="") as fh:
@@ -260,6 +261,7 @@ def _build(wanted: set[str], source: Path | None = None) -> int:
             if country in country_names:
                 writer.writerow([country, "", country_names[country],
                                  currencies.get(country, "")])
+        # lambda: sort key below, by country then region name.
         for (country, code), name in sorted(region_names.items(),
                                             key=lambda kv: (kv[0][0], kv[1])):
             if (country, code) in used:
@@ -268,6 +270,7 @@ def _build(wanted: set[str], source: Path | None = None) -> int:
     by_country: dict[str, int] = {}
     for row in rows:
         by_country[row[3]] = by_country.get(row[3], 0) + 1
+    # lambda: sort key, countries with the most places first.
     top = sorted(by_country.items(), key=lambda kv: -kv[1])[:8]
     print(f"wrote {OUT} — {len(rows)} places across {len(by_country)} countries, "
           f"{OUT.stat().st_size // 1024}KB")

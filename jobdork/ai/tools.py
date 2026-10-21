@@ -201,6 +201,7 @@ def _blame(items: list[dict], report: guard.GuardReport, key: str = "suggestion"
     """Pin each claim the guard could not support on the item it came from."""
     for claim in report.unsupported:
         words = _content(claim.claim)
+        # lambda: max key, the item sharing the most words with the claim.
         best = max(items, key=lambda e: len(words & _content(e[key])), default=None)
         if best is not None and words & _content(best[key]):
             best["problems"].append(f"Not supported by your resume: {claim.claim}")

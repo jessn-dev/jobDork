@@ -106,7 +106,7 @@ nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
 main{padding:1.5rem 1.75rem;min-width:0}
 /* The Dashboard uses the whole width; pages of forms and reading keep a
    measure that is comfortable to read. */
-main > section:not(#view-scan):not(#view-settings){max-width:1060px}
+main > section:not(#view-scan):not(#view-settings):not(#view-setup){max-width:1060px}
 h2{font-size:1.05rem;margin:0 0 .35rem}
 .bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
 /* The job post search takes the room left on its row, so a typed company
@@ -129,6 +129,12 @@ button.spend{border-color:var(--warn);color:var(--warn)}
 .role{border:1px solid var(--line);border-radius:8px;padding:.85rem 1rem;
   margin-bottom:.6rem;background:var(--card)}
 .role.busy{opacity:.45}
+#role-filters{margin-top:-.4rem}
+#role-filters .fnum{font-size:.85rem;color:var(--muted);display:inline-flex;gap:.3rem;align-items:center}
+p#count{margin:-.4rem 0 .8rem}
+p#count a{cursor:pointer}
+.role .why{font-size:.82rem;color:var(--muted);margin-top:.3rem}
+.role .why b{color:var(--fg)}
 .head{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
 .score{font-variant-numeric:tabular-nums;font-weight:600;color:var(--accent);min-width:3ch}.title{font-weight:600;cursor:pointer}
 .title:hover{text-decoration:underline}
@@ -153,7 +159,9 @@ button.spend{border-color:var(--warn);color:var(--warn)}
 .log{background:#0b0b0d;color:#d4d4d8;font-family:ui-monospace,Menlo,monospace;
   font-size:.78rem;padding:.85rem 1rem;border-radius:8px;height:20rem;
   overflow:auto;white-space:pre-wrap;border:1px solid var(--line)}
-.log .ok{color:#4ade80}.log .bad{color:#f87171}.log .dim{color:#71717a}
+.badge .disagree{color:var(--warn);font-weight:700}
+.log .ok{color:#4ade80}.log .bad{color:#f87171}.log .dim{color:#71717a}.log .warn{color:#fbbf24}
+.log .tag{display:inline-block;min-width:4.2em;font-weight:600}
 .field{margin-bottom:1rem}
 /* Search page: short lists side by side, the wide ones across the page.
    Notes keep a readable line length whatever the width. */
@@ -273,6 +281,34 @@ table.letters td.acts{white-space:nowrap;text-align:right}
 table.letters td.acts .acts-in{display:flex;gap:.35rem;justify-content:flex-end;align-items:center}
 table.letters td.acts .act{padding:.15rem .55rem;font-size:.75rem}
 .advert{white-space:pre-wrap;font-size:.88rem;line-height:1.6}
+/* A job post's header: badges and title on the left, wrapping as long as the
+   title needs; Open posting and Close stay put at the top right. */
+.dh-top{display:flex;gap:1rem;align-items:flex-start;width:100%}
+.dh-main{flex:1;min-width:0}
+.dh-badges{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.dh-title{font-size:1.05rem;line-height:1.35;margin:.45rem 0 0;overflow-wrap:anywhere}
+.dh-btns{display:flex;gap:.4rem;flex:none}
+#detail:focus{outline:none}
+/* The advert as read: headings, lists and paragraphs from plain text. */
+.advert.read{white-space:normal;max-width:78ch}
+.advert.read h4{font-size:.9rem;margin:1.1rem 0 .35rem}
+.advert.read h4:first-child{margin-top:0}
+.advert.read p{margin:.45rem 0}
+.advert.read ul{margin:.3rem 0 .6rem;padding-left:1.2rem}
+.advert.read li{margin:.25rem 0}
+.advbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.6rem}
+.creds{border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:8px;
+  padding:.6rem .85rem;margin:0 0 .9rem;background:var(--card);max-width:78ch}
+.creds h4{margin:0 0 .35rem;font-size:.86rem}
+.creds ul{margin:0;padding-left:1.1rem;font-size:.86rem;line-height:1.5}
+.creds li{margin:.3rem 0}
+.creds .need{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.03em;
+  padding:.05rem .4rem;border-radius:4px;margin-right:.35rem;border:1px solid currentColor}
+.creds .need.required{color:var(--bad)} .creds .need.preferred{color:var(--muted)}
+.cred-names{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.2rem}
+.cred-name{font-size:.72rem;padding:.05rem .45rem;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.cred-name.have{color:var(--ok);border-color:var(--ok)}
+mark.cred{background:var(--flagbg);color:var(--fg);border-radius:3px;padding:0 .15rem}
 .tabs{display:flex;gap:.3rem;margin-bottom:.75rem;flex-wrap:wrap}
 /* match and fit: one badge style, so the two read as a pair */
 .badge{position:relative;display:inline-flex;align-items:baseline;gap:.35rem;
@@ -401,9 +437,9 @@ dialog{overflow:visible}
 .datawarn{border:1px solid var(--bad);border-radius:8px;padding:.6rem .85rem;margin:.5rem 0;
   max-width:60rem}
 .datawarn code{white-space:nowrap}
-#fresh-confirm:not(:empty){border:1px solid var(--bad);border-radius:8px;padding:.7rem .85rem;
+#start-over-confirm:not(:empty),#fresh-confirm:not(:empty){border:1px solid var(--bad);border-radius:8px;padding:.7rem .85rem;
   margin:.4rem 0 .8rem;background:color-mix(in srgb, var(--bad) 7%, var(--bg));font-size:.86rem}
-#fresh-confirm .bar{margin:.55rem 0 0}
+#fresh-confirm .bar,#start-over-confirm .bar{margin:.55rem 0 0}
 .seg.small button{padding:.15rem .55rem;font-size:.75rem}
 .legend.lines i{width:.9rem;height:2px;border-radius:1px;vertical-align:.22rem}
 /* feedback on an AI output */
@@ -469,6 +505,8 @@ dialog{overflow:visible}
 .chart .none{color:var(--muted);font-size:.82rem;padding:2.2rem 0;text-align:center}
 .cleanup{border:1px solid var(--line);border-radius:8px;padding:.75rem .9rem;background:var(--card)}
 .cleanup .row{display:flex;flex-wrap:wrap;gap:.5rem .7rem;align-items:center;padding:.35rem 0}
+.aged{margin:.5rem 0}
+.aged p{margin:0 0 .45rem}
 .cleanup .row + .row{border-top:1px solid var(--line);margin-top:.3rem;padding-top:.65rem}
 .check-inline{display:inline-flex;gap:.3rem;align-items:center;font-size:.88rem}
 #cl-result{margin-top:.5rem;font-size:.86rem}
@@ -484,6 +522,99 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .gate.pass{color:var(--ok)}.gate.fail{color:var(--warn)}
 table{border-collapse:collapse;width:100%;font-size:.85rem}
 td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+/* First run: no menu, one step at a time, until setup is finished. */
+.shell.setup{grid-template-columns:1fr}
+.shell.setup nav{display:none}
+main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
+#view-setup h2{font-size:1.35rem;margin-bottom:.6rem}
+#view-setup p{line-height:1.55}
+#view-setup ol{padding-left:1.3rem;line-height:1.8}
+#view-setup .count{margin:0 0 .4rem;display:block}
+/* The AI page itself is shown in the AI step, without its heading, its
+   when-to-use options (the defaults hold until changed there) or plain Save. */
+#setup-slot #view-ai > h2, #setup-slot #view-ai > p.hint, #setup-slot #ai-when,
+#setup-slot #ai-save{display:none}
+#setup-nav{margin-top:1.2rem}
+/* The location form serves two steps: Where without the pay field, Pay with
+   only it. */
+#setup-slot .sgroup:has(#cfgform) > h3, #setup-slot .savebar,
+#setup-slot.where .field:has(#c_floor),
+#setup-slot.pay #cfgform > .field:not(:has(#c_floor)),
+#setup-slot.pay .sgroup:has(#ed-countries),
+#setup-slot.pay .field:has(#c_floor) > div.hint{display:none}
+#setup-slot.pay #cfgform{display:block}
+#view-setup ul.searched{padding-left:1.2rem;line-height:1.7}
+.sortbtn{background:none;border:0;padding:0;font:inherit;color:inherit;
+  text-transform:inherit;letter-spacing:inherit;cursor:pointer}
+.sortbtn:hover{color:var(--accent)}
+.bgscan{border:1px solid var(--accent);border-radius:8px;padding:.6rem .8rem;
+  color:var(--fg);background:var(--card);font-size:.88rem}
+#view-setup .keycard{border:1px solid var(--line);border-radius:8px;
+  padding:.7rem .9rem;margin:.6rem 0;background:var(--card)}
+#view-setup .keycard .bar{margin:.4rem 0 0}
+#setup-slot .sgroup{margin-top:1rem}
+#view-setup h3{font-size:.95rem;margin:1.4rem 0 .2rem}
+#view-setup .ticks label.check{display:inline-flex;gap:.35rem;align-items:center;
+  margin:.2rem .9rem .2rem 0}
+#view-setup .ticks .tag{font-size:.7rem;color:var(--accent)}
+#setup-nav:empty{display:none}
+/* Welcome: what jobdork does, what setup asks, then one way forward. */
+main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
+#view-setup .wel > *{animation:welin .45s ease both}
+#view-setup .wel > :nth-child(2){animation-delay:.06s}
+#view-setup .wel > :nth-child(3){animation-delay:.12s}
+#view-setup .wel > :nth-child(n+4){animation-delay:.18s}
+@keyframes welin{from{opacity:0;transform:translateY(.5rem)}}
+@media (prefers-reduced-motion:reduce){#view-setup .wel > *{animation:none}}
+.wel .hero{text-align:center;margin-bottom:2rem}
+.wel .hero .logo{width:56px;height:56px;border-radius:14px;background:var(--logo);
+  display:inline-grid;place-items:center;margin-bottom:1rem;
+  box-shadow:0 8px 24px color-mix(in srgb, var(--logo) 35%, transparent)}
+.wel .hero .logo svg{width:30px;height:30px;fill:#fff}
+.wel .eyebrow{margin:0 0 .5rem;color:var(--accent);font-size:.75rem;font-weight:650;
+  text-transform:uppercase;letter-spacing:.09em}
+#view-setup .wel .hero h2{font-size:clamp(1.6rem,4vw,2.1rem);line-height:1.2;
+  letter-spacing:-.02em;margin:0 0 .75rem}
+.wel .lead{color:var(--muted);font-size:1.02rem;max-width:34rem;margin:0 auto}
+.wel .pillars{list-style:none;padding:0;margin:0 0 2.2rem;display:grid;gap:.75rem;
+  grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:640px){.wel .pillars{grid-template-columns:1fr}}
+.wel .pillars li{background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:1rem}
+.wel .pillars .ic{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;
+  background:color-mix(in srgb, var(--accent) 13%, transparent);margin-bottom:.6rem}
+.wel .pillars .ic svg{width:19px;height:19px;fill:var(--accent)}
+.wel .pillars b{display:block;font-size:.92rem;margin-bottom:.2rem}
+.wel .pillars span{color:var(--muted);font-size:.84rem;line-height:1.45;display:block}
+#view-setup .wel h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);margin:0 0 .7rem}
+#view-setup .wel ol.route{list-style:none;padding:0;margin:0 0 2rem;
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;line-height:1.45}
+.wel .route li{display:grid;grid-template-columns:auto 1fr auto;gap:.85rem;align-items:start;
+  padding:.8rem 1rem;border-top:1px solid var(--line)}
+.wel .route li:first-child{border-top:0}
+.wel .route .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+  font-size:.78rem;font-weight:700;font-variant-numeric:tabular-nums;
+  border:1.5px solid var(--line);color:var(--muted)}
+.wel .route b{display:block;font-size:.92rem;font-weight:600}
+.wel .route span{color:var(--muted);font-size:.84rem}
+.wel .route .opt{font-size:.7rem;font-weight:600;padding:.1rem .45rem;border-radius:999px;
+  color:var(--muted);border:1px solid var(--line);white-space:nowrap;margin-top:.15rem}
+.wel .route .opt.req{color:var(--accent);
+  border-color:color-mix(in srgb, var(--accent) 45%, transparent)}
+.wel .go{display:flex;flex-direction:column;align-items:center;gap:.7rem;text-align:center}
+.wel .go .need{color:var(--muted);font-size:.86rem;margin:0}
+#view-setup .wel .go button.start{display:inline-flex;align-items:center;gap:.5rem;
+  background:#2563eb;border-color:#2563eb;color:#fff;font-size:1rem;
+  font-weight:650;padding:.7rem 1.6rem;border-radius:9px;transition:transform .15s,box-shadow .15s}
+#view-setup .wel .go button.start:hover{color:#fff;transform:translateY(-1px);
+  background:#1d4ed8;box-shadow:0 6px 18px color-mix(in srgb, #2563eb 40%, transparent)}
+#view-setup .wel .go button.start:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+#view-setup .wel .go button.start svg{width:18px;height:18px;fill:currentColor}
+.wel .go .hint{margin:0}
+#view-setup .setup-text{max-height:18rem;overflow:auto;white-space:pre-wrap;
+  background:var(--card);border:1px solid var(--line);border-radius:6px;
+  padding:.7rem .8rem;font-size:.8rem;margin:.4rem 0 1rem}
 </style></head><body>
 <div class="shell">
 <nav aria-label="Main">
@@ -495,13 +626,22 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
   <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="sources" data-label="Sources" data-info="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, and adds or removes employer boards." aria-description="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, and adds or removes employer boards."><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 8.2C5.6 9.3 8.6 10 12 10s6.4-.7 8-1.8V12c0 1.66-3.6 3-8 3s-8-1.34-8-3V8.2zm0 7c1.6 1.1 4.6 1.8 8 1.8s6.4-.7 8-1.8V19c0 1.66-3.6 3-8 3s-8-1.34-8-3v-3.8z"/></svg><span class="label">Sources</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="ai" data-label="AI" data-info="Choose a model (local through Ollama, or Claude, Gemini or ChatGPT) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are held in memory only." aria-description="Choose a model (local through Ollama, or Claude, Gemini or ChatGPT) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are held in memory only."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2l1.9 5.6 5.6 1.9-5.6 1.9L11 17l-1.9-5.6-5.6-1.9 5.6-1.9L11 2zm7.5 11l.95 2.55 2.55.95-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95L18.5 13z"/></svg><span class="label">AI</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
-  <button class="item" data-view="tools" data-label="Tools" data-info="One-off helpers: add a posting from a link, and email yourself a digest of what was found." aria-description="One-off helpers: add a posting from a link, and email yourself a digest of what was found."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><rect x="11" y="5.75" width="10" height="2.5" rx="1.25"/><circle cx="18" cy="17" r="3"/><rect x="3" y="15.75" width="10" height="2.5" rx="1.25"/></svg><span class="label">Tools</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="tools" data-label="Feedback" data-info="Send a problem, an idea or a question to the people who make jobdork." aria-description="Send a problem, an idea or a question to the people who make jobdork."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><rect x="11" y="5.75" width="10" height="2.5" rx="1.25"/><circle cx="18" cy="17" r="3"/><rect x="3" y="15.75" width="10" height="2.5" rx="1.25"/></svg><span class="label">Feedback</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <div class="foot">
     <div class="status" id="net" role="status" hidden><span class="dot"></span><span id="net-text"></span></div>
     <button class="item" id="theme" title="Dark mode"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg><span class="label">Dark mode</span><span class="switch" id="theme-switch"><i></i><span id="theme-state">OFF</span></span></button>
   </div>
 </nav>
 <main>
+  <section id="view-setup" hidden>
+    <span class="count" id="setup-progress"></span>
+    <div id="setup-body"></div>
+    <div id="setup-slot"></div>
+    <div id="setup-extra"></div>
+    <div class="bar" id="setup-nav"></div>
+    <p class="hint" id="setup-msg" role="status"></p>
+  </section>
+
   <section id="view-roles" hidden>
     <div class="bar">
       <select id="status"></select>
@@ -509,6 +649,7 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
         <option value="open">Open job posts</option>
         <option value="new">New since last scan</option>
         <option value="all">Including settled</option>
+        <option value="dropped">Dropped by your filters</option>
       </select>
       <select id="posted" aria-label="Posted within">
         <option value="">Posted any time</option>
@@ -516,9 +657,46 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
         <option value="7">Posted in the last week</option>
         <option value="21">Posted in the last 3 weeks</option>
       </select>
+      <select id="sort" aria-label="Sort job posts, or show the unscored ones">
+        <option value="score:desc">Match: high to low</option>
+        <option value="score:asc">Match: low to high</option>
+        <option value="fit:desc">Fit: high to low</option>
+        <option value="fit:asc">Fit: low to high</option>
+        <option value="unscored">Unscored only</option>
+      </select>
       <input type="search" id="q" placeholder="Search" aria-label="Search job posts by title or company">
-      <span class="count" id="count"></span>
     </div>
+    <!-- Narrow what is loaded, in the page: nothing here re-scans or changes
+         a filter of the scan, except the age limit, which is a setting. -->
+    <div class="bar" id="role-filters">
+      <select id="f-rule" aria-label="Why it was dropped" hidden></select>
+      <select id="f-mode" aria-label="Work arrangement">
+        <option value="">Any arrangement</option>
+        <option value="remote">Remote</option>
+        <option value="hybrid">Hybrid</option>
+        <option value="office">On-site</option>
+        <option value="none">Not stated</option>
+      </select>
+      <input type="search" id="f-place" placeholder="Place, e.g. Texas" style="width:11rem"
+        aria-label="Place: a city, state or country in the location">
+      <label class="fnum">Within <input type="number" id="f-dist" min="0" step="5" style="width:5.5rem"
+        aria-label="Within this distance"> <span id="f-units">mi</span></label>
+      <label class="fnum">Pay at least <input type="number" id="f-pay" min="0" step="1000" style="width:7.5rem"
+        aria-label="Pay at least"> <span id="f-cur">USD</span></label>
+      <label class="fnum"><input type="checkbox" id="f-paid"> Pay stated only</label>
+      <select id="show-days" aria-label="Hide job posts older than"
+        title="Saved as a setting. Hidden, never deleted; posts you acted on are always shown.">
+        <option value="0">Show posts of any age</option>
+        <option value="14">Hide posts older than 2 weeks</option>
+        <option value="21">Hide posts older than 3 weeks</option>
+        <option value="30">Hide posts older than 1 month</option>
+        <option value="60">Hide posts older than 2 months</option>
+        <option value="90">Hide posts older than 3 months</option>
+      </select>
+      <button data-icon="x" class="act" id="f-clear" hidden>Clear filters</button>
+    </div>
+    <p class="count" id="count"></p>
+    <div class="cleanup aged" id="aged-roles" role="status" hidden></div>
     <div id="list"><p class="empty">Loading…</p></div>
   </section>
 
@@ -555,6 +733,17 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
           anything is deleted.
         </span>
       </span>
+      <span class="warnwrap">
+        <button data-icon="rotate-ccw" class="act danger" id="btn-start-over" aria-describedby="start-over-tip">Start over</button>
+        <span class="warntip" id="start-over-tip" role="tooltip">
+          <b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.5 21h21L12 2.5zm-1 7h2v6h-2v-6zm0 8h2v2h-2v-2z"/></svg>
+            Deletes everything and runs setup again</b>
+          Your settings, every job post with its status, notes and AI verdict,
+          your uploaded resume, the documents written for job posts, reports,
+          and the job-source and AI keys. Then setup opens from the start. You
+          see exactly what goes, and confirm, before anything is deleted.
+        </span>
+      </span>
       <button data-icon="download" class="act" id="btn-enrich">Fetch missing adverts</button>
       <button data-icon="filter" class="act" id="btn-rescreen">Re-apply filters</button>
       <button data-icon="circle-check" class="act" id="btn-check" title="Ask each posting whether the job is still up; close the ones that are gone">Check still open</button>
@@ -562,9 +751,12 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
       <span class="count" id="scanstate"></span>
     </div>
     <div class="datawarn" id="datawarn" role="alert" hidden></div>
+    <p class="bgscan" id="bgscan" role="status" hidden></p>
     <p class="hint" id="aihint"></p>
     <div id="scanmsg"></div>
+    <div class="cleanup aged" id="aged-scan" role="status" hidden></div>
     <div id="fresh-confirm"></div>
+    <div id="start-over-confirm"></div>
 
     <div class="metrics" id="metrics">
       <div class="bar" style="margin:.2rem 0 0">
@@ -616,6 +808,12 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
     <h3>Log</h3>
     <div class="log" id="act-log" style="height:16rem"></div>
 
+    <h3 style="margin-top:1.2rem">Warnings and errors <span class="hint" id="act-problems-sum"></span></h3>
+    <p class="hint" style="margin-top:0">The last 7 days, newest first: every job's,
+      from the dashboard or the terminal, and the app's own (the server, setup, settings).
+      Pick a job's line to show that run above.</p>
+    <div class="log" id="act-problems" style="max-height:16rem"></div>
+
     <details class="allruns" style="margin-top:1.2rem">
       <summary>All runs <span class="hint">(pick one to show it above)</span></summary>
       <div id="act-history"></div>
@@ -648,26 +846,45 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
   </section>
 
   <section id="view-tools" hidden>
-    <h2>Add a posting</h2>
-    <p class="hint">Paste a link you found yourself. Google does the finding,
-      the adapter reads it into a proper row.</p>
-    <div class="bar">
-      <input id="add-url" placeholder="https://job-boards.greenhouse.io/acme/jobs/1"
-        style="flex:1;min-width:22rem">
-      <input id="add-token" placeholder="Board token, if the URL has none" style="width:15rem">
-      <button data-icon="plus" class="act" id="btn-add">Add</button>
+    <h2>Send feedback</h2>
+    <p class="hint" style="max-width:44rem">Tell the people who make jobdork about a
+      problem, an idea or a question. It becomes an issue on GitHub. You see
+      exactly what is sent before you send it. Your resume, job posts and
+      settings are never included. GitHub issues are public. Keys, tokens, email addresses and your home
+      folder are taken out of the logs.</p>
+    <form id="fbk" style="max-width:44rem" onsubmit="return false">
+      <div class="field"><label>What is it?</label>
+        <div class="seg" id="fbk-kind" role="group" aria-label="Kind">
+          <button type="button" data-kind="problem" class="on">Problem</button><button
+            type="button" data-kind="idea">Idea</button><button
+            type="button" data-kind="question">Question</button></div></div>
+      <div class="field"><label for="fbk-title">Title</label>
+        <input id="fbk-title" maxlength="120" style="width:100%"
+          placeholder="Scan stops at Workday boards"></div>
+      <div class="field"><label for="fbk-details">Details</label>
+        <textarea id="fbk-details" maxlength="8000" rows="7" style="width:100%"
+          placeholder="What you did, what you expected, what happened instead"></textarea></div>
+      <div class="field"><label for="fbk-reply">Your email, for a reply <span class="hint">(optional; sent only to the maintainers, never put on the public issue)</span></label>
+        <input id="fbk-reply" type="email" style="width:18rem" placeholder="you@example.com"></div>
+      <div class="field"><label for="fbk-shots">Screenshots <span class="hint">(up to 3, PNG, JPEG or WebP, 2 MB each)</span></label>
+        <input id="fbk-shots" type="file" accept="image/png,image/jpeg,image/webp" multiple></div>
+      <div class="field">
+        <label class="check-inline"><input type="checkbox" id="fbk-logs" checked> Include the last 7 days' warnings and errors</label>
+        <label class="check-inline"><input type="checkbox" id="fbk-app" checked> Include the app's version and system</label></div>
+      <div class="bar">
+        <button type="button" data-icon="eye" class="act" id="fbk-preview">Preview</button>
+      </div>
+    </form>
+    <div id="fbk-out" hidden style="max-width:44rem">
+      <p class="hint" id="fbk-subject"></p>
+      <div class="log" id="fbk-text" style="height:auto;max-height:22rem"></div>
+      <div class="bar" style="margin-top:.75rem">
+        <button type="button" data-icon="send" class="act" id="fbk-send">Send</button>
+        <button type="button" data-icon="external-link" class="act" id="fbk-issue">Open as a GitHub issue</button>
+        <button type="button" data-icon="download" class="act" id="fbk-save">Save as a file</button>
+      </div>
+      <p id="fbk-msg" aria-live="polite"></p>
     </div>
-    <div id="addmsg" style="margin-bottom:1.5rem"></div>
-
-    <h2>Email a digest</h2>
-    <p class="hint">Needs RESEND_API_KEY and RESEND_FROM in <code>.env</code>.</p>
-    <div class="bar">
-      <input id="dig-email" type="email" placeholder="you@example.com" style="width:18rem">
-      <label style="font-size:.85rem"><input type="checkbox" id="dig-all"> Everything, not just new</label>
-      <label style="font-size:.85rem"><input type="checkbox" id="dig-csv"> Attach CSV</label>
-      <button data-icon="send" class="act" id="btn-digest">Send</button>
-    </div>
-    <div class="log" id="toolslog" style="height:14rem"><span class="dim">Output appears here.</span></div>
   </section>
 
   <section id="view-ai" hidden>
@@ -697,14 +914,14 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
 
     <div class="field"><label>Model</label>
       <div class="bar" style="margin:0">
-        <input id="ai-model" list="ai-models" style="width:22rem" spellcheck="false"
+        <select id="ai-models" aria-label="Model" style="width:22rem" hidden></select>
+        <input id="ai-model" aria-label="Model name" style="width:22rem" spellcheck="false"
           placeholder="Choose or type a model name">
-        <datalist id="ai-models"></datalist>
         <button data-icon="refresh-cw" class="act" id="ai-load">Load models</button>
         <span id="ai-load-msg" class="hint"></span>
       </div></div>
 
-    <div class="field"><label>When to use it</label>
+    <div class="field" id="ai-when"><label>When to use it</label>
       <label class="check"><input type="checkbox" id="ai-on-scan"> After each scan,
         judge the top <input id="ai-top" type="number" min="1" max="500"
         style="width:4.5rem"> job posts not yet judged</label>
@@ -716,6 +933,27 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
       <div class="hint">Judging needs a resume and at least 200 characters of
         advert. A 26B local model takes about a minute per job post, and the
         check adds two more calls to each.</div></div>
+
+    <div class="field" id="ai-check"><label>Second model, to check the first</label>
+      <div class="seg" id="ai-c-provider"></div>
+      <div class="bar" style="margin:.4rem 0 0" id="ai-c-key-row" hidden>
+        <input id="ai-c-key" type="password" autocomplete="off" spellcheck="false"
+          placeholder="Paste its key" style="width:22rem">
+        <button data-icon="key-round" class="act" id="ai-c-key-hold">Hold in memory</button>
+        <span id="ai-c-key-state"></span>
+      </div>
+      <div class="bar" style="margin:.4rem 0 0" id="ai-c-model-row">
+        <select id="ai-c-models" aria-label="Second model" style="width:22rem" hidden></select>
+        <input id="ai-c-model" aria-label="Second model name" style="width:22rem" spellcheck="false"
+          placeholder="Choose or type its model name">
+        <button data-icon="refresh-cw" class="act" id="ai-c-load">Load models</button>
+        <span id="ai-c-load-msg" class="hint"></span>
+      </div>
+      <div class="hint">Off unless you choose one. A different model runs the claim
+        checks on everything the first judges, writes and suggests, and scores each
+        judged job post itself: scores 20 or more points apart are marked
+        <b>models disagree</b>. It never hides or blocks anything. About three more
+        calls per output on its key; a local Ollama model costs nothing.</div></div>
 
     <div class="bar">
       <button data-icon="save" class="act primary" id="ai-save">Save</button>
@@ -751,6 +989,16 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
         <button data-icon="plus" class="act primary">Add</button><span id="msg-exclude"></span>
       </form>
       <div class="clearall" id="clear-exclude"></div>
+      </div>
+      <div class="sgroup">
+      <h3>Your certifications and licenses</h3>
+      <p class="hint">An opened job post checks the ones its advert asks for against
+        these and your resume. Write them as adverts do: RN, BLS, CPA, CDL, CISSP.</p>
+      <div id="ed-credentials"></div>
+      <form class="bar addform" id="f-credentials">
+        <input id="add-credential" placeholder="A certification or license, e.g. ACLS">
+        <button data-icon="plus" class="act primary">Add</button><span id="msg-credentials"></span>
+      </form>
       </div>
       <div class="sgroup">
       <h3>Countries to keep job posts from</h3>
@@ -832,6 +1080,17 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
       </div>
       </div>
     </div>
+
+    <h2 style="margin-top:1.5rem">Add a posting</h2>
+    <p class="hint">Paste a link you found yourself. Google does the finding,
+      the adapter reads it into a proper row.</p>
+    <div class="bar">
+      <input id="add-url" placeholder="https://job-boards.greenhouse.io/acme/jobs/1"
+        style="flex:1;min-width:22rem">
+      <input id="add-token" placeholder="Board token, if the URL has none" style="width:15rem">
+      <button data-icon="plus" class="act" id="btn-add">Add</button>
+    </div>
+    <div id="addmsg" style="margin-bottom:1.5rem"></div>
   </section>
 
   <section id="view-resume" hidden>
@@ -930,7 +1189,7 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 </div>
 
-<dialog id="detail"><div class="dlg-head" id="dlg-head"></div>
+<dialog id="detail" tabindex="-1" aria-labelledby="detail-title"><div class="dlg-head" id="dlg-head"></div>
   <div class="dlg-body" id="dlg-body"></div></dialog>
 <dialog id="resumedlg" aria-labelledby="resume-title">
   <div class="dlg-head"><strong id="resume-title"></strong><span class="hint" id="resume-sub"></span></div>
@@ -1052,29 +1311,222 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
 $('status').innerHTML = '<option value="">Any status</option>' +
   STATUSES.map(s => `<option value="${s}">${cap(s)}</option>`).join('');
 
-async function loadRoles() {
-  const r = await api(`/api/roles?scope=${$('scope').value}` +
-                      `&status=${encodeURIComponent($('status').value)}`);
+// Posts a scan's filters left out (store.save_dropped), shown on request.
+let droppedPosts = [], droppedMeta = null, showOlder = false;
+
+// `offer: false` after a removal, so its "Removed" line is not replaced. As an
+// event handler it gets an event, which offers as usual.
+async function loadRoles(opts = {}) {
+  if (!cfg) cfg = await (await api('/api/config')).json();
+  $('f-units').textContent = cfg.units || 'mi';
+  $('f-cur').textContent = cfg.currency || 'USD';
+  setShowDays(cfg.show_days || 0);
+  const dropped = $('scope').value === 'dropped';
+  // Status and sort mean nothing for a post that was never stored.
+  $('status').hidden = $('sort').hidden = dropped;
+  $('f-rule').hidden = !dropped;
+  $('show-days').hidden = dropped;
+  const r = dropped ? await api('/api/dropped')
+    : await api(`/api/roles?scope=${$('scope').value}` +
+                `&status=${encodeURIComponent($('status').value)}` +
+                (showOlder ? '&older=1' : ''));
   if (!r.ok) { $('list').innerHTML = `<p class="empty">${esc(await r.text())}</p>`; return; }
   const d = await r.json();
+  if (dropped) {
+    droppedPosts = d.dropped; droppedMeta = d;
+    const rule = $('f-rule').value;
+    $('f-rule').innerHTML = `<option value="">Any reason (${d.dropped.length.toLocaleString()})</option>` +
+      Object.entries(d.by_rule).map(([k, n]) =>
+        `<option value="${esc(k)}">${esc(cap(RULE_WORDS[k] || k))} (${n.toLocaleString()})</option>`).join('');
+    $('f-rule').value = d.by_rule[rule] ? rule : '';
+    drawRoles(); return;
+  }
   roles = d.roles; rolesMeta = d; drawRoles(d);
+  if (opts.offer !== false) offerAged('aged-roles');
+}
+
+const RULE_WORDS = {title: 'title not searched for', age: 'too old (ghost listing)',
+  closed: 'advert says it is closed', 'work mode': 'work arrangement',
+  location: 'too far or wrong country', salary: 'pay below your floor',
+  dealbreaker: 'dealbreaker'};
+// Rendering tens of thousands of cards would hang the tab.
+const DROPPED_SHOWN = 300;
+
+function setShowDays(days) {
+  const sel = $('show-days');
+  if (![...sel.options].some(o => +o.value === +days))
+    sel.insertAdjacentHTML('beforeend',
+      `<option value="${+days}">Hide posts older than ${+days} days</option>`);
+  sel.value = String(+days);
+}
+
+$('show-days').onchange = async () => {
+  const r = await api('/api/config', {method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({show_days: +$('show-days').value})});
+  if (r.ok) { cfg = await r.json(); showOlder = false; }
+  loadRoles({offer: false});
+};
+
+// The place, distance, arrangement and pay filters, shared by stored and
+// dropped posts. A remote post is never "too far"; one with no pay stated
+// passes "pay at least" unless "Pay stated only" is ticked, and pay in
+// another currency is never converted, so it is not compared.
+function passesFilters(r) {
+  const mode = $('f-mode').value, place = $('f-place').value.trim().toLowerCase();
+  const dist = $('f-dist').value === '' ? null : +$('f-dist').value;
+  const pay = $('f-pay').value === '' ? null : +$('f-pay').value;
+  const work = (r.work_mode || '').toLowerCase();
+  if (mode === 'none' ? ['remote', 'hybrid', 'office'].includes(work) : mode && work !== mode) return false;
+  if (place && !(r.location || '').toLowerCase().includes(place)) return false;
+  if (dist != null && work !== 'remote' && (r.dist == null || r.dist > dist)) return false;
+  if ($('f-paid').checked && r.pay_top == null) return false;
+  if (pay != null && r.pay_top != null && r.pay_currency === (cfg && cfg.currency || r.pay_currency)
+      && r.pay_top < pay) return false;
+  return true;
+}
+
+function filtersOn() {
+  return !!($('f-mode').value || $('f-place').value.trim() || $('f-dist').value ||
+            $('f-pay').value || $('f-paid').checked || (!$('f-rule').hidden && $('f-rule').value));
+}
+
+$('f-clear').onclick = () => {
+  for (const id of ['f-mode', 'f-place', 'f-dist', 'f-pay', 'f-rule']) $(id).value = '';
+  $('f-paid').checked = false; drawRoles();
+};
+
+function drawDropped() {
+  const q = $('q').value.toLowerCase(), rule = $('f-rule').value;
+  const within = +$('posted').value;
+  const shown = droppedPosts.filter(r => (!q ||
+    (r.title + ' ' + r.company).toLowerCase().includes(q)) &&
+    (!rule || r.rule === rule) &&
+    (!within || (r.age && r.age.days != null && r.age.days <= within)) &&
+    passesFilters(r));
+  const days = droppedMeta ? droppedMeta.days : 14;
+  $('count').textContent = `${shown.length.toLocaleString()} of ${droppedPosts.length.toLocaleString()} ` +
+    `dropped by your filters in the last ${days} days · not stored, not scored` +
+    (shown.length > DROPPED_SHOWN ? ` · first ${DROPPED_SHOWN} shown, search or filter to narrow` : '');
+  $('list').innerHTML = shown.length ? shown.slice(0, DROPPED_SHOWN).map(droppedCard).join('')
+    : `<p class="empty">${droppedPosts.length ? 'Nothing matches.'
+        : 'Nothing dropped yet. Posts your filters leave out are listed here after a scan.'}</p>`;
+}
+
+function droppedCard(r) {
+  const meta = [r.company, r.location, r.distance, cap(r.work_mode),
+    r.pay_top != null ? `${r.pay_currency} ${Math.round(r.pay_top).toLocaleString()}` : '',
+    platformName(r.platform), r.seen ? 'Last dropped ' + r.seen : ''];
+  return `<div class="role" id="d-${r.uid}">
+    <div class="head">
+      <span class="title">${esc(r.title)}</span>
+      ${ageTag(r.age)}
+      <span class="pill" style="background:#6b7280">dropped</span>
+    </div>
+    <div class="meta">${meta.filter(Boolean).map(m => `<span>${esc(m)}</span>`).join('')}</div>
+    <div class="why"><b>${esc(cap(RULE_WORDS[r.rule] || r.rule))}:</b> ${esc(r.reason)}</div>
+    <div class="acts">
+      <button data-icon="external-link" class="act" data-url="${esc(r.url)}"
+        onclick="window.open(this.dataset.url, '_blank', 'noopener')">Open advert</button>
+      <button data-icon="star" class="act" onclick="keepDropped('${r.uid}')"
+        title="Store it in Job posts, marked interested. Your filters are not changed.">Keep anyway</button>
+    </div></div>`;
+}
+
+async function keepDropped(uid) {
+  const el = $('d-' + uid); if (el) el.classList.add('busy');
+  const r = await api('/api/dropped/keep', {method: 'POST', body: form({uid})});
+  if (!r.ok) {
+    if (el) { el.classList.remove('busy');
+      el.insertAdjacentHTML('beforeend', `<p class="err">${esc(await r.text())}</p>`); }
+    return;
+  }
+  droppedPosts = droppedPosts.filter(p => p.uid !== uid);
+  drawDropped();
+}
+
+// ── risky and stale ──────────────────────────────────────────────────────────
+// Screening keeps old posts, marked and ranked lower (freshness.py). Offered
+// here, and after each scan, so they can go at once: preview, then a delete
+// that carries the previewed count, as Clean up does. "Not now" holds until
+// the number changes.
+const agedDismissed = {};
+async function offerAged(id) {
+  const box = $(id);
+  const r = await api('/api/cleanup/aged/preview', {method: 'POST', body: form({})});
+  if (!r.ok) { box.hidden = true; return; }
+  const d = await r.json();
+  if (!d.count || agedDismissed[id] === d.count) { box.hidden = true; return; }
+  const t = d.by_tier, parts = [
+    t.older && `${t.older} risky (posted ${d.week_days + 1} to ${d.older_days} days ago)`,
+    t.stale && `${t.stale} stale (over ${d.older_days} days, may be filled)`,
+    t.ghost && `${t.ghost} ghost listings (already hidden)`].filter(Boolean);
+  const n = d.count.toLocaleString(), posts = d.count === 1 ? 'job post' : 'job posts';
+  box.innerHTML = `<p><b>${n} ${posts} you have not acted on ${d.count === 1 ? 'is' : 'are'} risky or stale:</b>
+      ${esc(parts.join(', '))}. They stay listed, ranked lower, unless you remove them.</p>
+    <button data-icon="trash-2" class="act danger" data-go>Remove ${n} ${posts}</button>
+    <button data-icon="x" class="act" data-no>Not now</button>`;
+  box.hidden = false;
+  box.querySelector('[data-no]').onclick = () => { agedDismissed[id] = d.count; box.hidden = true; };
+  box.querySelector('[data-go]').onclick = () => {
+    const copies = d.copies > d.count ? ` with their ${(d.copies - d.count).toLocaleString()} grouped copies` : '';
+    box.innerHTML = `<p><b>${n} ${posts}</b>${copies} will be deleted, for example:</p>
+      <ul>${d.sample.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+      <p class="hint">The database is backed up first, and later scans leave them out.
+        Posts you marked interested, applied to or are interviewing for are never included.</p>
+      <button data-icon="trash-2" class="act danger" data-yes>Delete ${n} ${posts}</button>
+      <button data-icon="x" class="act" data-no>Cancel</button>`;
+    box.querySelector('[data-no]').onclick = () => offerAged(id);
+    box.querySelector('[data-yes]').onclick = async e => {
+      e.target.disabled = true;
+      const r2 = await api('/api/cleanup/aged', {method: 'POST', body: form({expect: d.count})});
+      if (!r2.ok) { box.innerHTML = `<p class="err">${esc(await r2.text())}</p>`; return; }
+      const done = await r2.json();
+      box.innerHTML = `<span class="saved">Removed ${done.deleted.toLocaleString()} risky or stale job posts.</span>
+        <span class="hint">Backup: <code>${esc(done.backup)}</code></span>`;
+      const other = id === 'aged-roles' ? 'aged-scan' : 'aged-roles';
+      $(other).hidden = true;
+      loadRoles({offer: false}); pollActivity();
+    };
+  };
 }
 
 let rolesMeta = null;
 function drawRoles(d = rolesMeta) {
+  $('f-clear').hidden = !filtersOn();
+  if ($('scope').value === 'dropped') return drawDropped();
   const q = $('q').value.toLowerCase();
   // A post with no date cannot be said to be recent, so a "posted within"
   // filter leaves it out; "any time" shows it.
   const within = +$('posted').value;
+  // "Unscored only": posts without a match or a fit score, which an advert
+  // too short to read or a missing resume leaves blank.
+  const [field, dir] = $('sort').value.split(':');
   const shown = roles.filter(r => (!q ||
     (r.title + ' ' + r.company).toLowerCase().includes(q)) &&
-    (!within || (r.age && r.age.days != null && r.age.days <= within)));
+    (!within || (r.age && r.age.days != null && r.age.days <= within)) &&
+    (field !== 'unscored' || r.score == null || r.fit == null) &&
+    passesFilters(r));
+  // Match or fit, either way round; a post without one goes last either way,
+  // and equal ones keep the server's order (best match, then newest).
+  if (field !== 'unscored') {
+    const sign = dir === 'asc' ? 1 : -1;
+    shown.sort((a, b) => (a[field] == null) - (b[field] == null)
+      || sign * ((a[field] ?? 0) - (b[field] ?? 0)));
+  }
   // Copies of one job are one post (grouping.py); say how many were folded in.
   const grouped = roles.reduce((t, r) => t + Math.max(0, (r.copies || 1) - 1), 0);
   $('count').textContent = `${shown.length} of ${roles.length}` +
     (d && d.settled ? ` · ${d.settled} settled and hidden` : '') +
     (d && d.ghosts ? ` · ${d.ghosts} ghost listings hidden (older than the freshness limit)` : '') +
-    (grouped ? ` · ${grouped} duplicates grouped` : '');
+    (grouped ? ` · ${roles.length + grouped} copies found, ${grouped} grouped` : '');
+  // Hidden by the age limit (freshness.show_days), with the way back.
+  if (d && d.older) $('count').insertAdjacentHTML('beforeend',
+    ` · ${d.older.toLocaleString()} older than ${d.show_days} days hidden ` +
+    `(<a onclick="showOlder=true;loadRoles({offer:false})">show them</a>)`);
+  else if (showOlder && d && d.show_days) $('count').insertAdjacentHTML('beforeend',
+    ` · showing posts older than ${d.show_days} days ` +
+    `(<a onclick="showOlder=false;loadRoles({offer:false})">hide them</a>)`);
   const fresh = roles.filter(r => r.status === 'new').length;
   $('nav-new').hidden = !fresh;
   $('nav-new').textContent = fresh > 999 ? '999+' : fresh;
@@ -1112,7 +1564,6 @@ function card(r) {
       <span class="title" onclick="openRole('${r.uid}')">${esc(r.title)}</span>
       ${ageTag(r.age)}
       <span class="pill" style="background:${colour}">${esc(r.status)}</span>
-      <span class="uid">${r.uid}</span>
       ${r.copies > 1 ? `<span class="copies" title="Posted in ${r.copies} places. Open it to see every link.">+${r.copies - 1} ${r.copies === 2 ? 'copy' : 'copies'}</span>` : ''}
     </div>
     <div class="meta">${listingTag(r.listing)}${meta.filter(Boolean).map(m => `<span>${esc(m)}</span>`).join('')}${thin}</div>
@@ -1145,6 +1596,9 @@ function apply(uid, url) { window.open(url, '_blank', 'noopener'); act(uid, 'app
 $('scope').onchange = loadRoles; $('status').onchange = loadRoles;
 $('q').oninput = () => drawRoles();
 $('posted').onchange = () => drawRoles();
+$('sort').onchange = () => drawRoles();
+for (const id of ['f-mode', 'f-rule', 'f-paid']) $(id).onchange = () => drawRoles();
+for (const id of ['f-place', 'f-dist', 'f-pay']) $(id).oninput = () => drawRoles();
 
 async function saveAdvert(uid) {
   const text = $('paste-text').value.trim();
@@ -1180,6 +1634,60 @@ async function openRole(uid, tab = 'advert') {
   drawDetail(kinds.includes(tab) ? tab : 'advert');
   // act() reopens the role to redraw it; showModal on an open dialog throws.
   if (!$('detail').open) $('detail').showModal();
+  // Not the first focusable thing, the Match badge, whose tip a focus opens.
+  $('detail').focus();
+}
+
+function openPosting() {
+  if (detail && /^https?:\/\//.test(detail.url)) window.open(detail.url, '_blank', 'noopener,noreferrer');
+}
+
+// An advert is plain text from a dozen job boards: bullets lost, headings as
+// short lines, a blank line between everything. Read it back into headings,
+// lists and paragraphs. Display only: the AI and the screen read the text.
+// The certifications and licenses the advert asks for (search/credentials.py),
+// above the advert: required or preferred, and which are on your resume.
+function credsBox(creds) {
+  if (!creds.length) return '';
+  const name = (c, n) => c.have.includes(n)
+    ? `<span class="cred-name have" title="On your resume">${esc(n)} ✓</span>`
+    : `<span class="cred-name" title="Not found on your resume">${esc(n)}</span>`;
+  return `<div class="creds"><h4>Certifications and licenses this post asks for</h4><ul>${
+    creds.map(c => `<li>${c.need ? `<span class="need ${c.need}">${cap(c.need)}</span>` : ''}
+      ${esc(c.line)}${c.names.length ? `<div class="cred-names">${c.names.map(n => name(c, n)).join('')}</div>` : ''}</li>`).join('')
+  }</ul></div>`;
+}
+
+// `marked`: lines to highlight (the credential lines), as credentials.py
+// wrote them.
+function advertHtml(text, marked = new Set()) {
+  const BULLET = /^\s*(?:[\u2022\u25cf\u25aa\u25e6\u00b7*\u2013-]|\d{1,2}[.)])\s+/;
+  const lines = String(text).replace(/\r/g, '').split('\n')
+    .map(l => l.replace(/[ \t\u00a0]+/g, ' ').trim()).filter(Boolean);
+  // A short line with no full stop is a heading ("Responsibilities",
+  // "What You'll Do", "Required:"); so is one that ends in a colon.
+  const heading = l => !BULLET.test(l) && ((l.length <= 70 && !/[.!?;,]$/.test(l)
+    && l.split(' ').length <= 9) || (l.length <= 110 && /:$/.test(l)));
+  const out = [];
+  let list = [];
+  const mark = t => marked.has(t) ? `<mark class="cred">${esc(t)}</mark>` : esc(t);
+  const flush = () => {
+    if (list.length >= 2) out.push(`<ul>${list.map(i => `<li>${mark(i)}</li>`).join('')}</ul>`);
+    else list.forEach(i => out.push(`<p>${mark(i)}</p>`));
+    list = [];
+  };
+  let afterHeading = false;
+  for (const l of lines) {
+    if (BULLET.test(l)) { list.push(l.replace(BULLET, '')); continue; }
+    if (marked.has(l) && heading(l)) { flush(); out.push(`<p>${mark(l)}</p>`); afterHeading = true; continue; }
+    if (heading(l)) { flush(); out.push(`<h4>${esc(l.replace(/:$/, ''))}</h4>`); afterHeading = true; continue; }
+    // Under a heading, a run of short lines is a list whose bullets were lost.
+    if (afterHeading && l.length <= 320) { list.push(l); continue; }
+    flush(); afterHeading = false;
+    out.push(`<p>${mark(l)}</p>`);
+  }
+  flush();
+  return out.join('');
 }
 
 // ── button icons ─────────────────────────────────────────────────────────────
@@ -1270,18 +1778,22 @@ function drawDetail(tab) {
   const gen = k => `<button class="act spend" data-icon="${TAB_ICON[k] || 'file-text'}" ${hasClaude ? '' : 'disabled'}
     onclick="generate('${d.uid}','${k}')">${esc(cap(tabLabel(k)))}</button>`;
   $('dlg-head').innerHTML = `
-    ${matchTag(d.score == null ? null : Math.round(d.score), d.parts)}
-    ${fitTag(d.fit == null ? null : Math.round(d.fit), d.parts)}
-    ${aiTag(d.ai)}
-    ${d.ai ? fbButtons(d.ai.ai_output_id, d.ai.feedback, 'Was the AI verdict useful?', true) : ''}
-    <strong>${esc(d.title)}</strong>
-    <span class="pill" style="background:${COLOURS[d.status] || '#6b7280'}">${esc(d.status)}</span>
-    <span class="uid">${d.uid}</span>
-    <span style="margin-left:auto">
-      <a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer"
-        class="act" style="text-decoration:none">Open posting</a>
-      <button data-icon="x" class="act" onclick="document.getElementById('detail').close()">Close</button>
-    </span>
+    <div class="dh-top">
+      <div class="dh-main">
+        <div class="dh-badges">
+          ${matchTag(d.score == null ? null : Math.round(d.score), d.parts)}
+          ${fitTag(d.fit == null ? null : Math.round(d.fit), d.parts)}
+          ${aiTag(d.ai)}
+          ${d.ai ? fbButtons(d.ai.ai_output_id, d.ai.feedback, 'Was the AI verdict useful?', true) : ''}
+          <span class="pill" style="background:${COLOURS[d.status] || '#6b7280'}">${esc(d.status)}</span>
+        </div>
+        <h2 class="dh-title" id="detail-title">${esc(d.title)}</h2>
+      </div>
+      <div class="dh-btns">
+        <button data-icon="external-link" class="act primary" onclick="openPosting()">Open posting</button>
+        <button data-icon="x" class="act" onclick="document.getElementById('detail').close()">Close</button>
+      </div>
+    </div>
     <div class="meta" style="width:100%">${
       listingTag(d.listing, true) + [d.company, d.location, cap(d.work_mode), platformName(d.platform),
        `Advert ${Number(d.advert_chars).toLocaleString()} chars`].filter(Boolean)
@@ -1300,10 +1812,11 @@ function drawDetail(tab) {
   // AI tool results live together under one tab rather than a tab each.
   const tabs = ['advert', ...(d.artifacts || []).map(a => a.kind).filter(k => !TOOL_KINDS.includes(k)), 'tools'];
   const uniq = [...new Set(tabs)];
-  let body = `<div class="tabs">${uniq.map(t =>
+  const tabsBar = `<div class="tabs">${uniq.map(t =>
       `<button class="${t === tab ? 'on' : ''}" data-icon="${TAB_ICON[t] || 'file-text'}" onclick="drawDetail('${t}')">${esc(cap(tabLabel(t)))}</button>`).join('')}
-    </div>
-    <div class="bar">${!hasClaude
+    </div>`;
+  // The AI's buttons belong to the AI tools tab, not above the advert.
+  const aiBars = `<div class="bar">${!hasClaude
       ? '<span class="hint">The claude CLI is not on PATH, so drafting is unavailable. Everything else works.</span>'
       : 'Draft: ' + ['screen','cv','cover_letter'].map(gen).join(' ')}</div>
     <div class="bar">
@@ -1315,12 +1828,12 @@ function drawDetail(tab) {
         title="${esc(aiLabel ? `${aiLabel} rewrites your resume for this advert in the ATS template, then checks its claims` : 'set up a model on the AI page')}">Write tailored resume (AI)</button>
       <button data-icon="file-search" class="act spend" onclick="roleJob('review','${d.uid}','resume_review')"
         title="${esc(aiLabel ? `${aiLabel} reviews your resume against this advert` : 'set up a model on the AI page')}">Review resume for this post</button>
-      <button data-icon="circle-check" class="act" onclick="roleJob('check','${d.uid}')">Check if still open</button>
       <span id="rolejob" class="hint"></span>
     </div>`;
+  let body = tabsBar;
 
   if (tab === 'tools') {
-    $('dlg-body').innerHTML = body + toolsIntro(d.uid) + '<div id="tools-out"><p class="empty">Loading…</p></div>';
+    $('dlg-body').innerHTML = body + aiBars + toolsIntro(d.uid) + '<div id="tools-out"><p class="empty">Loading…</p></div>';
     drawTools(d.uid);
     return;
   }
@@ -1331,15 +1844,24 @@ function drawDetail(tab) {
     // Some sources cannot be fetched whole (Adzuna refuses scripts), but the
     // person reading the posting in a browser can copy it.
     const thinAd = d.advert_chars <= THIN_ADVERT;
-    body += `<details class="paste"${thinAd ? ' open' : ''}>
-      <summary>${thinAd
-        ? `Only ${d.advert_chars} characters stored. Paste the full advert from the posting.`
-        : 'Replace the advert with pasted text'}</summary>
+    body += `<div class="advbar">
+      <button data-icon="pen-line" class="act${thinAd ? ' primary' : ''}"
+        onclick="const p = document.getElementById('paste-box'); p.hidden = !p.hidden;
+                 if (!p.hidden) document.getElementById('paste-text').focus()">${
+        thinAd ? 'Paste the full advert' : 'Replace the advert'}</button>
+      <button data-icon="circle-check" class="act" onclick="roleJob('check','${d.uid}')">Check if still open</button>
+      <span id="rolejob" class="hint"></span>
+      ${thinAd ? `<span class="hint">Only ${d.advert_chars} characters were stored, too few to screen.</span>` : ''}
+    </div>
+    <div class="paste" id="paste-box" hidden>
       <textarea id="paste-text" placeholder="Open the posting, select all of the job description, copy, paste here"></textarea>
       <button data-icon="save" class="act primary" onclick="saveAdvert('${d.uid}')">Save and re-screen</button>
       <span id="paste-msg"></span>
-    </details>`;
-    body += `<div class="advert">${esc(d.description) || '<em>No advert stored.</em>'}</div>`;
+    </div>`;
+    body += credsBox(d.credentials || []);
+    body += d.description ? `<div class="advert read">${advertHtml(d.description,
+        new Set((d.credentials || []).map(c => c.line)))}</div>`
+      : '<div class="advert"><em>No advert stored.</em></div>';
     $('dlg-body').innerHTML = body;
   } else {
     const art = (d.artifacts || []).find(a => a.kind === tab);
@@ -1464,6 +1986,46 @@ async function confirmDelete(btn, scanAfter) {
 }
 $('btn-fresh').onclick = () => confirmDelete('btn-fresh', true);
 $('btn-delete-scanned').onclick = () => confirmDelete('btn-delete-scanned', false);
+// Start over: say what goes, then ask twice — a typed phrase and the button.
+$('btn-start-over').onclick = async () => {
+  const box = $('start-over-confirm'), btn = 'btn-start-over';
+  warnOpen(btn, true);
+  box.innerHTML = '<span class="hint">Looking at what you have…</span>';
+  const r = await api('/api/start-over/preview', {method: 'POST', body: form({})});
+  if (!r.ok) { box.innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
+  const d = await r.json();
+  const n = x => Number(x).toLocaleString();
+  const items = [
+    d.settings && 'your settings: job titles, place, pay, sources and AI choices',
+    `${n(d.posts)} job posts, with their statuses, notes, AI verdicts and run history`,
+    d.resume && `your uploaded resume (${esc(d.resume)})`,
+    d.documents && `${n(d.documents)} documents written for job posts (cover letters, CVs)`,
+    d.reports && `${n(d.reports)} report files`,
+    'the job-source keys saved in the app, and the AI keys held in memory'].filter(Boolean);
+  box.innerHTML = `<b>Start over: this deletes everything and runs setup again.</b>
+    <ul style="margin:.35rem 0">${items.map(i => `<li>${i}</li>`).join('')}</ul>
+    <div class="hint">It cannot be undone, except from the backup below. A resume you
+      pointed the settings at yourself, and anything else in your folders, are left alone.</div>
+    <label class="check" style="margin-top:.45rem"><input type="checkbox" id="so-backup" checked>
+      Keep a backup copy of the settings, job posts and resume first (keys are never copied)</label>
+    <label style="display:block;margin-top:.45rem">Type <b>${esc(d.words)}</b> to confirm:
+      <input id="so-words" autocomplete="off" spellcheck="false" style="width:10rem"></label>
+    <div class="bar">
+      <button data-icon="rotate-ccw" class="act danger" id="so-go" disabled>Delete everything and start setup</button>
+      <button data-icon="x" class="act" id="so-cancel">Cancel</button>
+    </div>`;
+  $('so-words').oninput = () =>
+    $('so-go').disabled = $('so-words').value.trim().toLowerCase() !== d.words;
+  $('so-cancel').onclick = () => { box.innerHTML = ''; warnOpen(btn, false); };
+  $('so-go').onclick = async () => {
+    $('so-go').disabled = true;
+    const go = await api('/api/start-over', {method: 'POST',
+      body: form({words: $('so-words').value, backup: $('so-backup').checked ? '1' : ''})});
+    if (!go.ok) { box.innerHTML = `<span class="err">${esc(await go.text())}</span>`; return; }
+    // The token lives only in this page's memory: back in the address for the reload.
+    location.replace(`/?t=${encodeURIComponent(TOKEN)}`);
+  };
+};
 $('btn-enrich').onclick = () => runJob('/api/enrich');
 $('btn-rescreen').onclick = () => runJob('/api/rescreen');
 $('btn-check').onclick = () => runJob('/api/check');
@@ -1524,6 +2086,8 @@ function checks(t) {
   out.push(!g.checked ? `<span class="chk warn">Hallucination check: not run${g.error ? ' (' + esc(g.error) + ')' : ''}</span>`
     : g.unsupported ? `<span class="chk bad">Hallucination check: ${g.unsupported} of ${g.claims} claims not in your resume or the ad</span>`
     : `<span class="chk ok">Hallucination check: ${g.claims ? 'all ' + g.claims + ' claims supported' : 'nothing to check'}</span>`);
+  if (g.second) out.push(`<span class="chk ok">Checked by a second model: ${esc(g.model)}</span>`);
+  else if (g.note) out.push(`<span class="chk warn">${esc(cap(g.note))}</span>`);
   if (t.dropped) out.push(`<span class="chk warn">${t.dropped} item(s) dropped: not found where the model said</span>`);
   out.push(t.tells ? `<span class="chk warn">Humanizer: ${t.tells} AI-sounding phrase(s) left</span>`
     : '<span class="chk ok">Humanizer: clean</span>');
@@ -1652,7 +2216,8 @@ async function drawReview() {
   if (!o.id) { out.innerHTML = '<p class="hint">No review yet.</p>'; return; }
   const g = o.guard || {};
   const check = g.checked
-    ? `${g.claims - g.unsupported} of ${g.claims} claims found in your resume`
+    ? `${g.claims - g.unsupported} of ${g.claims} claims found in your resume` +
+      (g.second ? `, checked by ${g.model}` : '')
     : `claims not checked${g.error ? ': ' + g.error : ''}`;
   out.innerHTML = `<div class="bar" style="margin-bottom:.4rem">
       <span class="hint" style="margin:0">${esc(o.model)} · ${esc(o.created_at.replace('T', ' '))} · ${esc(check)}</span>
@@ -1682,10 +2247,89 @@ const discover = add => {
 };
 $('btn-discover').onclick = () => discover(false);
 $('f-boards').onsubmit = ev => { ev.preventDefault(); discover(true); };
-$('btn-digest').onclick = () => { $('toolslog').innerHTML = '';
-  startJob('/api/digest', {email: $('dig-email').value,
-    all: $('dig-all').checked ? '1' : '', csv: $('dig-csv').checked ? '1' : ''},
-    'toolslog'); };
+
+// ── send feedback ────────────────────────────────────────────────────────────
+// Preview first: the server builds the report (core/feedback.py) and the page
+// shows it word for word. Send goes to the maintainers' relay when this copy
+// has one; a GitHub issue or a saved file works without.
+let fbkKind = 'problem', fbkShown = null;
+document.querySelectorAll('#fbk-kind button').forEach(b => b.onclick = () => {
+  fbkKind = b.dataset.kind;
+  document.querySelectorAll('#fbk-kind button').forEach(x => x.classList.toggle('on', x === b));
+  $('fbk-out').hidden = true;
+});
+['fbk-title', 'fbk-details', 'fbk-reply', 'fbk-shots', 'fbk-logs', 'fbk-app'].forEach(id =>
+  // A change after Preview makes that preview out of date.
+  ['input', 'change'].forEach(ev => $(id).addEventListener(ev, () => { $('fbk-out').hidden = true; })));
+
+const fileB64 = f => new Promise((ok, bad) => {
+  const r = new FileReader();
+  r.onload = () => ok(String(r.result).split(',', 2)[1] || '');
+  r.onerror = () => bad(r.error);
+  r.readAsDataURL(f);
+});
+
+async function fbkBody() {
+  const shots = [];
+  for (const f of [...$('fbk-shots').files])
+    shots.push({name: f.name, type: f.type, data: await fileB64(f)});
+  return JSON.stringify({kind: fbkKind, title: $('fbk-title').value,
+    details: $('fbk-details').value, reply_to: $('fbk-reply').value.trim(),
+    logs: $('fbk-logs').checked, app: $('fbk-app').checked, screenshots: shots});
+}
+
+async function fbkPost(path) {
+  return api(path, {method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: await fbkBody()});
+}
+
+$('fbk-preview').onclick = async () => {
+  const msg = $('fbk-msg'); msg.textContent = '';
+  const r = await fbkPost('/api/report/preview');
+  if (!r.ok) { $('fbk-out').hidden = false; $('fbk-text').textContent = '';
+    $('fbk-subject').textContent = '';
+    msg.innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
+  fbkShown = await r.json();
+  $('fbk-out').hidden = false;
+  const reply = $('fbk-reply').value.trim();
+  $('fbk-subject').textContent = fbkShown.subject + (reply ? ` · reply to ${reply}, sent privately` : '');
+  $('fbk-text').textContent = fbkShown.text;
+  $('fbk-send').disabled = !fbkShown.can_send;
+  $('fbk-send').title = fbkShown.can_send ? ''
+    : 'Sending is not set up in this copy of jobdork. Open it as a GitHub issue or save it instead.';
+  if (!fbkShown.can_send) msg.innerHTML = `<span class="hint">Sending is not set up in
+    this copy of jobdork. Open it as a GitHub issue (you need a GitHub account), or
+    save it and send the file.</span>`;
+};
+
+$('fbk-send').onclick = async () => {
+  const msg = $('fbk-msg'), btn = $('fbk-send');
+  btn.disabled = true; msg.textContent = 'Sending…';
+  const r = await fbkPost('/api/report');
+  if (!r.ok) { btn.disabled = false;
+    msg.innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
+  const d = await r.json();
+  msg.innerHTML = `<span class="saved">Sent. Thank you.</span>${d.issue_url
+    ? ` <a href="${esc(d.issue_url)}" target="_blank" rel="noopener">See the issue</a>` : ''}`;
+  $('fbk').reset(); $('fbk-out').hidden = false; fbkShown = null;
+};
+
+$('fbk-issue').onclick = () => {
+  if (!fbkShown) return;
+  window.open(fbkShown.issue_url, '_blank', 'noopener');
+  if (fbkShown.screenshots) $('fbk-msg').innerHTML = `<span class="hint">Screenshots
+    cannot go in the link: drag them into the issue on GitHub.</span>`;
+};
+
+$('fbk-save').onclick = () => {
+  if (!fbkShown) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([`# ${fbkShown.subject}\n\n${fbkShown.text}\n`],
+                                        {type: 'text/markdown'}));
+  a.download = 'jobdork-feedback.md';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
 
 $('btn-add').onclick = async () => {
   const r = await api('/api/add', {method: 'POST',
@@ -1714,12 +2358,11 @@ function connect() {
   };
   s.onmessage = ev => {
     const e = JSON.parse(ev.data);
-    // Tools keeps its own log for the digest, Resume for the review, and
-    // Sources for finding a board. Everything else is shown by the dashboard,
+    // Resume keeps its own log for the review, and Sources for finding a
+    // board. Everything else is shown by the dashboard,
     // which reads the same lines from the database — so an event here only
     // asks it to refresh now rather than in 2s.
-    const own = !$('view-tools').hidden ? 'toolslog'
-      : !$('view-resume').hidden && !$('resumelog').hidden ? 'resumelog'
+    const own = !$('view-resume').hidden && !$('resumelog').hidden ? 'resumelog'
       : !$('view-sources').hidden && !$('srclog').hidden ? 'srclog' : '';
     const tools = !!own;
     if (own && e.kind === 'progress') logLine('  ' + e.text, '', own);
@@ -1728,6 +2371,8 @@ function connect() {
     refreshState(); pollActivity();
     if (e.kind === 'done') {
       loadRoles(); cfg = null; redrawDetail(); loadMetrics();
+      // A scan just finished: offer to drop what it left risky or stale.
+      if (/scan$/.test(e.job || '')) offerAged('aged-scan');
       if (!$('view-sources').hidden) drawSources();   // a board may have been added
     }
     if (reviewPending && (e.kind === 'done' || e.kind === 'error')) {
@@ -1743,6 +2388,10 @@ function connect() {
 
 async function refreshState() {
   const s = await (await api('/api/state')).json();
+  if (s.setup) drawSetup(s.setup);
+  // Just finished: open the dashboard. The token lives only in this page's
+  // memory, so it goes back in the address for the one load that reads it.
+  else if (setupStep) return location.replace(`/?t=${encodeURIComponent(TOKEN)}`);
   hasClaude = s.claude;
   aiLabel = s.ai || '';
   $('aihint').textContent = s.ai_problem ? `AI: ${s.ai_problem}` : `AI: ${s.ai}`;
@@ -1754,18 +2403,471 @@ async function refreshState() {
     removed. Start it with <code>-v &lt;a folder on this machine&gt;:${esc(s.unkept_data)}</code>
     to keep them.`;
   const busy = s.busy;
-  ['run','btn-fresh','btn-delete-scanned','btn-enrich','btn-rescreen','btn-check','btn-judge','btn-discover','btn-discover-add','btn-digest','btn-review']
+  ['run','btn-fresh','btn-delete-scanned','btn-start-over','btn-enrich','btn-rescreen','btn-check','btn-judge','btn-discover','btn-discover-add','btn-review']
     .forEach(id => { if ($(id)) $(id).disabled = busy; });
   $('run').textContent = busy && s.job === 'scan' ? 'Scanning…' : 'Run a scan';
   $('btn-fresh').textContent = busy && s.job === 'fresh scan' ? 'Fresh scan running…' : 'Run fresh scan';
   $('scanstate').textContent = busy ? `${s.job} running` : '';
+  // Setup's scan, watched here: what is running and what comes next.
+  const first = {
+    'first scan': 'Setup is done, and your first scan is running: the job boards that search by title and a few employers\' own boards. Job posts appear under Job posts within a few minutes.',
+    'full scan': 'The first job posts are in. The rest of the employer boards are being read now; more job posts appear as it finishes.',
+  }[busy ? s.job : ''];
+  $('bgscan').hidden = !first;
+  if (first) $('bgscan').textContent = first;
+}
+
+// ── first-run setup ──────────────────────────────────────────────────────────
+// While the config says setup is unfinished, the page is only this: one step
+// per screen, each saved as it is answered (core/setup.py has the steps).
+let setupStep = null;
+
+function drawSetup(st) {
+  if (st.step === setupStep) return;
+  setupStep = st.step;
+  document.querySelector('.shell').classList.add('setup');
+  document.querySelectorAll('main > section').forEach(v =>
+    v.hidden = v.id !== 'view-setup');
+  const at = st.steps.findIndex(x => x.name === st.step);
+  $('setup-progress').textContent = at > 0 ? `Step ${at} of ${st.steps.length - 1}` : '';
+  $('setup-msg').textContent = '';
+  $('setup-nav').innerHTML = '';
+  $('setup-extra').innerHTML = '';
+  $('view-ai').hidden = st.step !== 'ai';
+  $('setup-slot').querySelectorAll('.sgroup').forEach(g =>
+    g.hidden = !['where', 'pay'].includes(st.step));
+  $('setup-slot').className = st.step;
+  $('view-setup').classList.toggle('welcome', st.step === 'welcome');
+  if (st.step === 'welcome') {
+    drawSetupWelcome(st);
+  } else if (st.step === 'resume') {
+    $('setup-body').innerHTML = `<h2>Your resume</h2>
+      <p>jobdork scores every job post against your resume, and the AI reads it to
+      suggest what to search for. It stays on this computer.</p>
+      <p><input type="file" id="setup-file" accept=".pdf,.docx,.md,.markdown,.txt"
+        aria-label="Resume file"></p>
+      <p class="hint">PDF, Word, Markdown or plain text.</p>
+      <div id="setup-read"></div>`;
+    $('setup-file').onchange = () => setupUpload($('setup-file').files[0], st);
+    setupShowResume(st);           // already uploaded, when coming back
+  } else if (st.step === 'ai') {
+    const next = st.steps[at + 1].name;
+    $('setup-body').innerHTML = `<h2>AI</h2>
+      <p>A model reads each job post against your resume and gives its verdict,
+      suggests what to search for in the next step, and drafts cover letters.
+      Scanning works without it, so you can skip this and set it up later on
+      the AI page.</p>
+      <p class="hint">Ollama runs on your own computer and costs nothing. Claude,
+      Gemini and ChatGPT spend tokens on your key. Once the test passes, every
+      scan has the model read the ${SETUP_JUDGE_TOP} best new job posts against your
+      resume (change it on the AI page). A key typed here is held in
+      memory only and forgotten when jobdork stops; to keep one, put it in
+      ${st.in_container ? 'the container\'s environment' : '<code>.env</code>'}
+      (for example <code>ANTHROPIC_API_KEY=…</code>).
+      ${st.ollama_from_docker ? `From inside Docker, Ollama on this computer is at
+      <code>${esc(st.ollama_from_docker)}</code>.` : ''}</p>`;
+    $('setup-slot').append($('view-ai'));
+    $('view-ai').hidden = false;
+    drawAI();
+    $('setup-nav').innerHTML = `
+      <button type="button" class="act primary" id="setup-next" hidden>Continue</button>
+      <button type="button" class="act" id="setup-skip">Skip for now</button>`;
+    // Continue shows only once the model answered: then every scan has it
+    // read the best new job posts too. Skip leaves that off.
+    $('setup-next').onclick = () => setupGo(next, {llm: {judge_on_scan: true, judge_top: SETUP_JUDGE_TOP}});
+    $('setup-skip').onclick = () => setupGo(next);
+  } else if (st.step === 'search') {
+    drawSetupSearch(st, at);
+  } else if (st.step === 'where') {
+    const next = st.steps[at + 1].name;
+    $('setup-body').innerHTML = `<h2>Where</h2>
+      <p>Where you are, how far you would travel to an office, and which kinds of
+      work to keep. Remote jobs are kept whatever the distance.</p>`;
+    setupLocationForm();
+    $('setup-nav').innerHTML =
+      '<button type="button" class="act primary" id="setup-next">Continue</button>';
+    $('setup-next').onclick = async () => {
+      if (!$('c_pcity').value.trim()) {
+        $('setup-msg').className = 'err';
+        $('setup-msg').textContent = 'Choose your country and city first.';
+        return;
+      }
+      if (await saveLocation()) setupGo(next);
+    };
+  } else if (st.step === 'scan') {
+    $('setup-body').innerHTML = `<h2>First scan</h2>
+      <p>That is everything. Start the first scan and the Dashboard opens, where you
+      can watch it: the first job posts arrive within a few minutes, and the rest
+      of the employer boards are read after them.</p>
+      <p class="hint">Boards are read gently, a few at a time, so the whole scan
+      takes a while. You can use everything else meanwhile.</p>
+      <h3>How old a job post do you still want to see?</h3>
+      <p class="hint">After three weeks a post is often being interviewed for
+      already (marked <b>Risky</b>), and older ones may be filled or reposted by a
+      script (<b>Stale</b>). Older posts are hidden from Job posts, never
+      deleted; posts you act on are always shown, and Job posts can show the
+      hidden ones or change this any time.</p>
+      <p><select id="setup-show-days" aria-label="Hide job posts older than">
+        <option value="21">Up to 3 weeks old</option>
+        <option value="30" selected>Up to 1 month old</option>
+        <option value="60">Up to 2 months old</option>
+        <option value="90">Up to 3 months old</option>
+        <option value="0">Any age</option>
+      </select></p>
+      <button type="button" class="act primary" id="setup-scan">Start the first scan</button>`;
+    const go = $('setup-scan');
+    go.onclick = async () => {
+      go.disabled = true; go.textContent = 'Starting…';
+      const saved = await api('/api/config', {method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({show_days: +$('setup-show-days').value})});
+      if (!saved.ok) {
+        go.disabled = false; go.textContent = 'Try again';
+        $('setup-msg').className = 'err'; $('setup-msg').textContent = cap(await saved.text());
+        return;
+      }
+      cfg = null;
+      const r = await api('/api/setup/scan', {method: 'POST'});
+      if (!r.ok) {
+        go.disabled = false; go.textContent = 'Try again';
+        $('setup-msg').className = 'err'; $('setup-msg').textContent = cap(await r.text());
+        return;
+      }
+      refreshState();             // set up now: this opens the Dashboard
+    };
+  } else if (st.step === 'pay') {
+    const next = st.steps[at + 1].name;
+    $('setup-body').innerHTML = `<h2>Pay and job sources</h2>
+      <p>Optional. A job post is hidden only when it states a salary and even the
+      top of it is below this. Most posts state none, and those are always kept.</p>
+      <p class="hint">A yearly amount: hourly and daily rates in job posts are turned
+      into yearly pay before comparing. For an hourly rate, multiply by 2,080
+      (40 hours a week). Leave it empty to hide nothing for pay.</p>`;
+    setupLocationForm();
+    drawSetupSources();
+    $('setup-nav').innerHTML =
+      '<button type="button" class="act primary" id="setup-next">Continue</button>';
+    $('setup-next').onclick = async () => {
+      if (await saveLocation()) setupGo(next);
+    };
+  } else {
+    $('setup-body').innerHTML = `<h2>${esc(st.steps[at].title)}</h2>
+      <p class="hint">This step is not built yet.</p>`;
+  }
+}
+
+// The Pay step's second half: what a scan reads, in plain words, then the
+// keyed sources your countries can use: Adzuna where it covers one of them,
+// and USAJOBS too when the US is among them. Each is a question; its key
+// boxes open when you say yes.
+async function drawSetupSources(d) {
+  d = d || await (await api('/api/setup/sources')).json();
+  const b = d.boards;
+  const inds = b.industries.length ? b.industries.join(', ') : 'every industry';
+  const where = b.countries.length ? b.countries.join(', ') : 'every country';
+  const usable = d.keyed.filter(k => k.applies);
+  $('setup-extra').innerHTML = `<h3>What will be searched</h3>
+    <p>Every scan reads these, then keeps only the job posts that pass what you chose:
+    ${d.titles.map(t => `<b>${esc(t)}</b>`).join(', ')}.</p>
+    <ul class="searched">
+      ${d.searched.map(x => `<li><b>${esc(x.name)}</b>: ${esc(x.what)}</li>`).join('')}
+      <li><b>Employers' own job boards</b>: ${b.enabled ? `${b.count} built in, for
+        ${esc(inds)} in ${esc(where)}` : 'switched off'}${d.own_boards
+        ? `, and ${d.own_boards} you added` : ''}. Add any employer later on the
+        Sources page.</li>
+    </ul>
+    ${usable.map(k => `<div class="keycard">
+      <b>Use ${esc(k.label)}?</b> ${esc(k.offer)}
+      ${k.ready ? `<div><span class="saved">Ready</span>
+          ${k.held === 'app' ? `<button type="button" class="act" data-forget="${k.name}">Remove</button>` : ''}</div>`
+      : `<div class="bar"><button type="button" class="act" data-want="${k.name}">Yes, add a free key</button></div>
+        <div class="keyform" id="keyform-${k.name}" hidden>
+          <div class="hint">Get one free at <a href="${esc(k.signup)}" target="_blank"
+            rel="noopener noreferrer">${esc(new URL(k.signup).host)}</a>, then paste it here.</div>
+          <div class="bar">${k.fields.map(f => `<input type="${/EMAIL/.test(f.name) ? 'email' : 'password'}"
+            autocomplete="off" spellcheck="false" data-key="${f.name}" placeholder="${esc(f.label)}"
+            aria-label="${esc(k.label)} ${esc(f.label)}" style="width:14rem">`).join('')}
+            <button type="button" class="act primary" data-save="${k.name}">Save</button></div></div>`}
+    </div>`).join('')}`;
+  const send = async body => {
+    const r = await api('/api/setup/keys', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+    if (!r.ok) {
+      $('setup-msg').className = 'err'; $('setup-msg').textContent = cap(await r.text());
+      return;
+    }
+    $('setup-msg').textContent = '';
+    drawSetupSources(await r.json());
+  };
+  $('setup-extra').querySelectorAll('[data-want]').forEach(btn => btn.onclick = () => {
+    btn.closest('.bar').hidden = true;
+    $('keyform-' + btn.dataset.want).hidden = false;
+  });
+  $('setup-extra').querySelectorAll('[data-save]').forEach(btn => btn.onclick = () => {
+    const card = btn.closest('.keycard'), body = {};
+    card.querySelectorAll('[data-key]').forEach(i => { body[i.dataset.key] = i.value.trim(); i.value = ''; });
+    send(body);
+  });
+  $('setup-extra').querySelectorAll('[data-forget]').forEach(btn => btn.onclick = () => {
+    const k = d.keyed.find(x => x.name === btn.dataset.forget), body = {remove: true};
+    k.fields.forEach(f => body[f.name] = '');
+    send(body);
+  });
+}
+
+// The Search page's location form, shown in the Where and Pay steps.
+function setupLocationForm() {
+  const form = $('cfgform').closest('.sgroup'), countries = $('ed-countries').closest('.sgroup');
+  $('setup-slot').append(form, countries);
+  form.hidden = countries.hidden = false;
+  cfg = null;
+  drawConfig();
+}
+
+async function setupUpload(file, st) {
+  if (!file) return;
+  $('setup-msg').className = 'hint'; $('setup-msg').textContent = 'Reading…';
+  const r = await api('/api/resume', {method: 'POST',
+    headers: {'X-Filename': file.name, 'Content-Type': 'application/octet-stream'},
+    body: file});
+  if (!r.ok) {
+    $('setup-msg').className = 'err'; $('setup-msg').textContent = cap(await r.text());
+    return;
+  }
+  $('setup-msg').textContent = '';
+  setupShowResume(st);
+}
+
+// What was read, so a resume that lost half of itself on the way in is seen
+// before anything is scored against it.
+async function setupShowResume(st) {
+  const r = await api('/api/resume/view');
+  if (!r.ok) { $('setup-read').innerHTML = ''; return; }
+  const d = await r.json();
+  const at = st.steps.findIndex(x => x.name === st.step);
+  $('setup-read').innerHTML = `
+    <p><b>${esc(d.name)}</b>: ${d.chars.toLocaleString()} characters read
+      ${d.years ? ` · ${d.years} years of experience claimed` : ''}</p>
+    ${d.note ? `<p class="err">${esc(d.note)}</p>` : ''}
+    ${d.skills.length ? `<div class="flags">${d.skills.map(x =>
+      `<span class="flag">${esc(x)}</span>`).join('')}</div>` : ''}
+    <p class="hint">This is the text jobdork read. Check that it is all there.</p>
+    <pre class="setup-text">${esc(d.text)}</pre>
+    <button type="button" class="act primary" id="setup-next">Continue</button>
+    <span class="hint">or choose another file above to replace it.</span>`;
+  $('setup-next').onclick = () => setupGo(st.steps[at + 1].name);
+}
+
+// The welcome screen: what jobdork does, each step ahead with a line on what
+// it asks, and one button. A step missing from SETUP_ROUTE (core/setup.py
+// added one) still shows, by its title alone.
+const SETUP_ROUTE = {
+  resume: ['Upload a PDF or Word file. Every job post is scored against it.', 'Required'],
+  ai: ['Connect Ollama on this computer for free, or a Claude, Gemini or ChatGPT key.', 'Optional'],
+  search: ['Job titles to look for and what to leave out. The AI can suggest them from your resume.', 'Required'],
+  where: ['Your city, how far you would travel, and remote, hybrid or on-site.', 'Required'],
+  pay: ['A salary floor, and free keys for job sources where they apply.', 'Optional'],
+  scan: ['The first job posts arrive within a few minutes.', ''],
+};
+const WEL_ICON = {
+  read: 'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 4v10h16V8H4zm2 2h7v2H6v-2zm0 4h10v2H6v-2z',
+  check: 'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm4.3 6.3-5.8 5.8-2.8-2.8-1.4 1.4 4.2 4.2 7.2-7.2-1.4-1.4z',
+  lock: 'M12 2a5 5 0 0 1 5 5v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v3h6V7a3 3 0 0 0-3-3zm0 9a2 2 0 0 0-1 3.73V19h2v-2.27A2 2 0 0 0 12 13z',
+  arrow: 'M13.3 5.3a1 1 0 0 1 1.4 0l6 6a1 1 0 0 1 0 1.4l-6 6a1 1 0 0 1-1.4-1.4l4.3-4.3H4a1 1 0 1 1 0-2h13.6l-4.3-4.3a1 1 0 0 1 0-1.4z',
+};
+
+function drawSetupWelcome(st) {
+  const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="${d}"/></svg>`;
+  const pillar = (ic, head, text) =>
+    `<li><span class="ic">${svg(WEL_ICON[ic])}</span><b>${head}</b><span>${text}</span></li>`;
+  const route = st.steps.slice(1).map((x, i) => {
+    const [line, tag] = SETUP_ROUTE[x.name] || ['', ''];
+    return `<li><span class="n">${i + 1}</span>
+      <div><b>${esc(x.title)}</b>${line ? `<span>${esc(line)}</span>` : ''}</div>
+      ${tag ? `<span class="opt${tag === 'Required' ? ' req' : ''}">${tag}</span>` : '<span></span>'}</li>`;
+  }).join('');
+  $('setup-body').innerHTML = `<div class="wel">
+    <div class="hero">
+      ${document.querySelector('.brand .logo').outerHTML}
+      <p class="eyebrow">Welcome to jobdork</p>
+      <h2>Find the job posts worth your time</h2>
+      <p class="lead">jobdork reads job boards and employers' own career sites, checks
+      every job post against your resume and what you ask for, and keeps only the
+      ones that pass.</p>
+    </div>
+    <ul class="pillars">
+      ${pillar('read', 'Reads the boards for you', 'Job boards and hundreds of employers\' own sites, on every scan.')}
+      ${pillar('check', 'Checks every job post', 'Title, place, pay and your dealbreakers, then scored against your resume.')}
+      ${pillar('lock', 'Stays on your computer', 'Your resume, settings and job posts are kept here. Only the AI you choose reads them.')}
+    </ul>
+    <h3>What setup asks · ${st.steps.length - 1} short steps</h3>
+    <ol class="route">${route}</ol>
+    <div class="go">
+      <p class="need">Have your resume ready: PDF, Word, Markdown or plain text.</p>
+      <button type="button" class="act start" id="setup-start">Get started ${svg(WEL_ICON.arrow)}</button>
+      <p class="hint">Each answer is saved as you go, so you can stop and come back.</p>
+    </div></div>`;
+  $('setup-start').onclick = () => setupGo(st.steps[1].name);
+  $('setup-start').focus({preventScroll: true});
+}
+
+// "What you are looking for": four lists to tick. With AI set up, the model
+// reads the resume and fills them in; the user keeps what fits.
+let pick = null;
+
+async function drawSetupSearch(st, at) {
+  const next = st.steps[at + 1].name;
+  $('setup-body').innerHTML = `<h2>What you are looking for</h2>
+    <p>Tick what to keep and add your own. You can change all of it later on the
+    Search page.</p>
+    <p class="hint" id="setup-suggest-msg"></p>
+    <h3>Job titles to search for</h3>
+    <p class="hint">Matched against each job post's title, whole words.</p>
+    <div class="ticks" id="sl-titles"></div>
+    <div class="bar"><input id="add-titles" placeholder="Add a job title" style="width:18rem">
+      <button type="button" class="act" data-add="titles">Add</button></div>
+    <h3>Never show these titles</h3>
+    <div class="ticks" id="sl-exclude"></div>
+    <div class="bar"><input id="add-exclude" placeholder="Add a title to keep out" style="width:18rem">
+      <button type="button" class="act" data-add="exclude">Add</button></div>
+    <h3>Industries</h3>
+    <p class="hint">jobdork also reads employers' own job boards in these industries.
+      None ticked reads every industry.</p>
+    <div class="ticks" id="sl-industries"></div>
+    <h3>Your certifications and licenses</h3>
+    <p class="hint">An advert's required ones are checked against these, so you see
+      at once whether you hold them. Ones found on your resume are ticked.</p>
+    <div class="ticks" id="sl-credentials"></div>
+    <div class="bar"><input id="add-credentials" placeholder="Add one, e.g. RN, CPA, CDL" style="width:18rem">
+      <button type="button" class="act" data-add="credentials">Add</button></div>
+    <h3>Dealbreakers</h3>
+    <p class="hint">Words in a job post you would rather not see. Some hide the post;
+      the rest lower its score.</p>
+    <div class="ticks" id="sl-dealbreakers"></div>`;
+  $('setup-nav').innerHTML =
+    '<button type="button" class="act primary" id="setup-next">Continue</button>';
+  $('setup-next').onclick = () => saveSetupSearch(next);
+  $('setup-body').querySelectorAll('[data-add]').forEach(b => {
+    const list = b.dataset.add, input = $('add-' + list);
+    const add = () => {
+      // Titles are matched in lower case; a credential keeps its own ("RN").
+      const v = list === 'credentials' ? input.value.trim() : input.value.trim().toLowerCase();
+      if (v) { pick[list].set(v, true); input.value = ''; paintSetupSearch(); }
+    };
+    b.onclick = add;
+    input.onkeydown = e => { if (e.key === 'Enter') add(); };
+  });
+
+  const c = await (await api('/api/setup/choices')).json();
+  const ticked = (all, on) => new Map(all.map(x => [x, on.includes(x)]));
+  pick = {
+    titles: ticked(c.chosen.titles, c.chosen.titles),
+    exclude: ticked(c.chosen.exclude, c.chosen.exclude),
+    industries: ticked(c.industries, c.chosen.industries),
+    dealbreakers: ticked(c.dealbreakers.map(d => d.name), c.chosen.dealbreakers),
+    // Yours as saved; before any are, the ones the resume names, ticked.
+    credentials: c.chosen.credentials.length
+      ? ticked(c.chosen.credentials, c.chosen.credentials)
+      : ticked(c.credentials_found, c.credentials_found),
+    catalog: c.dealbreakers, suggested: new Set(),
+  };
+  paintSetupSearch();
+  const msg = $('setup-suggest-msg');
+  if (c.chosen.titles.length) return;          // answered before: keep it
+  if (!st.ai_ready) {
+    msg.textContent = 'No AI set up, so type the job titles you want below.';
+    return;
+  }
+  // A real bar: the server reads how far the model's answer has got.
+  msg.innerHTML = `<div class="pbar"><span id="suggest-bar" style="width:5%"></span></div>
+    <span id="suggest-label">Reading your resume…</span>`;
+  $('setup-next').disabled = true;
+  let waiting = true;
+  (async function poll() {
+    while (waiting) {
+      // Wait first: the last run's "Done" is still there until this one starts.
+      await new Promise(res => setTimeout(res, 400));
+      try {
+        const p = await (await api('/api/setup/suggest/progress')).json();
+        if (waiting && p.label && $('suggest-bar')) {
+          $('suggest-bar').style.width = `${Math.round(p.fraction * 100)}%`;
+          $('suggest-label').textContent = p.label === 'Done' ? 'Done' : `${p.label}…`;
+        }
+      } catch (e) { /* the next poll will tell */ }
+    }
+  })();
+  const r = await api('/api/setup/suggest', {method: 'POST'});
+  waiting = false;
+  $('setup-next').disabled = false;
+  if (!r.ok) {
+    msg.className = 'err';
+    msg.textContent = `The AI could not suggest anything (${await r.text()}). Type them below.`;
+    return;
+  }
+  const d = await r.json();
+  d.titles.forEach(t => pick.titles.set(t, true));
+  d.exclude.forEach(t => pick.exclude.set(t, true));
+  d.industries.forEach(i => pick.industries.set(i, true));
+  // A dealbreaker is a preference the resume cannot settle: marked, not ticked.
+  d.dealbreakers.forEach(n => pick.suggested.add(n));
+  msg.className = 'hint';
+  msg.textContent = 'Suggested from your resume. Untick what does not fit.';
+  paintSetupSearch();
+}
+
+function paintSetupSearch() {
+  const hard = new Map(pick.catalog.map(d => [d.name, d.hard]));
+  for (const list of ['titles', 'exclude', 'industries', 'credentials', 'dealbreakers']) {
+    const items = [...pick[list]];
+    $('sl-' + list).innerHTML = items.length ? items.map(([name, on]) =>
+      `<label class="check"><input type="checkbox" data-list="${list}"
+        value="${esc(name)}" ${on ? 'checked' : ''}> ${esc(list === 'industries' ? cap(name) : name)}${
+        list === 'dealbreakers' ? ` <span class="hint">(${hard.get(name) ? 'hides' : 'lowers'})</span>` : ''}${
+        pick.suggested.has(name) ? ' <span class="tag">suggested</span>' : ''}</label>`).join('')
+      : '<span class="hint">None yet.</span>';
+  }
+  $('setup-body').querySelectorAll('input[data-list]').forEach(box =>
+    box.onchange = () => pick[box.dataset.list].set(box.value, box.checked));
+}
+
+async function saveSetupSearch(next) {
+  const on = list => [...pick[list]].filter(([, v]) => v).map(([k]) => k);
+  const deals = on('dealbreakers');
+  const r = await api('/api/config', {method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      titles_include: on('titles'), titles_exclude: on('exclude'),
+      industries: on('industries'), credentials: on('credentials'),
+      dealbreakers: pick.catalog.filter(d => deals.includes(d.name))
+        .map(d => ({name: d.name, words: d.words, pattern: d.pattern, hard: d.hard})),
+      setup_step: next})});
+  if (!r.ok) {
+    $('setup-msg').className = 'err'; $('setup-msg').textContent = cap(await r.text());
+    return;
+  }
+  refreshState();
+}
+
+// How many of the best new job posts the AI reads after each scan, turned on
+// when setup's AI test passes (core/setup.py JUDGE_TOP, the same number).
+const SETUP_JUDGE_TOP = 15;
+
+async function setupGo(next, extra = {}) {
+  const r = await api('/api/config', {method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({...extra, setup_step: next})});
+  if (!r.ok) {
+    $('setup-msg').className = 'err'; $('setup-msg').textContent = cap(await r.text());
+    return;
+  }
+  refreshState();
 }
 
 // ── activity ─────────────────────────────────────────────────────────────────
 // Reads /api/activity, which reads the database, so jobs started in the
 // terminal show here too. Polls fast while visible, slowly otherwise (only
 // to light the nav dot).
-let actPick = 0, actTimer = null;
+let actPick = 0, actTimer = null, hostsJob = null;
 
 const fmtDur = s => s == null ? '-' : s < 60 ? `${Math.round(s)}s`
   : s < 3600 ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`
@@ -1791,14 +2893,36 @@ function stack(counts) {
       `<span><i style="background:${ink(k)}"></i>${esc(cap(LABEL[k] || k))} <b>${n(v)}</b></span>`).join('')}</div>`;
 }
 
-function table(cols, rows, empty) {
+// With a `key`, more than PAGE_SIZE rows are shown a page at a time, and a
+// column with a `sort` (row -> value) sorts by a click on its heading; a
+// second click turns it round. `sorts[key]` remembers {col, desc}.
+const sorts = {};
+function table(cols, rows, empty, key) {
   if (!rows.length) return `<p class="hint">${empty}</p>`;
+  const by = key && sorts[key];
+  if (by && cols[by.col] && cols[by.col].sort) {
+    const val = cols[by.col].sort;
+    rows = [...rows].sort((a, b) => {
+      const x = val(a), y = val(b);
+      const c = typeof x === 'string' ? x.localeCompare(y) : x - y;
+      return by.desc ? -c : c;
+    });
+  }
+  const [shown, pager] = key ? paged(rows, key) : [rows, ''];
+  const head = (c, i) => {
+    if (!key || !c.sort) return `<th class="${c.num ? 'n' : ''}">${c.label}</th>`;
+    const on = by && by.col === i;
+    return `<th class="${c.num ? 'n' : ''}" aria-sort="${on ? (by.desc ? 'descending' : 'ascending') : 'none'}">
+      <button type="button" class="sortbtn" data-sort="${key}" data-col="${i}"
+        title="Sort by ${esc(c.label.toLowerCase())}">${c.label}${on ? (by.desc ? ' ▼' : ' ▲') : ''}</button></th>`;
+  };
   return `<div class="tbl-wrap"><table class="data"><thead><tr>${
-    cols.map(c => `<th class="${c.num ? 'n' : ''}">${c.label}</th>`).join('')}</tr></thead><tbody>${
-    rows.map(r => `<tr>${cols.map(c => `<td class="${c.num ? 'n' : ''}">${c.get(r)}</td>`).join('')}</tr>`).join('')
-  }</tbody></table></div>`;
+    cols.map(head).join('')}</tr></thead><tbody>${
+    shown.map(r => `<tr>${cols.map(c => `<td class="${c.num ? 'n' : ''}">${c.get(r)}</td>`).join('')}</tr>`).join('')
+  }</tbody></table></div>${pager}`;
 }
 
+const LEVEL_CLASS = {error: 'bad', warning: 'warn'};
 async function pollActivity() {
   clearTimeout(actTimer);
   const visible = !$('view-scan').hidden;
@@ -1849,16 +2973,22 @@ function drawActivity(d) {
       ? `<div class="pbar ${pct == null ? 'indet' : ''}"><span style="width:${pct ?? 30}%"></span></div>` : '';
     $('act-counts').innerHTML = Object.keys(j.counters || {}).length ? `<h3>Outcomes</h3>${stack(j.counters)}` : '';
 
+    if (j.id !== hostsJob) { hostsJob = j.id; pages.hosts = 0; }   // another run: page 1
+    sorts.hosts = sorts.hosts || {col: 1, desc: true};             // busiest first
     $('act-hosts').innerHTML = table([
-      {label: 'Host', get: ([h, v]) => esc(h) + (v.blocked ? ' <span class="badc">blocked</span>' : '')},
-      {label: 'Requests', num: 1, get: ([, v]) => n(v.requests)},
-      {label: '2xx/3xx', num: 1, get: ([, v]) => n(v.ok)},
-      {label: '4xx', num: 1, get: ([, v]) => n(v.client)},
-      {label: '429', num: 1, get: ([, v]) => v.limited ? `<span class="warnc">${n(v.limited)}</span>` : '0'},
-      {label: 'Failed', num: 1, get: ([, v]) => v.errors ? `<span class="badc">${n(v.errors)}</span>` : '0'},
-      {label: 'Avg', num: 1, get: ([, v]) => secs(v.seconds / v.requests)},
-      {label: 'Slowest', num: 1, get: ([, v]) => secs(v.slowest)},
-    ], hosts.sort((a, b) => b[1].requests - a[1].requests), 'No requests in this job.');
+      {label: 'Host', sort: ([h]) => h,
+       get: ([h, v]) => esc(h) + (v.blocked ? ' <span class="badc">blocked</span>' : '')},
+      {label: 'Requests', num: 1, sort: ([, v]) => v.requests, get: ([, v]) => n(v.requests)},
+      {label: '2xx/3xx', num: 1, sort: ([, v]) => v.ok, get: ([, v]) => n(v.ok)},
+      {label: '4xx', num: 1, sort: ([, v]) => v.client, get: ([, v]) => n(v.client)},
+      {label: '429', num: 1, sort: ([, v]) => v.limited,
+       get: ([, v]) => v.limited ? `<span class="warnc">${n(v.limited)}</span>` : '0'},
+      {label: 'Failed', num: 1, sort: ([, v]) => v.errors,
+       get: ([, v]) => v.errors ? `<span class="badc">${n(v.errors)}</span>` : '0'},
+      {label: 'Avg', num: 1, sort: ([, v]) => v.seconds / v.requests,
+       get: ([, v]) => secs(v.seconds / v.requests)},
+      {label: 'Slowest', num: 1, sort: ([, v]) => v.slowest, get: ([, v]) => secs(v.slowest)},
+    ], hosts, 'No requests in this job.', 'hosts');
 
     $('act-ai').innerHTML = table([
       {label: 'Model', get: ([m]) => esc(m)},
@@ -1870,10 +3000,22 @@ function drawActivity(d) {
 
     const log = $('act-log');
     const bottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
-    log.innerHTML = d.events.map(e => `<div class="${e.level === 'error' ? 'bad' : ''}"><span class="dim">${esc(e.at.slice(11))}</span> ${esc(e.text)}</div>`).join('')
+    log.innerHTML = d.events.map(e => `<div class="${LEVEL_CLASS[e.level] || ''}"><span class="dim">${esc(e.at.slice(11))}</span> ${esc(e.text)}</div>`).join('')
       || '<span class="dim">No output recorded.</span>';
     if (bottom) log.scrollTop = log.scrollHeight;
   }
+
+  // Warnings and errors across jobs and the app (api._problems).
+  const probs = d.problems || [];
+  const errs = probs.filter(p => p.level === 'error').length;
+  $('act-problems-sum').textContent = probs.length
+    ? `(${errs} error${errs === 1 ? '' : 's'}, ${probs.length - errs} warning${probs.length - errs === 1 ? '' : 's'})` : '';
+  $('act-problems').innerHTML = probs.map(p => `<div class="${LEVEL_CLASS[p.level]}"
+      ${p.job_id ? `style="cursor:pointer" onclick="actPick=${p.job_id};pollActivity()" title="Show this run above"` : ''}>
+      <span class="dim">${esc(p.at.slice(5, 16).replace('T', ' '))}</span>
+      <span class="tag">${p.level === 'error' ? 'ERROR' : 'WARN'}</span>
+      <span class="dim">[${esc(p.job || 'app')}]</span> ${esc(p.text)}</div>`).join('')
+    || '<span class="dim">No warnings or errors in the last 7 days.</span>';
 
   // One line per kind of run, with what went wrong called out. A scan is
   // read from the scan history, so scans from before run history count.
@@ -2324,10 +3466,17 @@ function aiTag(a) {
   // Claims the guard could not find in the advert or the resume (guard.py).
   const g = a.guard;
   const flagged = g && g.checked ? (g.flagged || []) : [];
-  const checked = !g ? '' : !g.checked ? ' · claims not checked'
-    : ` · ${g.claims - g.unsupported} of ${g.claims} claims found in the advert or resume`;
+  const checked = (!g ? '' : !g.checked ? ' · claims not checked'
+    : ` · ${g.claims - g.unsupported} of ${g.claims} claims found in the advert or resume`) +
+    (g && g.second ? `, checked by ${g.model}` : '');
+  // The second model's own score (judging.second_opinion).
+  const s = a.second;
+  const second = !s ? '' : s.error
+    ? `<p class="hint" style="margin:.4rem 0 0">Second model ${esc(s.model)} could not score it: ${esc(s.error)}</p>`
+    : `<p style="margin:.45rem 0 0"><b>${a.disagree ? 'Models disagree. ' : ''}Second model</b>
+        (${esc(s.model)}): ${s.score}, ${esc(s.verdict)}. ${esc(s.summary || '')}</p>`;
   return `<span class="badge ai ${thin ? '' : esc(a.verdict)}" tabindex="0"><span class="k">AI</span>
-    <span class="v">${thin ? '?' : a.score}</span>
+    <span class="v">${thin ? '?' : a.score}${a.disagree ? ` <span class="disagree" title="The second model scored it ${a.second.score}">≠ ${a.second.score}</span>` : ''}</span>
     <span class="tip"><h4>${thin ? 'Not enough to judge'
                                  : esc(cap(a.verdict)) + " fit, in the model's reading"}</h4>
       <p style="margin:0 0 .45rem">${esc(a.summary)}</p>
@@ -2335,6 +3484,7 @@ function aiTag(a) {
       ${a.concerns?.length ? '<b>Against</b>' + list(a.concerns) : ''}
       ${flagged.length ? `<b title="The guard split this text into claims and checked each against the advert and your resume. These were in neither.">Not in the advert or resume</b><ul>${flagged.map(f =>
         `<li><s>${esc(f.claim)}</s></li>`).join('')}</ul>` : ''}
+      ${second}
       <div class="meta-line">${esc(a.model)} · ${esc((a.at || '').replace('T', ' '))}
         · read ${Number(a.advert_chars || 0).toLocaleString()} characters of advert${checked}</div>
     </span></span>`;
@@ -2383,8 +3533,51 @@ async function drawAI() {
   $('ai-guard').checked = ai.guard;
   $('ai-msg').textContent = ai.problem ? ai.problem : `Ready: ${ai.label}`;
   $('ai-msg').className = ai.problem ? 'hint' : 'saved';
-  paintAI(); loadModels(true);
+  // The second model: its own provider buttons, key and model list.
+  $('ai-c-provider').innerHTML = ['', ...Object.keys(ai.providers)].map(p =>
+    `<button data-p="${p}" ${p ? '' : 'data-icon="power" '}>${providerIcon(p)}${
+      p ? esc(ai.providers[p]) : 'None'}</button>`).join('');
+  $('ai-c-provider').querySelectorAll('button').forEach(b => b.onclick = () => {
+    if (ai.checker_provider !== b.dataset.p) $('ai-c-model').value = '';
+    ai.checker_provider = b.dataset.p; paintChecker(); loadCheckerModels(true);
+  });
+  $('ai-c-model').value = ai.checker_model || '';
+  paintAI(); loadModels(true); paintChecker(); loadCheckerModels(true);
 }
+
+function paintChecker() {
+  const p = ai.checker_provider;
+  $('ai-c-provider').querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b.dataset.p === p));
+  $('ai-c-model-row').hidden = !p;
+  $('ai-c-key-row').hidden = !(p in ai.keys);
+  const where = ai.keys[p];
+  $('ai-c-key-state').innerHTML = where === 'memory' ? '<span class="saved">held in memory</span>'
+    : where === 'environment' ? '<span class="hint">using the key from the environment</span>'
+    : '<span class="hint">No key held</span>';
+  document.querySelectorAll('#ai-c-provider button').forEach(b => b.disabled = !ai.provider);
+}
+
+async function loadCheckerModels(quiet) {
+  const p = ai.checker_provider, msg = $('ai-c-load-msg');
+  fillModels('ai-c-models', 'ai-c-model', []);
+  if (!p || (p in ai.keys && !ai.keys[p])) { msg.textContent = ''; return; }
+  msg.textContent = 'loading…';
+  const r = await api(`/api/llm/models?provider=${p}&url=${encodeURIComponent($('ai-ollama').value)}`);
+  if (!r.ok) { msg.textContent = await r.text(); return; }
+  const models = (await r.json()).models;
+  msg.textContent = `${models.length} available`;
+  fillModels('ai-c-models', 'ai-c-model', models);
+}
+$('ai-c-load').onclick = () => loadCheckerModels(false);
+$('ai-c-key-hold').onclick = async () => {
+  const key = $('ai-c-key').value;
+  const r = await api('/api/llm/key', {method: 'POST',
+    body: form({provider: ai.checker_provider, key})});
+  $('ai-c-key').value = '';            // the page does not keep it either
+  if (!r.ok) { $('ai-c-key-state').innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
+  ai.keys[ai.checker_provider] = 'memory'; paintChecker(); paintAI(); loadCheckerModels(false);
+};
 
 function paintAI() {
   const p = ai.provider;
@@ -2401,21 +3594,41 @@ function paintAI() {
     await api('/api/llm/forget', {method: 'POST', body: form({provider: p})});
     drawAI();
   };
-  document.querySelectorAll('#ai-model, #ai-load, #ai-on-scan, #ai-top, #ai-pages, #ai-guard')
+  document.querySelectorAll('#ai-model, #ai-models, #ai-load, #ai-on-scan, #ai-top, #ai-pages, #ai-guard')
     .forEach(el => el.disabled = !p);
+  if ($('ai-c-provider').children.length) paintChecker();
+}
+
+// The loaded models as a real dropdown. A text box with a suggestion list
+// only suggests what matches the text already in it, so once a model was
+// filled in, it offered that one model alone. The text box stays the value
+// that is saved; "Other" shows it, for a model the list does not have.
+const OTHER_MODEL = '\u0000other';
+function fillModels(selId, inputId, models) {
+  const sel = $(selId), input = $(inputId);
+  if (!models.length) { sel.hidden = true; sel.innerHTML = ''; input.hidden = false; return; }
+  if (!input.value) input.value = models[0];
+  const known = models.includes(input.value);
+  sel.innerHTML = models.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('') +
+    `<option value="${OTHER_MODEL}">Other: type a model name</option>`;
+  sel.value = known ? input.value : OTHER_MODEL;
+  sel.hidden = false; input.hidden = known;
+  sel.onchange = () => {
+    if (sel.value === OTHER_MODEL) { input.hidden = false; input.value = ''; input.focus(); }
+    else { input.value = sel.value; input.hidden = true; }
+  };
 }
 
 async function loadModels(quiet) {
   const p = ai.provider, msg = $('ai-load-msg');
-  $('ai-models').innerHTML = '';
+  fillModels('ai-models', 'ai-model', []);
   if (!p || (p in ai.keys && !ai.keys[p])) { msg.textContent = ''; return; }
   msg.textContent = 'loading…';
   const r = await api(`/api/llm/models?provider=${p}&url=${encodeURIComponent($('ai-ollama').value)}`);
   if (!r.ok) { msg.textContent = await r.text(); return; }
   const models = (await r.json()).models;
-  $('ai-models').innerHTML = models.map(m => `<option value="${esc(m)}">`).join('');
   msg.textContent = `${models.length} available`;
-  if (!$('ai-model').value && models.length && !quiet) $('ai-model').value = models[0];
+  fillModels('ai-models', 'ai-model', models);
 }
 
 async function saveAI() {
@@ -2424,11 +3637,13 @@ async function saveAI() {
     body: JSON.stringify({provider: ai.provider, model: $('ai-model').value.trim(),
       ollama_url: $('ai-ollama').value.trim(), judge_on_scan: $('ai-on-scan').checked,
       judge_top: Number($('ai-top').value) || 25, read_pages: $('ai-pages').checked,
-      guard: $('ai-guard').checked})});
+      guard: $('ai-guard').checked, checker_provider: ai.checker_provider || '',
+      checker_model: ai.checker_provider ? $('ai-c-model').value.trim() : ''})});
   if (!r.ok) { $('ai-msg').className = 'err'; $('ai-msg').textContent = await r.text(); return false; }
   ai = {...ai, ...(await r.json())};
   $('ai-msg').className = ai.problem ? 'hint' : 'saved';
-  $('ai-msg').textContent = ai.problem ? `Saved. ${ai.problem}` : `Saved: ${ai.label}`;
+  $('ai-msg').textContent = (ai.problem ? `Saved. ${ai.problem}` : `Saved: ${ai.label}`) +
+    (ai.checker_label ? ` · checked by ${ai.checker_label}${ai.checker_problem ? ` (${ai.checker_problem})` : ''}` : '');
   refreshState();
   return !ai.problem;
 }
@@ -2450,8 +3665,11 @@ $('ai-test').onclick = async () => {
   const text = await r.text();
   if (!r.ok) { $('ai-msg').className = 'err'; $('ai-msg').textContent = text; return; }
   const d = JSON.parse(text);
-  $('ai-msg').className = 'saved';
-  $('ai-msg').textContent = `${d.model} answered in ${d.seconds}s`;
+  $('ai-msg').className = d.checker && d.checker.error ? 'err' : 'saved';
+  $('ai-msg').textContent = `${d.model} answered in ${d.seconds}s` + (!d.checker ? ''
+    : d.checker.error ? ` · second model: ${d.checker.error}`
+    : ` · second model ${d.checker.model} answered in ${d.checker.seconds}s`);
+  if ($('setup-next')) $('setup-next').hidden = false;      // the AI setup step
 };
 
 // ── settings ─────────────────────────────────────────────────────────────────
@@ -2477,6 +3695,7 @@ function toast(text, kind = 'ok') {
 
 // What each list is called on the page, and how one of its rows is named.
 const LIST_NAMES = {titles_include: 'Job titles', titles_exclude: 'Never show these titles',
+  credentials: 'Your certifications and licenses',
   countries: 'Countries to keep job posts from', dealbreakers: 'Dealbreakers',
   companies: 'Employer boards'};
 const rowName = (key, r) => typeof r === 'string'
@@ -2513,19 +3732,21 @@ async function saveList(key, rows, msgId) {
 // the page is remembered per list in `pages`, and Remove still names each
 // row by its place in the whole list.
 const PAGE_SIZE = 5, pages = {};
+// The rows of the page `pages[key]` remembers, and the Previous/Next bar.
+function paged(rows, key) {
+  if (rows.length <= PAGE_SIZE) return [rows, ''];
+  const last = Math.ceil(rows.length / PAGE_SIZE) - 1;
+  const p = pages[key] = Math.min(Math.max(pages[key] || 0, 0), last);
+  return [rows.slice(p * PAGE_SIZE, (p + 1) * PAGE_SIZE), `<div class="pager">
+    <button type="button" class="act" data-icon="chevron-left" data-page="${key}" data-to="${p - 1}"
+      ${p ? '' : 'disabled'} aria-label="Previous page">Previous</button>
+    <span class="hint">${p * PAGE_SIZE + 1} to ${Math.min(rows.length, (p + 1) * PAGE_SIZE)} of ${rows.length}</span>
+    <button type="button" class="act" data-icon="chevron-right" data-page="${key}" data-to="${p + 1}"
+      ${p < last ? '' : 'disabled'} aria-label="Next page">Next</button></div>`];
+}
 function editorTable(cols, rows, empty, key) {
   let shown = rows.map((r, i) => [r, i]), pager = '';
-  if (key && rows.length > PAGE_SIZE) {
-    const last = Math.ceil(rows.length / PAGE_SIZE) - 1;
-    const p = pages[key] = Math.min(Math.max(pages[key] || 0, 0), last);
-    shown = shown.slice(p * PAGE_SIZE, (p + 1) * PAGE_SIZE);
-    pager = `<div class="pager">
-      <button type="button" class="act" data-icon="chevron-left" data-page="${key}" data-to="${p - 1}"
-        ${p ? '' : 'disabled'} aria-label="Previous page">Previous</button>
-      <span class="hint">${p * PAGE_SIZE + 1} to ${Math.min(rows.length, (p + 1) * PAGE_SIZE)} of ${rows.length}</span>
-      <button type="button" class="act" data-icon="chevron-right" data-page="${key}" data-to="${p + 1}"
-        ${p < last ? '' : 'disabled'} aria-label="Next page">Next</button></div>`;
-  }
+  if (key) [shown, pager] = paged(shown, key);
   return `<div class="tbl-wrap"><table class="data editor"><tr>${
     cols.map(c => `<th>${c.label}</th>`).join('')}<th></th></tr>${
     shown.map(([r, i]) => `<tr>${cols.map(c => `<td>${c.cell(r)}</td>`).join('')}
@@ -2534,10 +3755,20 @@ function editorTable(cols, rows, empty, key) {
     || `<tr><td colspan="${cols.length + 1}" class="hint">${empty}</td></tr>`}</table></div>${pager}`;
 }
 document.addEventListener('click', ev => {
+  const s = ev.target.closest('button[data-sort]');
+  if (s) {
+    // A new column starts from the top (biggest first, A to Z for names);
+    // the same column again turns round.
+    const key = s.dataset.sort, col = +s.dataset.col, was = sorts[key];
+    sorts[key] = was && was.col === col ? {col, desc: !was.desc} : {col, desc: col !== 0};
+    pages[key] = 0;
+    if (key === 'hosts') pollActivity();
+    return;
+  }
   const b = ev.target.closest('button[data-page]');
   if (!b || b.disabled) return;
   pages[b.dataset.page] = +b.dataset.to;
-  drawLists();
+  if (b.dataset.page === 'hosts') pollActivity(); else drawLists();
 });
 
 // Remove asks twice: the first click swaps it for a check (remove) and an
@@ -2604,7 +3835,8 @@ function drawLists() {
   const word = [{label: 'Title', cell: t => esc(t), name: t => t}];
   for (const [box, key, msg, empty] of [
       ['ed-titles', 'titles_include', 'msg-titles', 'None yet. A scan needs at least one.'],
-      ['ed-exclude', 'titles_exclude', 'msg-exclude', 'None. Every title is kept.']]) {
+      ['ed-exclude', 'titles_exclude', 'msg-exclude', 'None. Every title is kept.'],
+      ['ed-credentials', 'credentials', 'msg-credentials', 'None listed.']]) {
     const rows = cfg[key] || [];
     $(box).innerHTML = editorTable(word, rows, empty, key);
     wireRemove($(box), rows, async next => await saveList(key, next, msg) && (drawLists(), true));
@@ -2662,6 +3894,7 @@ wireAdd('f-countries', 'msg-countries', () =>
   $('add-country').value || {error: 'Choose a country first.'}, 'countries');
 wireAdd('f-titles', 'msg-titles', addWord('add-title', 'titles_include'), 'titles_include');
 wireAdd('f-exclude', 'msg-exclude', addWord('add-exclude', 'titles_exclude'), 'titles_exclude');
+wireAdd('f-credentials', 'msg-credentials', addWord('add-credential', 'credentials'), 'credentials');
 // Dealbreakers are words; the server turns them into a pattern, with the
 // usual other wordings (search/dealbreakers.py). A typed phrase that names a
 // common one takes its name and its usual effect.
@@ -2740,26 +3973,30 @@ const pickChanged = () => $('c_pcity') && $('c_pcity').value.trim() && pickKey()
 
 // Nothing saved yet: Naperville, Illinois, United States, shown but not saved
 // until Save, like config.DEFAULT_ANCHOR for a config that leaves it out.
-const PICK_DEFAULT = {country: 'US', region: 'IL', city: 'Naperville'};
+const PICK_FALLBACK = {country: 'US', region: 'IL', city: 'Naperville'};
 
 async function drawPicker() {
   const at = cfg.anchor_place || {};
   await loadPlaceCountries();
   const fresh = !cfg.anchor;
+  // In setup nothing is filled in for you: a new user chooses.
+  const setup = document.querySelector('.shell').classList.contains('setup');
+  const PICK_DEFAULT = setup ? {country: '', region: '', city: ''} : PICK_FALLBACK;
   const country = at.located ? at.country : fresh ? PICK_DEFAULT.country
     : ((cfg.countries || [])[0] || '');
   $('c_pcountry').innerHTML = '<option value="">Choose a country</option>' + placeCountries.map(c =>
     `<option value="${c.code}"${c.code === country ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
   await pickRegions(at.located ? at.region : fresh ? PICK_DEFAULT.region : '');
   $('c_pcity').value = at.located ? at.city : fresh ? PICK_DEFAULT.city : '';
-  if (fresh) $('c_currency').value = 'USD';     // the default's own currency
+  if (fresh && !setup) $('c_currency').value = 'USD';   // the default's own currency
   await pickCities();
   pickStart = fresh ? '' : pickKey();
-  $('c_pwhere').className = at.located ? 'hint' : 'err';
+  $('c_pwhere').className = at.located || setup ? 'hint' : 'err';
   $('c_pwhere').textContent = at.located
     ? 'The radius is measured from the centre of this city.'
     : cfg.anchor
       ? `Your saved location, "${cfg.anchor}", is not in the place list, so the radius is off. Choose it here and Save.`
+      : setup ? 'Choose your country, then start typing your city.'
       : 'No location saved yet, so the radius is off. Naperville is filled in; change it or Save it.';
 }
 
@@ -2792,6 +4029,7 @@ document.addEventListener('change', async ev => {
     } else if (c.name) {
       why.textContent = `${c.name}'s currency cannot be used for a salary floor; kept ${$('c_currency').value}.`;
     }
+    if (c.units) $('c_units').value = c.units;      // miles or kilometres, as there
   }
   if (ev.target.id === 'c_pregion') { $('c_pcity').value = ''; pickCities(); }
 });
@@ -2885,7 +4123,10 @@ const recheck = ev => {
 document.addEventListener('input', recheck);
 document.addEventListener('change', recheck);
 
-$('save').onclick = async () => {
+$('save').onclick = () => saveLocation();
+
+// Also setup's Where step, which shows this form: true once saved.
+async function saveLocation() {
   paintSave('saving');
   // The lists above save themselves; Save sends only the fields in this form.
   const r = await api('/api/config', {method: 'POST',
@@ -2903,7 +4144,7 @@ $('save').onclick = async () => {
     const why = cap(await r.text());
     paintSave('error', why);
     toast(why, 'err');
-    return;
+    return false;
   }
   cfg = await r.json(); loadRoles();
   let note = 'Location, work arrangement and pay saved';
@@ -2921,7 +4162,8 @@ $('save').onclick = async () => {
   }
   toast(note);
   drawLists(); await drawPicker(); settle();
-};
+  return true;
+}
 
 // ── resume ───────────────────────────────────────────────────────────────────
 async function drawResume() {

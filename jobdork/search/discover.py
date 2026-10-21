@@ -468,6 +468,7 @@ def _site_board(fetcher: Fetcher, robots, root: str) -> Found | None:
     from ..fetch import site
 
     listed, _ = site.postings(fetcher, root, robots)
+    # lambda: sort key, (url, date) pairs by date, newest first.
     for url, _ in sorted(listed, key=lambda pair: pair[1], reverse=True)[:2]:
         if not robots.allowed(url):
             continue
@@ -839,6 +840,7 @@ def discover(employer: str, fetcher: Fetcher, max_pages: int = MAX_PAGES) -> Rep
                 break
 
     report.found = [_verify(fetcher, item) for item in seen_supported.values()]
+    # lambda: sort key, verified boards first, then the most jobs.
     report.found.sort(key=lambda f: (f.status != "verified", -f.jobs))
     # One Oracle board under two site numbers (Hilton's CX_1 and CX_1009)
     # answers with the same count; reading both reads every job twice.
@@ -927,6 +929,7 @@ def _sitemap_postings(get, sitemaps: list[str]) -> tuple[list[str], int]:
         ranked = [u for u in pages if _job_word(u) is not None and
                   not _NOT_PAGES.search(urllib.parse.urlsplit(u).path)]
         # The deepest addresses are postings; /careers itself is a landing page.
+        # lambda: sort key, deepest path first.
         ranked.sort(key=lambda u: -urllib.parse.urlsplit(u).path.count("/"))
         return ranked[:MAX_SITEMAP_POSTINGS], reads
     return [], reads

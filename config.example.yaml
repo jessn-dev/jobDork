@@ -184,6 +184,7 @@ freshness:
   week_days: 7              # first week
   older_days: 21            # older, risky; beyond this, stale
   ghost_days: 90            # dropped as a ghost listing
+  show_days: 0              # Job posts hides older ones not acted on (0: any age)
   points: {new: 5, older: -5, stale: -15}
 
 llm:

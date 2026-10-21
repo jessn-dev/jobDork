@@ -143,6 +143,7 @@ def main() -> int:
 
     fetcher = Fetcher(user_agent=USER_AGENT, timeout=20, retries=1)
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
+        # lambda: pool.map passes one argument; this adds the shared fetcher.
         results = list(pool.map(lambda r: run_one(r, fetcher), rows))
 
     for r in results:

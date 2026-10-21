@@ -119,6 +119,103 @@ def test_the_last_scan_line_says_what_went_wrong():
         assert "never finished" in text
 
 
+def test_a_scan_running_now_and_a_skipped_source_are_not_called_failures():
+    """A first scan's background part read as "never finished" while it ran,
+    and a source skipped for want of a key as "returned 0"."""
+    import json
+    import time
+
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp)
+        now = time.strftime("%Y-%m-%dT%H:%M:%S")
+        with Store(cfg.db_path) as store:
+            store.conn.execute(
+                "INSERT INTO runs(started_at, finished_at, counts_json) VALUES(?,?,?)",
+                (now, now, json.dumps({"fetched": 1, "skipped": ["adzuna"],
+                                       "sources": {"adzuna": 0, "workable": 5}})))
+            store.conn.execute("INSERT INTO runs(started_at) VALUES(?)", (now,))
+            store.conn.execute(
+                "INSERT INTO activity(job, origin, started_at, heartbeat_at, state) "
+                "VALUES('full scan', 'dashboard', ?, ?, 'running')", (now, now))
+            store.conn.commit()
+        text = " ".join(api.activity_report(cfg)["last_runs"][0]["warnings"])
+        assert "Adzuna" not in text
+        assert "still running" in text and "never finished" not in text
+
+
+def test_a_first_scans_two_parts_read_as_one_scan():
+    """The rest part has no keyword sources by design; read alone, the card
+    said Adzuna, USAJOBS, Himalayas and Workable "did not run"."""
+    import json
+
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp)
+        with Store(cfg.db_path) as store:
+            for started, finished, counts in (
+                    ("2026-10-02T23:10:14", "2026-10-02T23:12:59",
+                     {"fetched": 1914, "kept": 947, "new": 947, "part": "quick",
+                      "skipped": ["kalibrr"],
+                      "sources": {"kalibrr": 0, "adzuna": 812, "workable": 588,
+                                  "workday": 12}}),
+                    ("2026-10-02T23:12:59", "2026-10-02T23:25:06",
+                     {"fetched": 7899, "kept": 1057, "new": 1057, "part": "rest",
+                      "skipped": [], "sources": {"workday": 233, "ashby": 347}})):
+                store.conn.execute(
+                    "INSERT INTO runs(started_at, finished_at, counts_json) VALUES(?,?,?)",
+                    (started, finished, json.dumps(counts)))
+            store.conn.commit()
+        scan = api.activity_report(cfg)["last_runs"][0]
+        text = " ".join(scan["warnings"])
+        assert "did not run" not in text and "returned 0" not in text, text
+        assert scan["when"] == "2026-10-02T23:10:14"
+        assert scan["summary"].startswith("9,813 fetched, 2,004 kept")
+        assert "Workday 245" in scan["summary"]
+
+
+def test_a_source_is_skipped_only_when_every_board_of_it_skipped():
+    from jobdork import fetch
+    from jobdork.search import scan as scan_mod
+
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp)
+        results = [fetch.SourceResult(source="workday", skipped="robots.txt"),
+                   fetch.SourceResult(source="workday"),
+                   fetch.SourceResult(source="adzuna", skipped="no key")]
+        saved_jobs, saved_get = scan_mod._jobs_for, fetch.get
+        scan_mod._jobs_for = lambda _cfg, _part="all": [("x", {})] * len(results)
+        queue = iter(results)
+        fetch.get = lambda name: (lambda fetcher, cfg, **kw: next(queue))
+        try:
+            with Store(cfg.db_path) as store:
+                scan_mod.run(cfg, store)
+                import json
+                counts = json.loads(store.conn.execute(
+                    "SELECT counts_json FROM runs").fetchone()[0])
+        finally:
+            scan_mod._jobs_for, fetch.get = saved_jobs, saved_get
+        assert counts["skipped"] == ["adzuna"] and counts["part"] == "all"
+
+
+def test_a_model_call_outside_a_job_is_still_counted():
+    """Setup's Save and test and its suggestions ran no job, so Gemma's calls
+    left the AI calls tile at 0."""
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp)
+        with Store(cfg.db_path):
+            pass
+        telemetry.llm("Ollama · gemma4:26b", 1.0, True, purpose="test")   # nowhere set
+        telemetry.record_calls_to(cfg.db_path)
+        try:
+            telemetry.llm("Ollama · gemma4:26b", 4.1, True, purpose="setup_suggest")
+        finally:
+            telemetry._calls_db = None
+        with Store(cfg.db_path) as store:
+            rows = store.conn.execute(
+                "SELECT activity_id, purpose, seconds FROM llm_calls").fetchall()
+        assert [tuple(r) for r in rows] == [(None, "setup_suggest", 4.1)]
+        assert api.metrics(cfg, 7)["ai_calls"]["total"] == 1
+
+
 def test_each_model_call_is_a_row_with_its_purpose():
     """P50 and P95 need one row per call, not the per-model totals."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -251,6 +348,51 @@ def test_rescreen_under_telemetry_finishes():
             checked, _, _ = scan.rescreen(cfg, store)
         assert checked == 120
         assert api.activity_report(cfg)["recent"][0]["state"] == "done"
+
+
+def test_logged_warnings_and_errors_reach_the_activity_page():
+    import logging
+
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp)
+        log = logging.getLogger("jobdork.test")
+        telemetry.capture_logs(cfg.db_path)
+        try:
+            log.warning("outside any job")
+            with telemetry.job(cfg.db_path, "scan", "terminal") as rec:
+                log.info("not a problem")
+                log.warning("example.com blocked for 60s")
+                try:
+                    raise ValueError("bad page")
+                except ValueError:
+                    log.exception("greenhouse raised")
+                rec.flush(force=True)
+            try:
+                with telemetry.job(cfg.db_path, "check", "terminal"):
+                    raise RuntimeError("board exploded")
+            except RuntimeError:
+                pass
+        finally:
+            logging.getLogger("jobdork").removeHandler(telemetry._handler)
+        problems = api.activity_report(cfg)["problems"]
+        seen = {(p["level"], p["job"], p["text"]) for p in problems}
+        assert ("warning", "", "outside any job") in seen, seen
+        assert ("warning", "scan", "example.com blocked for 60s") in seen
+        assert ("error", "scan", "greenhouse raised: ValueError: bad page") in seen
+        assert ("error", "check", "failed: RuntimeError: board exploded") in seen
+        assert not any("not a problem" in p["text"] for p in problems)
+
+
+def test_a_missing_or_refused_key_is_a_warning_that_says_so():
+    text, level = telemetry.labelled(
+        "adzuna: skipped (no key. Get a free one at https://developer.adzuna.com/signup)",
+        "warning")
+    assert level == "warning" and text.startswith("Missing or refused key (job source)")
+    assert "docs/CONFIG.md" in text
+    text, level = telemetry.labelled("failed: LLMError: the key was refused", "error")
+    assert level == "warning" and "(AI)" in text and '"llm"' in text
+    assert telemetry.labelled("example.com blocked", "error") == ("example.com blocked", "error")
+    assert telemetry.labelled("adzuna: no key", "info") == ("adzuna: no key", "info")
 
 
 if __name__ == "__main__":

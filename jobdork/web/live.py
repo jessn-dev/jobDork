@@ -119,12 +119,14 @@ class Runner:
     def busy(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
 
-    def start(self, name: str, work) -> tuple[bool, str]:
+    def start(self, name: str, work, then=()) -> tuple[bool, str]:
         """Begin a job. Returns (started, why_not).
 
         Refuses rather than queues: two scans at once would double every
         request to hosts that are deliberately paced, and the second would
-        earn the rate limit the first was avoiding.
+        earn the rate limit the first was avoiding. `then` is (name, work)
+        pairs run after it, each as a job of its own, while the runner stays
+        busy: a first scan's quick part, then the rest.
         """
         with self._lock:
             if self.busy:
@@ -132,11 +134,18 @@ class Runner:
             self.broker.clear_history()
             self.current = name
             self._thread = threading.Thread(
-                target=self._wrap, args=(name, work), daemon=True)
+                target=self._chain, args=([(name, work), *then],), daemon=True)
             self._thread.start()
             return True, ""
 
-    def _wrap(self, name: str, work) -> None:
+    def _chain(self, jobs) -> None:
+        for name, work in jobs:
+            self.current = name
+            if not self._wrap(name, work):
+                break                          # a later part needs the earlier
+        self.current = ""
+
+    def _wrap(self, name: str, work) -> bool:
         from ..core import telemetry
 
         self.broker.publish(Event("status", f"{name} started"))
@@ -155,9 +164,10 @@ class Runner:
             self.broker.publish(Event(
                 "error", f"{name} failed: {type(exc).__name__}: {exc}"))
             self.last_summary = f"{name} failed"
+            return False
         else:
             self.last_summary = summary or f"{name} finished"
-            self.broker.publish(Event("done", self.last_summary))
+            self.broker.publish(Event("done", self.last_summary, {"job": name}))
+            return True
         finally:
             self.last_finished = time.time()
-            self.current = ""

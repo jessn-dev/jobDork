@@ -91,7 +91,7 @@ def test_a_deleted_job_post_is_not_brought_back_by_a_scan():
                 url="https://x.test/old_closed", work_mode="remote")])
 
         original_jobs, original_get = scan._jobs_for, fetch.get
-        scan._jobs_for = lambda _cfg: [("fake", {})]
+        scan._jobs_for = lambda _cfg, _part="all": [("fake", {})]
         fetch.get = lambda _name: adapter
         try:
             with Store(cfg.db_path) as store:
@@ -100,6 +100,110 @@ def test_a_deleted_job_post_is_not_brought_back_by_a_scan():
                 assert store.get(uids["old_closed"]) is None
         finally:
             scan._jobs_for, fetch.get = original_jobs, original_get
+
+
+def _aged_setup(tmp: str) -> tuple[Config, dict[str, str]]:
+    from datetime import date, timedelta
+
+    cfg = Config(titles_include=["software engineer"],
+                 locations=Locations(anchor="", radius="any", countries=[]),
+                 salary=Salary(), db_path=str(Path(tmp) / "t.db"))
+    uids = {}
+    with Store(cfg.db_path) as store:
+        for name, company, status, days in (
+                ("fresh", "fresh", "new", 1),
+                ("risky", "risky", "viewed", 10),
+                ("stale", "stale", "new", 40),
+                ("stale_copy", "stale", "new", 40),   # same job, another URL
+                ("stale_wanted", "wanted", "interested", 40),
+                ("stale_applied", "applied", "applied", 40),
+                ("ghost", "ghost", "new", 200)):
+            role = Role(platform="workable", company=company, title="Software Engineer",
+                        url=f"https://x.test/{name}", work_mode="remote",
+                        posted_at=(date.today() - timedelta(days=days)).isoformat())
+            store.upsert(role)
+            if status != "new":
+                store.set_status(role.uid, status)
+            uids[name] = role.uid
+        store.conn.commit()
+    return cfg, uids
+
+
+def test_risky_and_stale_removal_counts_jobs_and_skips_ones_you_acted_on():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, _ = _aged_setup(tmp)
+        preview = api.aged_preview(cfg)
+        assert preview["count"] == 3, preview
+        assert preview["copies"] == 4
+        assert preview["by_tier"] == {"older": 1, "stale": 1, "ghost": 1}
+
+
+def test_risky_and_stale_removal_needs_the_previewed_count_and_takes_every_copy():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, uids = _aged_setup(tmp)
+        try:
+            api.aged_run(cfg, expect=99)
+        except api.ApiError as exc:
+            assert exc.status == 409
+        else:
+            raise AssertionError("a moved count must not delete")
+        done = api.aged_run(cfg, expect=3)
+        assert done["deleted"] == 3 and done["copies"] == 4
+        assert Path(done["backup"]).is_file()
+        with Store(cfg.db_path) as store:
+            for kept in ("fresh", "stale_wanted", "stale_applied"):
+                assert store.get(uids[kept]) is not None, kept
+            for gone in ("risky", "stale", "stale_copy", "ghost"):
+                assert store.get(uids[gone]) is None, gone
+            assert uids["stale_copy"] in store.deleted_uids()
+        assert api.aged_preview(cfg)["count"] == 0
+
+
+def test_start_over_deletes_only_what_jobdork_wrote_after_the_typed_words():
+    import os
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        for env in ("JOBDORK_TEMP_DOCS", "JOBDORK_DOCS_DIR"):
+            os.environ.pop(env, None)
+        (root / "data").mkdir()
+        resume = root / "data" / "resume.txt"
+        resume.write_text("resume")
+        own = root / "my-notes.txt"                     # not jobdork's
+        own.write_text("mine")
+        letter = root / "letter.md"
+        letter.write_text("Dear")
+        (root / "data" / "source-keys.env").write_text("ADZUNA_APP_ID=x\n")
+        (root / "config.yaml").write_text("titles: {include: [x]}\n")
+        cfg = Config(titles_include=["x"], db_path=str(root / "data" / "t.db"),
+                     path=str(root / "config.yaml"), resume_path=str(resume))
+        cfg.output.dir = str(root / "out")
+        (root / "out").mkdir()
+        (root / "out" / "report.html").write_text("<p>")
+        with Store(cfg.db_path) as store:
+            role = Role(platform="workable", company="a", title="x", url="https://x.test/a")
+            store.upsert(role)
+            store.add_artifact(role.uid, "cover_letter", str(letter))
+
+        preview = api.start_over_preview(cfg)
+        assert preview["posts"] == 1 and preview["documents"] == 1
+        assert preview["reports"] == 1 and preview["settings"] and preview["resume"] == "resume.txt"
+        try:
+            api.start_over(cfg, "yes")
+        except api.ApiError:
+            pass
+        else:
+            raise AssertionError("the typed words are required")
+        assert resume.is_file()
+
+        done = api.start_over(cfg, "Start over", backup=True)
+        for gone in (resume, letter, root / "config.yaml", root / "data" / "t.db",
+                     root / "data" / "source-keys.env", root / "out" / "report.html"):
+            assert not gone.exists(), gone
+        assert own.is_file()
+        backup = Path(done["backup"])
+        assert {"t.db", "config.yaml", "resume.txt"} <= {p.name for p in backup.iterdir()}
+        assert not (backup / "source-keys.env").exists()
 
 
 if __name__ == "__main__":

@@ -184,6 +184,40 @@ def test_an_employer_is_read_through_one_kind_of_board_not_two():
     assert len(log["replaced"]) == 1 and log["not found"] == []
 
 
+def test_a_first_scan_reads_a_sample_first_and_the_rest_after():
+    boards = [directory.Board(f"{ind} {i}", "greenhouse", f"{ind}{i}", ("US",), ind)
+              for ind in ("banking", "healthcare", "retail") for i in range(4)]
+    cfg = _cfg(("US",))
+    cfg.sources.keyless = ["greenhouse", "workable"]
+    cfg.sources.companies = [Company("Own", "greenhouse", "own")]
+    original, quick_n = directory.load, scan.QUICK_BOARDS
+    directory.load = lambda path=None: boards
+    scan.QUICK_BOARDS = 6
+    try:
+        sample = directory.quick(cfg, 6)
+        everything, first, rest = (scan._jobs_for(cfg, p) for p in scan.PARTS)
+    finally:
+        directory.load, scan.QUICK_BOARDS = original, quick_n
+    # Two from each industry rather than the alphabet's first six.
+    assert sorted(t for _, t in sample) == ["banking0", "banking1", "healthcare0",
+                                             "healthcare1", "retail0", "retail1"]
+    tokens = lambda jobs: {k.get("token") for _, k in jobs if k.get("token")}  # noqa: E731
+    assert "own" in tokens(first) and "own" not in tokens(rest)
+    assert tokens(first) | tokens(rest) == tokens(everything)
+    assert not tokens(first) & tokens(rest), "no board is read twice"
+    assert ("workable", {}) in first and ("workable", {}) not in rest
+
+
+def test_the_quick_sample_takes_the_smallest_boards():
+    """A 2,000-job board took over three minutes on its own."""
+    big = directory.Board("Big", "greenhouse", "big", ("US",), "healthcare", jobs=2000)
+    small = directory.Board("Small", "greenhouse", "small", ("US",), "healthcare", jobs=50)
+    unknown = directory.Board("Unknown", "greenhouse", "unknown", ("US",), "healthcare")
+    cfg = _cfg(("US",))
+    cfg.sources.keyless = ["greenhouse"]
+    assert directory.quick(cfg, 2, [big, unknown, small]) == {small.key, big.key}
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]
