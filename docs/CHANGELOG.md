@@ -6,6 +6,12 @@ it and into an entry when the work is done.
 
 ---
 
+## Security — 2026-10-21 — certifi 2026.10.19
+
+- `requirements.lock`: certifi 2026.7.22 → 2026.10.19 for advisory
+  PYSEC-2026-4320, which failed CI's dependency audit. Hashes from PyPI;
+  `pip-audit --strict` passes again.
+
 ## Added — 2026-10-21 — Send feedback from the Dashboard
 
 - **Tools is now Feedback.** The unfinished "Email a digest" form is gone
