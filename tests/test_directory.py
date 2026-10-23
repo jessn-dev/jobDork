@@ -216,6 +216,11 @@ def test_the_quick_sample_takes_the_smallest_boards():
     cfg = _cfg(("US",))
     cfg.sources.keyless = ["greenhouse"]
     assert directory.quick(cfg, 2, [big, unknown, small]) == {small.key, big.key}
+    # A board with one job is fast and shows nothing (Alorica, 2026-10-23).
+    tiny = directory.Board("Tiny", "greenhouse", "tiny", ("US",), "healthcare", jobs=1)
+    assert directory.quick(cfg, 2, [big, tiny, small]) == {small.key, big.key}
+    assert directory.quick(cfg, 3, [unknown, tiny, small]) == {small.key, tiny.key,
+                                                                unknown.key}
 
 
 if __name__ == "__main__":

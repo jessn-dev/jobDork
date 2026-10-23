@@ -8,7 +8,7 @@ The app holds no Resend or GitHub key, ever: a key shipped inside an app is a
 key anyone who has the app can read. A report goes to a relay instead (a
 small service run by the maintainers, see relay/feedback/), which holds those
 keys, opens the GitHub issue and mails the screenshots. The relay's address
-comes from JOBDORK_FEEDBACK_URL, or RELAY_URL as a packaged build sets it.
+is RELAY_URL; JOBDORK_FEEDBACK_URL replaces it, and "off" turns sending off.
 With neither, the report can still be opened as a GitHub issue in the
 browser, or saved as a file.
 
@@ -32,8 +32,10 @@ import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# Set by a packaged build; JOBDORK_FEEDBACK_URL overrides it.
-RELAY_URL = ""
+# The maintainers' relay (relay/feedback/, deployed 2026-10-23). Public by
+# design: it holds the keys, this holds none. JOBDORK_FEEDBACK_URL replaces
+# it (another relay), or turns sending off with "off".
+RELAY_URL = "https://jobdork-feedback.jessengolab-dev.workers.dev"
 ISSUES_URL = "https://github.com/jessn-dev/jobDork/issues/new"
 
 KINDS = {"problem": "Problem", "idea": "Idea", "question": "Question"}
@@ -56,7 +58,11 @@ class FeedbackError(Exception):
 
 
 def relay_url() -> str:
-    return os.environ.get("JOBDORK_FEEDBACK_URL", "").strip() or RELAY_URL
+    """Where Send goes; "" when sending is off."""
+    chosen = os.environ.get("JOBDORK_FEEDBACK_URL", "").strip()
+    if chosen.casefold() == "off":
+        return ""
+    return chosen or RELAY_URL
 
 
 # ── scrubbing ─────────────────────────────────────────────────────────────────

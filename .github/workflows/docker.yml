@@ -5,7 +5,9 @@ name: Test, scan and publish
 # publishes, only after every check passes, and only once you approve it in
 # the `release` environment. The published image is signed and carries a
 # record of how and where it was built, and the release gets a GitHub Release
-# page naming the exact image. See SECURITY.md.
+# page naming the exact image. The desktop app is built alongside
+# (desktop.yml) and its installers are attached to the same page. See
+# SECURITY.md.
 #
 # Needs, in the repository settings:
 #   variable DOCKERHUB_USERNAME   the Docker Hub account the image goes to
@@ -151,8 +153,19 @@ jobs:
       - name: Check what is in the image and how it behaves
         run: scripts/check_image.sh jobdork:check
 
+  # The macOS and Windows installers, built and self-tested on every run so a
+  # broken build shows on the pull request, not on release day.
+  desktop:
+    uses: ./.github/workflows/desktop.yml
+    permissions:
+      contents: read
+      id-token: write        # attests the installers on a tag
+      attestations: write
+
   publish:
-    needs: image
+    # The installers too: a tag whose app does not build publishes nothing,
+    # rather than an image with a release page missing its downloads.
+    needs: [image, desktop]
     # A version tag, and nothing else: a push to main is built and checked
     # above, but not published.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -253,15 +266,26 @@ jobs:
       - name: Record the digest
         run: echo "Published ${{ vars.DOCKERHUB_USERNAME }}/jobdork@${{ steps.push.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
 
-  # A GitHub Release page for the version: the exact image, how to verify it,
-  # and what changed. A separate job, because it needs to write to the
-  # repository and publishing must not.
+  # A GitHub Release page for the version: the exact image, the desktop
+  # installers, how to verify them, and what changed. A separate job, because
+  # it needs to write to the repository and publishing must not.
   release-page:
-    needs: publish
+    needs: [publish, desktop]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - name: Fetch the installers desktop.yml built
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: desktop-*
+          path: installers
+          merge-multiple: true
+
+      - name: Checksums for the installers
+        working-directory: installers
+        run: sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt
+
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -289,7 +313,30 @@ jobs:
             echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
             echo "\`\`\`"
             echo
+            echo "## Desktop app"
+            echo
+            echo "- **Mac with Apple Silicon** (M1 or later): \`jobdork-$version-macos-arm64.dmg\`."
+            echo "  Open it and drag jobdork into Applications."
+            echo "- **Windows 10 or 11** (64-bit): \`jobdork-$version-windows-x64-setup.exe\`."
+            echo "  Installs for you alone; no administrator needed."
+            echo
+            echo "The installers are not signed yet, so each system warns once:"
+            echo
+            echo "- **macOS** says it cannot check jobdork for malicious software. Click **Done**,"
+            echo "  open **System Settings → Privacy & Security**, scroll down to the line about"
+            echo "  jobdork and click **Open Anyway**, then **Open Anyway** again."
+            echo "- **Windows** shows \"Windows protected your PC\". Click **More info**, then **Run anyway**."
+            echo
+            echo "To check a download is the one this repository's workflow built, with the"
+            echo "[GitHub CLI](https://cli.github.com/):"
+            echo
+            echo "\`\`\`bash"
+            echo "gh attestation verify jobdork-$version-macos-arm64.dmg --repo $REPO"
+            echo "\`\`\`"
+            echo
+            echo "or compare its SHA-256 with \`SHA256SUMS.txt\`."
+            echo
             echo "What changed in detail: [CHANGELOG](https://github.com/$REPO/blob/$TAG/docs/CHANGELOG.md)."
           } > notes.md
           gh release create "$TAG" --repo "$REPO" --title "jobdork $version" \
-            --notes-file notes.md --generate-notes --verify-tag
+            --notes-file notes.md --generate-notes --verify-tag installers/*

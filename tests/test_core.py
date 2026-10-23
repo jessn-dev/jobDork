@@ -1254,6 +1254,9 @@ def test_source_keys_typed_into_the_app_are_kept_beside_the_database():
     from jobdork.web import api
     names = config.SOURCE_KEY_NAMES
     saved = {n: os.environ.pop(n, None) for n in names}
+    saved_try = api.try_source_keys
+    # lambda: every key is accepted; trying one is its own test, below.
+    api.try_source_keys = lambda cfg, values: ("ok", "")
     try:
         with tempfile.TemporaryDirectory() as tmp:
             _in_a_fake_container(tmp, marker=False, variable=False)
@@ -1282,6 +1285,23 @@ def test_source_keys_typed_into_the_app_are_kept_beside_the_database():
 
             api.setup_keys(cfg, {"remove": True, "ADZUNA_APP_ID": "", "ADZUNA_APP_KEY": ""})
             assert not config.load().sources.adzuna_ready()
+            # A USAJOBS key is base64, "=" padding and all, and comes back
+            # exactly as typed after a restart.
+            usajobs = "Ab3+/xYz0123456789qrstuvWXYZabcdefghijklmn=="
+            api.setup_keys(cfg, {"USAJOBS_API_KEY": usajobs,
+                                 "USAJOBS_EMAIL": "me@example.com"})
+            for n in ("USAJOBS_API_KEY", "USAJOBS_EMAIL"):
+                os.environ.pop(n)
+            config.load()
+            assert os.environ["USAJOBS_API_KEY"] == usajobs
+            assert os.environ["USAJOBS_EMAIL"] == "me@example.com"
+            try:
+                config.write_source_keys(cfg, {"USAJOBS_API_KEY": "a\nb"})
+            except config.ConfigError:
+                pass
+            else:
+                raise AssertionError("a line break is refused")
+            api.setup_keys(cfg, {"remove": True, "USAJOBS_API_KEY": "", "USAJOBS_EMAIL": ""})
             try:
                 config.write_source_keys(cfg, {"OPENAI_API_KEY": "x"})
             except config.ConfigError:
@@ -1289,6 +1309,76 @@ def test_source_keys_typed_into_the_app_are_kept_beside_the_database():
             else:
                 raise AssertionError("only the four job-source keys")
     finally:
+        api.try_source_keys = saved_try
+        for n, v in saved.items():
+            if v is None:
+                os.environ.pop(n, None)
+            else:
+                os.environ[n] = v
+
+
+@_restoring_the_environment
+def test_a_key_is_checked_and_tried_before_it_is_saved():
+    """2026-10-23: an error message pasted into the hidden key box was saved
+    as the USAJOBS key, and every scan then failed with HTTP 401."""
+    import os
+    import tempfile
+    from pathlib import Path
+
+    from jobdork.core import config
+    from jobdork.web import api
+    saved = {n: os.environ.pop(n, None) for n in config.SOURCE_KEY_NAMES}
+    saved_try, tried = api.try_source_keys, []
+    answer = {"verdict": ("refused", "USAJOBS refused this key and email")}
+
+    def fake_try(cfg, values):
+        tried.append(dict(values))
+        return answer["verdict"]
+
+    api.try_source_keys = fake_try
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            _in_a_fake_container(tmp, marker=False, variable=False)
+            Path("config.yaml").write_text("titles: {include: [nurse]}\n"
+                                           "locations: {countries: [US]}\n")
+            cfg = config.load()
+            held = Path("data") / config.SOURCE_KEYS_FILE
+
+            def refused(form, words):
+                try:
+                    api.setup_keys(cfg, form)
+                except api.ApiError as exc:
+                    assert words in str(exc), str(exc)
+                    assert "has characters" not in str(exc)
+                else:
+                    raise AssertionError(f"saved: {sorted(form)}")
+
+            # Not a key, and never sent to USAJOBS to find out.
+            pasted = "USAJOBS_API_KEY has characters a key does not"
+            refused({"USAJOBS_API_KEY": pasted, "USAJOBS_EMAIL": "me@example.com"},
+                    "a space")
+            refused({"USAJOBS_API_KEY": "abc=", "USAJOBS_EMAIL": "me.example.com"},
+                    "not an email address")
+            assert not tried and not held.exists()
+
+            # A key USAJOBS refuses is not saved.
+            refused({"USAJOBS_API_KEY": "abc=", "USAJOBS_EMAIL": "me@example.com"},
+                    "refused")
+            assert len(tried) == 1 and not held.exists()
+
+            # One it cannot be asked about is saved, and the note says so.
+            answer["verdict"] = ("unknown", "USAJOBS could not be asked (timed out)")
+            note = api.setup_keys(cfg, {"USAJOBS_API_KEY": "abc=",
+                                        "USAJOBS_EMAIL": "me@example.com"})
+            assert note.startswith("Saved, but not tried") and "abc=" not in note
+            assert "USAJOBS_API_KEY=abc=" in held.read_text()
+
+            # Removing asks nothing of anyone.
+            assert api.setup_keys(cfg, {"remove": True, "USAJOBS_API_KEY": "",
+                                        "USAJOBS_EMAIL": ""}) == ""
+            assert len(tried) == 2
+    finally:
+        api.try_source_keys = saved_try
         for n, v in saved.items():
             if v is None:
                 os.environ.pop(n, None)

@@ -36,6 +36,11 @@ SECTIONS = ("PROFESSIONAL SUMMARY", "SKILLS", "PROFESSIONAL EXPERIENCE",
 # model judges the career stage and the industry (it reads the resume and the
 # advert), and this table decides where the section goes and what it is
 # called. The judging is the model's; the layout never is.
+#
+# Projects the person added on the Resume page ("own") are always shown, at
+# every stage (their request, 2026-10-23): they added them to be seen. For
+# someone experienced that is a section after the jobs holding those alone;
+# the resume's other projects still belong in the jobs they were done in.
 
 STAGES = ("student", "career_changer", "freelancer", "experienced")
 INDUSTRIES = ("tech", "creative", "business", "other")
@@ -51,11 +56,12 @@ ORDER = {
     # Beside the experience: a track record of delivery.
     "freelancer": ("PROFESSIONAL SUMMARY", "SKILLS", "PROFESSIONAL EXPERIENCE",
                    "PROJECTS", "EDUCATION", "CERTIFICATIONS"),
-    # No section: projects live in the jobs' bullets.
+    # After the jobs, and only for projects the person added themselves;
+    # the resume's own projects live in the jobs' bullets.
     "experienced": ("PROFESSIONAL SUMMARY", "SKILLS", "PROFESSIONAL EXPERIENCE",
-                    "EDUCATION", "CERTIFICATIONS"),
+                    "PROJECTS", "EDUCATION", "CERTIFICATIONS"),
 }
-MAX_PROJECTS = {"student": 3, "career_changer": 3, "freelancer": 4, "experienced": 0}
+MAX_PROJECTS = {"student": 3, "career_changer": 3, "freelancer": 4, "experienced": 3}
 _HEADINGS = {"tech": "TECHNICAL PROJECTS", "creative": "PORTFOLIO HIGHLIGHTS",
              "business": "KEY INITIATIVES", "other": "PROJECTS"}
 SECTIONS = ("PROFESSIONAL SUMMARY", "SKILLS", "PROFESSIONAL EXPERIENCE",
@@ -75,16 +81,34 @@ def projects_heading(stage: str, industry: str) -> str:
     return _HEADINGS.get(industry, "PROJECTS")
 
 
-def projects_plan(stage: str, industry: str) -> str:
-    """One line saying what the projects section does, for the page and the log."""
+def projects_plan(stage: str, industry: str, own: int = 0) -> str:
+    """One line saying what the projects section does, for the page and the log.
+    `own`: how many projects the person added on the Resume page."""
     stage = stage_of(stage)
     if stage == "experienced":
-        return ("no projects section: at this stage projects belong in the jobs "
-                "they were done in")
+        if not own:
+            return ("no projects section: at this stage projects belong in the jobs "
+                    "they were done in")
+        return (f'"{projects_heading(stage, industry).title()}", after the jobs, for '
+                f"the projects you added only, at most {MAX_PROJECTS[stage]}; the "
+                "resume's others belong in the jobs they were done in")
     where = {"student": "right below Education", "career_changer": "above the jobs",
              "freelancer": "after the jobs"}[stage]
     return (f'"{projects_heading(stage, industry).title()}", {where}, '
             f"at most {MAX_PROJECTS[stage]}")
+
+
+def star_bullets(row) -> list[str]:
+    """A project from the Resume page as bullets in the person's own words:
+    what it was for, what they did, what came of it."""
+    lead = " ".join(x for x in (_field(row, "situation"), _field(row, "task")) if x)
+    return [b[:400] for b in (lead, _field(row, "action"), _field(row, "result")) if b]
+
+
+def project_detail(row) -> str:
+    """The line under a project's name: your part, the tools, the link."""
+    return " | ".join(x for x in (_field(row, "role"), _field(row, "tools"),
+                                  _field(row, "link")) if x)
 
 
 # The projects every course and tutorial builds. Listed, they say "followed a
@@ -105,18 +129,67 @@ def tutorial_projects(names) -> list[str]:
     return [n for n in names if n and TUTORIAL.search(n)]
 
 
+# What a project can be. Any kind of work counts, not only software: a writer's
+# articles, a marketer's campaign, a nurse's quality project, volunteering.
+PROJECT_KINDS = ("App or software", "Writing or articles", "Design or creative work",
+                 "Research or analysis", "Campaign or event", "Business or operations",
+                 "Teaching or training", "Volunteer or community", "Personal", "Other")
+
+
+def _field(row, key: str) -> str:
+    """A project field, "" for a row from before it existed."""
+    try:
+        return (row[key] or "").strip()
+    except (KeyError, IndexError):
+        return ""
+
+
 def project_notes(rows) -> str:
     """Projects from the Resume page as plain text, a source beside the resume."""
     out = []
     for r in rows:
         parts = [f"Project: {r['name']}"]
-        for label, key in (("Tools", "tools"), ("Link", "link"),
+        for label, key in (("Kind", "kind"), ("Role", "role"), ("Tools", "tools"),
+                           ("Link", "link"),
                            ("Situation", "situation"), ("Task", "task"),
                            ("Action", "action"), ("Result", "result")):
-            if (r[key] or "").strip():
-                parts.append(f"{label}: {r[key].strip()}")
+            if _field(r, key):
+                parts.append(f"{label}: {_field(r, key)}")
         out.append("\n".join(parts))
     return "\n\n".join(out)
+
+
+def same_credential(a: str, b: str) -> bool:
+    """"BSN" and "BSN, Nursing", "B.S. Computer Science" and "BS in Computer
+    Science": the same credential, by the words they share."""
+    def words(t: str) -> set[str]:
+        return {w for w in re.findall(r"[a-z0-9]+", (t or "").casefold().replace(".", ""))
+                if w not in ("in", "of", "and", "the")}
+    wa, wb = words(a), words(b)
+    return bool(wa and wb) and (wa <= wb or wb <= wa)
+
+
+def education_line(row) -> str:
+    """One entry from the Resume page as the resume would print it."""
+    when = date_range(_field(row, "start"), _field(row, "end"))
+    return " | ".join(x for x in (_field(row, "credential"), _field(row, "school"),
+                                  _field(row, "location"), when) if x)
+
+
+def education_notes(rows) -> str:
+    """Education from the Resume page as plain text, a source beside the resume."""
+    out = []
+    for r in rows:
+        line = f"Education: {education_line(r)}"
+        if _field(r, "details"):
+            line += f"\nDetails: {_field(r, 'details')}"
+        out.append(line)
+    return "\n\n".join(out)
+
+
+def record_notes(projects, education) -> str:
+    """Everything added on the Resume page, as one source beside the resume."""
+    return "\n\n".join(x for x in (project_notes(projects), education_notes(education)) if x)
 
 
 # For `claude -p`, which writes the Markdown itself (generate.py).
@@ -146,14 +219,19 @@ TEMPLATE_GUIDE = (
     "  the projects that use this job's skills.\n"
     "- Freelancer or contractor: \"## SELECTED CLIENT PROJECTS\" right after\n"
     "  PROFESSIONAL EXPERIENCE.\n"
-    "- Mid-career or senior: no projects section. A project goes into a\n"
-    "  job's bullets only where the resume says it was done in that job.\n"
+    "- Mid-career or senior: a project goes into a job's bullets only where\n"
+    "  the resume says it was done in that job; the projects in `projects.md`\n"
+    "  get a projects section right after PROFESSIONAL EXPERIENCE.\n"
     "Name a projects section for the industry: \"## TECHNICAL PROJECTS\"\n"
     "(tech), \"## PORTFOLIO HIGHLIGHTS\" (creative), \"## KEY INITIATIVES\"\n"
     "(business), otherwise \"## PROJECTS\". Each project as \"### Name\", then\n"
     "bullets: the situation, what was done and the result. `projects.md` in\n"
     "this folder, when present, describes projects in the person's own words\n"
-    "and counts as part of the resume.\n\n"
+    "and counts as part of the resume. Show every project in it, the ones\n"
+    "this job cares about first (at most four), even one the resume names\n"
+    "only or gives only as a link: describe it from `projects.md`. Its\n"
+    "\"Education:\" lines are schooling the resume may not show yet: put each\n"
+    "under EDUCATION, newest first, with any the resume has.\n\n"
     "Leave out a section the resume has nothing for. Contact details only as\n"
     "the resume gives them. Dates as \"March 2022 - Present\" when the resume\n"
     "gives the month; when it gives only the year, keep the year and do not\n"
@@ -308,11 +386,13 @@ def to_markdown(info: dict, doc: dict) -> str:
         blocks["EDUCATION"] = lines[1:]
     if doc.get("certifications"):
         blocks["CERTIFICATIONS"] = [f"- {c}" for c in doc["certifications"]]
-    projects = (doc.get("projects") or [])[:MAX_PROJECTS[stage]]
+    projects = [p for p in doc.get("projects") or []
+                if stage != "experienced" or p.get("own")][:MAX_PROJECTS[stage]]
     if projects:
         lines = []
         for p in projects:
-            lines += ["", f"### {p['name']}"] + [f"- {b}" for b in p.get("bullets") or []]
+            lines += ["", f"### {p['name']}"] + ([p["detail"]] if p.get("detail") else []) \
+                + [f"- {b}" for b in p.get("bullets") or []]
         blocks["PROJECTS"] = lines[1:]
 
     out = [f"# {info.get('name') or 'Resume'}"]

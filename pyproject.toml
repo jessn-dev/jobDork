@@ -28,6 +28,11 @@ pdf = ["pypdf>=4.0"]
 # The Claude provider on the AI page. Ollama, Gemini and ChatGPT need nothing
 # beyond requests.
 ai = ["anthropic>=1.8"]
+# `jobdork app`: the dashboard in a window of its own rather than a browser tab.
+app = ["pywebview>=6.2"]
+# Building the installers (packaging/build.py): PyInstaller, and Pillow to
+# turn packaging/icon.png into each platform's icon format.
+package = ["pyinstaller>=6.22", "pillow>=11"]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",

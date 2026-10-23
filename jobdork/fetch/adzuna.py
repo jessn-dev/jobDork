@@ -54,12 +54,27 @@ from __future__ import annotations
 from ..core.textutil import to_text
 from ..db.store import Role
 from ..search import geo
-from . import SourceResult, register
+from . import REFUSED, SourceResult, key_verdict, register
 from .boards import clean
 
 API = "https://api.adzuna.com/v1/api/jobs/{country}/search/{page}"
 PAGE_SIZE = 50             # the documented maximum
 MAX_PAGES = 3              # the free monthly cap is the real limit, not this
+REFUSED_ERROR = ("Adzuna refused the app ID or key (HTTP {status}). Check both "
+                 "on the Sources page")
+
+
+def try_key(fetcher, app_id: str, app_key: str) -> tuple[str, str]:
+    """Whether Adzuna accepts this app ID and key: one search for one post.
+    The US index, because every key may read every country."""
+    resp = fetcher.get(API.format(country="us", page=1), params={
+        "app_id": app_id, "app_key": app_key, "results_per_page": 1,
+        "what": "nurse", "content-type": "application/json"})
+    verdict, why = key_verdict("Adzuna", resp)
+    if verdict == "refused":
+        why = "Adzuna refused this app ID and key. Copy both again from your " \
+              "Adzuna dashboard"
+    return verdict, why
 
 # Adzuna runs a separate national index per country, and the code is two
 # letters in the URL path. Probed live: these answer, `au`, `nz` and `sg`
@@ -183,6 +198,9 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
                 resp = fetcher.get(API.format(country=country, page=page),
                                    params=params)
                 requests_made += 1
+                if resp.status in REFUSED:
+                    return SourceResult(source="adzuna", requests_made=requests_made,
+                                        errors=[REFUSED_ERROR.format(status=resp.status)])
                 if not resp.ok:
                     errors.append(f"{country}/{title!r}: {resp.error}")
                     break

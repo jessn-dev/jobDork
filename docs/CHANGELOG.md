@@ -6,6 +6,398 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-23 — Feedback is sent: the relay is live
+
+- **The feedback relay is deployed** on Cloudflare Workers at
+  `https://jobdork-feedback.jessengolab-dev.workers.dev` (from
+  `relay/feedback/`, `npx wrangler@4.150.0 deploy`). Its keys and both email
+  addresses are Worker secrets, sent from `relay/feedback/.env` with
+  `wrangler secret bulk`; that file is git-ignored and not the repository's
+  own `.env`, which jobdork loads at start. Preview URLs are off.
+- **Every copy sends there**: `RELAY_URL` in `core/feedback.py` is the
+  relay's address, so the Feedback page's **Send** works in pip, Docker and
+  desktop installs alike. `JOBDORK_FEEDBACK_URL` replaces it for one copy,
+  and `off` turns Send off (leaving "Open as a GitHub issue" and "Save as a
+  file"). docs/CONFIG.md and the relay README say so. The test that checks
+  sending with no relay now blanks the address first: with one built in, it
+  would have filed a real issue.
+- **Five reports an hour per address**, in a KV namespace bound in
+  `wrangler.toml`. It counts every request, invalid ones too.
+- Checked: a test report through jobdork's own `feedback.send` opened issue
+  #24 with `question` and `from-app`, its screenshot kept off the issue and
+  emailed, and the email arrived (closed afterwards); the deployed relay
+  refuses a GET and an unknown kind; the sixth request in an hour gets 429.
+  Not checked: the Feedback page's Send button in a browser.
+
+## Changed — 2026-10-23 — The feedback relay deploys from the repository
+
+Groundwork for deploying it; not deployed yet.
+
+- **`relay/feedback/wrangler.toml`**: `npx wrangler@4.150.0 deploy` from
+  that folder, with no generated project to copy the Worker into. Only the
+  repository name is in it; the keys and both email addresses are Worker
+  secrets, so no address of yours lands in this public repository. A
+  commented block turns on the five-an-hour rate limit.
+- **Works without a verified domain**: with no `FEEDBACK_FROM` the relay
+  sends as Resend's test sender (`onboarding@resend.dev`), which may mail the
+  Resend account's own address, enough for reports to the maintainer.
+- **A missing label no longer loses the issue**: GitHub refuses an issue
+  naming a label the repository lacks (422), and the relay now files it
+  without labels instead of giving up on it. The `from-app` label was also
+  created on the repository.
+- **`relay/feedback/test.mjs`** runs the Worker against stand-ins for GitHub
+  and Resend (`node relay/feedback/test.mjs`, 5 checks): the issue and the
+  email, the reporter's address and the screenshots kept off the issue,
+  either service down, and what is refused before anything is sent.
+- README rewritten for this; `.wrangler/` and `node_modules/` ignored.
+
+## Changed — 2026-10-23 — "Add a Job Post" on the Sources page
+
+- The form for adding a job post from its link moved from the Search page
+  to Sources, under the keys, and is called **Add a Job Post**: Search is
+  what you look for, Sources is where posts come from. Sources' menu
+  description says so.
+
+## Added — 2026-10-23 — The search applies itself
+
+- **A change on the Search page re-screens your job posts by itself**: a
+  job title removed, an exclude or dealbreaker added, the place, distance,
+  work arrangement or pay changed. Posts that no longer pass, and which you
+  have not acted on, are removed from Job posts and remembered under
+  "Dropped by your filters" with the rule and reason, where they can be kept
+  anyway; a later scan that matches one again brings it back
+  (`scan.rescreen` now records what it removes). Re-apply filters, pressed
+  by hand, still only re-scores.
+- **Adding a job title, a country or an industry also starts a scan**, or a
+  new place to search from: posts for those were never fetched.
+  `serve.search_changes` tells the two apart; the age limit and other
+  display settings start nothing. During setup nothing starts: setup runs
+  its own first scan.
+- **A change made while a job runs waits for it** instead of being refused:
+  `Runner.queue` keeps one waiting job of each kind, built when its turn
+  comes so it uses the settings as they are then. Several quick edits are
+  one re-screen. The toast says what started ("Re-applying your search to
+  the job posts. Scanning for what you added.") or what it waits for.
+  Saving or deleting a project or an education entry queues its re-score
+  the same way, instead of telling you to press Re-apply filters later.
+- Checked on a copy of the live database: removing "infrastructure
+  engineer" re-screened 2,262 posts in about 35 seconds and moved 94 to
+  Dropped; 80 page requests during it all answered. tests/test_serve.py
+  (the queue; what a change starts; remove re-screens, add scans, the age
+  limit starts nothing), test_agency.py (removed posts are remembered as
+  dropped, acted-on posts stay). The test server records queued jobs rather
+  than running them: a saved title in one test had started a real scan
+  that went online.
+
+## Fixed — 2026-10-23 — "database is locked" behind a re-screen
+
+- **A page request during a re-screen could fail with "database is
+  locked"**: every request opens the database, and opening wrote a row to
+  `meta` (an insert that does nothing still waits for the write lock),
+  while the re-screen held the lock for fifty posts at a time, which could
+  outlast SQLite's five-second wait. Opening now reads first and writes only
+  when the row is missing, and the re-screen commits at least twice a
+  second. Found by the browser check of the automatic re-screen.
+
+## Added — 2026-10-23 — Education added on the Resume page
+
+- **Education your resume does not show yet** (a degree finished since, a
+  course under way) is added on the Resume page below Projects, the same
+  way: a list, and "Add education" opening a form with the qualification,
+  school or provider, location, started, finished or expected, and details
+  (honours, GPA, courses). Schema 11 adds the `education` table (in the
+  same, not yet released, step as projects' kind and part).
+- **Every entry goes into a tailored resume** under Education, newest first
+  (still studying first), replacing the model's line for the same school
+  and a matching qualification ("BS Computer Science" and "B.S. in Computer
+  Science"), added when the resume lacks it (`writer.with_own_education`).
+  The model is told about these lines, and the facts check accepts schools
+  and qualifications from them. The `claude` CLI path gets them in
+  `projects.md` with the same instruction.
+- **Fit scores count them**, with the projects: a "Data Analytics
+  Certificate" whose details name SQL is SQL you have. Saving or deleting
+  one re-scores the job posts.
+- Checked in a browser on a copy of the live database (saved, listed with
+  its dates, re-score queued behind a running re-screen).
+  tests/test_writer.py, test_agency.py.
+
+## Changed — 2026-10-23 — One README
+
+- **docs/README.md is gone.** It was the docs folder's index, not a second
+  copy, but it repeated the root README's table of documents and its
+  screenshots. Its two parts found nowhere else, "Start here" and "The five
+  things worth knowing before you trust the output", are now in the root
+  README under Documentation, with their links pointing into docs/.
+
+## Added — 2026-10-23 — Projects of any kind, counted in fit scores and always in a tailored resume
+
+- **Any kind of project.** A project on the Resume page now has a kind (app
+  or software, writing or articles, design, research, campaign or event,
+  business or operations, teaching, volunteer, personal, other) and your
+  part in it ("Lead writer", "one of four developers"), beside the tools,
+  the link and the STAR fields. The page's wording no longer assumes
+  software. Schema 11 adds the two columns (`projects.kind`, `role`).
+- **Fit scores count your projects.** A skill shown only in a project is a
+  skill you have: scans and re-screens read the resume and the projects
+  together (`scan._load_resume(cfg, store)`).
+- **Saving or deleting a project re-scores the job posts** (the same job as
+  Re-apply filters), and the toast says so; while a scan runs it says to use
+  Re-apply filters afterwards instead. On a copy of 2,262 posts the re-score
+  ran well past 20 seconds, like Re-apply filters.
+- **Every project you added goes into a tailored resume**, the most relevant
+  to the job first (skills, then words, the advert and the project share),
+  at most three or four by career stage; the projects gate names any of
+  yours left out for room. One the resume only names or links to, which
+  the model gave no more than a name or a URL, is described from your own
+  STAR fields, with your part, tools and link on the line under its name.
+  Someone experienced now gets a projects section after the jobs holding
+  only these; the resume's other projects still go in the jobs. Decision
+  in docs/DECISIONS.md. The `claude` CLI path's guide says the same.
+- Checked in a browser on a copy of the live database: the kinds list, a
+  writing project saved with its kind and part, the toast, and the re-score
+  starting on the copy. tests/test_writer.py (an experienced person's own
+  project after the jobs, a bare link described from the notes, the most
+  relevant first), test_agency.py (fit), test_serve.py (re-score on save, an
+  unknown kind refused), test_migrations.py (schema 11).
+
+## Added — 2026-10-23 — Recruiters' posts marked, filtered, and warned about
+
+- **Who posted it.** Each job post is called the employer's or a
+  recruiter's (`search/agency.py`): a known staffing or search firm (Robert
+  Half, Kforce, TEKsystems, Aya Healthcare and about 80 more, US first, all
+  industries), a name that says so ("… Staffing", "… Recruiting", "…
+  Personnel"), an advert that speaks for a client ("our client", "on behalf
+  of our client", "one of our clients"), or a built-in board listed as
+  staffing. Names that are also employers' are not on the list (Atrium
+  Health, HaysMed, Kelly-Moore), and "our client base", "our client teams"
+  and "our clients" are not a recruiter. A recruiter's post shows
+  "Recruiter", with the reason on hover and in the post's window.
+- **Filter: Posted by anyone / the employer / a recruiter**, on Job posts
+  beside the other filters.
+- **"May be a job you have already applied to."** A post that may be the
+  same job as one you are pursuing (applied, submitted, interviewing or
+  offer) reached the other way, through a recruiter and directly or through
+  two recruiters, says so on its card and in its window, which explains why
+  it matters: a duplicate candidate is often dropped. Same job means the
+  recruiter's advert names the employer as its client (within 150
+  characters after "client" or a "Company:" label), or the same title words
+  in the same city. Remote posts match by name only, and a name anywhere
+  else in an advert does not count: on the live data "Oracle", "Google
+  Cloud", "Snowflake", "Okta" and "Target" were products and plain words.
+  Several applications at one named employer are one line. **Apply** on such
+  a post asks once more ("Apply anyway?") before opening it.
+- Grouping is unchanged: it keys on the company, and a recruiter's post
+  carries the recruiter's name, which is why these were never joined.
+- Computed when the list is read, not stored, so it follows your statuses
+  at once: 212 ms for 1,997 posts on a copy of the live database, where 115
+  were recruiters'. Checked in a browser on that copy: the filter, the tag,
+  the warning on a card and in the window, Apply asking again.
+  tests/test_agency.py.
+
+## Changed — 2026-10-23 — Fewer wasted reads of boards with no jobs for you
+
+- **An Oracle board whose countries add up to every job it has is
+  trusted.** A board was trusted to say where its jobs are only when its
+  location list named three countries or more; Alorica's named one, Egypt,
+  for its one job, so a US scan searched it once per title (11 requests)
+  and found nothing. Now, when the countries listed account for every job
+  on the board (`oracle.covers_every_job`), a board with none in yours is
+  skipped after one request: "Alorica lists no jobs in US".
+- **A first scan's quick part passes over boards with fewer than 10 jobs**
+  (`directory.QUICK_MIN_JOBS`): they are fast but show nothing, and the
+  quick part is there to show posts soon. They come after the others in
+  their industry, and boards whose count is unknown still come last.
+- **Alorica re-verified**: 1 job (was 53, from 2026-10-01). It keeps US as
+  its home country, as every re-verified board does.
+  `scripts/build_boards.py --reverify --name <board>` now re-verifies only
+  the boards named, as `--name` already did for `--add`. The rest of the
+  list has not been re-verified; the weekly workflow still needs
+  `BOARDS_PR_TOKEN` (Still outstanding).
+
+## Fixed — 2026-10-23 — "returned 0 job posts" only when something is wrong
+
+- **The Last scan card said "Oracle returned 0 job posts"** after a first
+  scan's quick part, whose only Oracle board answered every request and
+  had nothing matching the titles, while the rest of the scan, still
+  running, had found 66 Oracle posts. Any kind of board with 0 posts was a
+  warning. A scan now records which kinds had an error (`failed` in the
+  run's counts, merged across a first scan's two parts), and a 0 is a
+  warning only when that kind failed ("…: it failed. Why is under Warnings
+  and errors on the Activity page") or when earlier scans found posts from
+  it ("…, where earlier scans found some"). A scan recorded before today
+  has no `failed`, and every 0 in it is reported as before.
+
+## Fixed — 2026-10-23 — Keys are checked and tried when saved, and can be replaced
+
+- **A key is tried before it is saved.** Saving an Adzuna or USAJOBS key
+  makes one search with it (`api.try_source_keys`, `usajobs.try_key`,
+  `adzuna.try_key`); one the source refuses is not saved and the page says
+  so: "USAJOBS refused this key and email. Copy the key again from
+  USAJOBS's email, and use the email you signed up with". If the source
+  cannot be asked (offline, down), the key is saved and the page says it
+  was not tried. Removing a key asks nothing. Found when an error message,
+  pasted into the key box by mistake, was saved as the USAJOBS key and
+  every scan failed with HTTP 401.
+- **What cannot be a key is refused before anything is sent**: a space,
+  line break or quote anywhere in it ("which a key never has. Copy it
+  again"; the message never repeats what was typed), and an email that is
+  not an email address. All values are checked before any is kept, so one
+  bad box no longer leaves the other half-saved in memory
+  (`config.check_source_key`).
+- **Show / Hide** beside each key box, so what was pasted can be read
+  before saving; the box goes back to hidden after Save.
+- **Keys on the Sources page.** The key cards were only in setup, so a key
+  that turned out wrong could only be fixed by starting over. Sources now
+  has them under the source table, with **Replace** and **Remove** for a
+  key the app holds; a key from `.env` or the environment says so, since
+  the app does not change those. Setup's Pay step uses the same cards.
+- **A refused key is one warning, not one per title.** A scan whose key
+  USAJOBS or Adzuna refuses (HTTP 401 or 403) stops that source at the
+  first request and logs "USAJOBS refused the API key or email (HTTP 401).
+  Check both on the Sources page…" instead of "'devops engineer': HTTP 401;
+  'software engineer': HTTP 401; …".
+- Checked in a browser on a scratch copy: the cards on Sources, Show
+  revealing a pasted sentence, Save refusing it for the space without a
+  request, and a well-formed fake key refused by USAJOBS itself and not
+  saved; setup's Pay step draws the same cards. `jobdork setup` in the
+  terminal tries the key too and prints the outcome.
+
+## Fixed — 2026-10-23 — A real USAJOBS key was refused
+
+- **Saving a USAJOBS key said "USAJOBS_API_KEY has characters a key does
+  not"** for the key exactly as USAJOBS sends it. USAJOBS keys are base64,
+  which ends in `=` padding, and `=` was on the refused list
+  (`config.write_source_keys`, 2026-10-02). It is allowed now: the keys
+  file and `.env` are both read by splitting a line at its first `=`, so
+  the rest of the line comes back whole. Line breaks and quotes are still
+  refused. tests/test_core.py saves a padded key and reads it back after a
+  restart.
+
+## Fixed — 2026-10-23 — Start over and the stale-post clean-up failed at their first step
+
+- **Clicking Start over answered "bad request body"**, and so did the
+  preview of removing risky and stale posts (both 2026-10-14, never tried
+  in a browser until now). The page asks for each preview with an empty
+  form, which a browser sends as no body at all, and the server read a
+  body before looking at which request it was. The previews now read none;
+  the delete itself still needs its fields (the typed words, the count).
+  tests/test_serve.py sends the empty form the way a browser does.
+- **A "missing or wrong token" line in the browser's network log on every
+  page load.** The browser asks for `/favicon.ico` on its own, without the
+  token, and was refused. It is now answered with nothing (204), still only
+  for a Host the dashboard accepts.
+
+## Added — 2026-10-23 — CI builds the desktop app and attaches it to the release
+
+Third part of the desktop app.
+
+- **`.github/workflows/desktop.yml`** builds the macOS `.dmg` (macos-15,
+  Apple Silicon) and the Windows installer (windows-2025, which has Inno
+  Setup 6) with `packaging/build.py`, on Python 3.13. It is called from
+  docker.yml, so it runs on every push and pull request next to the other
+  checks, and can be run by hand for any branch; each run keeps its
+  installers as artifacts for a week. It is not one of the checks `main`
+  requires.
+- **A release waits for both installers.** `publish` now needs `desktop`
+  as well as `image`, so a tag whose app does not build is stopped before
+  the approval step rather than producing a release page with no downloads.
+  After approval, `release-page` attaches the `.dmg`, the setup `.exe` and
+  `SHA256SUMS.txt`, and the release notes say which file is for which
+  machine and how to get past each system's unsigned warning (macOS:
+  Privacy & Security → Open Anyway; Windows: More info → Run anyway).
+- **Unsigned, but attested.** On a tag each installer gets a build
+  provenance attestation, so `gh attestation verify <file> --repo
+  jessn-dev/jobDork` shows it was built by this repository's workflow from
+  the tagged commit. SECURITY.md lists the new check and the release step.
+- **The built app checks itself.** `jobdork.app/Contents/MacOS/jobdork
+  --self-test <report>` (or `jobdork.exe`) imports the window's backend for
+  the platform (Cocoa, or WinForms with WebView2), the Claude provider, the
+  PDF reader and the server, looks for the data files (dashboard, boards,
+  cities, regions, humanizer rules) and the package version, writes what
+  is missing to `<report>` (a Windows app has no stdout) and exits 1,
+  without opening a window. `build.py` runs it after PyInstaller and stops
+  before packaging if it fails: a missing module would otherwise show only
+  when a user opened the app. `app.self_test()`, two tests.
+- Checked: a local macOS build passes the self-test, and fails it naming
+  `cities.csv` when that file is taken out of the built app; the release
+  notes rendered with sample values. Not checked: the workflow itself has
+  not run yet (it will on the pull request; `actionlint` is not installed
+  here), so the first Windows build is still to come.
+
+## Added — 2026-10-21 — Building the macOS app and the Windows installer
+
+Second part of the desktop app. The macOS build is made and tried; the
+Windows one is written but has not been built yet (it needs a Windows
+machine, which CI will be).
+
+- **`python packaging/build.py`** builds for the machine it runs on, with
+  PyInstaller from `packaging/jobdork.spec`, one folder rather than one
+  file (a one-file build unpacks itself on every start, which is slow and
+  is what antivirus tools flag). macOS: `jobdork.app` in a `.dmg` beside a
+  link to Applications, drag to install; 29 MB, ad-hoc signed as Apple
+  Silicon requires, not notarised. Windows: an Inno Setup installer
+  (`packaging/jobdork.iss`) for the current user, no administrator prompt,
+  Start-menu entry, optional desktop icon; uninstalling leaves the user's
+  data in `%LOCALAPPDATA%\jobdork`. New `'.[package]'` extra: PyInstaller
+  and Pillow. The Claude provider and the PDF reader are always bundled: an
+  app user cannot add an extra afterwards.
+- **An icon**: `packaging/icon.png`, the dashboard's briefcase on its blue,
+  on the macOS icon grid; `icon.svg` is its source.
+- **`jobdork app --debug`**: the window's developer tools (right-click,
+  Inspect) and debug logging. The installed app takes `--debug` too.
+- **Output of an app with no terminal goes to `logs/app.log`** in its
+  folder. Found by running the built app: on macOS its stdout is not
+  missing, as on Windows, but leads nowhere, so the first check never fired.
+- **The token is not written to that log.** In the app the server prints
+  its address without the token, which the window already has; the 0.14.0
+  rule is that the token is never stored.
+- **The user's own tools are found.** An app opened from Finder gets the
+  system's bare PATH, so the `claude` CLI that drafts letters would not be
+  found; the app adds `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin`
+  and `/usr/local/bin` where they exist.
+- Checked: the `.dmg` mounted read-only shows the app and the Applications
+  link; the app opened from it with `open` writes its log, serves setup,
+  refuses a request without the token. Not checked: what a downloaded
+  (quarantined) copy shows on first open, and anything on Windows.
+
+## Added — 2026-10-21 — `jobdork app`: the dashboard in its own window
+
+First part of the installable desktop app (decision in docs/DECISIONS.md).
+Runs from source today; the macOS and Windows builds come next.
+
+- **`jobdork app`** (web/app.py) opens the dashboard in a window (pywebview,
+  the new `'.[app]'` extra) instead of a browser tab. The server runs on a
+  thread, the window on the main thread as macOS requires; closing the
+  window stops the server the way Ctrl-C does, so held API keys are
+  forgotten and temporary files emptied as before. `serve()` takes an
+  `on_ready(url, stop)` hook for this; `jobdork serve` is unchanged.
+- **Its own folder.** Everything else in jobdork is relative to the folder
+  it starts in, and an app opened from the Dock starts in none in
+  particular, so the app moves into a per-user one first: Application
+  Support on macOS, `%LOCALAPPDATA%` on Windows (local, not roaming: a
+  roaming profile copying a live SQLite database breaks it),
+  `~/.local/share` elsewhere. `--home` or `$JOBDORK_HOME` picks another.
+  Without a terminal, output goes to `logs/app.log` there.
+- **Links and files go through the app.** The window ignores
+  `window.open` on macOS and has no downloads folder of its own, so the page
+  now uses `openOut()` and `saveFile()`: in the app, job posts, Apply, the
+  feedback issue link and any other web address open in your own browser;
+  letters, resumes, PDFs and the feedback file are saved through a save
+  dialog; "Open PDF" shows it in the system's viewer from a temporary copy
+  deleted when the app closes. In a browser all of these behave as before.
+  The bridge (`Bridge`) opens only http(s) addresses, strips folders from a
+  file name, and refuses a file over 25 MB or one that arrives damaged.
+- tests/test_app.py: the folder per platform, the bridge's checks, and a
+  whole run with the window stood in for (setup page served with the token,
+  nothing written before setup's first answer, clean stop).
+
+## Changed — 2026-10-21 — Same "stop any time" line in both setups
+
+- The welcome screen of `jobdork setup` (terminal) and of the browser setup
+  now say the same thing: "Each answer is saved as you go, so you can stop
+  any time and carry on later", then how: run `jobdork setup` again, or
+  open the page again.
+
 ## Security — 2026-10-21 — certifi 2026.10.19
 
 - `requirements.lock`: certifi 2026.7.22 → 2026.10.19 for advisory
@@ -4358,9 +4750,25 @@ open; a digest arrives, and what arrived with it is what was not there before.
 
 ## Still outstanding
 
+- **The desktop app, the rest of it** (`jobdork app`, the macOS build and
+  the CI workflow are done): the first Windows build passing in CI (the
+  Inno Setup script and WebView2 are untried until it does), then the
+  installer tried on a Windows machine; the release notes' steps past the
+  unsigned warnings tried on a downloaded (quarantined) copy; `hdiutil` says its `create` and
+  `attach` options are deprecated on this macOS (still work); "a newer version exists" at start; scheduled scans
+  that call the app rather than a Python path (`dork/generator.py` writes
+  `sys.executable` + `generator.py` into crontab and Task Scheduler); a way
+  to see the app's folder from the dashboard (backups are written to
+  `data/backups` inside it); asking before closing the window mid-scan; the
+  Feedback page's Send tried in a browser against the live relay.
 - **Release 0.14.4.** `compose.yaml` and docs/DEPLOY.md name it, and the
   published 0.14.3 restarts over and over without a mapped `config.yaml`;
   until 0.14.4 is out, the NAS instructions do not work.
+- **The weekly board re-verify cannot open its pull request** until the
+  repository has the `BOARDS_PR_TOKEN` secret (see the top of
+  `.github/workflows/boards.yml`); a person has to add it. Until then the
+  built-in list goes stale between hand runs: Alorica still said 53 jobs on
+  2026-10-23, three weeks after its count was taken.
 - **The resume's skill list is tech-only.** `SKILL_TERMS` in
   `search/resume.py` knows languages, frameworks, cloud and security tools,
   so a nurse's resume (Epic, ACLS, IV therapy) shows almost no skills and

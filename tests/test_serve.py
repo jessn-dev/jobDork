@@ -65,6 +65,11 @@ class _Running:
         self.port = self.session.port
         self.token = self.session.token
         self.runner = Runner()
+        # A config save starts a re-screen or a scan by itself (serve._rescan),
+        # and a scan here would go online. Recorded, not run; a test that
+        # wants the real queue puts it back (real_queue).
+        self.queued: list[str] = []
+        self.runner.queue = self._record
         self.holder = {"cfg": self.cfg}
 
         self.server = ThreadingHTTPServer(
@@ -103,6 +108,13 @@ class _Running:
                 return response.status, response.read()
         except urllib.error.HTTPError as exc:
             return exc.code, exc.read()
+
+    def _record(self, name, make) -> bool:
+        self.queued.append(name)
+        return True
+
+    def real_queue(self) -> None:
+        self.runner.queue = Runner.queue.__get__(self.runner)
 
     @property
     def cfg_now(self):
@@ -595,6 +607,53 @@ def test_delete_all_scanned_needs_the_previewed_count():
     _with_server(check)
 
 
+def test_previews_answer_an_empty_form_as_a_browser_sends_it():
+    # fetch() with an empty URLSearchParams sends Content-Length 0; both
+    # previews refused that as "bad request body", so Start over and the
+    # stale-post clean-up never got past their first step in a browser.
+    def check(run):
+        for path in ("/api/start-over/preview", "/api/cleanup/aged/preview"):
+            code, body = run.post(path, {})
+            assert code == 200, (path, body)
+        code, body = run.post("/api/start-over", {})
+        assert code == 400, body                 # the real thing still needs the words
+    _with_server(check)
+
+
+def test_saving_a_project_re_scores_the_job_posts():
+    """Fit scores count a project's skills, so a saved one re-scores."""
+    import json
+    import time
+
+    def check(run):
+        resume = Path(run.tmp.name) / "resume.md"
+        resume.write_text("Jo Bloggs\nEngineer.\n", encoding="utf-8")
+        run.holder["cfg"].resume_path = str(resume)
+        run.real_queue()
+        code, body = run.post("/api/projects/save", {"name": "Rota tool",
+                                                     "kind": "App or software"})
+        assert code == 200, body
+        answer = json.loads(body)
+        assert answer["project"]["kind"] == "App or software"
+        assert answer["rescore"].startswith("Re-scoring"), answer
+        for _ in range(50):
+            if not run.runner.busy:
+                break
+            time.sleep(0.1)
+        code, body = run.post("/api/projects/save", {"name": "X", "kind": "Juggling"})
+        assert code == 400 and b"kind of project" in body
+    _with_server(check)
+
+
+def test_the_favicon_is_answered_without_the_token():
+    def check(run):
+        code, body = run.get("/favicon.ico", token=None)
+        assert code == 204 and body == b"", (code, body)
+        code, _ = run.get("/favicon.ico", host="evil.test", token=None)
+        assert code == 421
+    _with_server(check)
+
+
 def test_where_you_are_is_saved_from_the_picker_and_must_resolve():
     def check(run):
         code, body = run.get("/api/places/cities?country=PH&q=bagu")
@@ -794,6 +853,82 @@ def test_setup_offers_industries_and_dealbreakers_and_saves_industries():
         assert code == 200
         assert run.holder["cfg"].sources.directory.industries == ["healthcare"]
     _with_server(check)
+
+
+def _idle(runner):
+    import time as _time
+    for _ in range(100):
+        if not runner.busy:
+            return
+        _time.sleep(0.05)
+    raise AssertionError(f"still running {runner.current}")
+
+
+def test_a_queued_job_waits_and_runs_once_from_the_newest_settings():
+    runner, ran, gate = Runner(), [], threading.Event()
+
+    def blocking(progress):
+        gate.wait(5)
+        ran.append("scan")
+
+    assert runner.start("scan", blocking)[0]
+    settings = {"v": 1}
+    # lambda: builds the work when its turn comes, reading the settings then.
+    make = lambda: (lambda progress: ran.append(("rescreen", settings["v"])))  # noqa: E731
+    assert runner.queue("rescreen", make) is False
+    settings["v"] = 2
+    assert runner.queue("rescreen", make) is False      # still one waiting
+    assert runner.waiting() == ["rescreen"]
+    gate.set()
+    _idle(runner)
+    assert ran == ["scan", ("rescreen", 2)]
+    # Idle: it starts at once.
+    assert runner.queue("rescreen", make) is True
+    _idle(runner)
+
+
+def test_what_a_search_change_starts():
+    old = Config(titles_include=["nurse"], locations=Locations(countries=["US"]))
+    same = Config(titles_include=["Nurse"], locations=Locations(countries=["US"]))
+    assert serve_mod.search_changes(old, same) == (False, True)   # case is a change to screen
+    more = Config(titles_include=["nurse", "midwife"], locations=Locations(countries=["US"]))
+    assert serve_mod.search_changes(old, more) == (True, True)
+    fewer = Config(titles_include=[], locations=Locations(countries=["US"]))
+    assert serve_mod.search_changes(old, fewer) == (False, True)
+    abroad = Config(titles_include=["nurse"], locations=Locations(countries=["US", "CA"]))
+    assert serve_mod.search_changes(old, abroad)[0]
+    copy = Config(titles_include=["nurse"], locations=Locations(countries=["US"]))
+    assert serve_mod.search_changes(old, copy) == (False, False)
+
+
+def test_removing_a_title_re_screens_and_adding_one_scans():
+    """2026-10-23: the search applies itself; nothing to press afterwards."""
+    started = []
+    saved = serve_mod.api_mod.scan_job, serve_mod.api_mod.rescreen_job
+    # lambda: stand-ins that record which job ran, so no scan goes online.
+    serve_mod.api_mod.scan_job = lambda cfg, part="all": (lambda p: started.append("scan"))
+    # lambda: as above, for the re-screen, recording whether it removes.
+    serve_mod.api_mod.rescreen_job = lambda cfg, remove=False: (
+        lambda p: started.append(("rescreen", remove)))
+    try:
+        def check(run):
+            run.real_queue()
+            code, body = _post_json(run, "/api/config", {"titles_include": [
+                "software engineer", "platform engineer"]})
+            assert code == 200, body
+            assert body["rescan"].startswith("Re-applying your search"), body["rescan"]
+            assert "for what you added" in body["rescan"]
+            _idle(run.runner)
+            code, body = _post_json(run, "/api/config", {"titles_include": ["platform engineer"]})
+            assert code == 200 and "Scanning" not in body["rescan"], body
+            _idle(run.runner)
+            code, body = _post_json(run, "/api/config", {"show_days": 14})
+            assert code == 200 and body["rescan"] == "", body
+            _idle(run.runner)
+        _with_server(check)
+    finally:
+        serve_mod.api_mod.scan_job, serve_mod.api_mod.rescreen_job = saved
+    assert started == [("rescreen", True), "scan", ("rescreen", True)], started
 
 
 def test_a_chain_runs_its_jobs_in_turn_and_stops_at_a_failure():

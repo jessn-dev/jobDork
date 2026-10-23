@@ -194,6 +194,40 @@ def test_usajobs_skips_outside_the_us():
     assert result.skipped and "US federal" in result.skipped
 
 
+class _Refusing:
+    """A fetcher whose every answer is the given status."""
+
+    def __init__(self, status=401, error="HTTP 401"):
+        self.status, self.error, self.calls = status, error, 0
+
+    def get(self, url, **_):
+        from jobdork.fetch.http import Response
+        self.calls += 1
+        return Response(url=url, status=self.status, error=self.error)
+
+
+def test_a_refused_key_is_one_warning_and_one_request_not_one_per_title():
+    """Seen 2026-10-23: "HTTP 401" once per title, saying nothing of why."""
+    cfg = _cfg("Chicago, IL", ["US"])
+    cfg.titles_include = ["devops engineer", "software engineer", "cloud engineer"]
+    cfg.sources.usajobs_key, cfg.sources.usajobs_email = "k", "a@b.co"
+    cfg.sources.adzuna_app_id, cfg.sources.adzuna_app_key = "i", "k"
+    for module, name in ((usajobs, "USAJOBS"), (adzuna, "Adzuna")):
+        fetcher = _Refusing()
+        result = module.fetch(fetcher, cfg)
+        assert fetcher.calls == 1, (name, fetcher.calls)
+        assert len(result.errors) == 1 and result.errors[0].startswith(f"{name} refused")
+        assert "Sources page" in result.errors[0]
+
+
+def test_a_key_is_tried_and_a_refusal_told_apart_from_no_answer():
+    assert usajobs.try_key(_Refusing(401), "k", "a@b.co")[0] == "refused"
+    assert adzuna.try_key(_Refusing(401), "i", "k")[0] == "refused"
+    verdict, why = usajobs.try_key(_Refusing(0, "timed out"), "k", "a@b.co")
+    assert verdict == "unknown" and "timed out" in why
+    assert adzuna.try_key(_Refusing(200, ""), "i", "k") == ("ok", "")
+
+
 def test_workable_queries_are_spelled_out_not_coded():
     """Workable ignores two-letter codes silently, returning the whole world."""
     assert workable.location_queries(_cfg("Sydney, NSW", ["AU"])) == ["New South Wales"]

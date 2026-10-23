@@ -226,18 +226,38 @@ CREATE TABLE IF NOT EXISTS llm_calls (
 );
 CREATE INDEX IF NOT EXISTS idx_llm_calls_at ON llm_calls(at);
 
--- Projects you describe yourself, STAR-style, on the Resume page. Source
--- material for a tailored resume beside the resume file: the writer may use
--- them, and the checks accept what they say (ai/writer.py).
+-- Projects you describe yourself, STAR-style, on the Resume page: any kind
+-- of work (an app, articles, a campaign, research, volunteering). Source
+-- material for a tailored resume beside the resume file: every one is shown
+-- in it, the checks accept what they say (ai/writer.py), and fit scores
+-- count their skills.
 CREATE TABLE IF NOT EXISTS projects (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     name        TEXT NOT NULL,
+    kind        TEXT NOT NULL DEFAULT '',
+    role        TEXT NOT NULL DEFAULT '',
     tools       TEXT NOT NULL DEFAULT '',
     link        TEXT NOT NULL DEFAULT '',
     situation   TEXT NOT NULL DEFAULT '',
     task        TEXT NOT NULL DEFAULT '',
     action      TEXT NOT NULL DEFAULT '',
     result      TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+
+-- Education added on the Resume page: a degree, diploma or course the resume
+-- does not show yet (finished since, or never written in). Like projects, a
+-- source beside the resume: always in a tailored resume, and counted as
+-- part of your record.
+CREATE TABLE IF NOT EXISTS education (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    credential  TEXT NOT NULL,
+    school      TEXT NOT NULL DEFAULT '',
+    location    TEXT NOT NULL DEFAULT '',
+    start       TEXT NOT NULL DEFAULT '',
+    end         TEXT NOT NULL DEFAULT '',
+    details     TEXT NOT NULL DEFAULT '',
     created_at  TEXT NOT NULL,
     updated_at  TEXT NOT NULL
 );
@@ -397,6 +417,11 @@ class Store:
     # ── meta ───────────────────────────────────────────────────────────────────
 
     def _set_meta_default(self, key: str, value: str) -> None:
+        # Read first: every request opens the database, and an INSERT, even
+        # one that does nothing, waits for the write lock. Behind a long
+        # re-screen that wait ran out: "database is locked" (2026-10-23).
+        if self.conn.execute("SELECT 1 FROM meta WHERE key = ?", (key,)).fetchone():
+            return
         self.conn.execute(
             "INSERT INTO meta(key, value) VALUES(?, ?) ON CONFLICT(key) DO NOTHING",
             (key, value),
@@ -873,7 +898,8 @@ class Store:
 
     # ── projects (Resume page, STAR fields) ─────────────────────────────────────
 
-    PROJECT_FIELDS = ("name", "tools", "link", "situation", "task", "action", "result")
+    PROJECT_FIELDS = ("name", "kind", "role", "tools", "link", "situation", "task",
+                      "action", "result")
 
     def projects(self) -> list[sqlite3.Row]:
         return self.conn.execute(
@@ -887,19 +913,52 @@ class Store:
         now = _now()
         if project_id:
             cur = self.conn.execute(
-                "UPDATE projects SET name = ?, tools = ?, link = ?, situation = ?, "
-                "task = ?, action = ?, result = ?, updated_at = ? WHERE id = ?",
-                (*values, now, int(project_id)))
+                "UPDATE projects SET name = ?, kind = ?, role = ?, tools = ?, link = ?, "
+                "situation = ?, task = ?, action = ?, result = ?, updated_at = ? "
+                "WHERE id = ?", (*values, now, int(project_id)))
             self.conn.commit()
             return int(project_id) if cur.rowcount else 0
         cur = self.conn.execute(
-            "INSERT INTO projects(name, tools, link, situation, task, action, result, "
-            "created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", (*values, now, now))
+            "INSERT INTO projects(name, kind, role, tools, link, situation, task, action, "
+            "result, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (*values, now, now))
         self.conn.commit()
         return int(cur.lastrowid)
 
     def delete_project(self, project_id: int) -> bool:
         cur = self.conn.execute("DELETE FROM projects WHERE id = ?", (int(project_id),))
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    # ── education (Resume page) ─────────────────────────────────────────────────
+
+    EDUCATION_FIELDS = ("credential", "school", "location", "start", "end", "details")
+
+    def education(self) -> list[sqlite3.Row]:
+        return self.conn.execute(
+            "SELECT * FROM education ORDER BY updated_at DESC, id DESC").fetchall()
+
+    def save_education(self, fields: dict, entry_id: int | None = None) -> int:
+        """Add an entry, or replace one by id. Returns its id; 0 if no such id."""
+        values = [str(fields.get(f) or "").strip() for f in self.EDUCATION_FIELDS]
+        if not values[0]:
+            raise ValueError("an entry needs a degree, diploma or course")
+        now = _now()
+        if entry_id:
+            cur = self.conn.execute(
+                "UPDATE education SET credential = ?, school = ?, location = ?, start = ?, "
+                '"end" = ?, details = ?, updated_at = ? WHERE id = ?',
+                (*values, now, int(entry_id)))
+            self.conn.commit()
+            return int(entry_id) if cur.rowcount else 0
+        cur = self.conn.execute(
+            'INSERT INTO education(credential, school, location, start, "end", details, '
+            "created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)", (*values, now, now))
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def delete_education(self, entry_id: int) -> bool:
+        cur = self.conn.execute("DELETE FROM education WHERE id = ?", (int(entry_id),))
         self.conn.commit()
         return cur.rowcount > 0
 

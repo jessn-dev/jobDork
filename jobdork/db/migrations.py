@@ -42,7 +42,7 @@ log = logging.getLogger("jobdork.db.migrations")
 
 # The version a fresh database is created at, and the version this code
 # understands. Bumped by adding a step below.
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 
 class MigrationError(Exception):
@@ -270,6 +270,25 @@ def _v9_to_v10(conn: sqlite3.Connection) -> None:
 )''')
 
 
+def _v10_to_v11(conn: sqlite3.Connection) -> None:
+    """A project's kind (an app, an article, a campaign…) and your part in it:
+    projects are any kind of work, not only software. And education added on
+    the Resume page, for a resume that is behind."""
+    for column in ("kind", "role"):
+        _add_column(conn, "projects", column, "TEXT NOT NULL DEFAULT ''")
+    conn.execute('''CREATE TABLE IF NOT EXISTS education (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    credential  TEXT NOT NULL,
+    school      TEXT NOT NULL DEFAULT '',
+    location    TEXT NOT NULL DEFAULT '',
+    start       TEXT NOT NULL DEFAULT '',
+    end         TEXT NOT NULL DEFAULT '',
+    details     TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+)''')
+
+
 # Numbered, ordered, append-only. The key is the version a step produces.
 STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     2: _v1_to_v2,
@@ -281,6 +300,7 @@ STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     8: _v7_to_v8,
     9: _v8_to_v9,
     10: _v9_to_v10,
+    11: _v10_to_v11,
 }
 
 

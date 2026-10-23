@@ -116,6 +116,21 @@ def countries(payload: dict) -> dict[str, str]:
     return found
 
 
+def covers_every_job(payload: dict) -> bool:
+    """True when the country entries account for every job on the board, so
+    a country missing from them has none.
+
+    Alorica's board (2026-10-23) named one country, Egypt, for its one job:
+    too few countries for the three-country rule below, so a US scan searched
+    it once per title and found nothing every time.
+    """
+    total = payload.get("TotalJobsCount")
+    counted = sum(int(e.get("TotalCount") or 0) for e in payload.get("locationsFacet") or []
+                  if "," not in str(e.get("Name") or "")
+                  and geo.country_code(str(e.get("Name") or "")))
+    return isinstance(total, int) and counted >= total
+
+
 def advert(info: dict) -> str:
     parts = [info.get(k) or "" for k in ("ExternalDescriptionStr",
                                          "ExternalResponsibilitiesStr",
@@ -160,8 +175,11 @@ def fetch(fetcher, cfg, token: str = "", company: str = "", **_) -> SourceResult
     if wanted:
         first = search(fetcher, host, site, limit=1)
         result.requests_made += 1
-        board = countries(_first(first))
-        has_countries = len(board) >= 3
+        probe = _first(first)
+        board = countries(probe)
+        # Trusted to say where the jobs are when it names three countries or
+        # more, or when its countries add up to every job on the board.
+        has_countries = len(board) >= 3 or covers_every_job(probe)
         locations = [board[c] for c in wanted if c in board]
         if has_countries and not locations:
             result.skipped = f"{company or host} lists no jobs in {', '.join(wanted)}"

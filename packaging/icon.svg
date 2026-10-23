@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- The dashboard's logo (a white briefcase on the logo blue), on the macOS
+       icon grid: an 824px rounded square centred in 1024. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#3b82f6"/>
+  <g transform="translate(256 256) scale(21.333)">
+    <path fill="#fff" fill-rule="evenodd" d="M9 3h6a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v4H2V8a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 1.8V6h6V4.8H9zM2 13.8h8v.7a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7h8V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.2z"/>
+  </g>
+</svg>

@@ -44,12 +44,32 @@ from __future__ import annotations
 from ..core.textutil import to_text
 from ..db.store import Role
 from ..search import geo
-from . import SourceResult, register
+from . import REFUSED, SourceResult, key_verdict, register
 from .boards import annualise, clean, normalise_interval
 
 API = "https://data.usajobs.gov/api/search"
 PAGE_SIZE = 250            # the API allows up to 500; 250 keeps responses sane
 MAX_PAGES = 4
+# Said once for the whole source, not "HTTP 401" once per title: every title
+# fails the same way, and the fix is the same.
+REFUSED_ERROR = ("USAJOBS refused the API key or email (HTTP {status}). Check "
+                 "both on the Sources page: the email must be the one you "
+                 "signed up with")
+
+
+def _headers(key: str, email: str) -> dict:
+    return {"Host": "data.usajobs.gov", "User-Agent": email, "Authorization-Key": key}
+
+
+def try_key(fetcher, key: str, email: str) -> tuple[str, str]:
+    """Whether USAJOBS accepts this key and email: one search for one post."""
+    resp = fetcher.get(API, params={"PositionTitle": "nurse", "ResultsPerPage": 1},
+                       headers=_headers(key, email))
+    verdict, why = key_verdict("USAJOBS", resp)
+    if verdict == "refused":
+        why = "USAJOBS refused this key and email. Copy the key again from " \
+              "USAJOBS's email, and use the email you signed up with"
+    return verdict, why
 
 
 def _location_params(cfg) -> dict:
@@ -177,11 +197,7 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
                     "in .env",
         )
 
-    headers = {
-        "Host": "data.usajobs.gov",
-        "User-Agent": cfg.sources.usajobs_email,
-        "Authorization-Key": cfg.sources.usajobs_key,
-    }
+    headers = _headers(cfg.sources.usajobs_key, cfg.sources.usajobs_email)
     location = _location_params(cfg)
     anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
     roles: list[Role] = []
@@ -207,6 +223,9 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
 
             resp = fetcher.get(API, params=params, headers=headers)
             requests_made += 1
+            if resp.status in REFUSED:
+                return SourceResult(source="usajobs", requests_made=requests_made,
+                                    errors=[REFUSED_ERROR.format(status=resp.status)])
             if not resp.ok:
                 errors.append(f"{title!r}: {resp.error}")
                 break

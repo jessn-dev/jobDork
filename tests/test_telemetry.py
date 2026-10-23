@@ -172,6 +172,37 @@ def test_a_first_scans_two_parts_read_as_one_scan():
         assert "Workday 245" in scan["summary"]
 
 
+def test_a_zero_is_a_warning_only_when_it_failed_or_used_to_find_posts():
+    """2026-10-23: "Oracle returned 0 job posts" for one board with no jobs
+    matching the titles, while other Oracle boards were still being read."""
+    import json
+
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp)
+        with Store(cfg.db_path) as store:
+            for started, counts in (
+                    ("2026-10-22T08:00:00", {"sources": {"lever": 80}}),
+                    ("2026-10-23T05:19:24",
+                     {"fetched": 1, "skipped": [], "failed": ["usajobs"],
+                      "sources": {"oracle": 0, "usajobs": 0, "lever": 0,
+                                  "workable": 5}})):
+                store.conn.execute(
+                    "INSERT INTO runs(started_at, finished_at, counts_json) VALUES(?,?,?)",
+                    (started, started, json.dumps(counts)))
+            store.conn.commit()
+        text = " ".join(api.activity_report(cfg)["last_runs"][0]["warnings"])
+        assert "Oracle" not in text, text
+        assert "USAJOBS returned 0 job posts: it failed" in text
+        assert "Lever returned 0 job posts, where earlier scans found some" in text
+
+
+def test_failures_of_a_first_scans_two_parts_are_kept_together():
+    merged = api._merge_counts({"sources": {"usajobs": 0}, "failed": ["usajobs"]},
+                               {"sources": {"oracle": 66}, "failed": []})
+    assert merged["failed"] == ["usajobs"]
+    assert "failed" not in api._merge_counts({"sources": {}}, {"sources": {}})
+
+
 def test_a_source_is_skipped_only_when_every_board_of_it_skipped():
     from jobdork import fetch
     from jobdork.search import scan as scan_mod

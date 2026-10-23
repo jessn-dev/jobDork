@@ -114,10 +114,17 @@ class Runner:
         # What is running, so the page can say "scanning" or "drafting a CV"
         # rather than a bare spinner, and so a refusal can name the holder.
         self.current: str = ""
+        # Jobs waiting for this one: {name: make}, `make()` building the work
+        # when its turn comes, so it reads the settings as they are then.
+        self._queued: dict = {}
+        # Set and cleared under the lock, not read off the thread: a thread
+        # that has decided to finish is still alive for a moment, and a job
+        # queued in that moment would wait for a run that never comes.
+        self._running = False
 
     @property
     def busy(self) -> bool:
-        return self._thread is not None and self._thread.is_alive()
+        return self._running
 
     def start(self, name: str, work, then=()) -> tuple[bool, str]:
         """Begin a job. Returns (started, why_not).
@@ -131,19 +138,56 @@ class Runner:
         with self._lock:
             if self.busy:
                 return False, f"{self.current or 'a job'} is already running"
-            self.broker.clear_history()
-            self.current = name
-            self._thread = threading.Thread(
-                target=self._chain, args=([(name, work), *then],), daemon=True)
-            self._thread.start()
+            self._begin([(name, work), *then])
             return True, ""
+
+    def queue(self, name: str, make) -> bool:
+        """Run `make()` now, or after what is running. True if it started now.
+
+        One of each name waits: a second request for a re-screen while one
+        waits is the same re-screen, built from the newest settings. Used
+        when a change to the search starts a job by itself, where refusing
+        would lose the change.
+        """
+        with self._lock:
+            if self.busy:
+                self._queued.pop(name, None)       # to the back, as the newest
+                self._queued[name] = make
+                return False
+            self._begin([(name, make())])
+            return True
+
+    def waiting(self) -> list[str]:
+        return list(self._queued)
+
+    def _begin(self, jobs) -> None:
+        """Under the lock: start a thread running `jobs`."""
+        self.broker.clear_history()
+        self.current = jobs[0][0]
+        self._running = True
+        self._thread = threading.Thread(target=self._chain, args=(jobs,), daemon=True)
+        self._thread.start()
 
     def _chain(self, jobs) -> None:
         for name, work in jobs:
             self.current = name
             if not self._wrap(name, work):
                 break                          # a later part needs the earlier
-        self.current = ""
+        while True:
+            with self._lock:
+                if not self._queued:
+                    self.current = ""
+                    self._running = False
+                    return
+                name = next(iter(self._queued))
+                make = self._queued.pop(name)
+                self.current = name
+            try:
+                work = make()
+            except Exception as exc:            # a job that cannot be built
+                self.broker.publish(Event("error", f"{name} failed: {exc}"))
+                continue
+            self._wrap(name, work)
 
     def _wrap(self, name: str, work) -> bool:
         from ..core import telemetry

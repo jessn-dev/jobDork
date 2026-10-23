@@ -1,0 +1,74 @@
+name: Desktop app
+
+# Builds the desktop app: the .dmg for Apple Silicon Macs and the Windows
+# installer, each with packaging/build.py, which also runs the built app's
+# self-test. The result is kept as a workflow artifact for a week.
+#
+# Not triggered on its own: docker.yml calls it on every push and pull
+# request, so a release tag publishes nothing until both installers have
+# built, and its release-page job attaches them to the GitHub Release after
+# you approve the run in the `release` environment. Run it by hand
+# (Actions → Desktop app → Run workflow) for a build of any branch.
+#
+# Unsigned (docs/DECISIONS.md, 2026-10-21). On a tag each installer gets a
+# build provenance attestation instead: proof, checked with
+# `gh attestation verify`, that this repository's workflow built that exact
+# file from that commit.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Named, not -latest: the architecture is part of what is shipped,
+          # and macos-15 is Apple Silicon.
+          - os: macos-15
+            file: dist/jobdork-*-macos-arm64.dmg
+          - os: windows-2025
+            # Inno Setup 6 comes installed on this image.
+            file: dist/jobdork-*-windows-x64-setup.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write        # the attestation is signed with GitHub's identity
+      attestations: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # 3.13: what the macOS build was first made and tried with.
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Install
+        run: pip install -e '.[pdf,ai,app,package]'
+
+      - name: Build, self-test and package
+        run: python packaging/build.py
+
+      - name: Attest where the installer came from
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ matrix.file }}
+
+      - name: Keep the installer
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-${{ runner.os }}
+          path: ${{ matrix.file }}
+          if-no-files-found: error
+          retention-days: 7

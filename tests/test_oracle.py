@@ -38,8 +38,9 @@ def _req(n, title, country="US", where="Tampa, FL, United States"):
 class _Board:
     """Searches by keyword page, details by id; every request recorded."""
 
-    def __init__(self, pages, facet=FACET, removed=()):
+    def __init__(self, pages, facet=FACET, removed=(), total=7375):
         self.pages, self.facet, self.removed, self.asked = pages, facet, set(removed), []
+        self.total = total
 
     def get(self, url, **_):
         self.asked.append(url)
@@ -55,7 +56,7 @@ class _Board:
         listings = self.pages[offset // oracle.PAGE_SIZE] \
             if "keyword=" in finder and offset // oracle.PAGE_SIZE < len(self.pages) else []
         return Response(url=url, status=200, json={"items": [{
-            "TotalJobsCount": 7375, "locationsFacet": self.facet,
+            "TotalJobsCount": self.total, "locationsFacet": self.facet,
             "requisitionList": listings}]})
 
 
@@ -109,6 +110,19 @@ def test_your_countries_are_asked_of_the_board_and_none_costs_one_request():
     board = _Board([_full([_req(1, "Software Engineer")])])
     result = oracle.fetch(board, _cfg(("DE",)), token=TOKEN, company="JPMorgan Chase")
     assert len(board.asked) == 1 and result.skipped == "JPMorgan Chase lists no jobs in DE"
+
+
+def test_a_board_whose_few_countries_cover_every_job_is_trusted():
+    """Alorica, 2026-10-23: one job, in Egypt, searched once per title by a
+    US scan because one country was too few to trust."""
+    egypt = [{"Id": 7, "Name": "Egypt", "TotalCount": 1}]
+    board = _Board([_full([_req(1, "Software Engineer")])], facet=egypt, total=1)
+    result = oracle.fetch(board, _cfg(("US",), ("a", "b", "c")), token=TOKEN, company="Alorica")
+    assert len(board.asked) == 1 and result.skipped == "Alorica lists no jobs in US"
+    # Fewer jobs counted than the board has: not trusted, searched as before.
+    board = _Board([_full([_req(1, "Software Engineer")])], facet=egypt, total=40)
+    oracle.fetch(board, _cfg(("US",)), token=TOKEN)
+    assert len(board.asked) > 1
 
 
 def test_discover_reads_the_careers_link_and_krogers_site_number():

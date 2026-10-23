@@ -535,7 +535,7 @@ def cmd_generate(args) -> int:
                 dry_run=args.dry_run,
                 progress=_say if not args.quiet else None,
                 settings=guard.settings_for(cfg),
-                notes=resume_doc.project_notes(store.projects()),
+                notes=resume_doc.record_notes(store.projects(), store.education()),
             )
         except gen.GenerateError as exc:
             print(f"generate: {exc}", file=sys.stderr)
@@ -744,6 +744,13 @@ def cmd_serve(args) -> int:
                            token=args.token)
 
 
+def cmd_app(args) -> int:
+    from .web import app
+
+    return app.run(port=args.port, home=Path(args.home) if args.home else None,
+                   debug=args.debug)
+
+
 def cmd_setup(args) -> int:
     """First-run questions in the terminal, the same steps as the dashboard's."""
     from .core import setup
@@ -778,8 +785,8 @@ def _setup_welcome(cfg):
     print("Setup asks, one step at a time:")
     for _name, label in setup.STEPS[1:]:
         print(f"  {label}")
-    print("\nEach answer is saved as you go; stop any time and run "
-          "`jobdork setup` again to carry on.")
+    print("\nEach answer is saved as you go, so you can stop any time and "
+          "carry on later: run `jobdork setup` again.")
     if not _yes("Start?"):
         return None
     cfg = setup.write(cfg.path, {"setup_step": setup.next_step("welcome")})
@@ -1140,8 +1147,8 @@ def _setup_sources(cfg) -> None:
             except EOFError:
                 values[f["name"]] = ""
         try:
-            api.setup_keys(cfg, values)
-            print(f"  {k['label']}: saved.")
+            note = api.setup_keys(cfg, values)
+            print(f"  {k['label']}: {note or 'tried and saved.'}")
         except api.ApiError as exc:
             print(f"  {k['label']}: not saved ({exc}).")
 
@@ -1493,6 +1500,16 @@ def build_parser() -> argparse.ArgumentParser:
                    help="use this token instead of a fresh one; for a parent "
                         "process that spawned jobdork and already has one")
     p.set_defaults(func=cmd_serve)
+
+    p = subs.add_parser("app", help="the dashboard in a window of its own")
+    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--home", default="",
+                   help="keep settings and job posts here instead of the "
+                        "app's own folder (also $JOBDORK_HOME)")
+    p.add_argument("--debug", action="store_true",
+                   help="developer tools in the window (right-click, Inspect) "
+                        "and debug logging")
+    p.set_defaults(func=cmd_app)
 
     p = subs.add_parser("discover", parents=[over],
                         help="find an employer's board from their own site")

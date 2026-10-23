@@ -624,7 +624,7 @@ always wins over the YAML.
 | `GEMINI_API_KEY` or `GOOGLE_API_KEY` | Gemini, from the terminal |
 | `OPENAI_API_KEY` | ChatGPT, from the terminal |
 | `JOBDORK_CONFIG` | Config path override |
-| `JOBDORK_FEEDBACK_URL` | The Feedback page's relay (an `https://` address; see [relay/feedback](../relay/feedback/README.md)). Without it, Send is off and a report opens as a GitHub issue or is saved as a file. No Resend or GitHub key is ever read by the app for this |
+| `JOBDORK_FEEDBACK_URL` | Where the Feedback page's Send goes. By default the maintainers' relay (see [relay/feedback](../relay/feedback/README.md)); an `https://` address replaces it, and `off` turns Send off, leaving "Open as a GitHub issue" and "Save as a file". No Resend or GitHub key is ever read by the app for this |
 | `JOBDORK_ALLOW_HOSTS` | The dashboard: addresses besides the machine itself it may be opened by, comma separated (a NAS's network address, its Tailscale name); a wildcard is refused. See [DEPLOY.md](DEPLOY.md) |
 | `JOBDORK_DOCS_DIR` | Where the uploaded resume and generated documents are kept. The Docker image sets `/app/data/documents`, inside the kept volume |
 | `JOBDORK_TEMP_DOCS` | Opt-in instead: a temporary folder for the resume and documents, emptied when the dashboard starts and stops; wins over `JOBDORK_DOCS_DIR` |

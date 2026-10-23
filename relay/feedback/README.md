@@ -8,45 +8,54 @@ It opens a GitHub issue (the public record) and emails the maintainers. The
 email carries the screenshots and the reporter's address as Reply-To; neither
 goes on the public issue. If one of the two fails, the other is still sent.
 
-Not deployed yet. Until it is, the Feedback page offers "Open as a GitHub
-issue" (prefilled, in the browser) and "Save as a file" instead of Send.
+Deployed at `https://jobdork-feedback.jessengolab-dev.workers.dev`, which
+is jobdork's built-in `RELAY_URL`. With sending off (`JOBDORK_FEEDBACK_URL=off`)
+the Feedback page offers "Open as a GitHub issue" (prefilled, in the browser)
+and "Save as a file" instead of Send.
 
 ## Deploy (Cloudflare Workers, free tier)
 
+From this folder, with Node 18 or later; `wrangler.toml` is here already.
+It gets its own `jobdork-feedback.<account>.workers.dev` address and touches
+no domain or site of yours.
+
 ```sh
-npm create cloudflare@latest jobdork-feedback   # "Hello World" Worker
-cp relay/feedback/worker.js jobdork-feedback/src/index.js
-cd jobdork-feedback
-npx wrangler kv namespace create FEEDBACK_KV     # optional: 5 reports an hour per address
-npx wrangler secret put GITHUB_TOKEN
-npx wrangler secret put RESEND_API_KEY
-npx wrangler deploy
+cd relay/feedback
+node test.mjs                                       # the logic, offline
+npx wrangler@4.150.0 login                          # opens the browser
+npx wrangler@4.150.0 deploy
+npx wrangler@4.150.0 secret bulk .env               # the secrets below, from a file
 ```
 
-`wrangler.toml`:
-
-```toml
-[vars]
-GITHUB_REPO = "jessn-dev/jobDork"
-FEEDBACK_TO = "you@example.com"
-FEEDBACK_FROM = "jobdork feedback <feedback@your-verified-domain>"
-
-[[kv_namespaces]]
-binding = "FEEDBACK_KV"
-id = "<from the kv namespace create step>"
-```
+The secrets go in `relay/feedback/.env` (git ignores it; `chmod 600` it),
+one `NAME=value` per line, and `secret bulk` sends them all. Not the
+repository's own `.env`: jobdork loads that one at start, and these keys
+are the relay's, not the app's. `npx wrangler@4.150.0 secret put NAME`
+sets one by hand instead.
 
 - **GITHUB_TOKEN**: a fine-grained token for this one repository with
-  *Issues: read and write* and nothing else. Labels `bug`, `enhancement`,
-  `question` and `from-app` must exist in the repository.
-- **RESEND_API_KEY**: a key with *sending access* only, on a verified domain.
+  *Issues: read and write* and nothing else. The labels `bug`,
+  `enhancement`, `question` and `from-app` exist; an issue whose label is
+  missing is filed without labels rather than lost.
+- **RESEND_API_KEY**: a key with *sending access* only.
+- **FEEDBACK_TO**: where reports are emailed. A secret only so the address
+  is not in this public repository.
+- **FEEDBACK_FROM**: `jobdork feedback <feedback@your-verified-domain>`.
+  Without it the relay sends as Resend's test sender, `onboarding@resend.dev`,
+  which Resend lets mail only the address the account was opened with: set
+  FEEDBACK_TO to that one.
+- **Rate limit** (recommended once the address is public):
+  `npx wrangler@4.150.0 kv namespace create FEEDBACK_KV`, put the id in
+  `wrangler.toml`'s `[[kv_namespaces]]`, deploy again: five reports an hour
+  per address.
 
 ## Point the app at it
 
-- Packaged builds: set `RELAY_URL` in `jobdork/core/feedback.py` to the
-  Worker's `https://` address before building.
-- Any copy: `JOBDORK_FEEDBACK_URL=https://jobdork-feedback.<you>.workers.dev`
-  in `.env` or the environment.
+- Every copy uses `RELAY_URL` in `jobdork/core/feedback.py`, this relay's
+  address: pip, Docker and the desktop app alike. A relay moved elsewhere
+  means changing it there.
+- `JOBDORK_FEEDBACK_URL` in `.env` or the environment replaces it for one
+  copy (your own relay, a test one), and `off` turns Send off.
 
 ## What it accepts
 
