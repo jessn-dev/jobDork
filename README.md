@@ -43,7 +43,7 @@ and everything else follows — including whether the radius is stated in miles
 or kilometres.
 
 Reading rather than running? [Under the hood](#under-the-hood) is the short
-version and [docs/](docs/README.md) is the long one.
+version and [Documentation](#documentation) lists the long one, in docs/.
 
 ---
 
@@ -101,6 +101,27 @@ yours ever conflicts on a pull. Your search stays yours.
 it with no arguments and it builds for the countries in your config; `all`
 builds every country. Without it the tool falls back to about 125 bundled
 metros and still works in the places most postings name.
+
+### The desktop app
+
+```bash
+.venv/bin/pip install -e '.[pdf,app]'
+.venv/bin/python -m jobdork app
+```
+
+The same dashboard in a window of its own, with nothing to type afterwards.
+It keeps its settings, job posts and resume in its own folder, not the one you
+started it from: `~/Library/Application Support/jobdork` on macOS,
+`%LOCALAPPDATA%\jobdork` on Windows, `~/.local/share/jobdork` on Linux
+(`--home` or `$JOBDORK_HOME` to choose another). Letters and CVs still go to
+`~/Documents/job-applications`. Job posts open in your own browser, and a file
+you download is saved where you choose. Closing the window stops it, and any
+API key it held is forgotten as with `jobdork serve`.
+
+Installers for macOS and Windows, so none of the above is needed, are built
+by CI on every pull request and will be attached to the
+[Releases](https://github.com/jessn-dev/jobDork/releases) page from the next
+release on, with how to get past the unsigned warnings.
 
 ---
 
@@ -465,12 +486,35 @@ jobdork tailor <uid>          # your resume rewritten for one post, as a PDF
 - **Projects adapt to the person.** The model judges the career stage from
   the resume and the post: a student's projects go right below Education
   (two or three), a career changer's above the jobs, a freelancer's after
-  them as "Selected Client Projects", and someone with years in the field gets
-  no projects section at all. The heading follows the industry ("Technical
-  Projects", "Portfolio Highlights", "Key Initiatives"). Projects can be
-  described on the Resume page in STAR fields (situation, task, action,
-  result), and a common tutorial project (a to-do list, a weather app) is
-  flagged as you type and in the result.
+  them as "Selected Client Projects", and someone with years in the field
+  keeps the resume's projects inside the jobs. The heading follows the
+  industry ("Technical Projects", "Portfolio Highlights", "Key Initiatives").
+- **Your own projects are always shown.** Any kind of work can be described
+  on the Resume page: an app, articles, a campaign, research, an event,
+  volunteering, a personal project. Each has a kind, your part in it, tools,
+  a link, and STAR fields (situation, task, action, result). Every one goes
+  into a tailored resume, the most relevant to the job first; one the resume
+  only names or links to is described in your words. For someone experienced
+  they get a section after the jobs. Fit scores count their skills, and saving
+  one re-scores your job posts. A common tutorial project (a to-do list, a
+  weather app) is flagged as you type and in the result.
+- **Education your resume does not show yet.** A degree, diploma or course
+  finished since the resume was written, or one under way, is added on the
+  Resume page the way a project is. Every entry goes under Education in a
+  tailored resume, newest first, replacing the resume's own line for the same
+  school and qualification, and fit scores count it.
+- **The search applies itself.** Removing a job title or changing a rule on
+  the Search page re-screens your job posts at once: ones that no longer fit,
+  which you have not acted on, move to Dropped by your filters. Adding a job
+  title, a country or an industry also starts a scan. While a job runs, the
+  change waits for it.
+- **Recruiters' posts are marked.** A post from a staffing or search firm,
+  or one whose advert speaks for "our client", says "Recruiter", and Job
+  posts can show only employers' or only recruiters' posts. When a post may
+  be a job you already applied to the other way (the recruiter's advert names
+  that employer as its client, or the title and city are the same), it says
+  so, and Apply asks again: applying through a recruiter and directly can
+  make you a duplicate candidate.
 
 - **Posting dates are measured, not guessed.** A model has no clock, so the
   age of every post is worked out in code from the job board's own dates
@@ -642,6 +686,48 @@ blocking automated readers makes the market worse for everyone.
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | What changed, and every bug found on the way |
 | [SECURITY.md](SECURITY.md) | How releases are checked, signed and approved, and how to verify an image |
 
+### Start here
+
+**Setting it up** — [CONFIG.md](docs/CONFIG.md), then the
+[minimal config](docs/CONFIG.md#minimal-working-config).
+
+**Wondering why a role was dropped** — `jobdork list --flags`, then
+[the screening rules](docs/CONFIG.md#how-a-title-is-matched) and
+[the salary rule](docs/CONFIG.md#the-rule).
+
+**Wondering why a source returned nothing** —
+[Failure usually looks like success](docs/PLATFORMS.md#failure-usually-looks-like-success).
+
+**Adding an employer's board** — [Board tokens](docs/SOURCES.md#board-tokens).
+
+**Writing an adapter** — [Adding a source](docs/SOURCES.md#adding-a-source) and
+[the adapter contract](docs/ARCHITECTURE.md#adapter-contract).
+
+**Setting up the AI reader** — [llm](docs/CONFIG.md#llm), then
+[how its output is checked](docs/ARCHITECTURE.md#the-ai-reader-and-the-guard).
+
+### The five things worth knowing before you trust the output
+
+**Only a positive statement by the employer can disqualify a role.** Silence
+never does. A posting that states no salary, no work arrangement, or a location
+nothing can parse is kept and flagged, not dropped.
+
+**Around 12% of postings state pay.** A salary floor filters that minority and
+leaves the rest visible, marked `unconfirmed salary`.
+
+**About 60% state no work arrangement.** Those are kept whatever
+`work_modes` says.
+
+**Adzuna truncates every advert to 500 characters.** Dealbreakers, work-mode
+detection and resume fit scoring all read the advert body, so Adzuna roles
+cannot really be screened — it is a discovery-and-salary source. See
+[the 500-character cap](docs/PLATFORMS.md#the-500-character-cap).
+
+**An empty answer from an employer board means nothing.** Several of these APIs
+return HTTP 200 with an empty array both for a board that does not exist and
+for one that is throttling. Those roles are reported as `SUSPECT`, not as
+"not hiring".
+
 ---
 
 ## Development
@@ -667,6 +753,25 @@ being out of scope for a Manila reader exactly as a Berlin one is for a
 Chicago reader, and a model's "supported" not counting without a quote found
 in the source. None of them calls a real model or a real site.
 
+### Building the desktop app
+
+```bash
+pip install -e '.[pdf,ai,app,package]'
+python packaging/build.py   # macOS: dist/jobdork-<version>-macos-arm64.dmg
+                            # Windows: dist/jobdork-<version>-windows-x64-setup.exe
+```
+
+Builds for the machine it runs on; Windows also needs
+[Inno Setup 6](https://jrsoftware.org/isdl.php). Before packaging, the built
+app runs its own `--self-test` and the build stops if a module or data file
+is missing from it. CI builds both (`.github/workflows/desktop.yml`); a run's
+installers are under its Artifacts for a week. The app writes what it would
+print to `logs/app.log` in its folder (never the token). For a problem that
+only shows in the app, run it with `--debug` for the window's developer tools
+(right-click, Inspect): `jobdork app --debug` from source, or
+`/Applications/jobdork.app/Contents/MacOS/jobdork --debug` and
+`jobdork.exe --debug` once installed.
+
 ---
 
 ## Project structure
@@ -686,10 +791,11 @@ in the source. None of them calls a real model or a real site.
 │   │                      # discover, listing check, geo, resume
 │   ├── ai/                # the model, judging, the hallucination guard, AI letter and review
 │   ├── writing/           # claude -p drafts and the checks every draft gets
-│   ├── web/               # the dashboard server and its API
+│   ├── web/               # the dashboard server and its API; app.py, the desktop window
 │   ├── output/            # the static HTML/JSON page and the email digest
 │   ├── dork/              # the original Google query generator (boards.py holds its tables)
 │   └── data/              # built-in employer boards, cities gazetteer, dashboard page, humanizer rules
+├── packaging/             # the desktop app's build: PyInstaller spec, icon, Windows installer
 ├── scripts/               # build the boards list, benchmarks, gazetteer, image check
 ├── tests/                 # python tests/run_all.py
 ├── docs/

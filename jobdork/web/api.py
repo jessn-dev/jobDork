@@ -126,6 +126,7 @@ def role_detail(cfg, uid: str) -> dict:
             for c in store.copies(uid)
         ]
         ai = ai_fields(row)
+        posted_by = recruiters(store, [row])[uid]
         # The verdict's rating, so the dialog shows which thumb is pressed.
         if ai["ai"] and ai["ai"].get("ai_output_id"):
             output = store.ai_output(int(ai["ai"]["ai_output_id"]))
@@ -156,9 +157,59 @@ def role_detail(cfg, uid: str) -> dict:
         "description": row["description"] or "",
         "advert_chars": len(row["description"] or ""),
         "credentials": _credentials(cfg, row["description"] or ""),
+        **posted_by,
         "artifacts": artifacts,
         "copies": copies,
     }
+
+
+# ── who posted it: the employer or a recruiter (search/agency.py) ─────────────
+
+_STAFFING_BOARDS: set[str] | None = None
+
+
+def _staffing_boards() -> set[str]:
+    """Names of the built-in boards listed as staffing firms, read once."""
+    global _STAFFING_BOARDS
+    if _STAFFING_BOARDS is None:
+        from ..search import directory
+        _STAFFING_BOARDS = {b.name.casefold() for b in directory.load()
+                            if b.industry == "staffing"}
+    return _STAFFING_BOARDS
+
+
+def _post(row, status: str = "") -> dict:
+    """A role row as search/agency.py reads it, with who posted it."""
+    from ..search import agency
+
+    company = row["company"] or ""
+    poster = agency.classify(company, row["description"] or "",
+                             "staffing" if company.casefold() in _staffing_boards() else "")
+    return {"uid": row["uid"], "company": company, "title": row["title"] or "",
+            "description": row["description"] or "", "work_mode": row["work_mode"] or "",
+            "city": row["city"] or "", "state": row["state"] or "",
+            "location": row["location_raw"] or "", "status": status or row["status"] or "new",
+            "agency": poster.agency, "poster": poster}
+
+
+def recruiters(store, rows) -> dict[str, dict]:
+    """{uid: {"poster", "overlap"}} for these rows: who posted each, and the
+    posts you are pursuing that may be the same job reached another way (a
+    recruiter's post and the employer's own, or two recruiters')."""
+    from ..core.config import PURSUING_STATUSES
+    from ..search import agency
+
+    marks = ",".join("?" for _ in PURSUING_STATUSES)
+    pursued = [_post(r, r["status"]) for r in store.conn.execute(
+        # Safe: only ? placeholders are interpolated.
+        "SELECT r.*, s.status FROM roles r JOIN role_state s ON s.uid = r.uid "  # nosec B608
+        f"WHERE s.status IN ({marks})", PURSUING_STATUSES)]
+    out = {}
+    for row in rows:
+        post = _post(row)
+        out[row["uid"]] = {"poster": post["poster"].to_dict(),
+                           "overlap": agency.overlaps(post, pursued) if pursued else []}
+    return out
 
 
 def _credentials(cfg, advert: str) -> list[dict]:
@@ -305,8 +356,8 @@ MAX_PROJECT_FIELD = 2_000     # one STAR answer; a whole case study is a documen
 def _project(row) -> dict:
     from ..writing import resume_doc
 
-    d = {k: row[k] for k in ("id", "name", "tools", "link", "situation", "task",
-                             "action", "result", "updated_at")}
+    d = {k: row[k] for k in ("id", "name", "kind", "role", "tools", "link", "situation",
+                             "task", "action", "result", "updated_at")}
     d["tutorial"] = bool(resume_doc.tutorial_projects([row["name"]]))
     return d
 
@@ -318,6 +369,7 @@ def list_projects(cfg) -> dict:
     with Store(cfg.db_path) as store:
         rows = store.projects()
     return {"projects": [_project(r) for r in rows],
+            "kinds": list(resume_doc.PROJECT_KINDS),
             "tutorial_advice": resume_doc.TUTORIAL_ADVICE,
             # One list, both sides: the page warns as you type with the same pattern.
             "tutorial_pattern": resume_doc.TUTORIAL.pattern}
@@ -326,10 +378,13 @@ def list_projects(cfg) -> dict:
 def save_project(cfg, form: dict) -> dict:
     """Add or change one project. The link must be a web address, if given."""
     from ..db.store import Store
+    from ..writing import resume_doc
 
     fields = {k: str(form.get(k) or "").strip() for k in Store.PROJECT_FIELDS}
     if not fields["name"]:
         raise ApiError("give the project a name")
+    if fields["kind"] and fields["kind"] not in resume_doc.PROJECT_KINDS:
+        raise ApiError("not a kind of project this knows")
     for key, value in fields.items():
         if len(value) > MAX_PROJECT_FIELD:
             raise ApiError(f"{key} is over {MAX_PROJECT_FIELD} characters")
@@ -342,6 +397,46 @@ def save_project(cfg, form: dict) -> dict:
             raise ApiError("no such project", 404)
         row = next(r for r in store.projects() if r["id"] == project_id)
     return {"project": _project(row)}
+
+
+def _education(row) -> dict:
+    return {k: row[k] for k in ("id", "credential", "school", "location", "start", "end",
+                                "details", "updated_at")}
+
+
+def list_education(cfg) -> dict:
+    from ..db.store import Store
+
+    with Store(cfg.db_path) as store:
+        return {"education": [_education(r) for r in store.education()]}
+
+
+def save_education(cfg, form: dict) -> dict:
+    """Add or change one education entry: a degree, diploma or course."""
+    from ..db.store import Store
+
+    fields = {k: str(form.get(k) or "").strip() for k in Store.EDUCATION_FIELDS}
+    if not fields["credential"]:
+        raise ApiError("give the degree, diploma or course")
+    for key, value in fields.items():
+        if len(value) > (MAX_PROJECT_FIELD if key == "details" else 200):
+            raise ApiError(f"{key} is too long")
+    raw = str(form.get("id") or "")
+    with Store(cfg.db_path) as store:
+        entry_id = store.save_education(fields, int(raw) if raw.isdigit() else None)
+        if not entry_id:
+            raise ApiError("no such entry", 404)
+        row = next(r for r in store.education() if r["id"] == entry_id)
+    return {"entry": _education(row)}
+
+
+def delete_education(cfg, entry_id: int) -> dict:
+    from ..db.store import Store
+
+    with Store(cfg.db_path) as store:
+        if not store.delete_education(entry_id):
+            raise ApiError("no such entry", 404)
+    return {"deleted": entry_id}
 
 
 def delete_project(cfg, project_id: int) -> dict:
@@ -766,6 +861,8 @@ def _merge_counts(a: dict, b: dict) -> dict:
     sa, sb = set(a.get("skipped") or []), set(b.get("skipped") or [])
     ra, rb = set(a.get("sources") or {}), set(b.get("sources") or {})
     out["skipped"] = sorted((sa & sb) | (sa - rb) | (sb - ra))
+    if "failed" in a or "failed" in b:
+        out["failed"] = sorted(set(a.get("failed") or []) | set(b.get("failed") or []))
     return out
 
 
@@ -793,12 +890,27 @@ def _last_scan(conn) -> dict:
         warnings.append(f"Last scan was {_ago(last['started_at'])}; posts found "
                         f"then may be gone.")
     skipped = set(counts.get("skipped") or [])
-    for source, n in sorted(sources.items()):
-        if not n and source not in skipped:
-            warnings.append(f"{platform_name(source)} returned 0 job posts.")
-    # A source that returned posts before and did not run at all this time.
     before = {s for r in earlier for s, n in
               (json.loads(r["counts_json"] or "{}").get("sources") or {}).items() if n}
+    # None for a scan recorded before failures were (2026-10-23): every 0 is
+    # reported then, as it was.
+    failed = counts.get("failed")
+    for source, n in sorted(sources.items()):
+        if n or source in skipped:
+            continue
+        name = platform_name(source)
+        if failed is None:
+            warnings.append(f"{name} returned 0 job posts.")
+        elif source in failed:
+            warnings.append(f"{name} returned 0 job posts: it failed. Why is "
+                            f"under Warnings and errors on the Activity page.")
+        elif source in before:
+            warnings.append(f"{name} returned 0 job posts, where earlier scans "
+                            f"found some.")
+        # Otherwise every board of it answered and none had a job matching
+        # your titles: one call-centre's board with no software jobs
+        # (2026-10-23) is not something to fix.
+    # A source that returned posts before and did not run at all this time.
     for source in sorted(before - set(sources)):
         warnings.append(f"{platform_name(source)} did not run in the last scan.")
     unfinished = [r for r in runs if not r["finished_at"] and r["id"] > last["id"]]
@@ -1656,20 +1768,55 @@ def setup_sources(cfg) -> dict:
     }
 
 
-def setup_keys(cfg, form: dict) -> None:
-    """Save or remove one source's keys. Nothing typed is ever sent back."""
-    from ..core.config import SOURCE_KEY_NAMES, ConfigError, write_source_keys
+def try_source_keys(cfg, values: dict[str, str]) -> tuple[str, str]:
+    """Ask the source whether it accepts these keys: one search, so a wrong
+    key is found when it is typed, not as a failed scan later."""
+    from ..fetch import adzuna, usajobs
+    from ..fetch.http import Fetcher
 
-    values = {k: str(form.get(k) or "") for k in SOURCE_KEY_NAMES if k in form}
+    fetcher = Fetcher(cfg.fetch.user_agent, min(cfg.fetch.timeout, 15), 0)
+    if "USAJOBS_API_KEY" in values:
+        return usajobs.try_key(fetcher, values["USAJOBS_API_KEY"],
+                               values.get("USAJOBS_EMAIL", ""))
+    return adzuna.try_key(fetcher, values.get("ADZUNA_APP_ID", ""),
+                          values.get("ADZUNA_APP_KEY", ""))
+
+
+def setup_keys(cfg, form: dict) -> str:
+    """Save or remove one source's keys. Nothing typed is ever sent back.
+
+    New keys are tried first: refused ones are not saved. When the source
+    cannot be asked (offline, down), they are saved and the returned note
+    says they were not tried.
+    """
+    from ..core.config import (
+        SOURCE_KEY_NAMES,
+        ConfigError,
+        check_source_key,
+        write_source_keys,
+    )
+
+    values = {k: str(form.get(k) or "").strip() for k in SOURCE_KEY_NAMES if k in form}
     if not values:
         raise ApiError("no key given")
-    if not form.get("remove") and not all(values.values()):
+    remove = bool(form.get("remove"))
+    if not remove and not all(values.values()):
         raise ApiError("fill in both boxes")
+    note = ""
     try:
-        write_source_keys(cfg, {k: "" if form.get("remove") else v
-                                for k, v in values.items()})
+        if not remove:
+            # Checked before trying: a key with a space in it is not sent anywhere.
+            for name, value in values.items():
+                check_source_key(name, value)
+            verdict, why = try_source_keys(cfg, values)
+            if verdict == "refused":
+                raise ApiError(why)
+            if verdict != "ok":
+                note = f"Saved, but not tried: {why}."
+        write_source_keys(cfg, {k: "" if remove else v for k, v in values.items()})
     except ConfigError as exc:
         raise ApiError(str(exc)) from exc
+    return note
 
 
 # How far the suggestion call has got, for the page to poll while it waits:
@@ -1863,7 +2010,7 @@ def generate_job(cfg, uid: str, kind: str):
 
             progress(f"running claude -p for {kind} (this spends tokens)")
             result = gen.generate(row, kind, cfg.resume_path, progress=progress,
-                                  notes=resume_doc.project_notes(store.projects()),
+                                  notes=resume_doc.record_notes(store.projects(), store.education()),
                                   settings=guard.settings_for(cfg))
 
             for gate in result.gates:

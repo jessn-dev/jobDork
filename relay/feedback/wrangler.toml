@@ -1,0 +1,23 @@
+# The feedback relay, deployed from this folder:
+#   npx wrangler@4.150.0 deploy
+# Secrets are set with `npx wrangler@4.150.0 secret put NAME` and never kept
+# here: this file is in a public repository. The two email addresses are
+# secrets too, for the same reason. See README.md.
+name = "jobdork-feedback"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+# https://jobdork-feedback.<account>.workers.dev, and no extra public address
+# per uploaded version.
+workers_dev = true
+preview_urls = false
+
+[vars]
+GITHUB_REPO = "jessn-dev/jobDork"
+
+# Five reports an hour per address (worker.js, LIMIT_PER_HOUR). Made with
+#   npx wrangler@4.150.0 kv namespace create FEEDBACK_KV
+# The id names the namespace; it is not a key and is usable only with the
+# account's own login.
+[[kv_namespaces]]
+binding = "FEEDBACK_KV"
+id = "05a13784c1a84e49952e0373c3e834c0"

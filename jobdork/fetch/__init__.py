@@ -30,6 +30,21 @@ from ..db.store import Role
 
 log = logging.getLogger("jobdork.fetch")
 
+# What a keyed source answers to a key or email it does not accept. Both
+# USAJOBS and Adzuna say 401; 403 is the same refusal from a proxy in front.
+REFUSED = (401, 403)
+
+
+def key_verdict(name: str, resp) -> tuple[str, str]:
+    """("ok" | "refused" | "unknown", what to tell the person) for one
+    request made with a key that is being tried."""
+    if resp.ok:
+        return "ok", ""
+    if resp.status in REFUSED:
+        return "refused", f"{name} refused this key (HTTP {resp.status})"
+    return "unknown", (f"{name} could not be asked whether the key works "
+                       f"({resp.error or resp.status})")
+
 
 @dataclass
 class SourceResult:

@@ -296,6 +296,84 @@ def test_a_career_changer_leads_with_projects_from_their_own_notes():
     assert "project: Invented project" in facts.items
 
 
+def test_your_own_projects_are_shown_even_when_experienced_and_left_out_by_the_model():
+    """2026-10-23: projects added on the Resume page are always shown, after
+    the jobs for someone experienced, in the person's own words."""
+    notes = [{"name": "Release notes newsletter", "kind": "Writing or articles",
+              "role": "Editor", "link": "https://example.com/notes",
+              "task": "Explain each platform release to 300 engineers.",
+              "action": "Wrote a monthly issue from the changelog.",
+              "result": "Read by 220 engineers a month."}]
+    result = _tailor_with({**BASE, "stage": "experienced", "industry": "tech",
+                           "stage_reason": "Seven years of platform work.",
+                           "projects": []}, notes)
+    md = result.markdown
+    assert md.index("## PROFESSIONAL EXPERIENCE") < md.index("## TECHNICAL PROJECTS")
+    assert "### Release notes newsletter\nEditor | https://example.com/notes\n" in md
+    assert "- Wrote a monthly issue from the changelog." in md
+    assert "- Read by 220 engineers a month." in md
+    gate = next(g for g in result.gates if g.name == writer.PROJECTS_GATE)
+    assert "for the projects you added only" in gate.detail
+    figures = next(g for g in result.gates if g.name == "unsupported figures")
+    assert figures.passed, figures.detail
+
+
+def test_a_project_the_resume_only_links_to_is_described_from_your_notes():
+    notes = [{"name": "Kubernetes homelab", "link": "https://github.com/jane/homelab",
+              "action": "Built a three-node cluster.", "result": "Hosts 12 services."}]
+    result = _tailor_with({**BASE, "stage": "career_changer", "industry": "tech",
+                           "stage_reason": "Moving into platform work.",
+                           "projects": [{"name": "homelab", "bullets": [
+                               "https://github.com/jane/homelab"]}]}, notes)
+    md = result.markdown
+    assert "### homelab" in md and "- Built a three-node cluster." in md
+    assert "- https://github.com/jane/homelab" not in md
+
+
+def test_with_more_projects_than_room_the_least_related_are_named():
+    found = writer.with_own_projects([], [
+        {"name": f"Bake sale {i}", "kind": "", "role": "", "tools": "", "link": "",
+         "situation": "", "task": "", "action": "Sold cakes.", "result": ""}
+        for i in range(3)] + [
+        {"name": "Cluster upgrade", "kind": "", "role": "", "tools": "Kubernetes, Python",
+         "link": "", "situation": "", "task": "", "action": "Upgraded the platform.",
+         "result": ""}], ADVERT)
+    assert found[0]["name"] == "Cluster upgrade" and all(p["own"] for p in found)
+
+
+def _tailor_with_education(answer, entries):
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, uid = _setup(tmp)
+        saved = _patched_settings()
+        try:
+            with _Script(answer, *GUARD_OK), Store(cfg.db_path) as store:
+                for fields in entries:
+                    store.save_education(fields)
+                return writer.tailor(cfg, store, uid, root=tmp)
+        finally:
+            writer._settings = saved
+
+
+def test_education_added_on_the_resume_page_is_shown_newest_first():
+    """2026-10-23: a resume written before a degree was finished."""
+    result = _tailor_with_education(
+        {**BASE, "stage": "experienced", "industry": "tech", "stage_reason": "Years.",
+         "education": [{"credential": "BS Computer Science", "school": "Acme University",
+                        "location": "", "start": "", "end": "2015"}],
+         "projects": []},
+        [{"credential": "MS Computer Science", "school": "Georgia Tech",
+          "location": "Online", "end": "May 2026"},
+         {"credential": "B.S. in Computer Science", "school": "Acme University",
+          "end": "June 2015", "location": "Springfield"}])
+    md = result.markdown
+    edu = md[md.index("## EDUCATION"):]
+    assert edu.index("### MS Computer Science") < edu.index("### B.S. in Computer Science")
+    assert "Georgia Tech | Online" in edu and "Acme University | Springfield" in edu
+    assert "### BS Computer Science" not in edu      # replaced by your own line
+    facts = next(g for g in result.gates if g.name == writer.FACTS_GATE)
+    assert not any("Georgia Tech" in i for i in facts.items), facts.items
+
+
 def test_a_tutorial_project_is_flagged_not_hidden():
     notes = [{"name": "To-Do List App", "action": "Built a to-do list in React."}]
     result = _tailor_with({**BASE, "stage": "student", "industry": "tech",

@@ -25,6 +25,7 @@ only after the owner approves it in the `release` environment. A push to
 | `hadolint` | Dockerfile mistakes |
 | Trivy on the built image | High and critical vulnerabilities in every package in the image, fixed or not, plus secrets and misconfiguration |
 | `scripts/check_image.sh` | That the image runs as user 1000, has no pip, contains no `.env`, config or database, cannot rewrite its own code, and that the dashboard starts and refuses a missing token and an address not named |
+| Desktop app build (`desktop.yml`), macOS and Windows | That both installers still build, and that the built app carries every module and data file it needs (its `--self-test`) |
 
 **How the image is built to be hard to tamper with:**
 
@@ -70,8 +71,13 @@ only after the owner approves it in the `release` environment. A push to
    published, and the Docker Hub token is not handed out, until you do.
 4. It publishes the image for Intel and ARM, signs it, verifies the
    signature, and creates the **GitHub Release** page for the tag: the exact
-   image digest, the command to verify it, and the changes since the last
-   release.
+   image digest, the command to verify it, the desktop installers (the
+   macOS `.dmg` and the Windows setup `.exe`, with `SHA256SUMS.txt` and how
+   to get past the unsigned warnings), and the changes since the last
+   release. The installers are not signed, but each carries a build
+   provenance attestation: `gh attestation verify <file> --repo
+   jessn-dev/jobDork` shows this repository's workflow built it from the
+   tagged commit.
 
 ---
 

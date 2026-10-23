@@ -104,7 +104,23 @@ def test_a_long_report_still_makes_an_address_a_browser_opens():
     assert "cut+to+fit" in url
 
 
+def test_the_relay_is_built_in_and_can_be_replaced_or_turned_off():
+    saved = os.environ.pop("JOBDORK_FEEDBACK_URL", None)
+    try:
+        assert feedback.relay_url().startswith("https://jobdork-feedback.")
+        os.environ["JOBDORK_FEEDBACK_URL"] = "https://relay.example.com/"
+        assert feedback.relay_url() == "https://relay.example.com/"
+        os.environ["JOBDORK_FEEDBACK_URL"] = "off"
+        assert feedback.relay_url() == ""
+    finally:
+        os.environ.pop("JOBDORK_FEEDBACK_URL", None)
+        if saved is not None:
+            os.environ["JOBDORK_FEEDBACK_URL"] = saved
+
+
 def test_without_a_relay_sending_says_what_to_do_instead():
+    # Never the real relay: a test that reached it would file a real issue.
+    saved, feedback.RELAY_URL = feedback.RELAY_URL, ""
     os.environ.pop("JOBDORK_FEEDBACK_URL", None)
     report = feedback.build(_form(), Config(), [])
     try:
@@ -113,6 +129,8 @@ def test_without_a_relay_sending_says_what_to_do_instead():
         assert "GitHub issue" in str(exc)
     else:
         raise AssertionError("sent with no relay")
+    finally:
+        feedback.RELAY_URL = saved
     try:
         feedback.send(report, "http://relay.example.com/")
     except feedback.FeedbackError as exc:

@@ -207,6 +207,35 @@ def _anchor_place(cfg) -> dict:
             "region": geo.region_at(where)}
 
 
+def _screen_key(cfg) -> str:
+    """Everything screening reads, as one comparable string."""
+    from dataclasses import asdict
+
+    return json.dumps({
+        "titles": [cfg.titles_include, cfg.titles_exclude],
+        "dealbreakers": [(d.name, d.pattern, d.hard, d.words) for d in cfg.dealbreakers],
+        "locations": asdict(cfg.locations), "salary": asdict(cfg.salary),
+        "screening": asdict(cfg.screening), "ghost_days": cfg.freshness.ghost_days,
+    }, sort_keys=True, default=str)
+
+
+def search_changes(old, fresh) -> tuple[bool, bool]:
+    """(widened, rescreen) for a config save.
+
+    Widened: a job title, a country or an industry added, or a new place to
+    search from. Posts for those were never fetched, so only a scan finds
+    them. Rescreen: anything screening reads changed, so the posts already
+    stored may now pass or fail.
+    """
+    def added(a, b) -> bool:
+        return bool({x.casefold() for x in b} - {x.casefold() for x in a})
+    widened = (added(old.titles_include, fresh.titles_include)
+               or added(old.locations.countries, fresh.locations.countries)
+               or added(old.sources.directory.industries, fresh.sources.directory.industries)
+               or old.locations.anchor != fresh.locations.anchor)
+    return widened, _screen_key(old) != _screen_key(fresh)
+
+
 def _config_payload(cfg) -> dict:
     """The settings the page may edit. Credentials are never included."""
     return {
@@ -381,6 +410,13 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             cfg_holder["mtime"] = mtime
 
         def do_GET(self) -> None:
+            # A browser asks for /favicon.ico by itself, without the token,
+            # and the 401 it got sat in the network log looking like the
+            # page's own failure. Nothing to give, and nothing given away.
+            if urlsplit(self.path).path == "/favicon.ico" and self._host_ok():
+                self.send_response(204)
+                self.end_headers()
+                return
             if not self._guarded():
                 return
             self._sync_config()
@@ -437,6 +473,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 return self._wrap(api_mod.list_letters, cfg_holder["cfg"])
             if path == "/api/projects":
                 return self._wrap(api_mod.list_projects, cfg_holder["cfg"])
+            if path == "/api/education":
+                return self._wrap(api_mod.list_education, cfg_holder["cfg"])
             if path == "/api/tools":
                 uid = parse_qs(urlsplit(self.path).query).get("uid", [""])[0]
                 return self._wrap(api_mod.latest_tools, cfg_holder["cfg"], uid)
@@ -525,16 +563,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 except Exception as exc:
                     return self._reject(400, f"not removed: {exc}")
                 return self._json(200, gone)
-            if path == "/api/projects/save":
-                form = self._body(limit=24 * 1024)
-                if form is None:
-                    return self._reject(400, "bad request body")
-                return self._wrap(api_mod.save_project, cfg_holder["cfg"], form)
-            if path == "/api/projects/delete":
-                raw = str((self._body() or {}).get("id") or "")
-                if not raw.isdigit():
-                    return self._reject(400, "not a project id")
-                return self._wrap(api_mod.delete_project, cfg_holder["cfg"], int(raw))
+            if path in ("/api/projects/save", "/api/projects/delete",
+                        "/api/education/save", "/api/education/delete"):
+                return self._project(path)
             if path == "/api/letters/delete":
                 form = self._body()
                 raw = str((form or {}).get("id") or "")
@@ -601,12 +632,14 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 return self._wrap(api_mod.dropped_keep, cfg_holder["cfg"],
                                   str(form.get("uid") or ""))
             if path in ("/api/cleanup/aged/preview", "/api/cleanup/aged"):
+                cfg = cfg_holder["cfg"]
+                # The preview carries no fields, and a browser sends an empty
+                # form as no body at all: read one only where it is needed.
+                if path == "/api/cleanup/aged/preview":
+                    return self._wrap(api_mod.aged_preview, cfg)
                 form = self._body()
                 if form is None:
                     return self._reject(400, "bad request body")
-                cfg = cfg_holder["cfg"]
-                if path == "/api/cleanup/aged/preview":
-                    return self._wrap(api_mod.aged_preview, cfg)
                 if runner.busy:
                     return self._reject(409, f"{runner.current} is running; "
                                         "delete when it has finished")
@@ -713,6 +746,36 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 return self._json(200, api_mod.llm_state(fresh))
             return self._reject(404, "no such path")
 
+        def _project(self, path: str) -> None:
+            """Save or delete a project or an education entry, then re-score
+            the job posts with it: fit scores count them as the resume."""
+            cfg = cfg_holder["cfg"]
+            what = "project" if "/projects/" in path else "education"
+            try:
+                if path.endswith("/save"):
+                    form = self._body(limit=24 * 1024)
+                    if form is None:
+                        return self._reject(400, "bad request body")
+                    done = (api_mod.save_project if what == "project"
+                            else api_mod.save_education)(cfg, form)
+                else:
+                    raw = str((self._body() or {}).get("id") or "")
+                    if not raw.isdigit():
+                        return self._reject(400, f"not an {what} id" if what == "education"
+                                            else "not a project id")
+                    done = (api_mod.delete_project if what == "project"
+                            else api_mod.delete_education)(cfg, int(raw))
+            except api_mod.ApiError as exc:
+                return self._reject(exc.status, str(exc))
+            # Nothing to re-score without a resume or before setup has titles.
+            done["rescore"] = ""
+            if cfg.resume_path and cfg.titles_include:
+                # lambda: built when its turn comes, from the newest settings.
+                now = runner.queue("re-score", lambda: api_mod.rescreen_job(cfg_holder["cfg"]))
+                done["rescore"] = ("Re-scoring your job posts with it." if now else
+                                   f"Your job posts are re-scored with it after {runner.current}.")
+            return self._json(200, done)
+
         def _job(self, which: str) -> None:
             """Start one of the long-running commands on the background runner."""
             form = self._body(limit=32 * 1024) or {}
@@ -803,7 +866,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 )
                 counts = store.status_counts()
                 units = cfg.locations.units or "mi"
-                payload = [_row_to_dict(row, units, cfg.freshness) for row in rows]
+                posted_by = api_mod.recruiters(store, rows)
+                payload = [{**_row_to_dict(row, units, cfg.freshness), **posted_by[row["uid"]]}
+                           for row in rows]
 
             # Past freshness.ghost_days a post is dropped at screening, but one
             # stored before it aged stays in the database until a rescreen
@@ -918,13 +983,14 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 return self._reject(400, "bad request body")
             cfg = cfg_holder["cfg"]
             try:
-                api_mod.setup_keys(cfg, form)
+                note = api_mod.setup_keys(cfg, form)
             except api_mod.ApiError as exc:
                 return self._reject(exc.status, str(exc))
             # Keys are read into the config when it loads.
             if Path(cfg.path).is_file():
                 cfg_holder["cfg"] = config_mod.load(cfg.path)
-            return self._wrap(api_mod.setup_sources, cfg_holder["cfg"])
+            return self._json(200, {**api_mod.setup_sources(cfg_holder["cfg"]),
+                                    "note": note})
 
         def _places(self, what: str) -> None:
             """Country, region and city lists for the Where you are picker."""
@@ -958,22 +1024,48 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             if payload is None:
                 return self._reject(400, "bad request body")
 
+            old = cfg_holder["cfg"]
             try:
                 fresh = self._write_config(payload)
             except Exception as exc:
                 return self._reject(400, f"not saved: {exc}")
-            self._json(200, _config_payload(fresh))
+            self._json(200, {**_config_payload(fresh), "rescan": self._rescan(old, fresh)})
+
+        def _rescan(self, old, fresh) -> str:
+            """After a change to the search, the job posts follow it by
+            themselves: re-screened when the rules changed (posts that no
+            longer pass and you have not acted on move to Dropped by your
+            filters), and a scan when the search widened. While a job runs
+            they wait for it, and use the settings as they are by then.
+            Returns what was started, for the page to say."""
+            if fresh.setup_step or not fresh.titles_include:
+                return ""                    # setup starts its own first scan
+            widened, rescreen = search_changes(old, fresh)
+            said = []
+            if rescreen:
+                # lambda: built when its turn comes, from the newest settings.
+                now = runner.queue("rescreen", lambda: api_mod.rescreen_job(
+                    cfg_holder["cfg"], remove=True))
+                said.append("Re-applying your search to the job posts"
+                            + ("" if now else f" after {runner.current}"))
+            if widened:
+                # lambda: as above; a scan reads every title, old and new.
+                now = runner.queue("scan", lambda: api_mod.scan_job(cfg_holder["cfg"]))
+                said.append(("Scanning" if now else "Then scanning")
+                            + " for what you added")
+            return (". ".join(said) + ".") if said else ""
 
         def _start_over(self, path: str) -> None:
             """Delete this run's settings and data, then open setup again."""
             from ..core import config as config_mod
 
+            cfg = cfg_holder["cfg"]
+            # No fields in the preview, so no body (see the aged preview).
+            if path == "/api/start-over/preview":
+                return self._wrap(api_mod.start_over_preview, cfg)
             form = self._body()
             if form is None:
                 return self._reject(400, "bad request body")
-            cfg = cfg_holder["cfg"]
-            if path == "/api/start-over/preview":
-                return self._wrap(api_mod.start_over_preview, cfg)
             if runner.busy:
                 return self._reject(409, f"{runner.current} is running; start over "
                                     "when it has finished")
@@ -1009,8 +1101,13 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
 
 
 def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
-          token: str = "") -> int:
-    """Run until Ctrl-C. Returns an exit code."""
+          token: str = "", on_ready=None) -> int:
+    """Run until Ctrl-C. Returns an exit code.
+
+    `on_ready(url, stop)` is for the desktop app, which runs this on a thread
+    of its own: it is called once the server is listening, with the address
+    to show and a function that ends the run as Ctrl-C would.
+    """
     # The session keeps HOST either way: it is the address in the printed URL
     # and the one the Host check accepts, and in a container the browser
     # still reaches it as 127.0.0.1 through the published port.
@@ -1043,7 +1140,9 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
 
     if session.port != port:
         print(f"port {port} was busy; using {session.port}")
-    print(f"jobdork dashboard: {session.url}")
+    # The app logs to a file, and the token is never written down: it shows
+    # the page itself, so the address is printed without it.
+    print(f"jobdork dashboard: {session.url.split('?')[0] if on_ready else session.url}")
     if cfg.setup_step:
         print(f"Not set up yet: the dashboard opens on setup, and saves to {cfg.path}.")
     from ..core import storage
@@ -1066,12 +1165,14 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
         print(f"In a container, listening on {bind}. Publish it to the host's "
               f"loopback only: -p 127.0.0.1:{session.port}:{session.port}, "
               f"or set {ALLOW_ENV} to open it from another machine.")
-    else:
+    elif not on_ready:
         print("Local only, token expires with this process, Ctrl-C to stop.")
     if open_browser:
         # lambda: Timer runs it later, once the server is listening; calling
         # open() here would race the server.
         threading.Timer(0.4, lambda: webbrowser.open(session.url)).start()
+    if on_ready:
+        on_ready(session.url, server.shutdown)
 
     stop = threading.Event()
     threading.Thread(target=_forget_keys_when_unwatched,

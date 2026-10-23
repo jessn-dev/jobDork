@@ -15,6 +15,7 @@ is what `rescreen` is for.
 from __future__ import annotations
 
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
@@ -24,6 +25,7 @@ from ..core.config import Config
 from ..db import grouping
 from ..db.store import Role, Store
 from ..fetch.http import Fetcher
+from ..writing import resume_doc
 from . import directory, geo, screen
 from . import resume as resume_mod
 
@@ -142,20 +144,29 @@ def _jobs_for(cfg: Config, part: str = "all") -> list[tuple[str, dict]]:
     return jobs
 
 
-def _load_resume(cfg: Config):
+def _load_resume(cfg: Config, store: Store | None = None):
     """Optional. A resume that cannot be read warns and scoring goes on.
 
     The config loader already refused a path that does not exist, so anything
     reaching here is a format problem, and a format problem should not stop a
     scan that mostly does not need it.
+
+    With `store`, the projects and education from the Resume page count as
+    part of it: a skill shown only in a project is still a skill you have.
     """
     if not cfg.resume_path:
         return None
     try:
-        return resume_mod.load(cfg.resume_path)
+        cv = resume_mod.load(cfg.resume_path)
     except resume_mod.ResumeError as exc:
         log.warning("resume not used for scoring: %s", exc)
         return None
+    notes = (resume_doc.record_notes(store.projects(), store.education())
+             if store is not None else "")
+    if notes:
+        cv.text += "\n\n" + notes
+        cv.skills = resume_mod.extract_skills(cv.text)
+    return cv
 
 
 def run(cfg: Config, store: Store, limit: int = 0,
@@ -177,7 +188,7 @@ def run(cfg: Config, store: Store, limit: int = 0,
             cfg.locations.anchor, anchor.note,
         )
 
-    cv = _load_resume(cfg)
+    cv = _load_resume(cfg, store)
     jobs = _jobs_for(cfg, part)
     run_id = store.start_run()
     deleted = store.deleted_uids()
@@ -271,6 +282,9 @@ def run(cfg: Config, store: Store, limit: int = 0,
         # skipping says nothing about the other Workday boards.
         "skipped": sorted({r.source for r in report.per_source}
                           - {r.source for r in report.per_source if not r.skipped}),
+        # Had an error on at least one board: a 0 from these is a failure,
+        # where a 0 from the others is boards with nothing matching.
+        "failed": sorted({r.source for r in report.per_source if r.errors}),
         # A first scan's two parts, which the Dashboard reads as one scan.
         "part": part,
     })
@@ -284,14 +298,19 @@ def rescreen(cfg: Config, store: Store, remove: bool = False) -> tuple[int, int,
 
     A role you have already acted on is never removed, whatever the filters
     now say. The status is a decision you made and it outranks a rule change.
+    One removed is remembered as dropped, with the rule and the reason, as a
+    scan's filters leave a post out: Job posts can show it and keep it, and
+    a later scan that matches it again brings it back.
     """
     anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
-    cv = _load_resume(cfg)
+    cv = _load_resume(cfg, store)
     # Every copy, not just the one the list shows. Duplicates are collapsed
     # by score, so a hidden copy left on its old score can outrank the copy
     # that was re-screened and become the one displayed.
     rows = store.list_roles(include_settled=True, collapse_duplicates=False)
     checked = stale = removed = 0
+    left_out: list[tuple[Role, str, str]] = []
+    last_commit = time.monotonic()
     telemetry.tick(total=len(rows))
 
     for row in rows:
@@ -315,9 +334,13 @@ def rescreen(cfg: Config, store: Store, remove: bool = False) -> tuple[int, int,
         verdict = screen.screen(role, cfg, anchor, cv,
                                 first_seen=grouping.earliest_seen(store.conn, uid=row["uid"]))
         # Commit as it goes. One write held open over hundreds of posts kept
-        # every other writer out, telemetry included, until the very end.
-        if checked % 50 == 0:
+        # every other writer out, telemetry included, until the very end; and
+        # fifty posts at a time could still outlast the five seconds another
+        # request waits for the lock, now that a change to the search starts
+        # a re-screen by itself. So at least twice a second.
+        if time.monotonic() - last_commit > 0.5:
             store.conn.commit()
+            last_commit = time.monotonic()
         if verdict.keep:
             store.upsert(role, seen=False)
             continue
@@ -325,8 +348,11 @@ def rescreen(cfg: Config, store: Store, remove: bool = False) -> tuple[int, int,
         stale += 1
         telemetry.tick(count="no longer matching")
         if remove and not store.has_acted(row["uid"]):
+            left_out.append((role, verdict.rule,
+                             verdict.reasons[0] if verdict.reasons else "unknown"))
             store.delete(row["uid"])
             removed += 1
 
     store.conn.commit()
+    store.save_dropped(left_out)
     return checked, stale, removed

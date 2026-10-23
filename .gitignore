@@ -35,3 +35,7 @@ config.yaml
 config.local.yaml
 /data/
 /out/
+
+# Cloudflare wrangler, relay/feedback
+.wrangler/
+node_modules/

@@ -145,7 +145,9 @@ def add(candidates: list[dict], boards: dict, today: str, fetcher: Fetcher,
 
 
 def reverify(boards: dict, today: str, fetcher: Fetcher,
-             log: dict[str, list[str]]) -> None:
+             log: dict[str, list[str]], only: list[str] | None = None) -> None:
+    """Every board, or with `only` the boards of those names."""
+    names = {n.lower() for n in only or []}
     def one(board: directory.Board):
         item = discover.Found(platform=board.platform, token=board.token,
                               board_url=discover._board_url(board.platform, board.token))
@@ -157,7 +159,8 @@ def reverify(boards: dict, today: str, fetcher: Fetcher,
 
     cutoff = (dt.date.fromisoformat(today) - dt.timedelta(days=STALE_DAYS)).isoformat()
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        for board, item in pool.map(one, list(boards.values())):
+        for board, item in pool.map(one, [b for b in boards.values()
+                                          if not names or b.name.lower() in names]):
             label = f"{board.name}: {board.platform} `{board.token}`"
             if item.status == "verified":
                 board.verified, board.jobs = today, item.jobs
@@ -201,7 +204,8 @@ def main() -> int:
     ap.add_argument("--reverify", action="store_true", help="re-check every board")
     ap.add_argument("--candidates", default=str(CANDIDATES))
     ap.add_argument("--name", action="append",
-                    help="only this candidate (with --add); repeat for more")
+                    help="only this candidate (with --add) or board (with "
+                         "--reverify); repeat for more")
     ap.add_argument("--file", default=str(directory.BOARDS_FILE))
     args = ap.parse_args()
     if not (args.add or args.reverify):
@@ -216,7 +220,7 @@ def main() -> int:
                                   "errors")}
 
     if args.reverify:
-        reverify(boards, today, fetcher, log)
+        reverify(boards, today, fetcher, log, only=args.name)
     review = load_review()
     if args.add:
         with open(args.candidates, encoding="utf-8", newline="") as fh:

@@ -8,10 +8,12 @@
 // Secrets (wrangler secret put NAME):
 //   GITHUB_TOKEN    fine-grained token: this one repository, Issues read/write, nothing else
 //   RESEND_API_KEY  Resend key with sending access only
+//   FEEDBACK_TO     where the email goes (a secret only to keep it out of the repo)
+//   FEEDBACK_FROM   optional: "jobdork feedback <feedback@your-verified-domain>";
+//                   without it Resend's test sender, which can mail only the
+//                   address the Resend account was opened with
 // Vars (wrangler.toml [vars]):
 //   GITHUB_REPO     "jessn-dev/jobDork"
-//   FEEDBACK_TO     where the email goes
-//   FEEDBACK_FROM   "jobdork feedback <feedback@your-verified-domain>"
 // Optional KV binding FEEDBACK_KV: a per-address limit of LIMIT_PER_HOUR.
 
 const KINDS = { problem: "bug", idea: "enhancement", question: "question" };
@@ -22,6 +24,7 @@ const MAX_SHOTS = 3;
 const SHOT_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const LIMIT_PER_HOUR = 5;
 const EMAIL = /^[\w.+-]+@[\w-]+(\.[\w-]+)+$/;
+const TEST_SENDER = "jobdork feedback <onboarding@resend.dev>";
 
 const answer = (status, body) =>
   new Response(JSON.stringify(body), {
@@ -57,7 +60,7 @@ async function openIssue(env, report) {
   const body = report.body + (shots
     ? `\n\n_${shots} screenshot(s) were sent to the maintainers by email, not posted here._`
     : "") + "\n\n_Sent from jobdork's Feedback page._";
-  const resp = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/issues`, {
+  const post = (labels) => fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/issues`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${env.GITHUB_TOKEN}`,
@@ -65,8 +68,12 @@ async function openIssue(env, report) {
       "User-Agent": "jobdork-feedback-relay",
       "X-GitHub-Api-Version": "2022-11-28",
     },
-    body: JSON.stringify({ title: report.title, body, labels: [KINDS[report.kind], "from-app"] }),
+    body: JSON.stringify({ title: report.title, body, labels }),
   });
+  let resp = await post([KINDS[report.kind], "from-app"]);
+  // 422: a label the repository does not have. The issue matters more than
+  // its labels, so it is filed without them rather than lost.
+  if (resp.status === 422) resp = await post([]);
   if (!resp.ok) throw new Error(`GitHub ${resp.status}`);
   return (await resp.json()).html_url;
 }
@@ -76,7 +83,7 @@ async function sendEmail(env, report, issueUrl) {
     method: "POST",
     headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: env.FEEDBACK_FROM,
+      from: env.FEEDBACK_FROM || TEST_SENDER,
       to: [env.FEEDBACK_TO],
       subject: report.title,
       ...(report.reply_to ? { reply_to: report.reply_to } : {}),

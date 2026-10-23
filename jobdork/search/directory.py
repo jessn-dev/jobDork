@@ -116,16 +116,24 @@ def select(cfg: Config, boards: list[Board] | None = None) -> list[Board]:
             and (not industries or b.industry in industries)]
 
 
+# A board with fewer jobs than this is read last in a first scan's quick part:
+# small is fast, but a board with one job (Alorica, 2026-10-23) shows nothing.
+QUICK_MIN_JOBS = 10
+
+
 def quick(cfg: Config, count: int,
           boards: list[Board] | None = None) -> set[tuple[str, str]]:
     """Keys of `count` boards for a first, quick scan: taken in turn from each
     industry, so a search across every industry samples all of them rather
     than the alphabet's first, and the smallest boards first in each. A board
     is read a page at a time, paced per host, so one with 2,000 jobs took over
-    three minutes alone; the big ones are left to the background scan."""
+    three minutes alone; the big ones are left to the background scan.
+    Boards with almost no jobs come after, and unknown counts last."""
     by_industry: dict[str, list[Board]] = {}
-    # lambda: sort key, fewest jobs first; an unknown count (0) sorts last.
-    smallest = sorted(select(cfg, boards), key=lambda b: b.jobs or 10**9)
+    # lambda: sort key, fewest jobs first from QUICK_MIN_JOBS up, then the
+    # boards with fewer, then those whose count is unknown (0).
+    smallest = sorted(select(cfg, boards), key=lambda b: (
+        0 if b.jobs >= QUICK_MIN_JOBS else 1 if b.jobs else 2, b.jobs))
     for board in smallest:
         by_industry.setdefault(board.industry, []).append(board)
     queues = list(by_industry.values())

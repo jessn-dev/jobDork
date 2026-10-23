@@ -149,6 +149,11 @@ p#count a{cursor:pointer}
 .meta{color:var(--muted);font-size:.85rem;margin-top:.3rem;display:flex;
   gap:.3rem 1rem;flex-wrap:wrap}
 .thin{color:var(--bad)}
+.recr{font-size:.72rem;border:1px solid var(--muted);color:var(--muted);
+  border-radius:999px;padding:0 .45rem}
+.overlap{margin-top:.4rem;font-size:.82rem;color:var(--warn);border-left:3px solid var(--warn);
+  padding:.25rem .6rem;background:color-mix(in srgb, var(--warn) 8%, transparent)}
+.overlap a{color:inherit;text-decoration:underline;cursor:pointer}
 .flags{margin-top:.4rem;display:flex;gap:.3rem;flex-wrap:wrap}
 .flag{background:var(--flagbg);color:var(--flag);font-size:.72rem;
   padding:.1rem .45rem;border-radius:4px}
@@ -228,6 +233,7 @@ button.del{padding:.15rem .55rem;font-size:.75rem}
 .samples{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.5rem}
 .samples .act{font-size:.78rem;padding:.2rem .6rem}
 button.del.armed{color:var(--bad);border-color:var(--bad);font-weight:600}
+button.armed:not(.del){color:var(--warn);border-color:var(--warn);font-weight:600}
 .clearall{margin:.2rem 0 .4rem}
 .clearall .confirm{border:1px solid var(--bad);border-radius:8px;padding:.6rem .8rem;max-width:40rem}
 .clearall .confirm .bar{margin:.5rem 0 0}
@@ -461,6 +467,9 @@ dialog{overflow:visible}
 .hint.warn{color:var(--warn)}
 .proj{border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem;margin-bottom:.5rem}
 .proj .bar{margin:.4rem 0 0}
+.proj .tag{font-size:.72rem;color:var(--accent);border:1px solid var(--accent);
+  border-radius:999px;padding:0 .45rem;margin-left:.2rem}
+.projform select{width:100%;box-sizing:border-box}
 .pdfview{width:100%;height:70vh;border:1px solid var(--line);border-radius:8px;background:#fff}
 .md-doc h4{margin:.9rem 0 .35rem;font-size:.95rem}
 .md-doc h4.h1{margin-top:0;font-size:1.05rem}
@@ -549,9 +558,10 @@ main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
 .sortbtn:hover{color:var(--accent)}
 .bgscan{border:1px solid var(--accent);border-radius:8px;padding:.6rem .8rem;
   color:var(--fg);background:var(--card);font-size:.88rem}
-#view-setup .keycard{border:1px solid var(--line);border-radius:8px;
+.keycard{border:1px solid var(--line);border-radius:8px;
   padding:.7rem .9rem;margin:.6rem 0;background:var(--card)}
-#view-setup .keycard .bar{margin:.4rem 0 0}
+.keycard .bar{margin:.4rem 0 0}
+.keycard .secret{display:inline-flex;gap:.25rem;align-items:center}
 #setup-slot .sgroup{margin-top:1rem}
 #view-setup h3{font-size:.95rem;margin:1.4rem 0 .2rem}
 #view-setup .ticks label.check{display:inline-flex;gap:.35rem;align-items:center;
@@ -624,7 +634,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <div class="sec">Setup</div>
   <button class="item" data-view="settings" data-label="Search" data-info="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen." aria-description="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24a1 1 0 0 1-1.42 1.42l-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span class="label">Search</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
-  <button class="item" data-view="sources" data-label="Sources" data-info="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, and adds or removes employer boards." aria-description="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, and adds or removes employer boards."><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 8.2C5.6 9.3 8.6 10 12 10s6.4-.7 8-1.8V12c0 1.66-3.6 3-8 3s-8-1.34-8-3V8.2zm0 7c1.6 1.1 4.6 1.8 8 1.8s6.4-.7 8-1.8V19c0 1.66-3.6 3-8 3s-8-1.34-8-3v-3.8z"/></svg><span class="label">Sources</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="sources" data-label="Sources" data-info="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, holds the keys for Adzuna and USAJOBS, adds a job post from a link, and adds or removes employer boards." aria-description="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, holds the keys for Adzuna and USAJOBS, adds a job post from a link, and adds or removes employer boards."><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 8.2C5.6 9.3 8.6 10 12 10s6.4-.7 8-1.8V12c0 1.66-3.6 3-8 3s-8-1.34-8-3V8.2zm0 7c1.6 1.1 4.6 1.8 8 1.8s6.4-.7 8-1.8V19c0 1.66-3.6 3-8 3s-8-1.34-8-3v-3.8z"/></svg><span class="label">Sources</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="ai" data-label="AI" data-info="Choose a model (local through Ollama, or Claude, Gemini or ChatGPT) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are held in memory only." aria-description="Choose a model (local through Ollama, or Claude, Gemini or ChatGPT) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are held in memory only."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2l1.9 5.6 5.6 1.9-5.6 1.9L11 17l-1.9-5.6-5.6-1.9 5.6-1.9L11 2zm7.5 11l.95 2.55 2.55.95-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95L18.5 13z"/></svg><span class="label">AI</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="tools" data-label="Feedback" data-info="Send a problem, an idea or a question to the people who make jobdork." aria-description="Send a problem, an idea or a question to the people who make jobdork."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><rect x="11" y="5.75" width="10" height="2.5" rx="1.25"/><circle cx="18" cy="17" r="3"/><rect x="3" y="15.75" width="10" height="2.5" rx="1.25"/></svg><span class="label">Feedback</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <div class="foot">
@@ -676,6 +686,12 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
         <option value="hybrid">Hybrid</option>
         <option value="office">On-site</option>
         <option value="none">Not stated</option>
+      </select>
+      <select id="f-poster" aria-label="Who posted it"
+        title="Employers post their own jobs; recruitment firms post jobs for their clients.">
+        <option value="">Posted by anyone</option>
+        <option value="employer">Posted by the employer</option>
+        <option value="agency">Posted by a recruiter</option>
       </select>
       <input type="search" id="f-place" placeholder="Place, e.g. Texas" style="width:11rem"
         aria-label="Place: a city, state or country in the location">
@@ -965,7 +981,10 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <section id="view-settings" hidden>
     <h2>What you are looking for</h2>
     <p class="hint">Lists save as soon as you add or remove a row. Location, work
-      arrangement and pay save with <b>Save changes</b> at the bottom.</p>
+      arrangement and pay save with <b>Save changes</b> at the bottom. Each change
+      applies itself to your job posts: they are re-screened, and posts that no longer
+      fit, which you have not acted on, move to Dropped by your filters. Adding a job
+      title, a country or an industry also starts a scan, to find the posts it brings.</p>
 
     <div class="sgrid">
       <div class="sgroup">
@@ -1081,16 +1100,6 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       </div>
     </div>
 
-    <h2 style="margin-top:1.5rem">Add a posting</h2>
-    <p class="hint">Paste a link you found yourself. Google does the finding,
-      the adapter reads it into a proper row.</p>
-    <div class="bar">
-      <input id="add-url" placeholder="https://job-boards.greenhouse.io/acme/jobs/1"
-        style="flex:1;min-width:22rem">
-      <input id="add-token" placeholder="Board token, if the URL has none" style="width:15rem">
-      <button data-icon="plus" class="act" id="btn-add">Add</button>
-    </div>
-    <div id="addmsg" style="margin-bottom:1.5rem"></div>
   </section>
 
   <section id="view-resume" hidden>
@@ -1112,11 +1121,15 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       letter you want to keep.</p>
 
     <h2 style="margin-top:1.5rem">Projects</h2>
-    <p class="hint">Projects your resume does not describe well, in your own words. A
-      tailored resume may use them, and its checks count them as part of your record.
-      Whether they get a section at all is decided per job post: near the top for a
-      student or a career changer, beside the jobs for a freelancer, and folded into
-      the jobs for someone with years in the field.</p>
+    <p class="hint">Work your resume does not describe well, in your own words: any kind
+      of project, not only software. An app, articles you wrote, a campaign you ran,
+      research, an event, volunteering, a personal project. Every project here goes
+      into a tailored resume, the most relevant to the job first, even where the resume
+      only lists it or links to it; its checks count them as part of your record. Fit
+      scores count their skills too: job posts are re-scored when you save one. Where
+      the section goes is decided per job post: near the top for a student or a career
+      changer, beside the jobs for a freelancer, after them for someone with years in
+      the field.</p>
     <div id="projects-list"></div>
     <details class="paste" id="project-edit">
       <summary id="project-summary">Add a project</summary>
@@ -1126,9 +1139,14 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
           <input id="pf-name" name="name" maxlength="200" required
             placeholder="e.g. Inventory forecasting for a family shop">
           <div class="hint warn" id="pf-tutorial" hidden></div></div>
+        <div class="field"><label for="pf-kind">Kind of project</label>
+          <select id="pf-kind" name="kind"><option value="">Choose one (optional)</option></select></div>
+        <div class="field"><label for="pf-role">Your part in it</label>
+          <input id="pf-role" name="role" maxlength="200"
+            placeholder="e.g. Lead writer, one of four developers, organiser, on my own"></div>
         <div class="field"><label for="pf-tools">Tools or methods</label>
           <input id="pf-tools" name="tools" maxlength="400" placeholder="Python, PostgreSQL, Figma, a survey of 40 customers…"></div>
-        <div class="field"><label for="pf-link">Link (optional)</label>
+        <div class="field"><label for="pf-link">Link (optional): the app, article, portfolio or write-up</label>
           <input id="pf-link" name="link" maxlength="400" placeholder="https://…"></div>
         <p class="hint">Answer each step in a sentence or two. Vague answers make vague
           bullets; a number, where you have one, makes the result believable.</p>
@@ -1144,6 +1162,41 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
           <button data-icon="save" class="act primary" type="submit">Save project</button>
           <button class="act" type="button" id="pf-cancel">Cancel</button>
           <span id="pf-msg"></span>
+        </div>
+      </form>
+    </details>
+
+    <h2 style="margin-top:1.5rem">Education</h2>
+    <p class="hint">A degree, diploma, certificate programme or course your resume does
+      not show yet: one you finished since you wrote it, or are studying for now. Every
+      entry here goes under Education in a tailored resume, newest first, and replaces
+      the resume's own line for the same school and qualification. Job posts are
+      re-scored when you save one.</p>
+    <div id="edu-list"></div>
+    <details class="paste" id="edu-edit">
+      <summary id="edu-summary">Add education</summary>
+      <form id="edu-form" class="projform" autocomplete="off">
+        <input type="hidden" name="id">
+        <div class="field"><label for="ef-credential">Degree, diploma or course</label>
+          <input id="ef-credential" name="credential" maxlength="200" required
+            placeholder="e.g. BSN, Nursing; MBA; Google Data Analytics Certificate"></div>
+        <div class="field"><label for="ef-school">School or provider</label>
+          <input id="ef-school" name="school" maxlength="200"
+            placeholder="e.g. University of Illinois Chicago; Coursera"></div>
+        <div class="field"><label for="ef-location">Location (optional)</label>
+          <input id="ef-location" name="location" maxlength="200" placeholder="e.g. Chicago, IL; Online"></div>
+        <div class="bar">
+          <div class="field" style="flex:1"><label for="ef-start">Started (optional)</label>
+            <input id="ef-start" name="start" maxlength="30" placeholder="e.g. Aug 2022"></div>
+          <div class="field" style="flex:1"><label for="ef-end">Finished, or expected</label>
+            <input id="ef-end" name="end" maxlength="30" placeholder="e.g. May 2026; Expected Dec 2026"></div>
+        </div>
+        <div class="field"><label for="ef-details">Details (optional): honours, GPA, relevant courses, thesis</label>
+          <textarea id="ef-details" name="details" maxlength="2000"></textarea></div>
+        <div class="bar">
+          <button data-icon="save" class="act primary" type="submit">Save education</button>
+          <button class="act" type="button" id="ef-cancel">Cancel</button>
+          <span id="ef-msg"></span>
         </div>
       </form>
     </details>
@@ -1170,6 +1223,18 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <section id="view-sources" hidden>
     <h2>Sources</h2>
     <div id="sourceinfo"><p class="empty">Loading…</p></div>
+    <div id="keyinfo"></div>
+
+    <h2 style="margin-top:1.25rem">Add a Job Post</h2>
+    <p class="hint">A job post you found yourself, on an employer's board: paste its
+      link and it is read into Job posts like any scanned post, advert and all.</p>
+    <div class="bar">
+      <input id="add-url" placeholder="https://job-boards.greenhouse.io/acme/jobs/1"
+        style="flex:1;min-width:22rem">
+      <input id="add-token" placeholder="Board token, if the URL has none" style="width:15rem">
+      <button data-icon="plus" class="act" id="btn-add">Add</button>
+    </div>
+    <div id="addmsg"></div>
 
     <h2 style="margin-top:1.25rem" id="boards-head">Employer boards</h2>
     <p class="hint">These give full advert text, which aggregators do not. A board
@@ -1236,6 +1301,32 @@ const TOKEN = new URLSearchParams(location.search).get('t') || '';
 if (TOKEN) history.replaceState(null, '', location.pathname);
 const api = (p, o = {}) => fetch(p, {...o,
   headers: {...(o.headers || {}), 'X-Jobdork-Token': TOKEN}});
+// In the desktop app (`jobdork app`) the page is in a window with no tabs and
+// no downloads of its own, so links and files go through the app instead.
+const desk = () => (window.pywebview && window.pywebview.api) || null;
+function openOut(url) {
+  if (!/^https?:\/\//i.test(url || '')) return;
+  if (desk()) desk().open_url(url);
+  else window.open(url, '_blank', 'noopener,noreferrer');
+}
+const base64Of = blob => new Promise((ok, no) => {
+  const r = new FileReader();
+  r.onload = () => ok(String(r.result).split(',')[1] || '');
+  r.onerror = () => no(r.error);
+  r.readAsDataURL(blob);
+});
+// Save a file: the app asks where, a browser downloads it. False when the
+// user cancelled the app's save dialog or the save failed.
+async function saveFile(blob, name) {
+  if (desk()) {
+    try { return !!await desk().save_file(name, await base64Of(blob)); }
+    catch (e) { toast('Not saved: ' + (e.message || e), 'err'); return false; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  return true;
+}
 
 let roles = [], cfg = null, detail = null, detailTab = 'advert', hasClaude = false;
 let aiLabel = '';
@@ -1301,7 +1392,7 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
       $('view-' + v).hidden = v !== b.dataset.view);
     if (b.dataset.view === 'settings') drawConfig();
     if (b.dataset.view === 'sources') drawSources();
-    if (b.dataset.view === 'resume') { drawResume(); drawProjects(); drawReview(); drawLetters(); }
+    if (b.dataset.view === 'resume') { drawResume(); drawProjects(); drawEducation(); drawReview(); drawLetters(); }
     if (b.dataset.view === 'ai') drawAI();
     if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); }
   };
@@ -1368,7 +1459,8 @@ $('show-days').onchange = async () => {
   loadRoles({offer: false});
 };
 
-// The place, distance, arrangement and pay filters, shared by stored and
+// Who posted it (employer or recruiter), and the place, distance, arrangement
+// and pay filters, shared by stored and
 // dropped posts. A remote post is never "too far"; one with no pay stated
 // passes "pay at least" unless "Pay stated only" is ticked, and pay in
 // another currency is never converted, so it is not compared.
@@ -1377,6 +1469,9 @@ function passesFilters(r) {
   const dist = $('f-dist').value === '' ? null : +$('f-dist').value;
   const pay = $('f-pay').value === '' ? null : +$('f-pay').value;
   const work = (r.work_mode || '').toLowerCase();
+  // Dropped posts carry no poster: the filter leaves them be.
+  const by = $('f-poster').value;
+  if (by && r.poster && (r.poster.agency ? 'agency' : 'employer') !== by) return false;
   if (mode === 'none' ? ['remote', 'hybrid', 'office'].includes(work) : mode && work !== mode) return false;
   if (place && !(r.location || '').toLowerCase().includes(place)) return false;
   if (dist != null && work !== 'remote' && (r.dist == null || r.dist > dist)) return false;
@@ -1387,12 +1482,12 @@ function passesFilters(r) {
 }
 
 function filtersOn() {
-  return !!($('f-mode').value || $('f-place').value.trim() || $('f-dist').value ||
+  return !!($('f-mode').value || $('f-poster').value || $('f-place').value.trim() || $('f-dist').value ||
             $('f-pay').value || $('f-paid').checked || (!$('f-rule').hidden && $('f-rule').value));
 }
 
 $('f-clear').onclick = () => {
-  for (const id of ['f-mode', 'f-place', 'f-dist', 'f-pay', 'f-rule']) $(id).value = '';
+  for (const id of ['f-mode', 'f-poster', 'f-place', 'f-dist', 'f-pay', 'f-rule']) $(id).value = '';
   $('f-paid').checked = false; drawRoles();
 };
 
@@ -1427,7 +1522,7 @@ function droppedCard(r) {
     <div class="why"><b>${esc(cap(RULE_WORDS[r.rule] || r.rule))}:</b> ${esc(r.reason)}</div>
     <div class="acts">
       <button data-icon="external-link" class="act" data-url="${esc(r.url)}"
-        onclick="window.open(this.dataset.url, '_blank', 'noopener')">Open advert</button>
+        onclick="openOut(this.dataset.url)">Open advert</button>
       <button data-icon="star" class="act" onclick="keepDropped('${r.uid}')"
         title="Store it in Job posts, marked interested. Your filters are not changed.">Keep anyway</button>
     </div></div>`;
@@ -1563,15 +1658,17 @@ function card(r) {
       ${aiTag(r.ai)}
       <span class="title" onclick="openRole('${r.uid}')">${esc(r.title)}</span>
       ${ageTag(r.age)}
+      ${recrTag(r.poster)}
       <span class="pill" style="background:${colour}">${esc(r.status)}</span>
       ${r.copies > 1 ? `<span class="copies" title="Posted in ${r.copies} places. Open it to see every link.">+${r.copies - 1} ${r.copies === 2 ? 'copy' : 'copies'}</span>` : ''}
     </div>
     <div class="meta">${listingTag(r.listing)}${meta.filter(Boolean).map(m => `<span>${esc(m)}</span>`).join('')}${thin}</div>
     ${flags ? `<div class="flags">${flags}</div>` : ''}
+    ${overlapBox(r.overlap, false)}
     <div class="acts">
       <button data-icon="eye" class="act" onclick="openRole('${r.uid}')">Open</button>
       <button data-icon="star" class="act" onclick="act('${r.uid}','interested')">Interested</button>
-      <button data-icon="external-link" class="act" onclick="apply('${r.uid}','${esc(r.url)}')">Apply</button>
+      <button data-icon="external-link" class="act" onclick="apply('${r.uid}','${esc(r.url)}', this)">Apply</button>
       <button data-icon="skip-forward" class="act" onclick="act('${r.uid}','skipped')">Skip</button>
       <select onchange="act('${r.uid}', this.value)">${opts}</select>
       <input class="note" value="${esc(r.note)}" placeholder="Note (Enter saves)"
@@ -1591,13 +1688,41 @@ async function act(uid, status, note) {
 
 // The posting is opened and then recorded. Marking applied without opening it
 // would be recording something that did not happen.
-function apply(uid, url) { window.open(url, '_blank', 'noopener'); act(uid, 'applied'); }
+// A post that may be a job you already applied to another way asks once more.
+function apply(uid, url, btn) {
+  const r = roles.find(x => x.uid === uid);
+  if (btn && r && (r.overlap || []).length && !btn.classList.contains('armed')) {
+    btn.classList.add('armed'); btn.textContent = 'Apply anyway?';
+    setTimeout(() => { btn.classList.remove('armed'); btn.textContent = 'Apply'; }, 4000);
+    return;
+  }
+  openOut(url); act(uid, 'applied');
+}
+
+// Who posted it: a recruiter's post says so, and why it was called one.
+function recrTag(poster) {
+  return poster && poster.agency
+    ? `<span class="recr" title="${esc(cap(poster.why))}">Recruiter</span>` : '';
+}
+// Posts you are pursuing that may be this job reached another way: through a
+// recruiter and directly, or through two recruiters. Applying twice can make
+// you a duplicate candidate, which employers often settle by dropping you.
+function overlapBox(overlap, full) {
+  if (!(overlap || []).length) return '';
+  const items = overlap.map(o => `<a onclick="openRole('${o.uid}')">${esc(o.title)} at ${esc(o.company)}</a>
+    (${esc(o.status)}${o.agency ? ', through a recruiter' : ''}${o.more
+      ? `, and ${o.more} more there` : ''}; ${esc(o.why)})`).join('; ');
+  return `<div class="overlap" role="note"><b>May be a job you have already applied to:</b> ${items}.${full
+    ? ` Applying through a recruiter and directly, or through two recruiters, can make you a
+      duplicate candidate, and employers often settle that by dropping the candidate. Ask the
+      recruiter who the employer is before you apply, and apply one way only.` : ''}</div>`;
+}
 
 $('scope').onchange = loadRoles; $('status').onchange = loadRoles;
 $('q').oninput = () => drawRoles();
 $('posted').onchange = () => drawRoles();
 $('sort').onchange = () => drawRoles();
-for (const id of ['f-mode', 'f-rule', 'f-paid']) $(id).onchange = () => drawRoles();
+for (const id of ['f-mode', 'f-poster', 'f-rule', 'f-paid']) $(id).onchange = () => drawRoles();
 for (const id of ['f-place', 'f-dist', 'f-pay']) $(id).oninput = () => drawRoles();
 
 async function saveAdvert(uid) {
@@ -1639,7 +1764,7 @@ async function openRole(uid, tab = 'advert') {
 }
 
 function openPosting() {
-  if (detail && /^https?:\/\//.test(detail.url)) window.open(detail.url, '_blank', 'noopener,noreferrer');
+  if (detail) openOut(detail.url);
 }
 
 // An advert is plain text from a dozen job boards: bullets lost, headings as
@@ -1803,6 +1928,9 @@ function drawDetail(tab) {
         title="${esc(cap(c.note || 'not checked yet'))} · last listed ${esc(c.last_seen)} · advert ${c.advert_chars} chars">${
         esc(platformName(c.platform))}${c.listing ? ' ' + listingTag({state: c.listing, note: c.note, checked_at: ''}, true) : ''}</a>`).join('')
     }<span class="hint">A status set here applies to every copy.</span></div>` : ''}
+    ${d.poster && d.poster.agency ? `<div class="hint" style="width:100%">Posted by a recruitment
+      firm: ${esc(d.poster.why)}. The employer may be named in the advert, or only to you.</div>` : ''}
+    ${overlapBox(d.overlap, true)}
     <div class="statusbar">${
       // new and viewed are recorded for you; these are the ones you decide.
       STATUSES.filter(s => s !== 'new' && s !== 'viewed').map(s => s === d.status
@@ -1893,15 +2021,20 @@ function drawDetail(tab) {
 // the server. Fetched with the token, then opened or saved from a blob.
 async function artifactPdf(id, save) {
   // Opened before the fetch: a tab opened after an await is a popup to block.
-  const tab = save ? null : window.open('', '_blank');
+  // The app has no tabs; it opens the PDF in the system's viewer instead.
+  const tab = save || desk() ? null : window.open('', '_blank');
   const r = await api('/api/artifact/pdf?id=' + id);
   if (!r.ok) { if (tab) tab.close(); toast(cap(await r.text()), 'err'); return; }
   const name = ((r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/) || [])[1] || 'Resume.pdf';
-  const url = URL.createObjectURL(new Blob([await r.blob()], {type: 'application/pdf'}));
-  if (save) {
-    const a = document.createElement('a');
-    a.href = url; a.download = name; a.click();
-  } else if (tab) tab.location.href = url;
+  const blob = new Blob([await r.blob()], {type: 'application/pdf'});
+  if (save) { await saveFile(blob, name); return; }
+  if (desk()) {
+    try { await desk().open_file(name, await base64Of(blob)); }
+    catch (e) { toast('Could not open the PDF: ' + (e.message || e), 'err'); }
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  if (tab) tab.location.href = url;
   else toast('The browser blocked the new tab; use Download PDF', 'err');
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
@@ -2178,11 +2311,9 @@ async function downloadTailored() {
   });
   if ($('edit-skills') && $('edit-skills').checked && (x.skills || []).length)
     text = `Skills: ${x.skills.join(', ')}\n\n` + text;
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text], {type: 'text/plain'}));
-  a.download = `resume-${(detail.company || 'tailored').replace(/[^A-Za-z0-9]+/g, '-')}.txt`; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  toast(missed ? `Downloaded; ${missed} edit(s) could not be placed, because the line reads differently in the file`
+  const saved = await saveFile(new Blob([text], {type: 'text/plain'}),
+    `resume-${(detail.company || 'tailored').replace(/[^A-Za-z0-9]+/g, '-')}.txt`);
+  if (saved) toast(missed ? `Downloaded; ${missed} edit(s) could not be placed, because the line reads differently in the file`
                : 'Downloaded your tailored resume. Read it through before you send it.');
 }
 
@@ -2316,19 +2447,15 @@ $('fbk-send').onclick = async () => {
 
 $('fbk-issue').onclick = () => {
   if (!fbkShown) return;
-  window.open(fbkShown.issue_url, '_blank', 'noopener');
+  openOut(fbkShown.issue_url);
   if (fbkShown.screenshots) $('fbk-msg').innerHTML = `<span class="hint">Screenshots
     cannot go in the link: drag them into the issue on GitHub.</span>`;
 };
 
 $('fbk-save').onclick = () => {
   if (!fbkShown) return;
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([`# ${fbkShown.subject}\n\n${fbkShown.text}\n`],
-                                        {type: 'text/markdown'}));
-  a.download = 'jobdork-feedback.md';
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  saveFile(new Blob([`# ${fbkShown.subject}\n\n${fbkShown.text}\n`], {type: 'text/markdown'}),
+           'jobdork-feedback.md');
 };
 
 $('btn-add').onclick = async () => {
@@ -2576,42 +2703,71 @@ async function drawSetupSources(d) {
         ? `, and ${d.own_boards} you added` : ''}. Add any employer later on the
         Sources page.</li>
     </ul>
-    ${usable.map(k => `<div class="keycard">
-      <b>Use ${esc(k.label)}?</b> ${esc(k.offer)}
-      ${k.ready ? `<div><span class="saved">Ready</span>
-          ${k.held === 'app' ? `<button type="button" class="act" data-forget="${k.name}">Remove</button>` : ''}</div>`
-      : `<div class="bar"><button type="button" class="act" data-want="${k.name}">Yes, add a free key</button></div>
-        <div class="keyform" id="keyform-${k.name}" hidden>
-          <div class="hint">Get one free at <a href="${esc(k.signup)}" target="_blank"
-            rel="noopener noreferrer">${esc(new URL(k.signup).host)}</a>, then paste it here.</div>
-          <div class="bar">${k.fields.map(f => `<input type="${/EMAIL/.test(f.name) ? 'email' : 'password'}"
-            autocomplete="off" spellcheck="false" data-key="${f.name}" placeholder="${esc(f.label)}"
-            aria-label="${esc(k.label)} ${esc(f.label)}" style="width:14rem">`).join('')}
-            <button type="button" class="act primary" data-save="${k.name}">Save</button></div></div>`}
-    </div>`).join('')}`;
-  const send = async body => {
+    ${keyCardsHtml(usable)}`;
+  wireKeyCards($('setup-extra'), d.keyed, (text, cls) => {
+    $('setup-msg').className = cls; $('setup-msg').textContent = text;
+  }, drawSetupSources);
+}
+
+// The Adzuna and USAJOBS key cards: in setup's Pay step, and on the Sources
+// page, where a key that turned out wrong is replaced. A key box hides what
+// is typed, with Show to check it: on 2026-10-23 an error message pasted by
+// mistake was saved as a key, unseen. The server tries a key before saving it.
+function keyCardsHtml(keyed) {
+  return keyed.map(k => `<div class="keycard">
+    <b>Use ${esc(k.label)}?</b> ${esc(k.offer)}
+    ${k.ready ? `<div class="bar"><span class="saved">Ready</span>
+        ${k.held === 'app' ? `<button type="button" class="act" data-replace="${k.name}">Replace</button>
+          <button type="button" class="act" data-forget="${k.name}">Remove</button>`
+        : '<span class="hint">set in .env or the environment, which the app does not change</span>'}</div>`
+      : `<div class="bar"><button type="button" class="act" data-want="${k.name}">Yes, add a free key</button></div>`}
+    <div class="keyform" data-keyform="${k.name}" hidden>
+      <div class="hint">Get one free at <a href="${esc(k.signup)}" target="_blank"
+        rel="noopener noreferrer">${esc(new URL(k.signup).host)}</a>, then paste it here.</div>
+      <div class="bar">${k.fields.map(f => /EMAIL/.test(f.name)
+        ? `<input type="email" autocomplete="off" spellcheck="false" data-key="${f.name}"
+            placeholder="${esc(f.label)}" aria-label="${esc(k.label)} ${esc(f.label)}" style="width:14rem">`
+        : `<span class="secret"><input type="password" autocomplete="off" spellcheck="false"
+            data-key="${f.name}" placeholder="${esc(f.label)}" aria-label="${esc(k.label)} ${esc(f.label)}"
+            style="width:14rem"><button type="button" class="act" data-show aria-pressed="false"
+            aria-label="Show ${esc(k.label)} ${esc(f.label)}">Show</button></span>`).join('')}
+        <button type="button" class="act primary" data-save="${k.name}">Save</button></div></div>
+  </div>`).join('');
+}
+// `say(text, cls)` shows the outcome; `redraw(sources)` redraws from the
+// server's answer, which says which keys are now ready.
+function wireKeyCards(box, keyed, say, redraw) {
+  const send = async (body, label) => {
+    say(label ? `Trying the key with ${label}…` : '', 'hint');
     const r = await api('/api/setup/keys', {method: 'POST',
       headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
-    if (!r.ok) {
-      $('setup-msg').className = 'err'; $('setup-msg').textContent = cap(await r.text());
-      return;
-    }
-    $('setup-msg').textContent = '';
-    drawSetupSources(await r.json());
+    if (!r.ok) { say(cap(await r.text()), 'err'); return; }
+    const d = await r.json();
+    await redraw(d);
+    say(d.note || '', d.note ? 'hint' : '');
   };
-  $('setup-extra').querySelectorAll('[data-want]').forEach(btn => btn.onclick = () => {
-    btn.closest('.bar').hidden = true;
-    $('keyform-' + btn.dataset.want).hidden = false;
+  box.querySelectorAll('[data-want],[data-replace]').forEach(btn => btn.onclick = () => {
+    if (btn.dataset.want) btn.closest('.bar').hidden = true;
+    box.querySelector(`[data-keyform="${btn.dataset.want || btn.dataset.replace}"]`).hidden = false;
   });
-  $('setup-extra').querySelectorAll('[data-save]').forEach(btn => btn.onclick = () => {
-    const card = btn.closest('.keycard'), body = {};
-    card.querySelectorAll('[data-key]').forEach(i => { body[i.dataset.key] = i.value.trim(); i.value = ''; });
-    send(body);
+  box.querySelectorAll('[data-show]').forEach(btn => btn.onclick = () => {
+    const input = btn.previousElementSibling, show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.textContent = show ? 'Hide' : 'Show';
+    btn.setAttribute('aria-pressed', String(show));
   });
-  $('setup-extra').querySelectorAll('[data-forget]').forEach(btn => btn.onclick = () => {
-    const k = d.keyed.find(x => x.name === btn.dataset.forget), body = {remove: true};
+  box.querySelectorAll('[data-save]').forEach(btn => btn.onclick = () => {
+    const k = keyed.find(x => x.name === btn.dataset.save), body = {};
+    btn.closest('.keyform').querySelectorAll('[data-key]').forEach(i => {
+      body[i.dataset.key] = i.value.trim(); i.value = '';
+      if (i.type === 'text') i.type = 'password';
+    });
+    send(body, k.label);
+  });
+  box.querySelectorAll('[data-forget]').forEach(btn => btn.onclick = () => {
+    const k = keyed.find(x => x.name === btn.dataset.forget), body = {remove: true};
     k.fields.forEach(f => body[f.name] = '');
-    send(body);
+    send(body, '');
   });
 }
 
@@ -2705,7 +2861,8 @@ function drawSetupWelcome(st) {
     <div class="go">
       <p class="need">Have your resume ready: PDF, Word, Markdown or plain text.</p>
       <button type="button" class="act start" id="setup-start">Get started ${svg(WEL_ICON.arrow)}</button>
-      <p class="hint">Each answer is saved as you go, so you can stop and come back.</p>
+      <p class="hint">Each answer is saved as you go, so you can stop any time and
+      carry on later: open this page again.</p>
     </div></div>`;
   $('setup-start').onclick = () => setupGo(st.steps[1].name);
   $('setup-start').focus({preventScroll: true});
@@ -3715,14 +3872,15 @@ async function saveList(key, rows, msgId) {
   }
   cfg = await r.json();
   msg.textContent = '';
+  const rescan = cfg.rescan ? ` ${cfg.rescan}` : '';
   // Name the change: which row went in or out of which list.
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const added = rows.filter(x => !before.some(y => same(x, y)));
   const gone = before.filter(x => !rows.some(y => same(x, y)));
   const list = LIST_NAMES[key] || 'the list';
-  toast(added.length === 1 && !gone.length ? `Added "${rowName(key, added[0])}" to ${list}`
-      : gone.length === 1 && !added.length ? `Removed "${rowName(key, gone[0])}" from ${list}`
-      : `${list} saved`);
+  toast((added.length === 1 && !gone.length ? `Added "${rowName(key, added[0])}" to ${list}.`
+      : gone.length === 1 && !added.length ? `Removed "${rowName(key, gone[0])}" from ${list}.`
+      : `${list} saved.`) + rescan);
   loadRoles();
   return true;
 }
@@ -4147,7 +4305,7 @@ async function saveLocation() {
     return false;
   }
   cfg = await r.json(); loadRoles();
-  let note = 'Location, work arrangement and pay saved';
+  let note = 'Location, work arrangement and pay saved', rescan = cfg.rescan || '';
   // No countries listed means every country; a place just chosen is
   // almost always the first one meant, so it is listed for you.
   const picked = cfg.anchor_place || {};
@@ -4157,10 +4315,11 @@ async function saveLocation() {
       body: JSON.stringify({countries: [picked.country]})});
     if (r2.ok) {
       cfg = await r2.json();
+      rescan = cfg.rescan || rescan;
       note += `, and ${rowName('countries', picked.country)} added to Countries to keep job posts from`;
     }
   }
-  toast(note);
+  toast(`${note}.${rescan ? ' ' + rescan : ''}`);
   drawLists(); await drawPicker(); settle();
   return true;
 }
@@ -4234,9 +4393,13 @@ async function drawProjects() {
   const d = await r.json();
   projects = d.projects;
   tutorialAdvice = d.tutorial_advice;
+  if ($('pf-kind').options.length === 1)
+    $('pf-kind').insertAdjacentHTML('beforeend',
+      d.kinds.map(k => `<option>${esc(k)}</option>`).join(''));
   try { tutorialRe = new RegExp(d.tutorial_pattern, 'i'); } catch { tutorialRe = null; }
   $('projects-list').innerHTML = projects.length ? projects.map(p => `<div class="proj">
-      <b>${esc(p.name)}</b>${p.tools ? ` <span class="hint">${esc(p.tools)}</span>` : ''}
+      <b>${esc(p.name)}</b>${p.kind ? ` <span class="tag">${esc(p.kind)}</span>` : ''}${p.role
+        ? ` <span class="hint">${esc(p.role)}</span>` : ''}${p.tools ? ` <span class="hint">· ${esc(p.tools)}</span>` : ''}
       ${p.tutorial ? `<div class="hint warn">This ${esc(tutorialAdvice)}.</div>` : ''}
       ${p.result ? `<div class="hint">Result: ${esc(p.result)}</div>` : ''}
       <div class="bar">
@@ -4255,7 +4418,7 @@ $('pf-name').addEventListener('input', tutorialCheck);
 function editProject(id) {
   const p = projects.find(x => x.id === id), f = $('project-form');
   f.reset();
-  for (const k of ['id', 'name', 'tools', 'link', 'situation', 'task', 'action', 'result'])
+  for (const k of ['id', 'name', 'kind', 'role', 'tools', 'link', 'situation', 'task', 'action', 'result'])
     f.elements[k].value = p ? (p[k] ?? '') : '';
   $('project-summary').textContent = p ? `Edit "${p.name}"` : 'Add a project';
   $('pf-msg').textContent = '';
@@ -4269,7 +4432,8 @@ $('project-form').onsubmit = async ev => {
   const r = await api('/api/projects/save', {method: 'POST',
     body: new URLSearchParams(new FormData($('project-form')))});
   if (!r.ok) { $('pf-msg').innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
-  toast('Project saved');
+  const saved = await r.json();
+  toast(saved.rescore ? `Project saved. ${saved.rescore}` : 'Project saved');
   editProject(null); $('project-edit').open = false;
   drawProjects();
 };
@@ -4281,9 +4445,61 @@ async function deleteProject(b, id) {
   }
   const r = await api('/api/projects/delete', {method: 'POST', body: form({id})});
   if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
-  toast('Project deleted');
+  const gone = await r.json();
+  toast(gone.rescore ? `Project deleted. ${gone.rescore}` : 'Project deleted');
   drawProjects();
 }
+// ── education (same shape as projects) ───────────────────────────────────────
+let education = [];
+async function drawEducation() {
+  const r = await api('/api/education');
+  if (!r.ok) { $('edu-list').innerHTML = `<p class="err">${esc(await r.text())}</p>`; return; }
+  education = (await r.json()).education;
+  const when = e => [e.start, e.end].filter(Boolean).join(' - ');
+  $('edu-list').innerHTML = education.length ? education.map(e => `<div class="proj">
+      <b>${esc(e.credential)}</b>${e.school ? ` <span class="hint">${esc(e.school)}</span>` : ''}${
+        when(e) ? ` <span class="hint">· ${esc(when(e))}</span>` : ''}
+      ${e.details ? `<div class="hint">${esc(e.details)}</div>` : ''}
+      <div class="bar">
+        <button data-icon="pen-line" class="act" onclick="editEducation(${e.id})">Edit</button>
+        <button data-icon="trash-2" class="act" onclick="deleteEducation(this, ${e.id})">Delete</button>
+      </div></div>`).join('')
+    : '<p class="hint">Nothing added: tailored resumes use the education your resume shows.</p>';
+}
+function editEducation(id) {
+  const e = education.find(x => x.id === id), f = $('edu-form');
+  f.reset();
+  for (const k of ['id', 'credential', 'school', 'location', 'start', 'end', 'details'])
+    f.elements[k].value = e ? (e[k] ?? '') : '';
+  $('edu-summary').textContent = e ? `Edit "${e.credential}"` : 'Add education';
+  $('ef-msg').textContent = '';
+  $('edu-edit').open = true;
+  $('ef-credential').focus();
+}
+$('ef-cancel').onclick = () => { editEducation(null); $('edu-edit').open = false; };
+$('edu-form').onsubmit = async ev => {
+  ev.preventDefault();
+  const r = await api('/api/education/save', {method: 'POST',
+    body: new URLSearchParams(new FormData($('edu-form')))});
+  if (!r.ok) { $('ef-msg').innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
+  const saved = await r.json();
+  toast(saved.rescore ? `Education saved. ${saved.rescore}` : 'Education saved');
+  editEducation(null); $('edu-edit').open = false;
+  drawEducation();
+};
+async function deleteEducation(b, id) {
+  if (!b.classList.contains('armed')) {
+    b.classList.add('armed', 'del'); b.textContent = 'Delete?';
+    setTimeout(() => { b.classList.remove('armed', 'del'); b.textContent = 'Delete'; }, 3000);
+    return;
+  }
+  const r = await api('/api/education/delete', {method: 'POST', body: form({id})});
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  const gone = await r.json();
+  toast(gone.rescore ? `Education deleted. ${gone.rescore}` : 'Education deleted');
+  drawEducation();
+}
+
 $('resumedlg').addEventListener('close', () => {
   if (resumeUrl) { URL.revokeObjectURL(resumeUrl); resumeUrl = ''; }
   $('resume-doc').innerHTML = '';
@@ -4291,10 +4507,7 @@ $('resumedlg').addEventListener('close', () => {
 $('resume-dl').onclick = async () => {
   const r = await api('/api/resume/file');
   if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(await r.blob());
-  a.download = $('resumedlg').dataset.name || 'resume'; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  saveFile(await r.blob(), $('resumedlg').dataset.name || 'resume');
 };
 
 // ── cover letters ───────────────────────────────────────────────────────────
@@ -4364,10 +4577,7 @@ document.addEventListener('click', async ev => {
 $('letter-close').onclick = () => $('letterdlg').close();
 $('letter-dl').onclick = () => {
   if (!letterOpen) return;
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([letterOpen.text], {type: 'text/markdown'}));
-  a.download = letterOpen.name; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  saveFile(new Blob([letterOpen.text], {type: 'text/markdown'}), letterOpen.name);
 };
 $('letter-del').onclick = async () => {
   const b = $('letter-del');
@@ -4409,6 +4619,7 @@ async function drawSources() {
     ${d.active.map(s => `<tr><td>${esc(platformName(s))}</td><td class="saved">Active</td></tr>`).join('')}
     ${d.dormant.map(s => `<tr><td>${esc(platformName(s.name))}</td><td class="hint">${esc(cap(s.why))}</td></tr>`).join('')}
     </table>`;
+  drawSourceKeys();
   const boards = d.companies;
   $('boards-head').textContent = `Employer boards (${boards.length})`;
   $('ed-boards').innerHTML = editorTable([
@@ -4421,6 +4632,20 @@ async function drawSources() {
     if (ok) drawSources();
     return ok;
   });
+}
+
+// Keys for Adzuna and USAJOBS, where your countries can use them.
+async function drawSourceKeys(d) {
+  d = d || await (await api('/api/setup/sources')).json();
+  const usable = d.keyed.filter(k => k.applies);
+  if (!usable.length) { $('keyinfo').innerHTML = ''; return; }
+  $('keyinfo').innerHTML = `<h3 style="margin-top:1rem">Keys</h3>
+    <p class="hint">Free keys for the two sources that need one. A key is tried
+      with the source before it is saved.</p>
+    ${keyCardsHtml(usable)}<p id="keymsg"></p>`;
+  wireKeyCards($('keyinfo'), d.keyed, (text, cls) => {
+    $('keymsg').className = cls; $('keymsg').textContent = text;
+  }, async fresh => { await drawSourceKeys(fresh); });
 }
 
 // ── nav: theme and rail ──────────────────────────────────────────────────────

@@ -155,18 +155,40 @@ def load_dotenv(path: str | Path = ".env") -> None:
 # in the kept volume. Never in config.yaml. The environment and .env win.
 SOURCE_KEYS_FILE = "source-keys.env"
 SOURCE_KEY_NAMES = ("ADZUNA_APP_ID", "ADZUNA_APP_KEY", "USAJOBS_API_KEY", "USAJOBS_EMAIL")
+_EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 
 def source_keys_path(cfg: Config) -> Path:
     return Path(cfg.db_path).parent / SOURCE_KEYS_FILE
 
 
+def check_source_key(name: str, value: str) -> None:
+    """Refuse what cannot be a job-source key. The message never repeats
+    what was typed."""
+    if name not in SOURCE_KEY_NAMES:
+        raise ConfigError(f"{name} is not a job-source key")
+    value = str(value or "").strip()
+    # "=" is allowed: USAJOBS keys are base64 and end in "=" padding, and
+    # both readers split a line at its first "=" only. A line break would
+    # start another line; quotes are stripped from the ends when read.
+    # Spaces too: no key has one, and a sentence pasted by mistake does
+    # (2026-10-23: an error message was saved as the USAJOBS key).
+    if any(c.isspace() or c in "\"'" for c in value):
+        raise ConfigError(f"{name} has a space, line break or quote in it, "
+                          "which a key never has. Copy it again")
+    if value and name.endswith("_EMAIL") and not _EMAIL.fullmatch(value):
+        raise ConfigError(f"{name} is not an email address")
+
+
 def write_source_keys(cfg: Config, values: dict[str, str]) -> None:
     """Set (or, given "", remove) job-source keys in the app's keys file.
 
-    Only the four known names. The file is readable by its owner alone, and
-    this process sees the change at once.
+    Only the four known names, each checked before any is kept, so one bad
+    value leaves the others as they were. The file is readable by its owner
+    alone, and this process sees the change at once.
     """
+    for name, value in values.items():
+        check_source_key(name, value)
     path = source_keys_path(cfg)
     held: dict[str, str] = {}
     if path.is_file():
@@ -175,11 +197,7 @@ def write_source_keys(cfg: Config, values: dict[str, str]) -> None:
             if sep and key.strip() in SOURCE_KEY_NAMES:
                 held[key.strip()] = value.strip()
     for name, value in values.items():
-        if name not in SOURCE_KEY_NAMES:
-            raise ConfigError(f"{name} is not a job-source key")
         value = str(value or "").strip()
-        if any(c in value for c in "\r\n=\"'"):
-            raise ConfigError(f"{name} has characters a key does not")
         if value:
             held[name] = value
             os.environ[name] = value
