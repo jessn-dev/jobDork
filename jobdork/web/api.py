@@ -1022,6 +1022,25 @@ PROBLEM_DAYS = 7
 PROBLEMS_SHOWN = 60
 
 
+PAGE_LOG = logging.getLogger("jobdork.page")
+MAX_PAGE_PROBLEM = 600
+
+
+def page_problem(form: dict) -> dict:
+    """A problem the dashboard page met (a script error, a request the server
+    did not answer, an error it showed you), logged so it is under Warnings
+    and errors beside the server's, ready for the Feedback page."""
+    level = str(form.get("level") or "")
+    if level not in ("warning", "error"):
+        raise ApiError("level is warning or error")
+    text = re.sub(r"[\x00-\x1f\x7f]+", " ", str(form.get("text") or "")).strip()
+    if not text:
+        raise ApiError("nothing to log")
+    PAGE_LOG.log(logging.ERROR if level == "error" else logging.WARNING,
+                 "in the page: %s", text[:MAX_PAGE_PROBLEM])
+    return {"logged": True}
+
+
 def _problems(conn) -> list[dict]:
     """The last week's warnings and errors, newest first: every job's, and the app's.
 

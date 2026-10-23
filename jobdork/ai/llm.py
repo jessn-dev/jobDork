@@ -577,6 +577,10 @@ candidate's history. Score fit on substance alone, never on the post's age; \
 when the block says older or stale, add one concern that it may already be \
 filled or reposted.
 
+Text between <<ADDED>> and <</ADDED>>, when given, is the candidate's own \
+projects and education, added beside the resume (work and study since it was \
+written, or that it only names): it counts as part of the resume.
+
 "enough_evidence" is false when the advert or the resume says too little to \
 judge fit honestly (a teaser, a title and a company, a resume with no \
 experience section). Say what is missing in "summary" rather than guessing.
@@ -584,8 +588,12 @@ experience section). Say what is missing in "summary" rather than guessing.
 """ + RULES
 
 
-def judge(settings: Settings, role: dict, resume_text: str) -> dict:
-    """The model's view of one role against the resume. Raises LLMError."""
+def judge(settings: Settings, role: dict, resume_text: str, notes: str = "") -> dict:
+    """The model's view of one role against the resume. Raises LLMError.
+
+    `notes`: the projects and education added on the Resume page, in their
+    own block so a long resume cannot push them past MAX_RESUME.
+    """
     if not resume_text:
         raise LLMError("no resume loaded. Upload one on the Resume page")
     advert = role.get("description") or ""
@@ -599,6 +607,7 @@ def judge(settings: Settings, role: dict, resume_text: str) -> dict:
            if role.get("posting") else "")
         + _fenced("ADVERT", advert, MAX_ADVERT) + "\n\n"
         + _fenced("RESUME", resume_text, MAX_RESUME)
+        + ("\n\n" + _fenced("ADDED", notes, MAX_RESUME) if notes else "")
     )
     raw = complete_json(settings, JUDGE_SYSTEM, user, JUDGE_SCHEMA,
                         purpose="judge")

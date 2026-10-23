@@ -381,6 +381,47 @@ def test_rescreen_under_telemetry_finishes():
         assert api.activity_report(cfg)["recent"][0]["state"] == "done"
 
 
+def test_every_error_the_app_meets_is_listed_not_only_jobdorks_own():
+    """2026-10-23: other libraries' errors, a thread that crashed, a page
+    request that failed and a problem in the page itself were missing from
+    Warnings and errors, so they could not be reported."""
+    import logging
+    import threading
+
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp)
+        saved_hook = threading.excepthook
+        telemetry.capture_logs(cfg.db_path)
+        try:
+            logging.getLogger("urllib3.connectionpool").error("pool exploded")
+            logging.getLogger("urllib3.connectionpool").warning("just noise")
+
+            def crash():
+                raise RuntimeError("worker died")
+            worker = threading.Thread(target=crash, name="enrich-worker")
+            worker.start()
+            worker.join()
+            api.page_problem({"level": "error", "text": "drawRoles is not defined (page:12)"})
+            try:
+                api.page_problem({"level": "info", "text": "x"})
+            except api.ApiError:
+                pass
+            else:
+                raise AssertionError("only warnings and errors")
+        finally:
+            logging.getLogger("jobdork").removeHandler(telemetry._handler)
+            logging.getLogger().removeHandler(telemetry._others)
+            threading.excepthook = saved_hook
+        texts = {(p["level"], p["text"]) for p in api.activity_report(cfg)["problems"]}
+        assert ("error", "pool exploded") in texts, texts
+        assert not any("just noise" in t for _, t in texts)
+        assert ("error", "a background task stopped (enrich-worker): "
+                         "RuntimeError: worker died") in texts, texts
+        assert ("error", "in the page: drawRoles is not defined (page:12)") in texts
+        # Once each: jobdork's own records are not copied twice.
+        assert sum(1 for _, t in texts if "drawRoles" in t) == 1
+
+
 def test_logged_warnings_and_errors_reach_the_activity_page():
     import logging
 
