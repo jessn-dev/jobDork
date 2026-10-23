@@ -3,7 +3,8 @@ jobdork.ai.judging
 ==================
 Has the configured model read the best roles against your resume.
 
-Bounded by `llm.judge_top` (or an explicit limit): roles are taken best
+The resume is read with the projects and education added on the Resume
+page. Bounded by `llm.judge_top` (or an explicit limit): roles are taken best
 match first, duplicates collapsed, and only those with enough advert to read
 and no verdict on their current advert. A role whose advert grew — pasted in,
 or fetched by enrich — is judged again, because the old verdict was on text
@@ -28,6 +29,7 @@ from dataclasses import dataclass, field
 from ..core import telemetry
 from ..db import grouping
 from ..search import freshness
+from ..writing import resume_doc
 from . import guard
 from .llm import LLMError, Settings, judge
 
@@ -78,6 +80,10 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
     if not cfg.resume_path:
         raise LLMError("no resume configured. Upload one on the Resume page")
     resume_text = resume_mod.load(cfg.resume_path).text
+    # What the person added on the Resume page: read with the resume, and
+    # accepted by the claim check as part of their record.
+    notes = resume_doc.record_notes(store.projects(), store.education())
+    record = resume_text + ("\n\n" + notes if notes else "")
 
     report = JudgeReport(model=settings.label + (
         f", checked by {settings.usable_checker().label}"
@@ -109,7 +115,7 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
                     row["posted_at"] or "",
                     grouping.earliest_seen(store.conn, uid=row["uid"]), cfg.freshness)}
         try:
-            verdict = judge(settings, role, resume_text)
+            verdict = judge(settings, role, resume_text, notes)
         except LLMError as exc:
             report.failed.append(row["uid"])
             telemetry.tick(done=report.judged + len(report.failed), count="failed")
@@ -120,11 +126,11 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
                     or "could not reach" in str(exc):
                 raise
             continue
-        second_opinion(settings, role, resume_text, verdict)
+        second_opinion(settings, role, resume_text, verdict, notes)
         if verdict.get("disagree"):
             report.disagreed += 1
             telemetry.tick(count="models disagree")
-        check_verdict(settings, store, row, verdict, resume_text,
+        check_verdict(settings, store, row, verdict, record,
                       enabled=cfg.llm.guard)
         if verdict.get("guard", {}).get("unsupported"):
             report.flagged += 1
@@ -148,7 +154,8 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
 DISAGREE_POINTS = 20
 
 
-def second_opinion(settings, role: dict, resume_text: str, verdict: dict) -> None:
+def second_opinion(settings, role: dict, resume_text: str, verdict: dict,
+                   notes: str = "") -> None:
     """The second model scores the same job post; adds `second` and `disagree`.
 
     Never blocks the verdict: a failure is recorded on it, and the first
@@ -158,7 +165,7 @@ def second_opinion(settings, role: dict, resume_text: str, verdict: dict) -> Non
     if checker is None:
         return
     try:
-        other = judge(checker, role, resume_text)
+        other = judge(checker, role, resume_text, notes)
     except LLMError as exc:
         verdict["second"] = {"model": checker.label, "error": str(exc)[:300]}
         return

@@ -11,6 +11,7 @@ Keep the `__main__` block at the END of this file.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 import tempfile
@@ -18,7 +19,6 @@ import threading
 import urllib.error
 import urllib.parse
 import urllib.request
-from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -72,7 +72,8 @@ class _Running:
         self.runner.queue = self._record
         self.holder = {"cfg": self.cfg}
 
-        self.server = ThreadingHTTPServer(
+        # The dashboard's own server class, which logs a request that fails.
+        self.server = serve_mod.Server(
             ("127.0.0.1", self.port),
             serve_mod.make_handler(self.holder, self.session, self.runner))
         self.thread = threading.Thread(target=self.server.serve_forever,
@@ -643,6 +644,39 @@ def test_saving_a_project_re_scores_the_job_posts():
         code, body = run.post("/api/projects/save", {"name": "X", "kind": "Juggling"})
         assert code == 400 and b"kind of project" in body
     _with_server(check)
+
+
+def test_a_request_that_crashes_is_logged_for_warnings_and_errors():
+    import logging
+
+    caught = []
+
+    class Catch(logging.Handler):
+        def emit(self, record):
+            caught.append((record.getMessage(), record.exc_info and record.exc_info[1]))
+
+    handler = Catch(logging.ERROR)
+    logging.getLogger("jobdork.web.serve").addHandler(handler)
+    saved = serve_mod.api_mod.list_projects
+
+    def broken(cfg):
+        raise RuntimeError("database exploded")
+    serve_mod.api_mod.list_projects = broken
+    try:
+        def check(run):
+            with contextlib.suppress(Exception):   # the connection drops: no answer
+                run.get("/api/projects")
+            code, body = run.post("/api/page-problem", {"level": "warning",
+                                                        "text": "shown to you: no"})
+            assert code == 200, body
+            code, _ = run.post("/api/page-problem", {"level": "warning"}, token=None)
+            assert code == 401
+        _with_server(check)
+    finally:
+        serve_mod.api_mod.list_projects = saved
+        logging.getLogger("jobdork.web.serve").removeHandler(handler)
+    assert caught[0][0] == "a request to the dashboard failed", caught
+    assert "database exploded" in str(caught[0][1])
 
 
 def test_the_favicon_is_answered_without_the_token():

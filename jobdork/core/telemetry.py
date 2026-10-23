@@ -418,8 +418,37 @@ class _Handler(logging.Handler):
 _handler = _Handler(logging.WARNING)
 
 
+class _NotJobdork(logging.Filter):
+    """For the root logger's copy: jobdork's own records already have one."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return not record.name.startswith("jobdork")
+
+
+# Errors from the libraries jobdork uses (the HTTP client, the PDF reader,
+# the app's window), which log under their own names: errors only, as their
+# warnings are mostly noise about other people's files.
+_others = _Handler(logging.ERROR)
+_others.addFilter(_NotJobdork())
+_crash_log = logging.getLogger("jobdork.crash")
+
+
+def _thread_crashed(args) -> None:
+    """A thread that died of an exception: in the log, and so on the page."""
+    if args.exc_type is SystemExit:
+        return
+    _crash_log.error("a background task stopped (%s)",
+                     getattr(args.thread, "name", "thread"),
+                     exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
+    _thread_hook_before(args)
+
+
+_thread_hook_before = threading.excepthook
+
+
 def capture_logs(db_path) -> None:
-    """Copy jobdork's logged warnings and errors to the Activity page.
+    """Copy jobdork's logged warnings and errors to the Activity page, with
+    other libraries' errors and threads that crash.
 
     `db_path` is where ones from outside a job go (a path or a callable, as
     for record_calls_to). Installed once; calling again only moves the path.
@@ -434,6 +463,15 @@ def capture_logs(db_path) -> None:
     logger = logging.getLogger("jobdork")
     if _handler not in logger.handlers:
         logger.addHandler(_handler)
+    # Everything else that goes wrong is reported too (2026-10-23: "warnings
+    # and errors should log all errors encountered by the app"): other
+    # libraries' errors, and a thread that dies of an exception, which Python
+    # would only print to a terminal the app does not have.
+    root = logging.getLogger()
+    if _others not in root.handlers:
+        root.addHandler(_others)
+    if threading.excepthook is not _thread_crashed:
+        threading.excepthook = _thread_crashed
 
 
 def current_id() -> int | None:

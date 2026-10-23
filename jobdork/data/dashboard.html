@@ -1299,8 +1299,35 @@ const flagLabel = f => cap(String(f || '').startsWith('fit: ')
   : f);
 const TOKEN = new URLSearchParams(location.search).get('t') || '';
 if (TOKEN) history.replaceState(null, '', location.pathname);
-const api = (p, o = {}) => fetch(p, {...o,
-  headers: {...(o.headers || {}), 'X-Jobdork-Token': TOKEN}});
+// Problems the page meets go to the server's Warnings and errors (Activity),
+// where the Feedback page picks them up: a script error, a request the server
+// did not answer or failed, an error shown to you. Each text once a minute,
+// at most 30 a page load, so a loop cannot flood the list. Never a query
+// string: it can hold what you typed.
+const pageSeen = new Map();
+let pageSent = 0;
+function pageProblem(level, text) {
+  text = String(text || '').slice(0, 600);
+  const now = Date.now();
+  if (!text || !TOKEN || pageSent >= 30 || now - (pageSeen.get(text) || 0) < 60000) return;
+  pageSeen.set(text, now); pageSent += 1;
+  fetch('/api/page-problem', {method: 'POST', headers: {'X-Jobdork-Token': TOKEN},
+    body: new URLSearchParams({level, text})}).catch(() => {});   // the server is gone
+}
+const api = (p, o = {}) => {
+  const what = `${o.method || 'GET'} ${String(p).split('?')[0]}`;
+  return fetch(p, {...o, headers: {...(o.headers || {}), 'X-Jobdork-Token': TOKEN}}).then(r => {
+    if (r.status >= 500) pageProblem('error', `${what} failed on the server (HTTP ${r.status})`);
+    return r;
+  }, e => {
+    pageProblem('error', `${what} got no answer from the server: ${e.message || e}`);
+    throw e;
+  });
+};
+window.addEventListener('error', e => pageProblem('error',
+  `${e.message || 'script error'} (${String(e.filename || '').split('/').pop() || 'page'}:${e.lineno || 0})`));
+window.addEventListener('unhandledrejection', e => pageProblem('error',
+  `unhandled: ${(e.reason && (e.reason.message || e.reason)) || 'a promise failed'}`));
 // In the desktop app (`jobdork app`) the page is in a window with no tabs and
 // no downloads of its own, so links and files go through the app instead.
 const desk = () => (window.pywebview && window.pywebview.api) || null;
@@ -3841,6 +3868,7 @@ const MODE_ICON = {remote: 'house', hybrid: 'arrow-left-right', office: 'buildin
 const svgIcon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
 function toast(text, kind = 'ok') {
+  if (kind === 'err') pageProblem('warning', `shown to you: ${text}`);
   const t = document.createElement('div');
   t.className = `toast ${kind}`;
   t.innerHTML = `${svgIcon(kind === 'err' ? 'circle-alert' : 'circle-check')}<span>${esc(text)}</span>

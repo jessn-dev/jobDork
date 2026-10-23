@@ -6,6 +6,45 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-23 — Warnings and errors lists every error the app meets
+
+So that whatever goes wrong can be reported from the Feedback page, which
+attaches this list. Before, only what jobdork's own code logged was there.
+
+- **A page request that crashes** (an error the server did not expect) is
+  logged as "a request to the dashboard failed: <the error>". It was only
+  printed to the terminal, or to `logs/app.log` in the desktop app.
+- **Errors from the libraries jobdork uses** (the HTTP client, the PDF
+  reader, the app's window), which log under their own names. Errors only:
+  their warnings are mostly noise about other people's files. Each is listed
+  once; jobdork's own are not copied twice.
+- **A background task that dies of an exception**, which Python only prints
+  to a terminal: "a background task stopped (<name>): <the error>".
+- **Problems in the page itself**: a script error, a request the server
+  failed (HTTP 5xx) or did not answer, and every error message shown to you
+  as a toast, prefixed "in the page:". The page sends them to
+  `/api/page-problem` (token required, warnings and errors only, 600
+  characters, no query strings since they can hold what you typed); each
+  text once a minute and at most 30 a page load.
+- Checked in a browser on a copy: a script error and an error toast appear
+  under Warnings and errors and in the Feedback report's preview.
+  tests/test_telemetry.py, test_serve.py (which now runs jobdork's own
+  server class, as the app does).
+
+## Changed — 2026-10-23 — The AI verdict reads your projects and education
+
+- **"Ask AI" and the verdicts after a scan now read the projects and
+  education added on the Resume page**, not the resume file alone: fit
+  scores and tailored resumes already did. They go to the model in their
+  own block after the resume (`<<ADDED>>`), so a long resume cannot push
+  them past its 12,000-character cap, and the prompt says they count as
+  part of the resume. The second model gets them too, and the claim check
+  counts them as your record, so a reason that quotes a project is not
+  struck out as unsupported.
+- Verdicts made before a project was added are not redone by themselves;
+  "Ask AI again" on a post, or the next scan's AI run for new posts, uses
+  them. tests/test_guard.py.
+
 ## Security — 2026-10-23 — pypdf 6.21.1
 
 - `requirements.lock`: pypdf 6.19.0 → 6.21.1 for eight advisories

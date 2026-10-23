@@ -126,7 +126,9 @@ class Server(ThreadingHTTPServer):
     A browser keeps a connection open for the next request and drops it when
     the page reloads, the tab closes or the laptop sleeps. The standard
     server prints a full traceback for each ("Connection reset by peer"),
-    which reads as a crash and is not one. Anything else is still printed.
+    which reads as a crash and is not one. Anything else is still printed,
+    and logged, so it is under Warnings and errors where it can be reported:
+    a request that failed was otherwise only in the terminal.
     """
 
     def handle_error(self, request, client_address) -> None:
@@ -134,6 +136,7 @@ class Server(ThreadingHTTPServer):
         if isinstance(sys.exc_info()[1], (ConnectionResetError, BrokenPipeError,
                                           ConnectionAbortedError, TimeoutError)):
             return
+        log.error("a request to the dashboard failed", exc_info=True)
         super().handle_error(request, client_address)
 
 
@@ -518,6 +521,11 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             path = urlsplit(self.path).path
             if path == "/api/action":
                 return self._action()
+            if path == "/api/page-problem":
+                form = self._body(limit=4 * 1024)
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.page_problem, form)
             if (path in ("/api/scan", "/api/scan/fresh", "/api/rescreen")
                     and not cfg_holder["cfg"].titles_include):
                 return self._reject(409, "no job titles to search for yet; "
