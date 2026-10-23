@@ -199,6 +199,8 @@ SELF_TEST_MODULES = ("webview", "anthropic", "pypdf", "jobdork.web.serve",
                      "jobdork.cli")
 WINDOW_BACKENDS = {"darwin": "webview.platforms.cocoa",
                    "win32": "webview.platforms.winforms"}
+# Per platform, more that a build must carry: Notification Center on macOS.
+PLATFORM_MODULES = {"darwin": ("UserNotifications",)}
 SELF_TEST_FILES = ("dashboard.html", "boards.csv", "cities.csv", "regions.csv",
                    "humanizer")
 
@@ -216,7 +218,8 @@ def self_test() -> list[str]:
 
     problems = []
     backend = WINDOW_BACKENDS.get(sys.platform)
-    for name in (*SELF_TEST_MODULES, *([backend] if backend else [])):
+    for name in (*SELF_TEST_MODULES, *([backend] if backend else []),
+                 *PLATFORM_MODULES.get(sys.platform, ())):
         try:
             importlib.import_module(name)
         except Exception as exc:             # any failure to load is the finding

@@ -32,6 +32,7 @@ import json
 import logging
 import os
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -1940,13 +1941,19 @@ def first_scan_jobs(cfg) -> list[tuple[str, object]]:
 
 def scan_job(cfg, part: str = "all"):
     def work(progress):
+        from ..core import notify
         from ..db.store import Store
         from ..output import render
         from ..search import scan as scan_mod
 
         with Store(cfg.db_path) as store:
-            report = scan_mod.run(cfg, store, progress=progress, part=part)
+            try:
+                report = scan_mod.run(cfg, store, progress=progress, part=part)
+            except Exception as exc:
+                notify.scan_failed(cfg, f"{type(exc).__name__}: {exc}")
+                raise
             summary = " · ".join(report.lines())
+            notify.scan_finished(cfg, report.newly_seen, report.kept)
             if cfg.llm.judge_on_scan:
                 summary += " · " + _judge_after_scan(cfg, store, progress)
             render.write_all(store.list_roles(), cfg, report)
@@ -2396,9 +2403,57 @@ def open_folder(cfg, which: str) -> dict:
     return {"opened": which}
 
 
-def newer_version(cfg=None) -> dict:
-    """Whether a newer jobdork is out (core/updates.py), for the Dashboard."""
-    from ..core import updates
+def newer_version(cfg=None, force: bool = False) -> dict:
+    """Whether a newer jobdork is out (core/updates.py), for the page; and
+    the first time a version is seen, a notification about it."""
+    from ..core import notify, updates
 
     folder = Path(cfg.db_path).parent if cfg is not None else Path("data")
-    return updates.check(folder, enabled=getattr(cfg, "update_check", True))
+    found = updates.check(folder, enabled=getattr(cfg, "update_check", True), force=force)
+    found["enabled"] = bool(getattr(cfg, "update_check", True)) and not updates.off()
+    found["can_install"] = bool(found.get("installer"))
+    if found.get("newer") and cfg is not None and updates.first_notice(folder, found["latest"]):
+        notify.notify(cfg, f"jobdork {found['latest']} is out",
+                      f"You have {found['current']}. Settings, Updates installs it.")
+    return found
+
+
+def notify_test(cfg) -> dict:
+    """Show one notification now, as the settings would, so the person can
+    see and hear it (and macOS can ask for permission)."""
+    from ..core import notify
+
+    if not cfg.notifications.enabled:
+        raise ApiError("notifications are off; turn them on first", 409)
+    sound = cfg.notifications.sound
+    if not notify.native():
+        return {"shown": False, "why": "this system shows none (jobdork is in a "
+                                       "container, or Linux has no notify-send)"}
+    shown = notify.notify(cfg, "jobdork notifications are on",
+                          "This is how a scan that finds new job posts tells you.")
+    return {"shown": shown, "sound": sound,
+            "why": "" if shown else "the system did not take it; see Warnings and errors"}
+
+
+def update_job(cfg):
+    """Download this computer's installer for the newest release, check it
+    against the release's checksums, and open it: the Windows installer
+    replaces this copy (closing it first); the Mac disk image opens for the
+    new app to be dragged into Applications."""
+    from ..core import updates
+    from .app import open_with_system
+
+    if not getattr(sys, "frozen", False):
+        raise ApiError("only the desktop app installs its own updates; see how "
+                       "to update this copy under Settings, Updates", 409)
+
+    def work(progress):
+        folder = Path.home() / "Downloads"
+        try:
+            path = updates.download_installer(Path(cfg.db_path).parent, folder,
+                                              progress=progress)
+        except updates.UpdateError as exc:
+            raise RuntimeError(str(exc)) from None
+        open_with_system(path)
+        return f"opened {path.name}; follow the installer to finish the update"
+    return work

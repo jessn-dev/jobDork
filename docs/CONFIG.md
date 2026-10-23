@@ -573,6 +573,24 @@ Gitignored. Your history stays yours.
 
 ---
 
+## notifications
+
+| Key | Type | Default |
+|---|---|---|
+| `notifications.enabled` | bool | `true` |
+| `notifications.sound` | bool | `true` |
+
+Your computer's own notifications when a scan finds new job posts (one you
+start or a scheduled one), when a scan fails, and when a newer jobdork is
+out: Notification Center on macOS, a toast on Windows, `notify-send` on
+Linux, each with the system's notification sound (a bell). Never for a scan
+that found nothing new. In Docker, which has no desktop, the page shows a
+notice and rings its own bell while it is open. **Settings →
+Notifications** writes these; `notifications: false` is short for off, and
+`JOBDORK_NOTIFY=off` turns them off whatever this says.
+
+---
+
 ## update_check
 
 | Key | Type | Default |
@@ -582,8 +600,7 @@ Gitignored. Your history stays yours.
 Once a day, when the Dashboard opens, ask GitHub whether a newer jobdork is
 out, and say so in a banner. One request to `api.github.com` for the latest
 release; nothing about you is sent ([PRIVACY.md](../PRIVACY.md)). `false`
-turns it off, as does the Dashboard's **Updates** card, which writes this
-setting. `JOBDORK_UPDATE_CHECK=off` turns it off whatever this says.
+turns it off, as does **Settings → Updates**, which writes this setting. `JOBDORK_UPDATE_CHECK=off` turns it off whatever this says.
 
 ---
 
@@ -652,6 +669,7 @@ always wins over the YAML.
 | `OPENAI_API_KEY` | ChatGPT, from the terminal |
 | `JOBDORK_CONFIG` | Config path override |
 | `JOBDORK_FEEDBACK_URL` | Where the Feedback page's Send goes. By default the maintainers' relay (see [relay/feedback](../relay/feedback/README.md)); an `https://` address replaces it, and `off` turns Send off, leaving "Open as a GitHub issue" and "Save as a file". No Resend or GitHub key is ever read by the app for this |
+| `JOBDORK_NOTIFY` | `off` turns notifications off for this run, whatever `notifications` says |
 | `JOBDORK_UPDATE_CHECK` | `off` stops the Dashboard asking GitHub, once a day, whether a newer jobdork is out, whatever `update_check` says (one request to `api.github.com` for the latest release; the answer is kept in `version-check.json` beside the database) |
 | `JOBDORK_ALLOW_HOSTS` | The dashboard: addresses besides the machine itself it may be opened by, comma separated (a NAS's network address, its Tailscale name); a wildcard is refused. See [DEPLOY.md](DEPLOY.md) |
 | `JOBDORK_DOCS_DIR` | Where the uploaded resume and generated documents are kept. The Docker image sets `/app/data/documents`, inside the kept volume |

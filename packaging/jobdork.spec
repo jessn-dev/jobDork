@@ -24,7 +24,9 @@ a = Analysis(
     # Claude provider and the PDF reader are extras a pip install may skip,
     # and an app user cannot add them afterwards. The command line runs the
     # scan schedule's `--scan`, reached only from inside a function.
-    hiddenimports=["anthropic", "pypdf", "jobdork.cli"],
+    hiddenimports=["anthropic", "pypdf", "jobdork.cli",
+                   # Imported inside a function, for notifications on macOS.
+                   *(["UserNotifications"] if sys.platform == "darwin" else [])],
     # The dork generator is a terminal tool; the app never runs it.
     excludes=["tkinter", "jobdork.dork"],
     noarchive=False,

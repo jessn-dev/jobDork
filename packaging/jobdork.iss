@@ -42,8 +42,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "{#Source}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\jobdork"; Filename: "{app}\jobdork.exe"
-Name: "{autodesktop}\jobdork"; Filename: "{app}\jobdork.exe"; Tasks: desktopicon
+; AppUserModelID ties Windows notifications (toasts) to jobdork's name and
+; icon; it must match notify.APP_ID in jobdork/core/notify.py.
+Name: "{group}\jobdork"; Filename: "{app}\jobdork.exe"; AppUserModelID: "io.github.jessn-dev.jobdork"
+Name: "{autodesktop}\jobdork"; Filename: "{app}\jobdork.exe"; Tasks: desktopicon; AppUserModelID: "io.github.jessn-dev.jobdork"
 
 [Run]
 Filename: "{app}\jobdork.exe"; Description: "{cm:LaunchProgram,jobdork}"; Flags: nowait postinstall skipifsilent

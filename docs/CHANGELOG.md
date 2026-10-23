@@ -6,6 +6,77 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-23 — Update from the app: download, check, install
+
+- **Settings → Updates** says which version you have and whether a newer one
+  is out, with **Check now** (asks GitHub at once, whatever the daily
+  check's timing) and the daily check switched by a button, **Turn off the
+  daily check** / **Turn on**, instead of a checkbox.
+- **Update to 0.x.y**, in the desktop app on macOS (Apple Silicon) and
+  Windows: downloads that release's installer for this computer from the
+  project's own GitHub release downloads (nothing else is fetched) into
+  Downloads, checks it against the release's `SHA256SUMS.txt`, deletes it if
+  it does not match, and opens it: the Windows installer replaces the app,
+  the Mac disk image opens for the new app to be dragged into Applications.
+  It runs as a job, with its progress under the Dashboard's log
+  (`updates.download_installer`, `POST /api/update/install`). Elsewhere (pip,
+  Linux, Docker) the section says how to update that copy and links the
+  release page.
+- The Dashboard's banner for a new version now has **Update**, which opens
+  Settings, and the first time a version is seen, a notification says so,
+  once (`updates.first_notice`).
+- tests/test_notify.py: the checksum match and mismatch, downloads only from
+  this repository's releases, Check now, the once-only notice.
+
+## Added — 2026-10-23 — Notifications, with a bell
+
+- **Your computer's own notifications** (`core/notify.py`) when a scan finds
+  new job posts (one you start or a scheduled one: "3 new job posts. The
+  scheduled scan found 3 new job posts (40 kept in all)"), when a scan fails,
+  and when a newer jobdork is out. Never for a scan that found nothing new.
+  - **macOS**: Notification Center. The desktop app posts as itself through
+    the system's notification framework (UserNotifications, a new macOS
+    dependency of the `app` extra, carried by the build and checked by its
+    self-test), after macOS asks once for permission; run any other way,
+    through `osascript`. Sound: "Glass", a bell. Checked on this Mac: a test
+    notification appeared, with its sound.
+  - **Windows**: a toast in the Action Center under jobdork's name: the
+    installer gives the Start menu and desktop shortcuts the app's
+    AppUserModelID (`io.github.jessn-dev.jobdork`), which is how Windows ties
+    a toast to an app; the toast's text goes to PowerShell through the
+    environment, not the script. Not tried on Windows yet.
+  - **Linux**: `notify-send`, with the bell sound hint.
+  - **Docker**: no desktop, so the page shows a notice and rings a bell made
+    in the browser (Web Audio, nothing loaded) while it is open.
+- **Settings → Notifications**: on or off, sound on or off, and **Send a
+  test notification**. `notifications: {enabled, sound}` in config.yaml
+  (docs/CONFIG.md); `JOBDORK_NOTIFY=off` turns them off for a run, and the
+  tests set it, so no test pops anything up. A notification that fails is
+  logged and never fails a scan.
+- PRIVACY.md and the Windows installer's privacy page say so.
+  tests/test_notify.py (each system's command, escaping, the settings, a
+  failing command), tests/test_serve.py.
+
+## Changed — 2026-10-23 — A Settings page, behind a gear where Dark mode was
+
+- **Settings**, at the bottom of the menu with a gear icon, replaces the Dark
+  mode switch there, and holds what is about how jobdork runs rather than
+  what you are looking for:
+  - **Appearance**: Dark mode.
+  - **Schedule a run** (was the Dashboard's "Scan by itself"), with **Run a
+    scan now** beside it.
+  - **Notifications** and **Updates** (above).
+  - **Built-in employer boards**: how many a scan reads, and **Turn off** /
+    **Turn on**; industries and single boards stay on the Sources page,
+    which it links.
+  - **Where your files are** and **Clean up job posts**, moved from the
+    Dashboard, which is now the runs and their numbers.
+- Checked in headless Chrome on a copy (the browser extension was not
+  connected): every section draws, the sound button wrote
+  `notifications.sound: false` and changed its label, and the Sources link
+  opens Sources. README, PRIVACY.md, docs/CONFIG.md and docs/DEPLOY.md name
+  the new places.
+
 ## Changed — 2026-10-23 — Adzuna and USAJOBS keys are saved only once they work
 
 - **A key is kept only when the source accepted it.** Saving already tried

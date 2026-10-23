@@ -194,6 +194,15 @@ def cmd_scan(args) -> int:
             telemetry.summary("not started: another scan was running")
             print(str(exc), file=sys.stderr)
             return 0 if args.scheduled else 3
+        except Exception as exc:
+            if args.scheduled:
+                # No one is watching a scheduled scan: say it failed.
+                from .core import notify
+                notify.scan_failed(cfg, f"{type(exc).__name__}: {exc}", origin="schedule")
+            raise
+        if args.scheduled:
+            from .core import notify
+            notify.scan_finished(cfg, report.newly_seen, report.kept, origin="schedule")
         print()
         for line in report.lines():
             print(line)

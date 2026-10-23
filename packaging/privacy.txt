@@ -10,7 +10,7 @@ It goes on the network to do what you set it up to do:
 
   - Searching job boards and employers' careers sites, with your job titles
     and place as search terms, when you scan (or at the times you choose
-    under "Scan by itself").
+    under Settings, "Schedule a run").
   - Sending your resume and job adverts to an AI provider, only if you
     choose one on the AI page (Claude, Gemini or ChatGPT, under their own
     privacy policies; or Ollama, on a computer you choose).
@@ -21,8 +21,12 @@ And one thing by itself:
 
   - Once a day, when the Dashboard opens, it asks GitHub whether a newer
     jobdork is out (one request to api.github.com; nothing about you is
-    sent). To turn this off, untick "Check once a day whether a newer
-    jobdork is out" under Updates on the Dashboard.
+    sent). To turn this off, press "Turn off the daily check" under
+    Settings, Updates.
+
+When a scan finds new job posts, or a newer jobdork is out, Windows shows
+a notification from jobdork, with its sound. Settings, Notifications turns
+them off.
 
 Uninstalling removes the program and leaves your data in
 %LOCALAPPDATA%\jobdork, so a reinstall finds it. Delete that folder, or use

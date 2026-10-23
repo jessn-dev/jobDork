@@ -52,6 +52,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from ..ai.llm import VAULT
 from ..core import feedback as feedback_mod
+from ..core import notify as notify_mod
 from ..core import updates as updates_mod
 from ..core.config import (
     CONTAINER_ENV,
@@ -270,6 +271,10 @@ def _config_payload(cfg) -> dict:
                          for d in cfg.dealbreakers],
         "dealbreaker_suggestions": _deal_suggestions(),
         "update_check": cfg.update_check,
+        "notifications": {"enabled": cfg.notifications.enabled,
+                          "sound": cfg.notifications.sound,
+                          # Whether this system can show one (not Docker).
+                          "native": notify_mod.native()},
         # The environment wins over the setting; the page says so.
         "update_check_env_off": updates_mod.off(),
         "path": cfg.path,
@@ -454,6 +459,10 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                     "ai": ai["label"],
                     "ai_problem": ai["problem"],
                     "unkept_data": _unkept(cfg_holder["cfg"]),
+                    "notifications": {
+                        "enabled": cfg_holder["cfg"].notifications.enabled,
+                        "sound": cfg_holder["cfg"].notifications.sound,
+                        "native": notify_mod.native()},
                     "setup": _setup_state(cfg_holder["cfg"]),
                 })
             if path == "/api/events":
@@ -598,6 +607,19 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 if not raw.isdigit():
                     return self._reject(400, "not a cover letter id")
                 return self._wrap(api_mod.delete_letter, cfg_holder["cfg"], int(raw))
+            if path == "/api/update/check":
+                return self._wrap(api_mod.newer_version, cfg_holder["cfg"], True)
+            if path == "/api/update/install":
+                try:
+                    work = api_mod.update_job(cfg_holder["cfg"])
+                except api_mod.ApiError as exc:
+                    return self._reject(exc.status, str(exc))
+                started, why = runner.start("update", work)
+                if not started:
+                    return self._reject(409, why)
+                return self._json(202, {"started": True, "job": "update"})
+            if path == "/api/notify/test":
+                return self._wrap(api_mod.notify_test, cfg_holder["cfg"])
             if path == "/api/schedule":
                 form = self._body()
                 if form is None:

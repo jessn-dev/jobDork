@@ -375,6 +375,13 @@ class Fetch:
     )
 
 
+@dataclass
+class Notifications:
+    """The system's notifications (core/notify.py): shown, and with a sound."""
+    enabled: bool = True
+    sound: bool = True
+
+
 # At most this many AI readers; setup offers the first SETUP_MAX_READERS of
 # them, and the AI page the rest.
 MAX_READERS = 6
@@ -445,8 +452,9 @@ class Config:
     llm: Llm = field(default_factory=Llm)
     db_path: str = "data/jobdork.db"
     # Ask GitHub once a day whether a newer jobdork is out (core/updates.py).
-    # The Dashboard's Updates card switches it; JOBDORK_UPDATE_CHECK=off wins.
+    # Settings → Updates switches it; JOBDORK_UPDATE_CHECK=off wins.
     update_check: bool = True
+    notifications: Notifications = field(default_factory=Notifications)
     path: str = ""          # where this config was read from, or will be written
     # The first-run step still to do; empty once set up. See core.setup.
     setup_step: str = ""
@@ -773,6 +781,14 @@ def _build(raw: dict[str, Any]) -> Config:
     if not isinstance(check, bool):
         raise ConfigError("update_check must be true or false")
     cfg.update_check = check
+    note = raw.get("notifications") or {}
+    if isinstance(note, bool):
+        note = {"enabled": note}
+    if not isinstance(note, dict) or not all(isinstance(note.get(k, True), bool)
+                                             for k in ("enabled", "sound")):
+        raise ConfigError("notifications must be {enabled: true|false, sound: true|false}")
+    cfg.notifications = Notifications(enabled=note.get("enabled", True),
+                                      sound=note.get("sound", True))
     cfg.credentials = _str_list(raw.get("credentials"), "credentials")
     setup = raw.get("setup") or {}
     if not isinstance(setup, dict):

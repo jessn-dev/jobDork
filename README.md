@@ -117,7 +117,7 @@ started it from: `~/Library/Application Support/jobdork` on macOS,
 `~/Documents/job-applications`. Job posts open in your own browser, and a file
 you download is saved where you choose. Closing the window stops it, and any
 API key it held is forgotten as with `jobdork serve`; while a scan is
-running it asks first. The Dashboard's **Where your files are** opens these
+running it asks first. **Settings → Where your files are** opens these
 folders, and a banner says when a newer version is out.
 
 Installers for macOS and Windows, so none of the above is needed, are built
@@ -413,8 +413,9 @@ deleted before stay deleted, and posts added by hand are kept.
 
 ### Scans that run by themselves
 
-On the Dashboard, **Scan by itself**: every day, every weekday or once a week,
-at a time you pick. It goes into your computer's own scheduler (launchd on
+**Settings → Schedule a run** (the gear at the bottom of the menu): every day,
+every weekday or once a week, at a time you pick, and **Run a scan now** beside
+it. It goes into your computer's own scheduler (launchd on
 macOS, Task Scheduler on Windows, crontab on Linux), so it runs whether or not
 jobdork is open, and a time missed while the computer slept runs when it
 wakes. The scan is listed under All runs like any other, and what it printed
@@ -422,6 +423,13 @@ is in `logs/scheduled-scan.log` beside your config. Only one scan runs at a
 time: one that finds another running, from the dashboard or a terminal,
 steps aside. In Docker, schedule `docker exec jobdork jobdork scan --scheduled`
 on the host instead ([DEPLOY.md](docs/DEPLOY.md)).
+
+When a scan finds new job posts, your computer shows a notification with a
+bell (Notification Center on macOS, a toast on Windows, `notify-send` on
+Linux); so does a failed scan, and a newer jobdork. **Settings →
+Notifications** turns them or their sound off. **Settings → Updates** checks
+for a newer version, and in the desktop app **Update** downloads the
+installer, checks it against the release's checksums, and opens it.
 
 ### Or have it mailed to you
 

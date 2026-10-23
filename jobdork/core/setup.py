@@ -218,6 +218,16 @@ def rewrite(original: str, payload: dict) -> str:
             directory["skip"] = sorted({str(n).strip() for n in payload["directory_skip"] or []
                                         if str(n).strip()}, key=str.casefold)
 
+    if "notifications" in payload:
+        given = payload["notifications"] or {}
+        section = data.get("notifications")
+        if not isinstance(section, dict):
+            section = {"enabled": section is not False}
+            data["notifications"] = section
+        for key in ("enabled", "sound"):
+            if key in given:
+                section[key] = str(given[key]).lower() in ("1", "true", "yes", "on")
+
     if "update_check" in payload:
         data["update_check"] = str(payload["update_check"]).lower() in (
             "1", "true", "yes", "on")

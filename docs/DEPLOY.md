@@ -218,7 +218,7 @@ the NAS and nothing personal should outlive a run, add
 letters then go to a temporary folder, emptied when jobdork starts and stops,
 and you upload the resume again after each restart.
 
-**Scans by themselves.** The Dashboard's **Scan by itself** works on a
+**Scans by themselves.** **Settings → Schedule a run** works on a
 computer, not in a container, which has no scheduler of its own. Use the
 NAS's instead (on Synology: Control Panel, Task Scheduler, Create, Scheduled
 Task, User-defined script, run as root) with:

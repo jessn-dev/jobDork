@@ -28,7 +28,7 @@ Everything stays in folders on the machine jobdork runs on:
 
 The desktop app keeps these in its own folder: `~/Library/Application
 Support/jobdork` on macOS, `%LOCALAPPDATA%\jobdork` on Windows,
-`~/.local/share/jobdork` on Linux. The Dashboard's **Where your files are**
+`~/.local/share/jobdork` on Linux. **Settings → Where your files are**
 card shows the exact paths and opens them.
 
 **Keys for AI providers** (Claude, Gemini, ChatGPT) are held in memory only.
@@ -65,7 +65,7 @@ described below, which you can turn off.
   type in.
 
 A scan runs when you start one, when a change to your search needs one, or
-at the times you choose under **Scan by itself**.
+at the times you choose under **Settings → Schedule a run**.
 
 ### When you turn on an AI reader
 
@@ -120,9 +120,16 @@ number of the latest jobdork release, so it can tell you when a newer one is
 out. The request goes to `api.github.com` and carries nothing about you
 beyond what any connection carries (your IP address, and a User-Agent naming
 jobdork and its version). The answer is kept in `version-check.json` beside
-your database. To turn it off, untick **Check once a day whether a newer
-jobdork is out** under **Updates** on the Dashboard (it writes
-`update_check: false` to your settings), or set `JOBDORK_UPDATE_CHECK=off`.
+your database. To turn it off, press **Turn off the daily check** under
+**Settings → Updates** (it writes `update_check: false` to your settings), or
+set `JOBDORK_UPDATE_CHECK=off`. **Check now** asks once, whenever you press
+it.
+
+**Updating the desktop app.** When a newer version is out, **Update** under
+**Settings → Updates** downloads that release's installer for your computer
+from this project's GitHub releases into your Downloads folder, checks it
+against the release's published SHA-256 checksums (deleting it if they do
+not match), and opens it. Nothing is downloaded until you press it.
 The Windows installer shows this before installing. See
 [GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
 
@@ -134,6 +141,16 @@ address you give, through Resend, under your Resend account.
 
 ---
 
+## Notifications
+
+When a scan finds new job posts (one you start, or a scheduled one), when a
+scan fails, and when a newer jobdork is out, jobdork shows your computer's
+own notification, with a bell: Notification Center on macOS, a toast on
+Windows, `notify-send` on Linux. They are made on your computer and go
+nowhere else; macOS asks once whether to allow them. **Settings →
+Notifications** turns them, or their sound, off; so does
+`JOBDORK_NOTIFY=off`.
+
 ## What jobdork does not do
 
 - No analytics, crash reporting or usage statistics are sent anywhere. The
@@ -143,7 +160,7 @@ address you give, through Resend, under your Resend account.
   request to it needs a token made fresh each time it starts. In Docker it can
   be opened from other machines only if you allow them by name.
 - It changes nothing on your system beyond its own folders, except, if you
-  turn on **Scan by itself**, one scheduled task (a LaunchAgent on macOS, a
+  turn on **Schedule a run**, one scheduled task (a LaunchAgent on macOS, a
   Task Scheduler task on Windows, a crontab line on Linux), which turning it
   off removes.
 

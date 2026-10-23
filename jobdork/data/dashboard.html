@@ -92,7 +92,7 @@ nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
 .shell.rail nav{padding:1.25rem .6rem}
 .shell.rail .brand{flex-direction:column;gap:.6rem;padding:0}
 .shell.rail .brand .name,.shell.rail nav .label,.shell.rail nav .count,
-.shell.rail nav .sec,.shell.rail nav .info,.shell.rail .switch,.shell.rail nav #net-text{display:none}
+.shell.rail nav .sec,.shell.rail nav .info,.shell.rail nav .switch,.shell.rail nav #net-text{display:none}
 .shell.rail nav .status{justify-content:center;padding:.5rem 0}
 .shell.rail .brand .fold svg{transform:rotate(180deg)}
 .shell.rail nav .item{justify-content:center;padding:.62rem 0}
@@ -101,7 +101,7 @@ nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
   .shell nav{padding:1.25rem .6rem}
   .shell .brand{flex-direction:column;gap:.6rem;padding:0}
   .shell .brand .name,.shell nav .label,.shell nav .count,.shell nav .sec,
-  .shell nav .info,.shell nav #net-text,.shell .switch,.shell .brand .fold{display:none}
+  .shell nav .info,.shell nav #net-text,.shell nav .switch,.shell .brand .fold{display:none}
   .shell nav .item{justify-content:center;padding:.62rem 0}}
 main{padding:1.5rem 1.75rem;min-width:0}
 /* The Dashboard uses the whole width; pages of forms and reading keep a
@@ -587,6 +587,9 @@ main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
 #dir td.num{text-align:right;font-variant-numeric:tabular-nums}
 #dir tr.off td:not(:last-child){color:var(--muted)}
 #dir td:last-child{white-space:nowrap}
+#view-prefs h3.psec{margin:1.5rem 0 .4rem}
+#view-prefs .said-line{font-size:.88rem;margin-right:auto}
+#view-prefs #theme .switch{margin-left:0;background:var(--card);color:var(--fg)}
 .bgscan{border:1px solid var(--accent);border-radius:8px;padding:.6rem .8rem;
   color:var(--fg);background:var(--card);font-size:.88rem}
 .keycard{border:1px solid var(--line);border-radius:8px;
@@ -670,7 +673,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <button class="item" data-view="tools" data-label="Feedback" data-info="Send a problem, an idea or a question to the people who make jobdork." aria-description="Send a problem, an idea or a question to the people who make jobdork."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><rect x="11" y="5.75" width="10" height="2.5" rx="1.25"/><circle cx="18" cy="17" r="3"/><rect x="3" y="15.75" width="10" height="2.5" rx="1.25"/></svg><span class="label">Feedback</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <div class="foot">
     <div class="status" id="net" role="status" hidden><span class="dot"></span><span id="net-text"></span></div>
-    <button class="item" id="theme" title="Dark mode"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg><span class="label">Dark mode</span><span class="switch" id="theme-switch"><i></i><span id="theme-state">OFF</span></span></button>
+    <button class="item" data-view="prefs" title="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6a7.9 7.9 0 0 1 1.9 1.1l2.5-.9 1.7 2.9-2 1.7a8 8 0 0 1 0 2.2l2 1.7-1.7 2.9-2.5-.9a7.9 7.9 0 0 1-1.9 1.1l-.5 2.6h-3.4l-.5-2.6a7.9 7.9 0 0 1-1.9-1.1l-2.5.9-1.7-2.9 2-1.7a8 8 0 0 1 0-2.2l-2-1.7 1.7-2.9 2.5.9a7.9 7.9 0 0 1 1.9-1.1L10.3 2zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/></svg><span class="label">Settings</span></button>
   </div>
 </nav>
 <main>
@@ -867,11 +870,24 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <div id="act-history"></div>
     </details>
 
-    <h3 style="margin-top:1.6rem">Scan by itself</h3>
-    <p class="hint" style="margin-top:0">Your computer starts a scan at the time you
-      pick, whether or not jobdork is open, and its job posts are here the next time
-      you look. A time missed while the computer slept runs when it wakes. Once a day
-      is plenty: boards are paced on purpose, and more scans earn rate limits.</p>
+  </section>
+
+  <section id="view-prefs" hidden>
+    <h2>Settings</h2>
+    <p class="hint">How jobdork looks, runs by itself, tells you things, and keeps itself up to date.</p>
+
+    <h3 class="psec">Appearance</h3>
+    <div class="cleanup"><div class="row">
+      <span>Dark mode</span>
+      <button class="act" id="theme" type="button"><span class="switch" id="theme-switch"><i></i><span id="theme-state">OFF</span></span></button>
+    </div></div>
+
+    <h3 class="psec">Schedule a run</h3>
+    <p class="hint" style="margin-top:0">Your computer starts a scan at the time you pick,
+      whether or not jobdork is open, and its job posts are waiting the next time you look;
+      with notifications on, it tells you when it finds new ones. A time missed while the
+      computer slept runs when it wakes. Once a day is plenty: boards are paced on purpose,
+      and more scans earn rate limits. To scan now instead, <b>Run a scan now</b>.</p>
     <div class="cleanup" id="sched">
       <div class="row">
         <span>Scan</span>
@@ -892,8 +908,61 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       </div>
       <div class="row said" id="sched-state" role="status"></div>
     </div>
+    <div class="bar" style="margin:.5rem 0 0">
+      <button data-icon="play" class="act" id="pref-run" type="button">Run a scan now</button>
+      <span class="hint" id="pref-run-said"></span>
+    </div>
 
-    <h3 style="margin-top:1.6rem">Clean up job posts</h3>
+    <h3 class="psec">Notifications</h3>
+    <p class="hint" style="margin-top:0">Your computer's own notifications, with a bell, when
+      a scan finds new job posts (yours or the schedule's), when one fails, and when a newer
+      jobdork is out. Nothing else, and never for a scan that found nothing new.</p>
+    <div class="cleanup">
+      <div class="row">
+        <span id="note-state" class="said-line"></span>
+        <button class="act" id="note-toggle" type="button"></button>
+        <button class="act" id="note-sound" type="button"></button>
+        <button data-icon="send" class="act" id="note-test" type="button">Send a test notification</button>
+      </div>
+      <p class="hint" id="note-said" style="margin:.3rem 0 0"></p>
+    </div>
+
+    <h3 class="psec">Updates</h3>
+    <div class="cleanup">
+      <div class="row">
+        <span id="upd-state" class="said-line"></span>
+        <button data-icon="refresh-cw" class="act" id="upd-check" type="button">Check now</button>
+        <button data-icon="download" class="act primary" id="upd-install" type="button" hidden></button>
+        <button data-icon="external-link" class="act" id="upd-page" type="button" hidden>Release page</button>
+      </div>
+      <p class="hint" id="upd-how" style="margin:.3rem 0 0" hidden></p>
+      <div class="row">
+        <span id="upd-daily" class="said-line"></span>
+        <button class="act" id="upd-toggle" type="button"></button>
+      </div>
+      <p class="hint" id="upd-said" style="margin:.3rem 0 0">The daily check is one request
+        to GitHub for the number of the latest release; nothing about you is sent. It is the
+        only thing jobdork asks the network by itself: see the
+        <a href="https://github.com/jessn-dev/jobDork/blob/main/PRIVACY.md" data-out>privacy policy</a>.</p>
+    </div>
+
+    <h3 class="psec">Built-in employer boards</h3>
+    <div class="cleanup">
+      <div class="row">
+        <span id="pb-state" class="said-line"></span>
+        <button class="act" id="pb-toggle" type="button"></button>
+      </div>
+      <p class="hint" style="margin:.3rem 0 0">Employers' own boards that come with jobdork.
+        Choose industries, or switch single boards off, on the
+        <a href="#" id="pb-sources">Sources page</a>.</p>
+    </div>
+
+    <h3 class="psec">Where your files are</h3>
+    <p class="hint" style="margin-top:0">To back them up, move them to another
+      computer, or attach a log to a report.</p>
+    <div class="cleanup"><div class="folders" id="folders"></div></div>
+
+    <h3 class="psec">Clean up job posts</h3>
     <p class="hint" style="margin-top:0">Preview first; nothing is deleted until
       you press the red button. The database is backed up to
       <code>data/backups/</code> before every delete, and a deleted post stays
@@ -916,23 +985,6 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
         <button data-icon="eye" class="act" data-mode="status">Preview</button>
       </div>
       <div id="cl-result"></div>
-    </div>
-
-    <h3 style="margin-top:1.6rem">Where your files are</h3>
-    <p class="hint" style="margin-top:0">To back them up, move them to another
-      computer, or attach a log to a report.</p>
-    <div class="cleanup"><div class="folders" id="folders"></div></div>
-
-    <h3 style="margin-top:1.6rem">Updates</h3>
-    <div class="cleanup">
-      <div class="row">
-        <label class="check-inline"><input type="checkbox" id="upd-on">
-          Check once a day whether a newer jobdork is out</label>
-      </div>
-      <p class="hint" id="upd-said" style="margin:.3rem 0 0">One request to GitHub for the
-        number of the latest release; nothing about you is sent. The only thing jobdork asks
-        the network by itself: see the
-        <a href="https://github.com/jessn-dev/jobDork/blob/main/PRIVACY.md" data-out>privacy policy</a>.</p>
     </div>
   </section>
 
@@ -1484,13 +1536,14 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
   b.onclick = () => {
     document.querySelectorAll('nav button[data-view]').forEach(x =>
       x.classList.toggle('on', x === b));
-    ['roles','scan','tools','settings','resume','sources','ai'].forEach(v =>
+    ['roles','scan','tools','settings','resume','sources','ai','prefs'].forEach(v =>
       $('view-' + v).hidden = v !== b.dataset.view);
     if (b.dataset.view === 'settings') drawConfig();
     if (b.dataset.view === 'sources') drawSources();
     if (b.dataset.view === 'resume') { drawResume(); drawProjects(); drawEducation(); drawReview(); drawLetters(); }
     if (b.dataset.view === 'ai') drawAI();
-    if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); drawSchedule(); drawFolders(); drawUpdates(); }
+    if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); }
+    if (b.dataset.view === 'prefs') drawPrefs();
   };
 });
 
@@ -2593,6 +2646,16 @@ function connect() {
     if (e.kind === 'progress') return;
     if (own) logLine(e.text, {status: 'dim', done: 'ok', error: 'bad'}[e.kind], own);
     refreshState(); pollActivity();
+    const scanEnded = e.kind === 'done' ? /scan$/.test(e.job || '')
+      : e.kind === 'error' && /^(?:\w+ )?scan failed/.test(e.text || '');
+    if (scanEnded) {
+      // The server notified through the system; the page does only when it cannot.
+      if (!noteCfg.native) {
+        const fresh = e.kind === 'done' && /\((\d+) new\)/.exec(e.text || '');
+        if (e.kind === 'error') inPageNotice('Scan failed', e.text);
+        else if (fresh && Number(fresh[1]) > 0) inPageNotice(`${fresh[1]} new job post${fresh[1] === '1' ? '' : 's'}`, 'Open Job posts to see them.');
+      }
+    }
     if (e.kind === 'done') {
       loadRoles(); cfg = null; redrawDetail(); loadMetrics();
       // A scan just finished: offer to drop what it left risky or stale.
@@ -2610,8 +2673,11 @@ function connect() {
   };
 }
 
+// The notification settings, kept fresh with the state (Settings writes them).
+let noteCfg = {enabled: true, sound: true, native: true};
 async function refreshState() {
   const s = await (await api('/api/state')).json();
+  if (s.notifications) noteCfg = s.notifications;
   if (s.setup) drawSetup(s.setup);
   // Just finished: open the dashboard. The token lives only in this page's
   // memory, so it goes back in the address for the one load that reads it.
@@ -5057,26 +5123,149 @@ async function drawFolders() {
   });
 }
 
-// ── updates: the once-a-day check, on or off (config `update_check`) ──────────
-async function drawUpdates() {
-  if (!cfg) cfg = await (await api('/api/config')).json();
-  const box = $('upd-on');
-  box.checked = cfg.update_check && !cfg.update_check_env_off;
-  box.disabled = !!cfg.update_check_env_off;
-  if (cfg.update_check_env_off) $('upd-said').textContent =
-    'Off: JOBDORK_UPDATE_CHECK=off is set where jobdork runs, and wins over this.';
-}
-$('upd-on').onchange = async e => {
-  const on = e.target.checked;
+// ── Settings: notifications, updates, built-in boards ─────────────────────────
+// Each is a setting in config.yaml, switched with a button (POST /api/config).
+async function saveSetting(change, said) {
   const r = await api('/api/config', {method: 'POST',
-    headers: {'Content-Type': 'application/json'}, body: JSON.stringify({update_check: on})});
-  if (!r.ok) { toast(`Not saved: ${await r.text()}`, 'err'); e.target.checked = !on; return; }
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify(change)});
+  if (!r.ok) { toast(`Not saved: ${await r.text()}`, 'err'); return false; }
   cfg = await r.json();
-  toast(on ? 'jobdork checks for a newer version once a day.' : 'jobdork no longer checks for a newer version.');
-  if (on) checkVersion(); else $('update').hidden = true;
+  if (said) toast(said + (cfg.rescan ? ` ${cfg.rescan}` : ''));
+  return true;
+}
+
+async function drawPrefs() {
+  cfg = await (await api('/api/config')).json();
+  drawSchedule(); drawFolders(); drawNotify(); drawUpdates(); drawPrefBoards();
+}
+
+function drawNotify() {
+  const n = cfg.notifications || noteCfg;
+  noteCfg = n;
+  $('note-state').textContent = !n.enabled ? 'Off: no notifications.'
+    : !n.native ? 'On, inside jobdork: this system shows none of its own (a container, or Linux without notify-send), so the page shows a notice and rings its bell while it is open.'
+    : n.sound ? 'On, with a bell.' : 'On, silent.';
+  $('note-toggle').textContent = n.enabled ? 'Turn off notifications' : 'Turn on notifications';
+  $('note-toggle').dataset.icon = n.enabled ? 'power' : 'check';
+  $('note-sound').textContent = n.sound ? 'Turn off the sound' : 'Turn on the sound';
+  $('note-sound').hidden = !n.enabled;
+  $('note-test').hidden = !n.enabled;
+  $('note-said').textContent = n.native
+    ? 'macOS asks once whether jobdork may notify you; Windows and macOS let you change it later in their own notification settings too.'
+    : '';
+}
+$('note-toggle').onclick = async () => {
+  const on = !(cfg.notifications || {}).enabled;
+  if (await saveSetting({notifications: {enabled: on}},
+      on ? 'Notifications are on.' : 'Notifications are off.')) drawNotify();
+};
+$('note-sound').onclick = async () => {
+  const on = !(cfg.notifications || {}).sound;
+  if (await saveSetting({notifications: {sound: on}},
+      on ? 'Notifications ring a bell.' : 'Notifications are silent.')) drawNotify();
+};
+$('note-test').onclick = async () => {
+  const r = await api('/api/notify/test', {method: 'POST'});
+  if (!r.ok) { toast(await r.text(), 'err'); return; }
+  const d = await r.json();
+  if (!d.shown) { inPageNotice('jobdork notifications are on', 'This is how a scan that finds new job posts tells you.'); }
+  toast(d.shown ? 'Sent. It should appear in a moment.' : `Shown here instead: ${d.why}`);
+};
+
+// A notice inside the page, with the bell, for a system that shows none of
+// its own (Docker) or while the page is open in a browser elsewhere.
+let bellCtx = null;
+function ringBell() {
+  const n = noteCfg;
+  if (n.enabled === false || n.sound === false) return;
+  try {
+    bellCtx = bellCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const now = bellCtx.currentTime;
+    [880, 1320].forEach((freq, i) => {        // a bell: a tone and its overtone, fading
+      const osc = bellCtx.createOscillator(), gain = bellCtx.createGain();
+      osc.frequency.value = freq; osc.type = 'sine';
+      gain.gain.setValueAtTime(i ? 0.08 : 0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.6);
+      osc.connect(gain).connect(bellCtx.destination);
+      osc.start(now); osc.stop(now + 1.7);
+    });
+  } catch (e) { /* no audio here; the notice still shows */ }
+}
+function inPageNotice(title, body) {
+  const n = noteCfg;
+  if (n.enabled === false) return;
+  toast(`${title}: ${body}`);
+  ringBell();
+}
+
+async function drawUpdates() {
+  const daily = cfg.update_check && !cfg.update_check_env_off;
+  $('upd-daily').textContent = cfg.update_check_env_off
+    ? 'Daily check: off, because JOBDORK_UPDATE_CHECK=off is set where jobdork runs.'
+    : daily ? 'Daily check: on.' : 'Daily check: off. Check now still asks.';
+  $('upd-toggle').hidden = !!cfg.update_check_env_off;
+  $('upd-toggle').textContent = daily ? 'Turn off the daily check' : 'Turn on the daily check';
+  $('upd-toggle').dataset.icon = daily ? 'power' : 'check';
+  await showVersion('/api/version');
+}
+
+let lastVersion = null;
+async function showVersion(path, method = 'GET') {
+  let d;
+  try {
+    const r = await api(path, {method});
+    if (!r.ok) { $('upd-state').textContent = await r.text(); return; }
+    d = await r.json();
+  } catch (e) { return; }
+  lastVersion = d;
+  $('upd-state').textContent = d.newer ? `jobdork ${d.latest} is out; you have ${d.current}.`
+    : `You have jobdork ${d.current}${d.enabled === false && method === 'GET' ? '' : ', the newest'}.`;
+  $('upd-install').hidden = !d.newer || !d.can_install;
+  $('upd-install').textContent = d.newer ? `Update to ${d.latest}` : '';
+  $('upd-page').hidden = !d.newer;
+  $('upd-how').hidden = !d.newer || d.can_install;
+  $('upd-how').textContent = d.newer ? d.how : '';
+}
+$('upd-check').onclick = async () => {
+  $('upd-state').textContent = 'Asking GitHub…';
+  await showVersion('/api/update/check', 'POST');
+};
+$('upd-page').onclick = () => lastVersion && openOut(lastVersion.url);
+$('upd-install').onclick = async () => {
+  const r = await api('/api/update/install', {method: 'POST'});
+  if (!r.ok) { toast(`Not started: ${await r.text()}`, 'err'); return; }
+  toast('Downloading the update. The installer opens when it has been checked.');
+};
+$('upd-toggle').onclick = async () => {
+  const on = !cfg.update_check;
+  if (await saveSetting({update_check: on}, on ? 'jobdork checks for a newer version once a day.'
+      : 'jobdork no longer checks for a newer version by itself.')) {
+    drawUpdates();
+    if (!on) $('update').hidden = true;
+  }
 };
 document.querySelectorAll('#upd-said [data-out]').forEach(a =>
   a.onclick = e => { e.preventDefault(); openOut(a.href); });
+
+async function drawPrefBoards() {
+  const r = await api('/api/directory');
+  if (!r.ok) return;
+  const d = await r.json();
+  $('pb-state').textContent = d.enabled
+    ? `On: a scan reads ${d.read} of the ${d.total} built-in boards, for your countries and industries.`
+    : `Off: none of the ${d.total} built-in boards is read.`;
+  $('pb-toggle').textContent = d.enabled ? 'Turn off built-in boards' : 'Turn on built-in boards';
+  $('pb-toggle').dataset.icon = d.enabled ? 'power' : 'check';
+  $('pb-toggle').onclick = async () => {
+    if (await saveSetting({directory_enabled: !d.enabled},
+        d.enabled ? 'Built-in boards are off.' : 'Built-in boards are on.')) drawPrefBoards();
+  };
+}
+$('pb-sources').onclick = e => {
+  e.preventDefault();
+  document.querySelector('nav button[data-view="sources"]').click();
+};
+$('pref-run').onclick = () => $('run').click();
 
 // ── a newer version ──────────────────────────────────────────────────────────
 // Asked once per page load; the server asks GitHub at most once a day
@@ -5091,14 +5280,16 @@ async function checkVersion() {
   if (!d.newer || store.get('jobdork-skip-version') === d.latest) return;
   const box = $('update');
   box.innerHTML = `<b>jobdork ${esc(d.latest)} is out.</b> <span>You have ${esc(d.current)}.</span>
-    <a href="${esc(d.url)}" data-out>What is new, and the download</a>
-    <button class="linkbtn x" aria-label="Dismiss until the next version">Not now</button>
-    <span class="how">${esc(d.how)}</span>`;
+    <button class="act primary" id="update-go" type="button">${d.can_install ? 'Update' : 'How to update'}</button>
+    <a href="${esc(d.url)}" data-out>What is new</a>
+    <button class="linkbtn x" aria-label="Dismiss until the next version">Not now</button>`;
   box.querySelector('[data-out]').onclick = e => { e.preventDefault(); openOut(d.url); };
+  box.querySelector('#update-go').onclick = () =>
+    document.querySelector('nav button[data-view="prefs"]').click();
   box.querySelector('.x').onclick = () => { store.set('jobdork-skip-version', d.latest); box.hidden = true; };
   box.hidden = false;
 }
 
 connect(); loadRoles(); refreshState(); pollActivity(); loadMetrics();
-drawSchedule(); drawFolders(); drawUpdates(); setTimeout(checkVersion, 1500);
+setTimeout(checkVersion, 1500);
 </script></body></html>
