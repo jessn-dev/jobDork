@@ -205,6 +205,32 @@ def rewrite(original: str, payload: dict) -> str:
         # Which built-in employer boards to read; none ticked is every industry.
         data.setdefault("sources", {}).setdefault("directory", {})["industries"] = [
             str(i).strip().lower() for i in payload["industries"] or [] if str(i).strip()]
+    if "directory_enabled" in payload or "directory_skip" in payload:
+        directory = data.setdefault("sources", {}).get("directory")
+        # `directory: false` is the short way of writing it off.
+        if not isinstance(directory, dict):
+            directory = {"enabled": directory is not False}
+            data["sources"]["directory"] = directory
+        if "directory_enabled" in payload:
+            directory["enabled"] = str(payload["directory_enabled"]).lower() in (
+                "1", "true", "yes", "on")
+        if "directory_skip" in payload:
+            directory["skip"] = sorted({str(n).strip() for n in payload["directory_skip"] or []
+                                        if str(n).strip()}, key=str.casefold)
+
+    if "notifications" in payload:
+        given = payload["notifications"] or {}
+        section = data.get("notifications")
+        if not isinstance(section, dict):
+            section = {"enabled": section is not False}
+            data["notifications"] = section
+        for key in ("enabled", "sound"):
+            if key in given:
+                section[key] = str(given[key]).lower() in ("1", "true", "yes", "on")
+
+    if "update_check" in payload:
+        data["update_check"] = str(payload["update_check"]).lower() in (
+            "1", "true", "yes", "on")
 
     if "credentials" in payload:
         data["credentials"] = [str(c).strip() for c in payload["credentials"] or []
@@ -227,6 +253,27 @@ def rewrite(original: str, payload: dict) -> str:
         for key in ("judge_on_scan", "read_pages", "guard"):
             if key in given:
                 section[key] = str(given[key]).lower() in ("1", "true", "yes", "on")
+        if isinstance(given.get("readers"), list):
+            # The AI page's readers, in order; named fields only. The first is
+            # also written as provider and model, which every jobdork reads.
+            readers = []
+            for r in given["readers"]:
+                if not isinstance(r, dict) or not str(r.get("provider") or "").strip():
+                    continue
+                row = {"provider": str(r["provider"]).strip().lower(),
+                       "model": str(r.get("model") or "").strip()}
+                url = str(r.get("ollama_url") or "").strip()
+                if url and row["provider"] == "ollama":
+                    row["ollama_url"] = url
+                readers.append(row)
+            section["readers"] = readers
+            section["provider"] = readers[0]["provider"] if readers else ""
+            section["model"] = readers[0]["model"] if readers else ""
+        elif ("provider" in given or "model" in given) and section.get("readers"):
+            # A provider or model given alone (the terminal's setup) is the
+            # first reader's; the others stay.
+            first = {"provider": section.get("provider", ""), "model": section.get("model", "")}
+            section["readers"] = ([first] if first["provider"] else []) + section["readers"][1:]
 
     if "setup_step" in payload:
         step = str(payload["setup_step"] or "").strip()

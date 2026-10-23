@@ -1,0 +1,275 @@
+"""
+Notifications (core/notify.py) and the Update button's download
+(core/updates.py). Nothing here shows a notification or goes online: every
+command is a stand-in, and the download reads from memory.
+
+Keep the `__main__` block at the END of this file.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import hashlib
+import io
+import json
+import os
+import sys
+import tempfile
+import types
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from jobdork.core import notify, updates
+from jobdork.core.config import Config, Notifications
+
+
+@contextlib.contextmanager
+def _env(**values):
+    saved = {k: os.environ.get(k) for k in values}
+    for k, v in values.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+    try:
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+@contextlib.contextmanager
+def _platform(name, frozen=False):
+    saved = sys.platform
+    sys.platform = name
+    if frozen:
+        sys.frozen = True
+    try:
+        yield
+    finally:
+        sys.platform = saved
+        if frozen:
+            del sys.frozen
+
+
+class _Run:
+    def __init__(self, code=0):
+        self.calls, self.code = [], code
+
+    def __call__(self, argv, **kw):
+        self.calls.append((list(argv), kw))
+        return types.SimpleNamespace(returncode=self.code, stdout="", stderr="")
+
+
+def test_macos_uses_notification_center_with_a_bell():
+    run = _Run()
+    with _platform("darwin"):
+        assert notify.send('Say "hi"', "3 new job posts", sound=True, run=run)
+    argv, _ = run.calls[0]
+    assert argv[:2] == ["osascript", "-e"]
+    script = argv[2]
+    assert 'with title "Say \\"hi\\""' in script and 'sound name "Glass"' in script
+    run = _Run()
+    with _platform("darwin"):
+        notify.send("t", "b", sound=False, run=run)
+    assert "sound name" not in run.calls[0][0][2]
+
+
+def test_windows_shows_a_toast_under_the_apps_own_id():
+    run = _Run()
+    with _platform("win32", frozen=True):
+        assert notify.send("2 new <job> posts", "found & kept", sound=True, run=run)
+    argv, kw = run.calls[0]
+    assert argv[0] == "powershell" and "CreateToastNotifier" in argv[-1]
+    # What could change the script goes in the environment, escaped.
+    assert kw["env"]["JOBDORK_AUMID"] == notify.APP_ID
+    xml = kw["env"]["JOBDORK_TOAST"]
+    assert "2 new &lt;job&gt; posts" in xml and "found &amp; kept" in xml
+    assert "Notification.Default" in xml
+    assert 'silent="true"' in notify.toast_xml("t", "b", sound=False)
+    run = _Run()
+    with _platform("win32"):
+        notify.send("t", "b", run=run)
+    assert run.calls[0][1]["env"]["JOBDORK_AUMID"] == notify.POWERSHELL_AUMID
+
+
+def test_linux_uses_notify_send_with_the_bell_sound():
+    run = _Run()
+    with _platform("linux"):
+        assert notify.send("t", "b", sound=True, run=run)
+    argv = run.calls[0][0]
+    assert argv[0] == "notify-send" and "--hint=string:sound-name:bell" in argv
+
+
+def test_settings_and_the_environment_decide():
+    cfg = Config(notifications=Notifications(enabled=True, sound=False))
+    with _env(JOBDORK_NOTIFY=None):
+        assert notify.wanted(cfg) == (True, False)
+        assert notify.wanted(Config(notifications=Notifications(enabled=False))) == (False, False)
+    with _env(JOBDORK_NOTIFY="off"):
+        assert notify.wanted(cfg) == (False, False)
+        assert not notify.native()
+    with _env(JOBDORK_NOTIFY=None, JOBDORK_IN_CONTAINER="1"):
+        assert not notify.native()
+
+
+def test_a_scan_with_nothing_new_says_nothing():
+    run = _Run()
+    cfg = Config()
+    saved = notify.native
+    # lambda: as on a desktop, whatever machine the tests run on.
+    notify.native = lambda: True
+    try:
+        with _env(JOBDORK_NOTIFY=None), _platform("linux"):
+            assert not notify.scan_finished(cfg, 0, 40, run=run)
+            assert notify.scan_finished(cfg, 3, 40, origin="schedule", run=run)
+            assert notify.scan_failed(cfg, "HTTP 500", run=run)
+    finally:
+        notify.native = saved
+    assert len(run.calls) == 2
+    first = " ".join(run.calls[0][0])
+    assert "3 new job posts" in first and "The scheduled scan found 3" in first
+
+
+def test_a_failing_command_never_breaks_a_scan():
+    def broken(argv, **kw):
+        raise OSError("no such command")
+    saved = notify.native
+    # lambda: as on a desktop, whatever machine the tests run on.
+    notify.native = lambda: True
+    try:
+        with _env(JOBDORK_NOTIFY=None), _platform("linux"):
+            assert notify.notify(Config(), "t", "b", run=broken) is False
+    finally:
+        notify.native = saved
+
+
+# ── the Update button ─────────────────────────────────────────────────────────
+
+
+INSTALLER = b"pretend this is a disk image"
+BASE = updates.DOWNLOAD_PREFIX + "v9.0.0/"
+
+
+def _opener(files):
+    """urlopen's stand-in: answers from `files` by URL."""
+    def open_(request, timeout=0):
+        body = files[request.full_url]
+        answer = io.BytesIO(body)
+        answer.headers = {"Content-Length": str(len(body))}
+        return contextlib.closing(answer)
+    return open_
+
+
+def _release_cache(folder: Path, sums: bytes):
+    name = "jobdork-9.0.0-windows-x64-setup.exe"
+    (folder / updates.CACHE_FILE).write_text(json.dumps({"checked_at": 1, "release": {
+        "version": "9.0.0", "url": "https://github.com/x",
+        "assets": {name: BASE + name, updates.SUMS_FILE: BASE + updates.SUMS_FILE}}}))
+    return name, {BASE + name: INSTALLER, BASE + updates.SUMS_FILE: sums}
+
+
+def test_the_installer_is_downloaded_and_checked_against_the_release():
+    with tempfile.TemporaryDirectory() as tmp, _platform("win32", frozen=True):
+        folder = Path(tmp)
+        good = f"{hashlib.sha256(INSTALLER).hexdigest()}  jobdork-9.0.0-windows-x64-setup.exe\n"
+        name, files = _release_cache(folder, good.encode())
+        said = []
+        path = updates.download_installer(folder, folder / "Downloads", progress=said.append,
+                                          opener=_opener(files))
+        assert path.name == name and path.read_bytes() == INSTALLER
+        assert any("checksum matches" in s for s in said)
+        assert not list((folder / "Downloads").glob(".jobdork-*"))   # the sums file went
+
+
+def test_an_installer_that_does_not_match_is_deleted():
+    with tempfile.TemporaryDirectory() as tmp, _platform("win32", frozen=True):
+        folder = Path(tmp)
+        name, files = _release_cache(folder, f"{'0' * 64}  jobdork-9.0.0-windows-x64-setup.exe\n".encode())
+        try:
+            updates.download_installer(folder, folder / "Downloads", opener=_opener(files))
+        except updates.UpdateError as exc:
+            assert "does not match" in str(exc)
+        else:
+            raise AssertionError("kept an installer that does not match")
+        assert not (folder / "Downloads" / name).exists()
+
+
+def test_only_the_desktop_app_on_a_known_system_gets_an_installer():
+    assert updates.installer_name("9.0.0") == ""                    # not the desktop app
+    with _platform("win32", frozen=True):
+        assert updates.installer_name("9.0.0") == "jobdork-9.0.0-windows-x64-setup.exe"
+    with _platform("linux", frozen=True):
+        assert updates.installer_name("9.0.0") == ""
+    try:
+        updates._download("https://example.com/evil.exe", Path("x"))
+    except updates.UpdateError as exc:
+        assert "release downloads" in str(exc)
+    else:
+        raise AssertionError("downloaded from elsewhere")
+
+
+def test_a_new_version_is_announced_once():
+    with tempfile.TemporaryDirectory() as tmp:
+        assert updates.first_notice(tmp, "9.0.0")
+        assert not updates.first_notice(tmp, "9.0.0")
+        assert updates.first_notice(tmp, "9.1.0")
+
+
+def test_check_now_asks_even_within_the_day():
+    calls = []
+
+    def fetch(url):
+        calls.append(url)
+        return {"tag_name": "v9.0.0", "html_url": "https://github.com/x", "assets": [
+            {"name": "SHA256SUMS.txt", "browser_download_url": BASE + "SHA256SUMS.txt"},
+            {"name": "bad", "browser_download_url": "https://elsewhere.example/bad"}]}
+
+    def clock():
+        return 1000.0
+
+    with tempfile.TemporaryDirectory() as tmp, _env(JOBDORK_UPDATE_CHECK=None):
+        updates.latest(tmp, fetch=fetch, now=clock)
+        release = updates.latest(tmp, fetch=fetch, now=clock)
+        assert len(calls) == 1
+        assert set(release["assets"]) == {"SHA256SUMS.txt"}       # only this repo's
+        updates.latest(tmp, fetch=fetch, now=clock, force=True)
+        assert len(calls) == 2
+
+
+def test_the_settings_page_routes():
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from test_serve import _with_server
+
+    def check(run):
+        code, body = run.get("/api/state")
+        assert code == 200 and json.loads(body)["notifications"]["native"] is False
+        code, body = run.post("/api/update/install", {})
+        assert code == 409 and b"only the desktop app" in body
+        code, body = run.post("/api/notify/test", {})
+        assert code == 200 and json.loads(body)["shown"] is False
+        code, _ = run.post_json("/api/config", {"notifications": {"enabled": False}})
+        assert code == 200 and run.cfg_now.notifications.enabled is False
+        code, body = run.post("/api/notify/test", {})
+        assert code == 409 and b"notifications are off" in body
+        code, body = run.post("/api/update/check", {})
+        assert code == 200 and json.loads(body)["newer"] is False   # tests never ask
+    _with_server(check)
+
+
+if __name__ == "__main__":
+    import traceback
+    failed = 0
+    for name, fn in sorted(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            try:
+                fn()
+            except BaseException:
+                failed += 1
+                print(f"FAIL {name}")
+                traceback.print_exc(limit=3)
+    raise SystemExit(1 if failed else 0)

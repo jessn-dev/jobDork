@@ -52,6 +52,8 @@ from urllib.parse import parse_qs, urlsplit
 
 from ..ai.llm import VAULT
 from ..core import feedback as feedback_mod
+from ..core import notify as notify_mod
+from ..core import updates as updates_mod
 from ..core.config import (
     CONTAINER_ENV,
     CONTAINER_MARKERS,
@@ -230,11 +232,17 @@ def search_changes(old, fresh) -> tuple[bool, bool]:
     them. Rescreen: anything screening reads changed, so the posts already
     stored may now pass or fail.
     """
+    from ..search import directory
+
     def added(a, b) -> bool:
         return bool({x.casefold() for x in b} - {x.casefold() for x in a})
+    # Built-in boards newly read: switched on, an industry added or the
+    # industries cleared (every one), a board no longer skipped.
+    boards = ({b.key for b in directory.select(fresh)}
+              - {b.key for b in directory.select(old)})
     widened = (added(old.titles_include, fresh.titles_include)
                or added(old.locations.countries, fresh.locations.countries)
-               or added(old.sources.directory.industries, fresh.sources.directory.industries)
+               or bool(boards)
                or old.locations.anchor != fresh.locations.anchor)
     return widened, _screen_key(old) != _screen_key(fresh)
 
@@ -262,6 +270,13 @@ def _config_payload(cfg) -> dict:
                           "hard": d.hard}
                          for d in cfg.dealbreakers],
         "dealbreaker_suggestions": _deal_suggestions(),
+        "update_check": cfg.update_check,
+        "notifications": {"enabled": cfg.notifications.enabled,
+                          "sound": cfg.notifications.sound,
+                          # Whether this system can show one (not Docker).
+                          "native": notify_mod.native()},
+        # The environment wins over the setting; the page says so.
+        "update_check_env_off": updates_mod.off(),
         "path": cfg.path,
     }
 
@@ -444,6 +459,10 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                     "ai": ai["label"],
                     "ai_problem": ai["problem"],
                     "unkept_data": _unkept(cfg_holder["cfg"]),
+                    "notifications": {
+                        "enabled": cfg_holder["cfg"].notifications.enabled,
+                        "sound": cfg_holder["cfg"].notifications.sound,
+                        "native": notify_mod.native()},
                     "setup": _setup_state(cfg_holder["cfg"]),
                 })
             if path == "/api/events":
@@ -461,6 +480,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                                   query.get("url", [""])[0])
             if path == "/api/sources":
                 return self._wrap(api_mod.sources_report, cfg_holder["cfg"])
+            if path == "/api/directory":
+                return self._wrap(api_mod.directory_boards, cfg_holder["cfg"])
             if path == "/api/role":
                 uid = parse_qs(urlsplit(self.path).query).get("uid", [""])[0]
                 return self._wrap(api_mod.role_detail, cfg_holder["cfg"], uid)
@@ -512,6 +533,12 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 return self._wrap(api_mod.setup_choices, cfg_holder["cfg"])
             if path == "/api/review/latest":
                 return self._wrap(api_mod.latest_review, cfg_holder["cfg"])
+            if path == "/api/schedule":
+                return self._wrap(api_mod.schedule_state, cfg_holder["cfg"])
+            if path == "/api/folders":
+                return self._wrap(api_mod.folders, cfg_holder["cfg"])
+            if path == "/api/version":
+                return self._wrap(api_mod.newer_version, cfg_holder["cfg"])
             return self._reject(404, "no such path")
 
         def do_POST(self) -> None:
@@ -580,6 +607,29 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
                 if not raw.isdigit():
                     return self._reject(400, "not a cover letter id")
                 return self._wrap(api_mod.delete_letter, cfg_holder["cfg"], int(raw))
+            if path == "/api/update/check":
+                return self._wrap(api_mod.newer_version, cfg_holder["cfg"], True)
+            if path == "/api/update/install":
+                try:
+                    work = api_mod.update_job(cfg_holder["cfg"])
+                except api_mod.ApiError as exc:
+                    return self._reject(exc.status, str(exc))
+                started, why = runner.start("update", work)
+                if not started:
+                    return self._reject(409, why)
+                return self._json(202, {"started": True, "job": "update"})
+            if path == "/api/notify/test":
+                return self._wrap(api_mod.notify_test, cfg_holder["cfg"])
+            if path == "/api/schedule":
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.schedule_save, cfg_holder["cfg"], form)
+            if path == "/api/folders/open":
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.open_folder, cfg_holder["cfg"], form.get("which"))
             if path == "/api/dealbreakers/try":
                 form = self._body(limit=16 * 1024)
                 if form is None:
@@ -747,6 +797,12 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             if path == "/api/llm/test":
                 return self._wrap(api_mod.llm_test, cfg)
             if path == "/api/llm":
+                from ..core.config import MAX_READERS, SETUP_MAX_READERS
+                limit = SETUP_MAX_READERS if cfg.setup_step else MAX_READERS
+                if isinstance(form.get("readers"), list) and len(form["readers"]) > limit:
+                    return self._reject(400, f"at most {limit} AI readers"
+                                        + (" in setup; add more later on the AI page"
+                                           if cfg.setup_step else ""))
                 try:
                     fresh = self._write_config({"llm": form})
                 except Exception as exc:
@@ -1112,9 +1168,10 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
           token: str = "", on_ready=None) -> int:
     """Run until Ctrl-C. Returns an exit code.
 
-    `on_ready(url, stop)` is for the desktop app, which runs this on a thread
-    of its own: it is called once the server is listening, with the address
-    to show and a function that ends the run as Ctrl-C would.
+    `on_ready(url, stop, busy)` is for the desktop app, which runs this on a
+    thread of its own: it is called once the server is listening, with the
+    address to show, a function that ends the run as Ctrl-C would, and one
+    that names the job running ("scan"), or returns "" when none is.
     """
     # The session keeps HOST either way: it is the address in the printed URL
     # and the one the Host check accepts, and in a container the browser
@@ -1180,7 +1237,9 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
         # open() here would race the server.
         threading.Timer(0.4, lambda: webbrowser.open(session.url)).start()
     if on_ready:
-        on_ready(session.url, server.shutdown)
+        # lambda: asked when the window is closed, so it is read then, not now.
+        on_ready(session.url, server.shutdown,
+                 lambda: runner.current if runner.busy else "")
 
     stop = threading.Event()
     threading.Thread(target=_forget_keys_when_unwatched,

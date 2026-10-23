@@ -199,6 +199,10 @@ class Checker:
             found = self._taleo(url)
             if found:
                 return found
+        if platform == "arbeitsagentur":
+            found = self._arbeitsagentur(url)
+            if found:
+                return found
         return self._page(row)
 
     def _listed_only(self, row, last_run: str) -> Finding:
@@ -234,6 +238,18 @@ class Checker:
             return Finding("closed", "Taleo says the job has moved or is no longer available",
                            hard=True)
         return None                              # the page check reads the rest
+
+    def _arbeitsagentur(self, url: str) -> Finding | None:
+        """The job's own record at the Bundesagentur; a removed one answers 404."""
+        from ..fetch import arbeitsagentur
+
+        info, answered = arbeitsagentur.record(self.fetcher, url)
+        if not answered:
+            return None
+        if not info:
+            return Finding("closed", "the Bundesagentur für Arbeit no longer lists "
+                           "this job", hard=True)
+        return Finding("open", "the Bundesagentur für Arbeit lists the job")
 
     def _eightfold(self, url: str) -> Finding | None:
         """The position's own record; a removed one answers 404."""

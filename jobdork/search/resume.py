@@ -27,64 +27,231 @@ import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# Skills worth matching on. Deliberately a list rather than "every capitalised
-# word": the second approach matches company names, city names and the word
-# "Agile" in a sentence about culture, and scores everything the same.
-SKILL_TERMS = (
-    # languages
-    "python", "java", "javascript", "typescript", "go", "golang", "rust",
-    "ruby", "php", "c++", "c#", "scala", "kotlin", "swift", "elixir", "perl",
-    "r", "matlab", "bash", "shell", "sql", "html", "css",
-    # web and app frameworks
-    "react", "angular", "vue", "svelte", "next.js", "node", "node.js",
-    "django", "flask", "fastapi", "rails", "spring", "spring boot", ".net",
-    "express", "laravel", "graphql", "rest", "grpc",
-    # data
-    "postgres", "postgresql", "mysql", "mongodb", "redis", "elasticsearch",
-    "cassandra", "dynamodb", "snowflake", "bigquery", "redshift", "databricks",
-    "spark", "hadoop", "kafka", "airflow", "dbt", "etl", "pandas", "numpy",
-    # ml
-    "machine learning", "deep learning", "pytorch", "tensorflow",
-    "scikit-learn", "nlp", "llm", "computer vision", "mlops",
-    # infra
-    "aws", "azure", "gcp", "kubernetes", "docker", "terraform", "ansible",
-    "jenkins", "gitlab", "github actions", "ci/cd", "linux", "nginx",
-    "microservices", "serverless", "lambda", "prometheus", "grafana",
-    "datadog", "helm", "argocd",
-    # practice
-    "agile", "scrum", "kanban", "tdd", "code review", "pair programming",
-    "system design", "distributed systems", "api design", "security",
-    "accessibility", "observability",
-    # security operations
-    "siem", "soc", "soar", "edr", "xdr", "splunk", "qradar", "sentinel",
-    "crowdstrike", "carbon black", "incident response", "threat hunting",
-    "threat intelligence", "malware analysis", "digital forensics",
-    "intrusion detection", "firewall", "dlp", "casb", "honeypot",
-    "mitre att&ck", "kill chain", "tabletop exercise",
-    # offensive and assessment
-    "penetration testing", "vulnerability management", "vulnerability scanning",
-    "nessus", "qualys", "rapid7", "burp suite", "metasploit", "wireshark",
-    "nmap", "red team", "blue team", "purple team", "osint",
-    # identity
-    "iam", "sso", "mfa", "okta", "active directory", "ldap", "saml", "oauth",
-    "privileged access", "zero trust", "least privilege", "rbac",
-    # governance, risk and compliance
-    "grc", "risk assessment", "risk register", "risk management",
-    "internal audit", "compliance", "control testing", "gap analysis",
-    "third party risk", "vendor risk", "business continuity",
-    "disaster recovery", "security awareness", "policy development",
-    "security architecture", "data privacy", "incident management",
-    # frameworks and standards
-    "nist", "nist csf", "nist 800-53", "iso 27001", "soc 2", "soc2",
-    "pci dss", "hipaa", "gdpr", "ccpa", "fedramp", "cmmc", "sox", "ferpa",
-    "glba", "cis controls", "cobit", "itil", "fair",
-    # certifications
-    "cissp", "cisa", "cism", "crisc", "security+", "gsec", "gcih", "oscp",
-    "ceh", "ccsp", "cgeit",
-    # cloud security
-    "cloud security", "cspm", "cwpp", "container security", "devsecops",
-    "secrets management", "vault", "encryption", "pki", "key management",
-)
+# Skills worth matching on, by field. Deliberately a list rather than "every
+# capitalised word": the second approach matches company names, city names
+# and the word "Agile" in a sentence about culture, and scores everything the
+# same.
+#
+# Grouped because a word is a skill in one field and plain English in
+# another: "go", "rest" and "spring" are a programmer's, and a nurse's advert
+# says "rest breaks" and "go up stairs". So an advert's terms count only from
+# the fields your resume is in (`near`): a nurse is not marked down for an
+# advert's "rest", and a programmer for its "patient care". Tech is one
+# field, as it was before the others were added, so a tech resume is scored
+# as it always was.
+FIELDS: dict[str, tuple[str, ...]] = {
+    "technology": (
+        # languages
+        "python", "java", "javascript", "typescript", "go", "golang", "rust",
+        "ruby", "php", "c++", "c#", "scala", "kotlin", "swift", "elixir", "perl",
+        "r", "matlab", "bash", "shell", "sql", "html", "css",
+        # web and app frameworks
+        "react", "angular", "vue", "svelte", "next.js", "node", "node.js",
+        "django", "flask", "fastapi", "rails", "spring", "spring boot", ".net",
+        "express", "laravel", "graphql", "rest", "grpc",
+        # data
+        "postgres", "postgresql", "mysql", "mongodb", "redis", "elasticsearch",
+        "cassandra", "dynamodb", "snowflake", "bigquery", "redshift", "databricks",
+        "spark", "hadoop", "kafka", "airflow", "dbt", "etl", "pandas", "numpy",
+        "tableau", "power bi", "looker",
+        # ml
+        "machine learning", "deep learning", "pytorch", "tensorflow",
+        "scikit-learn", "nlp", "llm", "computer vision", "mlops",
+        # infra
+        "aws", "azure", "gcp", "kubernetes", "docker", "terraform", "ansible",
+        "jenkins", "gitlab", "github actions", "ci/cd", "linux", "nginx",
+        "microservices", "serverless", "lambda", "prometheus", "grafana",
+        "datadog", "helm", "argocd", "help desk", "technical support",
+        "jira", "confluence",
+        # practice
+        "agile", "scrum", "kanban", "tdd", "code review", "pair programming",
+        "system design", "distributed systems", "api design", "security",
+        "accessibility", "observability",
+        # security operations
+        "siem", "soc", "soar", "edr", "xdr", "splunk", "qradar", "sentinel",
+        "crowdstrike", "carbon black", "incident response", "threat hunting",
+        "threat intelligence", "malware analysis", "digital forensics",
+        "intrusion detection", "firewall", "dlp", "casb", "honeypot",
+        "mitre att&ck", "kill chain", "tabletop exercise",
+        # offensive and assessment
+        "penetration testing", "vulnerability management", "vulnerability scanning",
+        "nessus", "qualys", "rapid7", "burp suite", "metasploit", "wireshark",
+        "nmap", "red team", "blue team", "purple team", "osint",
+        # identity
+        "iam", "sso", "mfa", "okta", "active directory", "ldap", "saml", "oauth",
+        "privileged access", "zero trust", "least privilege", "rbac",
+        # governance, risk and compliance
+        "grc", "risk assessment", "risk register", "risk management",
+        "internal audit", "compliance", "control testing", "gap analysis",
+        "third party risk", "vendor risk", "business continuity",
+        "disaster recovery", "security awareness", "policy development",
+        "security architecture", "data privacy", "incident management",
+        # frameworks and standards
+        "nist", "nist csf", "nist 800-53", "iso 27001", "soc 2", "soc2",
+        "pci dss", "hipaa", "gdpr", "ccpa", "fedramp", "cmmc", "sox", "ferpa",
+        "glba", "cis controls", "cobit", "itil", "fair",
+        # certifications
+        "cissp", "cisa", "cism", "crisc", "security+", "gsec", "gcih", "oscp",
+        "ceh", "ccsp", "cgeit",
+        # cloud security
+        "cloud security", "cspm", "cwpp", "container security", "devsecops",
+        "secrets management", "vault", "encryption", "pki", "key management",
+    ),
+    "healthcare": (
+        # care
+        "patient care", "patient assessment", "vital signs", "medication administration",
+        "iv therapy", "iv insertion", "phlebotomy", "wound care", "triage", "telemetry",
+        "critical care", "intensive care", "icu", "emergency department",
+        "med-surg", "medical-surgical", "labor and delivery", "postpartum",
+        "pediatrics", "neonatal", "nicu", "oncology", "geriatrics", "hospice",
+        "home health", "behavioral health", "mental health", "case management",
+        "discharge planning", "care planning", "care coordination",
+        "infection control", "patient education", "charting", "dialysis",
+        "ventilator management", "ekg", "ecg", "specimen collection",
+        "sterile technique", "aseptic technique", "medical terminology",
+        "physical therapy", "occupational therapy", "respiratory therapy",
+        "speech therapy", "radiology", "ultrasound", "mri", "x-ray",
+        "surgical technology", "operating room", "perioperative", "anesthesia",
+        "activities of daily living", "fall prevention", "hipaa",
+        # records and systems
+        "electronic health records", "ehr", "emr", "epic", "cerner", "meditech",
+        "pyxis", "omnicell", "athenahealth", "eclinicalworks",
+        # credentials asked for as skills
+        "rn", "lpn", "lvn", "cna", "bsn", "msn", "acls", "bls", "pals", "nrp",
+        "tncc", "cpr", "ccrn", "cen",
+        # pharmacy
+        "pharmacy", "dispensing", "compounding", "medication reconciliation",
+        "pharmacology", "controlled substances", "prescription processing",
+        # administration and billing
+        "medical billing", "medical coding", "icd-10", "cpt", "hcpcs",
+        "revenue cycle", "prior authorization", "insurance verification",
+        "patient scheduling", "patient registration", "medical records",
+    ),
+    "finance": (
+        "accounts payable", "accounts receivable", "general ledger",
+        "account reconciliation", "bank reconciliation", "reconciliation",
+        "month-end close", "year-end close", "journal entries", "accruals",
+        "fixed assets", "financial reporting", "financial statements",
+        "financial analysis", "financial modeling", "forecasting", "budgeting",
+        "variance analysis", "gaap", "ifrs", "audit", "internal controls", "sox",
+        "tax preparation", "tax compliance", "payroll", "invoicing", "billing",
+        "cost accounting", "fp&a", "treasury", "cash management",
+        "quickbooks", "netsuite", "xero", "oracle financials", "sap", "excel",
+        "pivot tables", "vlookup", "cpa", "cma", "cfa",
+        # banking and insurance
+        "underwriting", "credit analysis", "credit risk", "loan origination",
+        "loan processing", "mortgage", "kyc", "aml", "anti-money laundering",
+        "bsa", "fraud prevention", "wealth management", "portfolio management",
+        "risk management", "claims processing", "claims adjusting", "actuarial",
+        "teller", "cash handling", "branch operations", "finra", "series 7",
+        "series 63", "series 66", "property and casualty", "life and health",
+    ),
+    "sales and marketing": (
+        "salesforce", "hubspot", "crm", "lead generation", "prospecting",
+        "cold calling", "account management", "business development",
+        "pipeline management", "quota", "negotiation", "b2b", "b2c",
+        "seo", "sem", "ppc", "google ads", "google analytics",
+        "social media marketing", "content marketing", "email marketing",
+        "marketing automation", "marketo", "copywriting", "brand management",
+        "market research", "campaign management", "upselling",
+    ),
+    "customer service": (
+        "customer service", "customer support", "call center", "contact center",
+        "inbound calls", "outbound calls", "zendesk", "ticketing", "live chat",
+        "de-escalation", "complaint resolution", "customer retention", "bpo",
+        "csat", "nps", "first call resolution", "average handle time",
+        "help desk", "technical support", "upselling", "crm",
+    ),
+    "retail and hospitality": (
+        "point of sale", "pos", "cash handling", "merchandising",
+        "visual merchandising", "inventory management", "stocking",
+        "loss prevention", "store operations", "customer service",
+        "food safety", "servsafe", "food handler", "food preparation",
+        "line cook", "front of house", "back of house", "guest services",
+        "front desk", "housekeeping", "reservations", "opera pms", "banquets",
+        "bartending", "barista", "upselling",
+    ),
+    "logistics": (
+        "warehouse", "forklift", "pallet jack", "reach truck", "order picking",
+        "picking and packing", "shipping and receiving", "inventory control",
+        "inventory management", "cycle counting", "rf scanner", "wms",
+        "warehouse management system", "supply chain", "procurement",
+        "purchasing", "sourcing", "vendor management", "logistics", "freight",
+        "dispatch", "route planning", "fleet management", "cdl", "class a cdl",
+        "dot regulations", "hazmat", "last mile", "3pl", "customs",
+        "demand planning", "s&op", "erp", "sap", "lean", "six sigma", "kaizen", "5s",
+    ),
+    "manufacturing and trades": (
+        "cnc", "machining", "blueprint reading", "gd&t", "quality control",
+        "quality assurance", "iso 9001", "lean manufacturing", "lean",
+        "six sigma", "kaizen", "5s", "preventive maintenance", "plc", "hvac",
+        "electrical", "welding", "mig welding", "tig welding", "plumbing",
+        "carpentry", "osha", "osha 10", "osha 30", "lockout/tagout",
+        "power tools", "assembly", "production line", "autocad", "solidworks",
+        "hydraulics", "pneumatics", "troubleshooting", "multimeter", "forklift",
+    ),
+    "construction and engineering": (
+        "construction management", "estimating", "primavera p6", "procore",
+        "bluebeam", "site supervision", "civil engineering",
+        "structural engineering", "mechanical engineering",
+        "electrical engineering", "revit", "autocad", "solidworks", "surveying",
+        "permitting", "building codes", "osha", "osha 10", "osha 30",
+        "project management", "scheduling",
+    ),
+    "education": (
+        "lesson planning", "curriculum development", "classroom management",
+        "differentiated instruction", "special education", "iep", "esl",
+        "tesol", "tefl", "student assessment", "google classroom", "canvas",
+        "blackboard", "tutoring", "early childhood education",
+        "instructional design", "e-learning", "articulate storyline", "cpr",
+    ),
+    "human resources": (
+        "recruiting", "talent acquisition", "sourcing", "onboarding",
+        "employee relations", "benefits administration", "payroll", "hris",
+        "workday", "adp", "successfactors", "performance management",
+        "compensation", "labor law", "shrm-cp", "phr", "applicant tracking",
+    ),
+    "legal": (
+        "legal research", "contract review", "contract drafting", "litigation",
+        "e-discovery", "westlaw", "lexisnexis", "paralegal",
+        "regulatory compliance", "due diligence", "corporate law",
+        "intellectual property",
+    ),
+    "office and business": (
+        "data entry", "microsoft office", "excel", "powerpoint", "outlook",
+        "google workspace", "calendar management", "scheduling", "bookkeeping",
+        "filing", "records management", "travel arrangements", "transcription",
+        "project management", "pmp", "stakeholder management", "jira",
+        "confluence", "product management", "requirements gathering",
+        "business analysis", "process improvement", "change management",
+        "data analysis", "tableau", "power bi",
+    ),
+}
+
+# Terms that say nothing about which field a resume is in: plain words in
+# most fields ("go", "rest", "security", "scheduling"), or asked for in every
+# field (Excel, customer service, HIPAA, SOX). They still match inside the
+# fields a resume is found to be in; they only never put it in one.
+WEAK = frozenset((
+    "go", "r", "rest", "spring", "express", "lambda", "vault", "fair",
+    "sentinel", "soc", "node", "shell", "security", "compliance", "agile",
+    "scrum", "kanban", "accessibility", "risk assessment", "risk management",
+    "policy development", "data privacy", "hipaa", "gdpr", "sox", "encryption",
+    "firewall", "triage", "telemetry", "charting", "cpr", "audit", "billing",
+    "invoicing", "payroll", "forecasting", "budgeting", "excel", "sap", "erp",
+    "crm", "pos", "lean", "six sigma", "kaizen", "5s", "osha", "quota",
+    "negotiation", "b2b", "b2c", "upselling", "customer service",
+    "inventory management", "stocking", "warehouse", "logistics", "dispatch",
+    "sourcing", "purchasing", "onboarding", "compensation", "workday", "adp",
+    "canvas", "blackboard", "scheduling", "filing", "microsoft office",
+    "powerpoint", "outlook", "project management", "stakeholder management",
+    "process improvement", "change management", "data analysis", "jira",
+    "confluence", "tableau", "power bi", "assembly", "electrical",
+    "troubleshooting", "reconciliation", "cash handling", "epic",
+))
+
+# Every term, each once, in the order above.
+SKILL_TERMS = tuple(dict.fromkeys(t for terms in FIELDS.values() for t in terms))
 
 # How a skill is written for a person to read. Matching stays on the lower
 # case terms above; anything not named here reads in sentence case, which is
@@ -119,6 +286,42 @@ SKILL_NAMES = {
     "cgeit": "CGEIT", "cspm": "CSPM", "cwpp": "CWPP", "devsecops": "DevSecOps",
     "pki": "PKI", "c++": "C++", "c#": "C#", "r": "R",
     "spring boot": "Spring Boot", "carbon black": "Carbon Black",
+    "power bi": "Power BI", "jira": "Jira",
+    # healthcare
+    "iv therapy": "IV therapy", "iv insertion": "IV insertion", "icu": "ICU",
+    "nicu": "NICU", "med-surg": "Med-surg", "ekg": "EKG", "ecg": "ECG",
+    "mri": "MRI", "x-ray": "X-ray", "ehr": "EHR", "emr": "EMR", "rn": "RN",
+    "lpn": "LPN", "lvn": "LVN", "cna": "CNA", "bsn": "BSN", "msn": "MSN",
+    "acls": "ACLS", "bls": "BLS", "pals": "PALS", "nrp": "NRP", "tncc": "TNCC",
+    "cpr": "CPR", "ccrn": "CCRN", "cen": "CEN", "icd-10": "ICD-10", "cpt": "CPT",
+    "hcpcs": "HCPCS", "eclinicalworks": "eClinicalWorks", "athenahealth": "athenahealth",
+    # finance
+    "gaap": "GAAP", "ifrs": "IFRS", "fp&a": "FP&A", "quickbooks": "QuickBooks",
+    "netsuite": "NetSuite", "oracle financials": "Oracle Financials", "sap": "SAP",
+    "vlookup": "VLOOKUP", "cpa": "CPA", "cma": "CMA", "cfa": "CFA", "kyc": "KYC",
+    "aml": "AML", "bsa": "BSA", "finra": "FINRA", "series 7": "Series 7",
+    "series 63": "Series 63", "series 66": "Series 66",
+    # sales, service, retail
+    "hubspot": "HubSpot", "crm": "CRM", "b2b": "B2B", "b2c": "B2C", "seo": "SEO",
+    "sem": "SEM", "ppc": "PPC", "google ads": "Google Ads",
+    "google analytics": "Google Analytics", "bpo": "BPO", "csat": "CSAT",
+    "nps": "NPS", "pos": "POS", "servsafe": "ServSafe", "opera pms": "Opera PMS",
+    # logistics, trades, construction
+    "wms": "WMS", "rf scanner": "RF scanner", "cdl": "CDL", "class a cdl": "Class A CDL",
+    "dot regulations": "DOT regulations", "3pl": "3PL", "s&op": "S&OP",
+    "erp": "ERP", "5s": "5S", "cnc": "CNC", "gd&t": "GD&T", "iso 9001": "ISO 9001",
+    "plc": "PLC", "hvac": "HVAC", "mig welding": "MIG welding",
+    "tig welding": "TIG welding", "osha": "OSHA", "osha 10": "OSHA 10",
+    "osha 30": "OSHA 30", "lockout/tagout": "Lockout/tagout", "autocad": "AutoCAD",
+    "solidworks": "SolidWorks", "primavera p6": "Primavera P6",
+    # education, HR, legal, office
+    "iep": "IEP", "esl": "ESL", "tesol": "TESOL", "tefl": "TEFL",
+    "google classroom": "Google Classroom", "articulate storyline": "Articulate Storyline",
+    "e-learning": "E-learning", "hris": "HRIS", "adp": "ADP",
+    "successfactors": "SuccessFactors", "shrm-cp": "SHRM-CP", "phr": "PHR",
+    "e-discovery": "E-discovery", "lexisnexis": "LexisNexis",
+    "microsoft office": "Microsoft Office", "powerpoint": "PowerPoint",
+    "google workspace": "Google Workspace", "pmp": "PMP",
 }
 
 
@@ -268,18 +471,67 @@ def load(path: str) -> Resume:
     else:
         raise ResumeError(f"{p}: unsupported format {suffix!r}. Use .docx, .md or .txt.")
 
-    return Resume(path=str(p), text=text, skills=extract_skills(text))
+    return Resume(path=str(p), text=text, skills=resume_skills(text))
+
+
+# Terms that are a skill only in capitals, matched as written: FAIR the risk
+# model and not "fair chance hiring" (219 of 2,251 stored adverts counted it
+# missing, 2026-10-23), REST and not "rest breaks", POS and not "pos".
+CASED = {"fair": "FAIR", "rest": "REST", "soc": "SOC", "r": "R", "pos": "POS",
+         "cen": "CEN"}
+
+# Compiled once: there are more terms than re's own cache holds, so compiling
+# per call would compile every one of them for every advert in a scan.
+_TERM_PATTERNS = tuple(
+    (term, re.compile(r"(?<![A-Za-z0-9])" + re.escape(CASED[term]) + r"(?![A-Za-z0-9])")
+     if term in CASED else
+     re.compile(r"(?<![a-z0-9])" + re.escape(term) + r"(?![a-z0-9])"))
+    for term in SKILL_TERMS)
+# Which fields each term belongs to.
+_TERM_FIELDS: dict[str, set[str]] = {}
+for _name, _terms in FIELDS.items():
+    for _term in _terms:
+        _TERM_FIELDS.setdefault(_term, set()).add(_name)
 
 
 def extract_skills(text: str) -> set[str]:
     """Which known skill terms appear, matched on word boundaries."""
-    low = (text or "").lower()
-    found = set()
-    for term in SKILL_TERMS:
-        pattern = r"(?<![a-z0-9])" + re.escape(term) + r"(?![a-z0-9])"
-        if re.search(pattern, low):
-            found.add(term)
-    return found
+    text = text or ""
+    low = text.lower()
+    # `term in low` first: a plain substring test, far cheaper than the
+    # pattern, rules out nearly every term for any one advert.
+    return {term for term, pattern in _TERM_PATTERNS
+            if term in low and pattern.search(text if term in CASED else low)}
+
+
+def fields_of(skills: set[str]) -> set[str]:
+    """The fields a resume is in: those it names two or more skills of that
+    are not WEAK. One passing mention ("built a patient care app") does not
+    make a programmer's resume a nurse's. When no field has two, every field
+    with one."""
+    counts: dict[str, int] = {}
+    for term in skills - WEAK:
+        for name in _TERM_FIELDS.get(term, ()):
+            counts[name] = counts.get(name, 0) + 1
+    strong = {name for name, n in counts.items() if n >= 2}
+    return strong or set(counts)
+
+
+def near(have: set[str], wanted: set[str]) -> set[str]:
+    """Of the skills an advert names, the ones in this resume's fields. A
+    resume in no field yet (no skill found, or only weak ones) counts every
+    one, as before fields existed."""
+    fields = fields_of(have)
+    if not fields:
+        return set(wanted)
+    return {t for t in wanted if _TERM_FIELDS.get(t, set()) & fields}
+
+
+def resume_skills(text: str) -> set[str]:
+    """A resume's skills: the terms it names, kept to its own fields, so a
+    nurse's "go-to preceptor" is not the programming language Go."""
+    found = extract_skills(text)
+    return near(found, found)
 
 
 def years_claimed(text: str) -> int:
@@ -323,7 +575,7 @@ def fit(resume: Resume, description: str, title: str = "") -> Fit:
     if not resume.loaded or not description:
         return Fit()
 
-    wanted = extract_skills(f"{title}\n{description}")
+    wanted = near(resume.skills, extract_skills(f"{title}\n{description}"))
     if not wanted:
         return Fit()
 

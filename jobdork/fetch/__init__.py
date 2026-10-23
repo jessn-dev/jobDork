@@ -92,6 +92,8 @@ def get(name: str) -> Callable | None:
 # Import for side effects: each module registers itself.
 from . import (  # noqa: E402,F401
     adzuna,
+    arbeitnow,
+    arbeitsagentur,
     ashby,
     breezy,
     eightfold,

@@ -1366,17 +1366,24 @@ def test_a_key_is_checked_and_tried_before_it_is_saved():
                     "refused")
             assert len(tried) == 1 and not held.exists()
 
-            # One it cannot be asked about is saved, and the note says so.
+            # One it cannot be asked about is not saved either: only a key
+            # the source accepted is kept (2026-10-23).
             answer["verdict"] = ("unknown", "USAJOBS could not be asked (timed out)")
-            note = api.setup_keys(cfg, {"USAJOBS_API_KEY": "abc=",
-                                        "USAJOBS_EMAIL": "me@example.com"})
-            assert note.startswith("Saved, but not tried") and "abc=" not in note
+            refused({"USAJOBS_API_KEY": "abc=", "USAJOBS_EMAIL": "me@example.com"},
+                    "could not be tested")
+            assert not held.exists()
+
+            # One it accepts is saved.
+            answer["verdict"] = ("ok", "")
+            assert api.setup_keys(cfg, {"USAJOBS_API_KEY": "abc=",
+                                        "USAJOBS_EMAIL": "me@example.com"}) == \
+                "Tested: USAJOBS accepted the key, and it is saved."
             assert "USAJOBS_API_KEY=abc=" in held.read_text()
 
             # Removing asks nothing of anyone.
             assert api.setup_keys(cfg, {"remove": True, "USAJOBS_API_KEY": "",
                                         "USAJOBS_EMAIL": ""}) == ""
-            assert len(tried) == 2
+            assert len(tried) == 3
     finally:
         api.try_source_keys = saved_try
         for n, v in saved.items():

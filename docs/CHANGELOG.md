@@ -6,6 +6,437 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-23 — Update from the app: download, check, install
+
+- **Settings → Updates** says which version you have and whether a newer one
+  is out, with **Check now** (asks GitHub at once, whatever the daily
+  check's timing) and the daily check switched by a button, **Turn off the
+  daily check** / **Turn on**, instead of a checkbox.
+- **Update to 0.x.y**, in the desktop app on macOS (Apple Silicon) and
+  Windows: downloads that release's installer for this computer from the
+  project's own GitHub release downloads (nothing else is fetched) into
+  Downloads, checks it against the release's `SHA256SUMS.txt`, deletes it if
+  it does not match, and opens it: the Windows installer replaces the app,
+  the Mac disk image opens for the new app to be dragged into Applications.
+  It runs as a job, with its progress under the Dashboard's log
+  (`updates.download_installer`, `POST /api/update/install`). Elsewhere (pip,
+  Linux, Docker) the section says how to update that copy and links the
+  release page.
+- The Dashboard's banner for a new version now has **Update**, which opens
+  Settings, and the first time a version is seen, a notification says so,
+  once (`updates.first_notice`).
+- tests/test_notify.py: the checksum match and mismatch, downloads only from
+  this repository's releases, Check now, the once-only notice.
+
+## Added — 2026-10-23 — Notifications, with a bell
+
+- **Your computer's own notifications** (`core/notify.py`) when a scan finds
+  new job posts (one you start or a scheduled one: "3 new job posts. The
+  scheduled scan found 3 new job posts (40 kept in all)"), when a scan fails,
+  and when a newer jobdork is out. Never for a scan that found nothing new.
+  - **macOS**: Notification Center. The desktop app posts as itself through
+    the system's notification framework (UserNotifications, a new macOS
+    dependency of the `app` extra, carried by the build and checked by its
+    self-test), after macOS asks once for permission; run any other way,
+    through `osascript`. Sound: "Glass", a bell. Checked on this Mac: a test
+    notification appeared, with its sound.
+  - **Windows**: a toast in the Action Center under jobdork's name: the
+    installer gives the Start menu and desktop shortcuts the app's
+    AppUserModelID (`io.github.jessn-dev.jobdork`), which is how Windows ties
+    a toast to an app; the toast's text goes to PowerShell through the
+    environment, not the script. Not tried on Windows yet.
+  - **Linux**: `notify-send`, with the bell sound hint.
+  - **Docker**: no desktop, so the page shows a notice and rings a bell made
+    in the browser (Web Audio, nothing loaded) while it is open.
+- **Settings → Notifications**: on or off, sound on or off, and **Send a
+  test notification**. `notifications: {enabled, sound}` in config.yaml
+  (docs/CONFIG.md); `JOBDORK_NOTIFY=off` turns them off for a run, and the
+  tests set it, so no test pops anything up. A notification that fails is
+  logged and never fails a scan.
+- PRIVACY.md and the Windows installer's privacy page say so.
+  tests/test_notify.py (each system's command, escaping, the settings, a
+  failing command), tests/test_serve.py.
+
+## Changed — 2026-10-23 — A Settings page, behind a gear where Dark mode was
+
+- **Settings**, at the bottom of the menu with a gear icon, replaces the Dark
+  mode switch there, and holds what is about how jobdork runs rather than
+  what you are looking for:
+  - **Appearance**: Dark mode.
+  - **Schedule a run** (was the Dashboard's "Scan by itself"), with **Run a
+    scan now** beside it.
+  - **Notifications** and **Updates** (above).
+  - **Built-in employer boards**: how many a scan reads, and **Turn off** /
+    **Turn on**; industries and single boards stay on the Sources page,
+    which it links.
+  - **Where your files are** and **Clean up job posts**, moved from the
+    Dashboard, which is now the runs and their numbers.
+- Checked in headless Chrome on a copy (the browser extension was not
+  connected): every section draws, the sound button wrote
+  `notifications.sound: false` and changed its label, and the Sources link
+  opens Sources. README, PRIVACY.md, docs/CONFIG.md and docs/DEPLOY.md name
+  the new places.
+
+## Changed — 2026-10-23 — Adzuna and USAJOBS keys are saved only once they work
+
+- **A key is kept only when the source accepted it.** Saving already tried
+  each key with one search and refused a key the source refused; a key it
+  could not be asked about (offline, the service down) was saved with "Saved,
+  but not tried". Now that is refused too: "Not saved: USAJOBS could not be
+  asked (timed out), so the key could not be tested. Try again when it
+  answers" (HTTP 503), so a key that does not work never sits in the keys
+  file. A key that works says "Tested: USAJOBS accepted the key, and it is
+  saved." In setup and on the Sources page alike (`api.setup_keys`).
+  tests/test_core.py.
+
+## Added — 2026-10-23 — Up to six AI readers, each taking over when the one before cannot answer
+
+- **`llm.readers`**: the AI readers in the order they are asked, up to six,
+  each a provider and model (and for Ollama its own address, if not the
+  usual one). The same provider can be listed again with another model, not
+  the same model twice. A config from before, with one `provider` and
+  `model`, is that one reader, and the first reader is always also written
+  as `provider` and `model`, so an older jobdork still reads it.
+- **Fallback, at every model call** (`llm.complete_json`): the first reader
+  that is ready (a key held, a model chosen) is asked; when it cannot answer
+  (not reachable, rate limited, a refused key, an error) the next is, in
+  order. What it produced is recorded under the reader that answered, so a
+  verdict or letter names the model that wrote it. When none can, the error
+  lists each reader's reason. The second model, which checks the first's
+  claims, is unchanged and separate.
+- **The AI page lists them as cards**, one per reader, each with its
+  provider, Ollama address or key, and model list; **Add another reader**
+  below, **Earlier** to move one up, **Remove**. A key is per provider, so
+  two readers on Claude share one. **Save and test** asks each reader on its
+  own and says which answered and how fast, and which could not and why.
+- **Setup's AI step** shows one reader and **Add another reader**, up to
+  three there; the AI page allows six. The server holds to both (400 "at
+  most 3 AI readers in setup; add more later on the AI page").
+- Checked over HTTP on a copy (the browser extension was not connected): the
+  existing config read as one reader, two Ollama readers saved and read
+  back. Not yet seen in a browser. tests/test_readers.py (fallback, order,
+  limits, the old form), docs/CONFIG.md, config.example.yaml, README.
+
+## Added — 2026-10-23 — The version check can be switched off in the app, and the installer says what goes where
+
+SignPath Foundation's terms ask that software which goes on the network by
+itself shows its privacy policy when installed and lets you turn that off.
+jobdork's one such request is the daily version check, which only an
+environment variable could stop.
+
+- **"Updates" on the Dashboard**: a box, ticked by default, "Check once a
+  day whether a newer jobdork is out". Unticking it writes
+  `update_check: false` to config.yaml (new setting, docs/CONFIG.md) and the
+  check asks nothing; ticking it again checks at once. When
+  `JOBDORK_UPDATE_CHECK=off` is set, the box is unticked and greyed, and says
+  the environment wins. Saving it starts no scan or re-screen.
+- **The Windows installer shows a privacy page before installing**
+  (`packaging/privacy.txt`, Inno Setup's `InfoBeforeFile`): what jobdork
+  keeps and where, what it sends where and when, the version check and how to
+  turn it off, what an uninstall leaves, and a link to PRIVACY.md.
+  `.gitignore` drops every `*.txt` (the dork tool's output), so it names
+  this file as an exception; without it CI's installer build would have
+  failed on a missing file.
+- PRIVACY.md says how to turn the check off in the app. Checked over HTTP on
+  a copy (the browser extension was not connected): the card is on the page,
+  saving writes the setting, and the version check then answers without
+  asking. Not seen in a built Windows installer yet. tests/test_schedule.py,
+  tests/test_serve.py.
+
+## Added — 2026-10-23 — A privacy policy and a code signing policy
+
+For the application to SignPath Foundation's free code signing, whose terms
+ask for both, and because jobdork never said in one place what it sends where.
+
+- **[PRIVACY.md](../PRIVACY.md)**: what jobdork keeps and in which folders
+  (settings, database, backups, resume, keys file, documents, logs; AI keys in
+  memory only), how to delete it (Start over; uninstalling leaves the data
+  folder), and every place it goes on the network: job boards and employers'
+  sites (your titles and place as search terms), Adzuna and USAJOBS with your
+  keys, the AI provider you choose (adverts and your resume, under that
+  provider's policy), the Feedback relay (only on Send; a public issue, an
+  email with screenshots and your reply address, your IP kept an hour for the
+  rate limit), the once-a-day version check (`JOBDORK_UPDATE_CHECK=off`), and
+  email digests through your own Resend key. And what it does not do: no
+  analytics, accounts or tracking, the Dashboard on 127.0.0.1 behind a token,
+  no system changes beyond its folders and the optional scan schedule.
+- **"Code signing policy" in the README**, in SignPath's required wording:
+  what is signed (the Windows installer and program, built by
+  `desktop.yml` from a tag), that each release is approved by hand, the team
+  roles (committers, reviewers and approvers, with multi-factor
+  authentication), and a privacy statement linking PRIVACY.md. It says
+  signing has been applied for and the installers are unsigned until it is
+  granted. The README's documentation table and licence line link both.
+- **Release notes** (`docker.yml`) link the code signing policy and the
+  privacy policy at the release's own tag.
+
+## Added — 2026-10-23 — Europe, Australia and the Gulf: employers added and measured
+
+- **119 large employers of Europe, Australia, New Zealand and the Gulf**,
+  across industries, are in `scripts/candidates.csv` (996 candidates in
+  all), and 18 of their boards were found and verified (423 built in): ING,
+  Santander, Airbus, ASML, Vodafone, Ericsson, Lloyds Banking Group,
+  Equinor, Boots, Ocado and Delivery Hero in Europe; Telstra, Commonwealth
+  Bank, Westpac and NAB in Australia; Emaar's hotels, First Abu Dhabi Bank
+  and DP World in the Gulf. Six held back by the check for a sister
+  company's board (found deep in a site, under a name that is not the
+  employer's) were checked by hand and accepted with reasons in
+  `scripts/boards_review.csv`: DP World's adverts name DP World, Airbus's
+  Workday tenant is `ag`, Westpac's jobs are at its Barangaroo head office.
+- **The other 101 found nothing readable**: most name no board on their
+  site (Tesco, Siemens, Allianz, Woolworths, BHP, Emirates), some refuse
+  scripts (BNP Paribas, Nestlé, Qantas, Aramco), and some use systems with
+  no reader (iCIMS at AXA and Booking.com, SuccessFactors' older portal at
+  BASF and Novo Nordisk, Taleo Enterprise at Qatar Airways).
+- **Measured** with `scripts/coverage_benchmark.py`, which now has
+  `--region europe | oceania | middleeast` (and counts a title's hits in
+  any case, so German titles are counted). A fresh keyless install, four
+  titles, 50 km, jobs kept (of them not remote): London 222 (166), Berlin
+  257 (168), Madrid 172 (73), Paris 116 (53), Amsterdam 110 (58), Stockholm
+  73 (31); Sydney 159 (135), Melbourne 130 (106), Auckland 44 (10); Dubai 47
+  (16), Riyadh 43 (19), Doha 28 (6). Every city is in docs/REGIONS.md, with
+  what is left: Europe outside Germany and the Gulf above all.
+- Found on the way: Accenture's Workday board answers 429 when several
+  scans run back to back, as the benchmark's do; one scan is unaffected.
+
+## Added — 2026-10-23 — Two sources for Europe: Germany's employment agency and Arbeitnow
+
+A keyless install reached Europe through Workable, Himalayas' remote jobs and
+the multinationals on the built-in list; Adzuna only with a key.
+
+- **The Bundesagentur für Arbeit's job search** (`arbeitsagentur`):
+  Germany's largest list of jobs, searched by your titles from your place
+  with your radius in km (all of Germany when you are elsewhere). Places go
+  by their German names: "Munich" and "Cologne" found nothing, "München"
+  and "Köln" hundreds, so Munich's German-title benchmark went from 46 to
+  263 jobs. Titles in
+  German, as the adverts are ("Pflegefachkraft"). The advert is fetched for
+  the titles your filter keeps, 60 a scan at most; pay comes as a range per
+  hour, month or year in euros. The agency marks temporary staffing and
+  private placement itself, and those posts are tagged as a recruiter's
+  ("the Bundesagentur für Arbeit lists it as temporary staffing"). The
+  interface is the one its own site uses, documented by the bundesAPI
+  project; robots.txt allows it. Its v4 search answers 403 now, so the
+  search is v6 and the advert v4. Runs only when Germany is one of your
+  countries.
+- **Arbeitnow** (`arbeitnow`): a free public API of jobs in Germany, the UK,
+  France, the Netherlands, Switzerland and the rest of Europe, many in
+  English. It has no search, so the newest pages (300 jobs each, about 600
+  new a day) are read, 10 at most (about five days of jobs), one every two
+  seconds, and kept by your titles: at one a second, the benchmark's scans
+  of several cities in a row met a 429 at the fifteenth page. A bare city
+  ("Amsterdam") is given its country ("Amsterdam, Netherlands"): screening
+  places a bare city only in your own countries and keeps one it cannot
+  place, so on a first measure someone in Stockholm kept 84 of Arbeitnow's
+  143 matches, Amsterdam's and London's among them; with countries added,
+  38 (remote jobs, and ones that give no place, which are kept from every
+  source). Its terms ask for a link back: the stored link is the Arbeitnow
+  page. Runs when a European country is yours, or none is.
+- **"Still open" asks the agency**: its job page is drawn by script and says
+  nothing to a reader, so the check asks the job's own record, and a job the
+  agency no longer lists (404, `STELLENANGEBOT_NICHT_GEFUNDEN`) is closed on
+  its word. **Fetch missing adverts** reads the same record for a job kept
+  without its advert. Arbeitnow's adverts arrive whole and are not fetched
+  again.
+- Both are in the default `sources.keyless`; a config that lists its own
+  sources adds them by hand (docs/CONFIG.md).
+- Checked live, for Berlin with three titles: the agency 420 jobs (60 with
+  their adverts) in 35 seconds, Arbeitnow 221 matching jobs across Europe in
+  54. tests/test_europe.py (offline).
+- **Looked at and not built:** Remotive's public API now lists 9 jobs;
+  Working Nomads' 41; GulfTalent and Bayt close themselves to scripts;
+  Workforce Australia did not answer. Details in docs/REGIONS.md.
+
+## Added — 2026-10-23 — SAP SuccessFactors career sites are read: 37 more employers
+
+- **SuccessFactors was the largest system with no reader** (13 misses on the
+  test lists, and on a fresh probe of the 528 candidates without a board, 40
+  employers' careers pages pointed at it, 33 in the US). Most front it with
+  SAP's Career Site Builder, and the careers-site reader (`fetch/site.py`)
+  now reads those sites both ways they publish jobs:
+  - **A sitemap that is a feed.** `/sitemap.xml` is an RSS feed of every open
+    job with its title, place, closing date and whole advert (American
+    Airlines, XPO, Sephora, Colgate, ExxonMobil). Jobs are taken straight
+    from it, every one whose title matches yours: one request per employer,
+    no posting page read. A closing date past today leaves a job out.
+  - **Microdata.** Posting pages that mark the job up with `itemprop`
+    attributes instead of a JSON-LD block (Duke, JetBlue, Aflac) are read
+    into the same shape (`microdata_posting`); any careers site doing the
+    same now reads too. A site's own name as employer ("Duke Careers") is
+    trimmed to the employer's.
+  - The feed is read with patterns, as every sitemap here is, not an XML
+    parser: it comes from someone else's server (CI's code scan, bandit
+    B314, caught the first version).
+  - Not used: the same sites' `/services/rss/` search feed, which their
+    robots.txt closes. Nothing that answered with a bot challenge (SAP's own
+    jobs.sap.com) is worked around.
+- **Discover takes these as careers-site boards**: a feed sitemap is its own
+  proof, with no posting page read, and the SuccessFactors "no adapter" note
+  is no longer added beside a site board that reads it.
+- **37 boards added** (405 in all, 340 of them US): American Airlines,
+  JetBlue, Amtrak, Royal Caribbean, Wyndham; ExxonMobil, Phillips 66,
+  Westinghouse, NextEra, Dominion, DTE, Entergy; XPO, GXO; Duke and Purdue
+  universities; Aflac, Lincoln Financial; Colgate-Palmolive, Hershey,
+  McCormick, Under Armour, Sephora, Tractor Supply; AGCO, LyondellBasell,
+  Mohawk; Huntington Ingalls; Cintas, Foundever, EY, Paramount; in Canada
+  Scotiabank, Rogers, the University of Toronto; Singtel; the Hong Kong
+  Jockey Club. Tractor Supply's was held back because `tractorsupply.jobs`
+  leads to `tractorsupply.careers`; that is its own site, accepted in
+  `scripts/boards_review.csv` with the reason. Edison, NRG and Wipro use
+  only SuccessFactors' older portal, which has no public listing, and are
+  still not read.
+- Checked live: the feed gave 39 American Airlines and 54 XPO jobs for three
+  titles in one request each; microdata gave Duke 40 and JetBlue 13.
+  tests/test_site.py (offline, shapes from those sites).
+
+## Changed — 2026-10-23 — The resume's skills cover every field, not only tech
+
+- **596 skill terms in 13 fields** (`FIELDS` in `search/resume.py`), up from
+  about 250 that were all tech: healthcare (patient care, med-surg, IV
+  therapy, Epic, ACLS, BLS, medical coding…), finance and banking (month-end
+  close, reconciliation, GAAP, NetSuite, KYC, underwriting…), sales and
+  marketing, customer service, retail and hospitality, logistics (forklift,
+  RF scanner, Class A CDL…), manufacturing and trades, construction and
+  engineering, education, human resources, legal, and office and business.
+  A nurse's resume used to show almost no skills, and fit scores outside tech
+  rested on next to nothing.
+- **An advert's terms count only from the fields your resume is in**
+  (`fields_of`, `near`). A word is a skill in one field and plain English in
+  another: a nurse's advert says "rest breaks" and "able to go up stairs",
+  which were counted as REST and Go. A field is yours when your resume names
+  two of its skills that are not common to every field (`WEAK`: Excel,
+  scheduling, customer service, HIPAA…); one passing mention ("built a
+  patient care app") does not make a programmer's resume a nurse's. Your own
+  skills are kept to your fields too, so "go-to preceptor" is not the
+  language. A resume in no field yet counts every term, as before.
+- **Tech is one field**, so a tech resume scores as it did: on your own
+  resume and the 2,251 stored adverts with text, nothing it counted before
+  stopped counting; Jira and Confluence, now listed, count.
+- **FAIR, REST, SOC, R, POS and CEN match only in capitals**: "fair chance
+  employer" had counted FAIR, the risk model, as missing in 219 of those
+  2,251 adverts.
+- **Five times faster**: the patterns are compiled once (there are more of
+  them than Python's own pattern cache holds) and each is tried only when a
+  plain substring test finds the term. Scoring those 2,251 adverts took 4.3
+  seconds instead of 20.5.
+- The resume review's skills line (`ai/tools.py`) uses the same fields.
+  tests/test_skills.py.
+
+## Added — 2026-10-23 — The built-in employer boards on the Sources page
+
+- **"Built-in employer boards" on Sources** lists all 368 that come with
+  jobdork: employer, industry, countries, jobs at the last weekly check, and
+  the system it runs on, with whether this setup reads it and, when not, why
+  ("hires outside your countries", "not one of your industries", "switched
+  off"). Before, the only view was `jobdork sources` and editing
+  `sources.directory` in config.yaml by hand. A find box, and All / Read /
+  Not read.
+- **Switched there**: the whole directory on or off, the industries (each
+  with its number of boards; none ticked reads every one), and **single
+  boards**, by a new `sources.directory.skip`, a list of employer names, for
+  one that keeps listing jobs you never want (`directory.select`,
+  `directory.why_not`, `GET /api/directory`, `setup.rewrite`).
+- **Boards newly read start a scan**, as an added title does: a save is
+  compared by the boards it reads (`serve.search_changes`), so switching the
+  directory on, clearing the industries back to every one or reading a
+  skipped board again all scan for them. Before, only an industry added
+  counted, and clearing the list read every industry without a scan.
+- Checked in a browser on a copy: 191 of 368 read for its settings;
+  switching Boeing off wrote `skip: [Boeing]`, made it 190, and started no
+  scan. tests/test_directory.py, tests/test_serve.py.
+
+## Security — 2026-10-23 — A newer Python base image
+
+- **Both `FROM` lines in the Dockerfile** move to the current
+  `python:3.14-alpine` (`sha256:601e99e0…`, read from Docker Hub today),
+  newer than the one Dependabot's pull request #22 proposed on 2026-10-14,
+  which therefore supersedes it (#22 closed). Not built here (Docker is not running on
+  this machine); CI's `image` job builds it and runs the suite in it.
+
+## Added — 2026-10-23 — The desktop app asks before closing mid-scan
+
+- **Closing the window while a scan or another job runs asks first**: "Scan
+  is still running. Closing jobdork stops it, and what it has not saved yet
+  is lost", with **Close anyway** and Cancel. The red button, Ctrl-F4 and
+  Cmd-Q all ask; with nothing running, the window closes at once as before.
+  The server hands the app a `busy()` along with its address
+  (`serve(on_ready=…)`), and the window's `closing` handler only decides
+  whether pywebview asks and what it says (`app.ask_before_closing`): a
+  dialog shown from inside that handler would wait on the main thread it is
+  running on. tests/test_app.py. Not tried on Windows.
+
+## Added — 2026-10-23 — Where your files are, on the Dashboard
+
+- **A "Where your files are" card** lists the folders worth knowing about:
+  settings and data (config, keys file, database, resume), backups (made
+  before every delete), logs, and letters and resumes. Before, the desktop
+  app's folder was named only in the README. Each has **Open**, which shows
+  it in Finder, Explorer or the file manager (`/api/folders`,
+  `/api/folders/open`). Only the four, by name: the page cannot ask for any
+  other path. Open is offered only when the server is on the machine the
+  page is on: not in a container, and not when `JOBDORK_ALLOW_HOSTS` opens
+  the dashboard to other machines, where it would open a window on the NAS.
+  A folder nothing has been written to yet says so. tests/test_serve.py.
+
+## Added — 2026-10-23 — The Dashboard says when a newer version is out
+
+- **A banner at the top**, "jobdork 0.14.4 is out. You have 0.14.3", with a
+  link to the release and what to do for this install: the installer for the
+  desktop app, the image tag for Docker, `git pull` and `pip install -e .`
+  for a clone. **Not now** hides it until the next release.
+- **`core/updates.py`** asks GitHub's releases API for the latest release, at
+  most once a day (kept in `version-check.json` beside the database), and only
+  when the page asks: never at start, so an offline start waits for nothing.
+  Pre-releases are ignored, and a copy with no version (a clone never
+  installed) asks nothing. What is sent is the request itself and a
+  User-Agent naming jobdork and its version. `JOBDORK_UPDATE_CHECK=off` turns
+  it off (docs/CONFIG.md); `tests/conftest.py` and `tests/run_all.py` turn it
+  off for every test. tests/test_schedule.py. Checked in a browser on a copy
+  with a stored answer, so nothing went online: the banner shows, and Not now
+  keeps it away after a reload.
+
+## Added — 2026-10-23 — Scans that run by themselves; one scan at a time
+
+- **"Scan by itself" on the Dashboard**: never, every day, every weekday, or
+  once a week, at a time you pick. It is written into the computer's own
+  scheduler (`core/schedule.py`), so it runs whether or not jobdork is open:
+  a LaunchAgent on macOS (a time missed while the Mac slept runs when it
+  wakes), a Task Scheduler task on Windows, made from XML so it can say "run
+  a missed time when the PC is next on" and "on battery too", which
+  `schtasks /Create` alone cannot, and a crontab line on Linux. The scheduler
+  is the only record: the card reads back what is there, so an entry removed
+  by hand reads as off, one set by hand reads as "other", and one that starts
+  another copy of jobdork (the app moved, a second install) says to save
+  again. In a container the card says to schedule `docker exec` on the host
+  instead (docs/DEPLOY.md).
+- **It starts this install, not a path inside it.** The dork tool's `--cron`
+  writes `sys.executable` and `generator.py`, which in the desktop app is a
+  file inside the app that nothing can run. The schedule runs the app's own
+  program with `--scan` (`app.scheduled_scan`: a scan in the app's folder, no
+  window), or `python -m jobdork -c <config> scan --scheduled` (pythonw on
+  Windows, so no console window opens at 8 a.m.).
+- **`scan --scheduled`**: no progress lines, output to
+  `logs/scheduled-scan.log` beside the config (in the data folder in a
+  container), kept to about 512 KB by dropping its older half; listed under
+  All runs as from the "schedule". It does nothing, and says why, before
+  setup has given it titles.
+- **Only one scan at a time, across processes.** The dashboard already ran
+  one job at a time, but a scan from a terminal or the schedule is another
+  process, and two at once double every request to hosts that are paced on
+  purpose. `scan.run` now holds an operating-system lock on `scan.lock`
+  beside the database (`flock`, or `msvcrt.locking` on Windows), which the
+  system lets go of however the process ends, so a crashed scan cannot leave
+  the next one refused. A second scan stops with "another scan is already
+  running": `jobdork scan` exits 3, a scheduled one steps aside and exits 0,
+  and its run says "not started: another scan was running".
+- Checked on this Mac: launchd loaded the entry and `launchctl print` showed
+  its times and paths; a `kickstart` ran `scan --scheduled` from the repository
+  while another process held the scan lock, and it logged the refusal and was
+  listed from the "schedule"; then removed. In a browser on a copy: Save
+  wrote a weekly entry, a reload read it back, Off removed it. Not tried on
+  Windows or Linux. tests/test_schedule.py (with every scheduler given a
+  stand-in, so the suite installs nothing), tests/test_serve.py.
+
 ## Added — 2026-10-23 — Warnings and errors lists every error the app meets
 
 So that whatever goes wrong can be reported from the Feedback page, which
@@ -4804,12 +5235,10 @@ open; a digest arrives, and what arrived with it is what was not there before.
   Inno Setup script and WebView2 are untried until it does), then the
   installer tried on a Windows machine; the release notes' steps past the
   unsigned warnings tried on a downloaded (quarantined) copy; `hdiutil` says its `create` and
-  `attach` options are deprecated on this macOS (still work); "a newer version exists" at start; scheduled scans
-  that call the app rather than a Python path (`dork/generator.py` writes
-  `sys.executable` + `generator.py` into crontab and Task Scheduler); a way
-  to see the app's folder from the dashboard (backups are written to
-  `data/backups` inside it); asking before closing the window mid-scan; the
-  Feedback page's Send tried in a browser against the live relay.
+  `attach` options are deprecated on this macOS (still work); the scan
+  schedule's Task Scheduler entry and the close-mid-scan question tried on
+  Windows, and the crontab line on Linux; the Feedback page's Send tried in a
+  browser against the live relay.
 - **Release 0.14.4.** `compose.yaml` and docs/DEPLOY.md name it, and the
   published 0.14.3 restarts over and over without a mapped `config.yaml`;
   until 0.14.4 is out, the NAS instructions do not work.
@@ -4818,26 +5247,29 @@ open; a digest arrives, and what arrived with it is what was not there before.
   `.github/workflows/boards.yml`); a person has to add it. Until then the
   built-in list goes stale between hand runs: Alorica still said 53 jobs on
   2026-10-23, three weeks after its count was taken.
-- **The resume's skill list is tech-only.** `SKILL_TERMS` in
-  `search/resume.py` knows languages, frameworks, cloud and security tools,
-  so a nurse's resume (Epic, ACLS, IV therapy) shows almost no skills and
-  fit scores outside tech rest on next to nothing. Needs terms for every
-  industry jobdork serves, grouped so a scan only weighs the ones near the
-  user's own.
-- **Europe, the Middle East, and Australia and Oceania**: planned, not built;
-  the steps and where to start are in [REGIONS.md](REGIONS.md#planned).
-- **Regional job sites in Asia**, where employers' boards cannot reach:
-  probe MyCareersFuture (SG), Glints (SEA), 104 (TW), Saramin or Worknet
-  (KR), GaijinPot (JP). Mexico has the same gap.
-- **The dashboard does not show the built-in employer boards** or let you
-  switch them off or pick industries. `/api/sources` already returns them
-  (`directory`: on or off, how many boards, countries, industries); the
-  Sources page does not draw it yet. Until then it is `sources.directory`
-  in config.yaml and `jobdork sources`.
-- **More built-in boards.** 368, 308 of them US; 877 candidates. More
+- **Europe outside Germany, the Gulf, and New Zealand** stay thin (measured
+  2026-10-23): their large employers mostly name no board, and their job
+  sites are closed to scripts or need a key (Reed, France Travail). What is
+  left to try is in [REGIONS.md](REGIONS.md#planned).
+- **Regional job sites in Asia**, where employers' boards cannot reach.
+  Probed 2026-10-23: **MyCareersFuture** (Singapore's government portal)
+  answers its site's own search API with whole adverts and pay, and its
+  robots.txt allows it, but its terms of use (read in a browser, last
+  updated 15 Oct 2026) forbid it without written permission from SWDA:
+  caching of and links to its content are "strictly prohibited" (§11), and
+  no part may be "stored in a retrieval system" (§15). jobdork stores each
+  advert and links to it, so it is not built; written permission from SWDA
+  is the way in; 104 (TW) and
+  GaijinPot (JP) answer 403 to scripts; Saramin and Worknet (KR) need a key
+  each, as Adzuna does. Glints (SEA) closes its search to scripts in
+  robots.txt (`/opportunities/jobs/explore?…`); its job pages are open, so
+  a sitemap reader like the careers-site one is the way in, not yet tried.
+  Mexico has the same gap.
+- **More built-in boards.** 423, 340 of them US; 996 candidates. More
   candidates help where employers name their boards; where they do not (most
-  large Asian and Mexican employers), regional job sites are the lever, and
-  SuccessFactors (13 misses) is the largest system still without a reader.
+  large Asian and Mexican employers), regional job sites are the lever.
+  SuccessFactors behind its older portal only (Edison, NRG, Wipro) is still
+  unread.
 - **A key proxy, deferred** until the Discover test list shows whether
   keyless sources leave real gaps: zero-setup access to keyed sources
   (Adzuna, USAJOBS, Google Jobs resellers) through a server the project runs.

@@ -638,12 +638,16 @@ JobsDB, Kalibrr and OnlineJobs.ph are in dork mode on request:
 
 **Employer systems with no reader yet.** Discover names these when an
 employer's page links one, as "no adapter", rather than reporting nothing:
-SAP SuccessFactors (the largest group on the test lists: 13 employers),
-iCIMS, UKG, Taleo Enterprise (`careersection`), Jobvite, JazzHR, BambooHR,
+SAP SuccessFactors behind its older `career…successfactors.com` portal
+only (Edison, NRG, Wipro); iCIMS, UKG, Taleo Enterprise (`careersection`), Jobvite, JazzHR, BambooHR,
 Paycom, ADP, Paylocity, Recruitee, Teamtailor, and in India TurboHire,
 Darwinbox and PeopleStrong. Several of those employers are read anyway,
 through their own careers site (State Farm on iCIMS, Kaiser Permanente on
 Taleo Enterprise), when the site marks its postings up for search engines.
+SuccessFactors' Career Site Builder sites are read that way too: their
+sitemap is a feed of every job with its whole advert (American Airlines,
+XPO, Sephora, Colgate), or their posting pages carry microdata (Duke,
+JetBlue). 37 employers on the test lists came in this way.
 
 Adding a board to dork mode is one line. An API adapter is roughly a hundred
 plus its quirks — which is most of this document.

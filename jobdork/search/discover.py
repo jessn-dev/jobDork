@@ -463,11 +463,22 @@ def _countries_of(roles) -> list[str]:
 def _site_board(fetcher: Fetcher, robots, root: str) -> Found | None:
     """The careers site as a board, when its sitemap postings carry JobPosting.
 
-    Two postings at most are read: the first one marked up is the proof.
+    Two postings at most are read: the first one marked up is the proof. A
+    sitemap that is a feed of whole jobs (SuccessFactors' Career Site
+    Builder) is its own proof, with no posting page read.
     """
     from ..fetch import site
 
-    listed, _ = site.postings(fetcher, root, robots)
+    feed: dict = {}
+    listed, _ = site.postings(fetcher, root, robots, feed=feed)
+    if feed:
+        posting = next(iter(feed.values()))
+        item = Found(platform="site", token=root, board_url=root,
+                     source_url=posting["url"], jobs=len(listed))
+        roles = [r for r in (site.to_role(p, p["url"], "") for p in feed.values()) if r]
+        item.countries = _countries_of(roles[:200])
+        item.company_claim = roles[0].company if roles and roles[0].company else ""
+        return item
     # lambda: sort key, (url, date) pairs by date, newest first.
     for url, _ in sorted(listed, key=lambda pair: pair[1], reverse=True)[:2]:
         if not robots.allowed(url):
@@ -858,9 +869,11 @@ def discover(employer: str, fetcher: Fetcher, max_pages: int = MAX_PAGES) -> Rep
     # Taleo's hosts likewise: a Business Edition board read as one is not
     # also "taleo, no adapter".
     read = {i.platform for i in seen_supported.values()}
+    # And SuccessFactors behind a Career Site Builder site read as a site board.
     report.unsupported = [u for u in seen_unsupported.values()
                           if not (u.platform == "oraclecloud" and "oracle" in read)
-                          and not (u.platform == "taleo" and "taleo" in read)]
+                          and not (u.platform == "taleo" and "taleo" in read)
+                          and not (u.platform == "successfactors" and "site" in read)]
 
     # A board met only on a page Discover followed, under a name that is not
     # the site's, may be a sister company's: careers.marriott.com links

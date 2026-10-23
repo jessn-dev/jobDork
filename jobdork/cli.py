@@ -141,17 +141,68 @@ def _print_roles(rows, show_flags: bool = False) -> None:
 
 # ── commands ───────────────────────────────────────────────────────────────────
 
+# A scheduled scan's log is kept to about this size: the newest half is kept
+# when it grows past it, so a daily scan for years does not fill a disk.
+SCHEDULED_LOG_BYTES = 512 * 1024
+
+
+def _log_scheduled(cfg) -> None:
+    """A scheduled scan has no terminal: what it prints goes to a log beside
+    the config, which the Dashboard's schedule card names. In a container,
+    in the data folder instead, the one folder that is kept."""
+    import os
+    from datetime import datetime
+
+    from .core import schedule
+
+    base = (Path(cfg.db_path).parent if os.environ.get(config.CONTAINER_ENV)
+            else Path(cfg.path or "config.yaml").parent)
+    path = base.resolve() / schedule.LOG_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.is_file() and path.stat().st_size > SCHEDULED_LOG_BYTES:
+        tail = path.read_bytes()[-SCHEDULED_LOG_BYTES // 2:]
+        path.write_bytes(tail[tail.find(b"\n") + 1:])
+    stream = open(path, "a", encoding="utf-8", buffering=1)  # noqa: SIM115 - lives as long as the run
+    sys.stdout = sys.stderr = stream
+    logging.basicConfig(level=logging.WARNING, stream=stream, force=True,
+                        format="%(asctime)s %(levelname)s %(message)s")
+    print(f"\n── scheduled scan, {datetime.now():%Y-%m-%d %H:%M} ──")
+
+
 def cmd_scan(args) -> int:
     cfg = _load(args)
+    if args.scheduled:
+        _log_scheduled(cfg)
+        if not cfg.titles_include:
+            print("not scanned: no job titles to search for yet; finish setup first")
+            return 0
     if args.fresh and not _fresh_start(cfg, args.yes):
         return 2
     with Store(cfg.db_path) as store:
-        report = scan_mod.run(
-            cfg, store, limit=args.limit,
-            # lambda: scan.run calls progress(line) with one argument; this
-            # indents it for the terminal, and --quiet passes None instead.
-            progress=(lambda line: _say(f"  {line}")) if not args.quiet else None,
-        )
+        try:
+            report = scan_mod.run(
+                cfg, store, limit=args.limit,
+                # lambda: scan.run calls progress(line) with one argument; this
+                # indents it for the terminal, and --quiet passes None instead.
+                progress=(lambda line: _say(f"  {line}"))
+                if not (args.quiet or args.scheduled) else None,
+            )
+        except scan_mod.ScanBusy as exc:
+            # Not a failure for a schedule: the scan that is running is the
+            # one it would have made.
+            from .core import telemetry
+            telemetry.summary("not started: another scan was running")
+            print(str(exc), file=sys.stderr)
+            return 0 if args.scheduled else 3
+        except Exception as exc:
+            if args.scheduled:
+                # No one is watching a scheduled scan: say it failed.
+                from .core import notify
+                notify.scan_failed(cfg, f"{type(exc).__name__}: {exc}", origin="schedule")
+            raise
+        if args.scheduled:
+            from .core import notify
+            notify.scan_finished(cfg, report.newly_seen, report.kept, origin="schedule")
         print()
         for line in report.lines():
             print(line)
@@ -1356,6 +1407,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="delete every scanned job post first (previews unless --yes)")
     p.add_argument("--yes", action="store_true", help="with --fresh: really delete")
     p.add_argument("-q", "--quiet", action="store_true")
+    p.add_argument("--scheduled", action="store_true",
+                   help="as the scan schedule runs it: no progress, output to "
+                        "logs/scheduled-scan.log beside the config")
     p.set_defaults(func=cmd_scan)
 
     p = subs.add_parser("digest", parents=[over],
@@ -1538,7 +1592,8 @@ def _recorded(args) -> int:
         db_path = config.load(getattr(args, "config", "") or "").db_path
     except ConfigError:
         return args.func(args)            # the command reports the config error
-    with telemetry.job(db_path, args.command, "terminal"):
+    origin = "schedule" if getattr(args, "scheduled", False) else "terminal"
+    with telemetry.job(db_path, args.command, origin):
         code = args.func(args)
         if code:
             telemetry.summary(f"exited with {code}")

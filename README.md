@@ -116,12 +116,15 @@ started it from: `~/Library/Application Support/jobdork` on macOS,
 (`--home` or `$JOBDORK_HOME` to choose another). Letters and CVs still go to
 `~/Documents/job-applications`. Job posts open in your own browser, and a file
 you download is saved where you choose. Closing the window stops it, and any
-API key it held is forgotten as with `jobdork serve`.
+API key it held is forgotten as with `jobdork serve`; while a scan is
+running it asks first. **Settings → Where your files are** opens these
+folders, and a banner says when a newer version is out.
 
 Installers for macOS and Windows, so none of the above is needed, are built
 by CI on every pull request and will be attached to the
 [Releases](https://github.com/jessn-dev/jobDork/releases) page from the next
-release on, with how to get past the unsigned warnings.
+release on, with how to get past the unsigned warnings. See the
+[code signing policy](#code-signing-policy).
 
 ---
 
@@ -180,18 +183,54 @@ when the dashboard starts and when it stops.
 Either way, the Resume page lists every cover letter, with **View** to read
 one and **Delete** to remove its file and text at once.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/),
+certificate by [SignPath Foundation](https://signpath.org/).
+
+- The Windows installer (`jobdork-<version>-windows-x64-setup.exe`) and the
+  program inside it are what is signed. They are built from this repository's
+  source by GitHub Actions ([desktop.yml](.github/workflows/desktop.yml)),
+  from a release tag, and nothing built anywhere else is signed.
+- Every release is approved by hand before it is signed, and before it is
+  published (see [SECURITY.md](SECURITY.md)).
+- Only jobdork's own program is signed. The libraries packed into it are
+  the work of their own projects and are not signed by jobdork.
+- Signing has been applied for (October 2026). Until it is granted, the
+  installers on the Releases page are unsigned, and the release notes say
+  how to open them.
+
+**Team roles**
+
+| Role | Who |
+|---|---|
+| Committers and reviewers | [@jessn-dev](https://github.com/jessn-dev), the repository's owner. Changes reach `main` only by pull request with every check passing; a contribution from anyone else is reviewed before it is merged |
+| Approvers | [@jessn-dev](https://github.com/jessn-dev), who approves each release in the `release` environment and each signing request in SignPath |
+
+Everyone with one of these roles uses multi-factor authentication for GitHub
+and SignPath.
+
+**Privacy.** jobdork sends nothing to its makers. It goes on the network
+only to do what you set it up to do (search job boards, use the AI provider
+you choose, send feedback when you press Send) and to check, once a day, for
+a newer release, which can be turned off. Every destination is listed in the
+[privacy policy](PRIVACY.md).
+
 ## Where the jobs come from
 
 **Nothing here needs a credential to start.** Workable's cross-employer search
 takes a job title and answers for its whole market — no token, no account, no
 list of employers to maintain. Himalayas adds remote jobs open to your
-country and your hours, and Kalibrr adds Philippine and Indonesian jobs.
+country and your hours, Kalibrr adds Philippine and Indonesian jobs, the
+Bundesagentur für Arbeit (Germany's employment agency) German ones, and
+Arbeitnow jobs across Europe.
 
 Alongside them, **employer boards** read one company each, with the full
 advert: Greenhouse, Ashby, Lever, Breezy, SmartRecruiters, Workday, Oracle
 Recruiting Cloud, Eightfold, Taleo Business Edition, and an employer's own
-careers site when it marks its postings up for search engines. **368 of them
-ship built in**, 308 of them US employers across 26 industries (hospitals,
+careers site when it marks its postings up for search engines (SAP
+SuccessFactors' career sites among them). **423 of them ship built in**, 340
+of them US employers across 27 industries (hospitals,
 banks, retailers, insurers, airlines, government contractors and more); a
 scan reads the ones hiring in your countries, and you can narrow them to
 industries or switch them off (`sources.directory`, see
@@ -372,6 +411,26 @@ again from nothing. It says how many it will delete, and how many of those you
 are pursuing, before anything goes; the database is backed up first. Posts you
 deleted before stay deleted, and posts added by hand are kept.
 
+### Scans that run by themselves
+
+**Settings → Schedule a run** (the gear at the bottom of the menu): every day,
+every weekday or once a week, at a time you pick, and **Run a scan now** beside
+it. It goes into your computer's own scheduler (launchd on
+macOS, Task Scheduler on Windows, crontab on Linux), so it runs whether or not
+jobdork is open, and a time missed while the computer slept runs when it
+wakes. The scan is listed under All runs like any other, and what it printed
+is in `logs/scheduled-scan.log` beside your config. Only one scan runs at a
+time: one that finds another running, from the dashboard or a terminal,
+steps aside. In Docker, schedule `docker exec jobdork jobdork scan --scheduled`
+on the host instead ([DEPLOY.md](docs/DEPLOY.md)).
+
+When a scan finds new job posts, your computer shows a notification with a
+bell (Notification Center on macOS, a toast on Windows, `notify-send` on
+Linux); so does a failed scan, and a newer jobdork. **Settings →
+Notifications** turns them or their sound off. **Settings → Updates** checks
+for a newer version, and in the desktop app **Update** downloads the
+installer, checks it against the release's checksums, and opens it.
+
 ### Or have it mailed to you
 
 ```bash
@@ -464,7 +523,10 @@ scoped to that one folder.
 
 A model can read what the rules cannot: the whole advert against your whole
 resume. Judging, letters, reviews and tailored resumes need one; a scan does
-not, and a verdict never hides a job post.
+not, and a verdict never hides a job post. List up to six readers on the AI
+page (setup asks for one, with room for three): they are asked in order, and
+when one cannot answer (no key, Ollama not running, rate limited) the next
+one does. The same provider can be listed again with another model.
 
 ```bash
 jobdork judge                 # the best job posts, read against your resume
@@ -601,7 +663,8 @@ A tool that quietly fails at something looks broken rather than out of scope.
 - **Employers not on a platform here, and not named by you.** Coverage is
   keyword search, the employer boards jobdork ships with (US first), and the
   companies you add. A site that refuses scripts is not worked around, and
-  SAP SuccessFactors, UKG and iCIMS have no reader yet. `jobdork dork` covers
+  UKG and iCIMS have no reader yet, nor SuccessFactors without a career site
+  of its own. `jobdork dork` covers
   the rest.
 - **Screening an advert that arrived truncated.** Adzuna caps every advert at
   exactly 500 characters. Dealbreakers, work-mode detection and resume
@@ -685,6 +748,7 @@ blocking automated readers makes the market worse for everyone.
 | [docs/HISTORY.md](docs/HISTORY.md) | How jobdork got here, from a Google search builder, and the decisions that turned around |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | What changed, and every bug found on the way |
 | [SECURITY.md](SECURITY.md) | How releases are checked, signed and approved, and how to verify an image |
+| [PRIVACY.md](PRIVACY.md) | What jobdork keeps, where, and every place it goes on the network |
 
 ### Start here
 
@@ -1172,4 +1236,5 @@ jobdork dork \
 
 ## License
 
-MIT
+MIT. Privacy: [PRIVACY.md](PRIVACY.md). Code signing:
+[code signing policy](#code-signing-policy).

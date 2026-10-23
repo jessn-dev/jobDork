@@ -52,9 +52,9 @@ nothing below imports from `web/`.
 | Package | Lines | Modules |
 |---|---|---|
 | `cli.py` | ~1,060 | Argument parsing and every command |
-| `core/` | ~1,450 | `config` (YAML, secrets from the environment), `storage` (where the resume and documents are kept), `telemetry` (what a running job is doing, readable from any process), `textutil` (HTML → text) |
+| `core/` | ~1,450 | `config` (YAML, secrets from the environment), `storage` (where the resume and documents are kept), `telemetry` (what a running job is doing, readable from any process), `schedule` (scans from the system's own scheduler), `updates` (is a newer release out), `textutil` (HTML → text) |
 | `db/` | ~1,270 | `store` (schema, upsert, status, AI outputs), `migrations` (numbered, forwards-only), `grouping` (copies of one job) |
-| `fetch/` | ~3,150 | `http` (pacing, retries, circuit breaker — the only networking), `robots` (robots.txt, RFC 9309), one adapter per source (keyword searches, employer boards on Greenhouse, Ashby, Lever, SmartRecruiters, Breezy, Workday, Oracle, Eightfold and Taleo, and an employer's own site), shared board helpers |
+| `fetch/` | ~3,150 | `http` (pacing, retries, circuit breaker — the only networking), `robots` (robots.txt, RFC 9309), one adapter per source (keyword searches, among them Germany's employment agency and Arbeitnow; employer boards on Greenhouse, Ashby, Lever, SmartRecruiters, Breezy, Workday, Oracle, Eightfold and Taleo; and an employer's own site, SuccessFactors career sites included), shared board helpers |
 | `search/` | ~4,660 | `scan` (orchestration, rescreen), `screen` (every filter and the score), `dealbreakers` (plain words into patterns), `directory` (the built-in employer boards), `freshness` (how old a post is), `enrich` (full adverts), `discover` (an employer's board), `listing` (is it still open), `geo` (gazetteer, distance), `resume` (skills, fit) |
 | `ai/` | ~2,220 | `llm` (providers, keys in memory), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, resume review) |
 | `writing/` | ~1,200 | `generate` (`claude -p` drafts), `gates` (scripted checks), `humanize` (signs of AI writing) |

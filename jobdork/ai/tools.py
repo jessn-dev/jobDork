@@ -238,8 +238,8 @@ def tailor_resume(settings: Settings, row, resume_text: str,
             result.dropped += 1
     # The skills line is the script's, not the model's: skills the ad asks
     # for that the resume already has, and the ones it does not, kept apart.
-    wanted = resume_mod.extract_skills(advert)
-    have = resume_mod.extract_skills(resume_text)
+    have = resume_mod.resume_skills(resume_text)
+    wanted = resume_mod.near(have, resume_mod.extract_skills(advert))
     result.data = {
         "edits": edits, "move_up": move_up,
         "skills": [resume_mod.skill_name(s) for s in sorted(wanted & have)],

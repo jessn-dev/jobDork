@@ -32,6 +32,7 @@ import json
 import logging
 import os
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -183,8 +184,14 @@ def _post(row, status: str = "") -> dict:
     from ..search import agency
 
     company = row["company"] or ""
+    try:
+        # A database row's `in` looks at its values, not its columns.
+        flags = json.loads(row["flags"] or "[]")
+    except (IndexError, KeyError, json.JSONDecodeError, TypeError):
+        flags = []
     poster = agency.classify(company, row["description"] or "",
-                             "staffing" if company.casefold() in _staffing_boards() else "")
+                             "staffing" if company.casefold() in _staffing_boards() else "",
+                             flags if isinstance(flags, list) else [])
     return {"uid": row["uid"], "company": company, "title": row["title"] or "",
             "description": row["description"] or "", "work_mode": row["work_mode"] or "",
             "city": row["city"] or "", "state": row["state"] or "",
@@ -624,6 +631,28 @@ def sources_report(cfg) -> dict:
                       for c in cfg.sources.companies],
         "directory": _directory_view(cfg),
     }
+
+
+def directory_boards(cfg) -> dict:
+    """Every built-in employer board, for the Sources page: whether this
+    config reads it and, if not, why; and the industries to choose from."""
+    from ..search import directory
+
+    boards = directory.load()
+    d = cfg.sources.directory
+    rows, industries = [], {}
+    for b in boards:
+        why = directory.why_not(cfg, b)
+        rows.append({"name": b.name, "platform": b.platform, "industry": b.industry,
+                     "countries": list(b.countries), "jobs": b.jobs,
+                     "verified": b.verified, "site": b.site, "why": why})
+        tally = industries.setdefault(b.industry or "other", {"boards": 0, "read": 0})
+        tally["boards"] += 1
+        tally["read"] += not why
+    return {"enabled": d.enabled, "industries": d.industries, "skip": d.skip,
+            "countries": d.countries or list(cfg.locations.countries),
+            "read": sum(not r["why"] for r in rows), "total": len(rows),
+            "by_industry": dict(sorted(industries.items())), "boards": rows}
 
 
 def _directory_view(cfg) -> dict:
@@ -1626,10 +1655,21 @@ def fresh_scan_job(cfg, expect):
 def llm_state(cfg) -> dict:
     """AI settings for the page. Says which keys are held, never what they are."""
     from ..ai import llm
+    from ..core.config import MAX_READERS, SETUP_MAX_READERS
 
     settings = llm.Settings.from_config(cfg)
+    readers = []
+    for r in cfg.llm.readers:
+        one = llm.Settings(provider=r.provider, model=r.model,
+                           ollama_url=r.ollama_url or cfg.llm.ollama_url)
+        readers.append({"provider": r.provider, "model": r.model,
+                        "ollama_url": r.ollama_url, "label": one.label,
+                        "problem": one.problem()})
     return {
         "providers": llm.PROVIDERS,
+        "readers": readers,
+        # Setup offers a few; the AI page, later, the rest.
+        "max_readers": SETUP_MAX_READERS if cfg.setup_step else MAX_READERS,
         "provider": cfg.llm.provider,
         "model": cfg.llm.model,
         "ollama_url": cfg.llm.ollama_url,
@@ -1684,14 +1724,26 @@ def llm_forget(provider: str) -> dict:
 
 
 def llm_test(cfg) -> dict:
-    """Ask the model, and the second model when one is chosen, to answer."""
+    """Ask every reader, one by one, and the second model when one is
+    chosen, to answer. Fails only when no reader answers."""
     from ..ai import llm
 
     settings = llm.Settings.from_config(cfg)
-    try:
-        out = llm.ping(settings)
-    except llm.LLMError as exc:
-        raise ApiError(str(exc), 502) from exc
+    answers = []
+    for reader in [llm.Settings(provider=r.provider, model=r.model,
+                                ollama_url=r.ollama_url or cfg.llm.ollama_url,
+                                context=settings.context)
+                   for r in cfg.llm.readers] or [settings]:
+        try:
+            if reader.problem():
+                raise llm.LLMError(reader.problem())
+            answers.append(llm.ping(reader))
+        except llm.LLMError as exc:
+            answers.append({"model": reader.label, "error": str(exc)})
+    working = [a for a in answers if "error" not in a]
+    if not working:
+        raise ApiError("; ".join(f"{a['model']}: {a['error']}" for a in answers), 502)
+    out = {**working[0], "readers": answers}
     if settings.checker is not None:
         try:
             if settings.checker.problem():
@@ -1804,9 +1856,10 @@ def try_source_keys(cfg, values: dict[str, str]) -> tuple[str, str]:
 def setup_keys(cfg, form: dict) -> str:
     """Save or remove one source's keys. Nothing typed is ever sent back.
 
-    New keys are tried first: refused ones are not saved. When the source
-    cannot be asked (offline, down), they are saved and the returned note
-    says they were not tried.
+    New keys are tried first, and only keys the source accepted are saved:
+    a refused key is not, and neither is one the source could not be asked
+    about (offline, down), so a key that does not work is never kept. The
+    page says which, and to try again later in the second case.
     """
     from ..core.config import (
         SOURCE_KEY_NAMES,
@@ -1831,7 +1884,10 @@ def setup_keys(cfg, form: dict) -> str:
             if verdict == "refused":
                 raise ApiError(why)
             if verdict != "ok":
-                note = f"Saved, but not tried: {why}."
+                raise ApiError(f"Not saved: {why}, so the key could not be tested. "
+                               "Try again when it answers", 503)
+            source = "USAJOBS" if "USAJOBS_API_KEY" in values else "Adzuna"
+            note = f"Tested: {source} accepted the key, and it is saved."
         write_source_keys(cfg, {k: "" if remove else v for k, v in values.items()})
     except ConfigError as exc:
         raise ApiError(str(exc)) from exc
@@ -1885,13 +1941,19 @@ def first_scan_jobs(cfg) -> list[tuple[str, object]]:
 
 def scan_job(cfg, part: str = "all"):
     def work(progress):
+        from ..core import notify
         from ..db.store import Store
         from ..output import render
         from ..search import scan as scan_mod
 
         with Store(cfg.db_path) as store:
-            report = scan_mod.run(cfg, store, progress=progress, part=part)
+            try:
+                report = scan_mod.run(cfg, store, progress=progress, part=part)
+            except Exception as exc:
+                notify.scan_failed(cfg, f"{type(exc).__name__}: {exc}")
+                raise
             summary = " · ".join(report.lines())
+            notify.scan_finished(cfg, report.newly_seen, report.kept)
             if cfg.llm.judge_on_scan:
                 summary += " · " + _judge_after_scan(cfg, store, progress)
             render.write_all(store.list_roles(), cfg, report)
@@ -2262,4 +2324,136 @@ def digest_job(cfg, email: str, new_only: bool = True, attach_csv: bool = False)
             progress(f"sending {len(rows)} role(s) to {email}")
             message_id = digest_mod.send(built, email)
         return f"sent {len(rows)} role(s) to {email} (id {message_id})"
+    return work
+
+
+# ── the scan schedule ─────────────────────────────────────────────────────────
+
+
+def schedule_state(cfg) -> dict:
+    """What the system's scheduler has for this install (core/schedule.py)."""
+    from ..core import schedule
+
+    return schedule.status(cfg.path or "")
+
+
+def schedule_save(cfg, form: dict) -> dict:
+    """Turn the scan schedule on (every, at, day) or off (every=off)."""
+    from ..core import schedule
+    from ..core.config import ConfigError
+
+    every = str(form.get("every") or "").strip().lower()
+    try:
+        if every == "off":
+            return schedule.uninstall(cfg.path or "")
+        plan = schedule.Plan(every, str(form.get("at") or ""), str(form.get("day") or "mon"))
+        return schedule.install(cfg.path or "", plan)
+    except ConfigError as exc:
+        raise ApiError(str(exc)) from None
+
+
+# ── where the app keeps things ────────────────────────────────────────────────
+
+FOLDERS = ("settings", "backups", "logs", "documents")
+
+
+def folders(cfg) -> dict:
+    """The folders worth knowing about, and whether this server can open them.
+
+    Opening a folder happens on the machine the server runs on, so it is
+    offered only when that is the machine the page is on: not in a container,
+    and not when the dashboard is opened from other machines on the network.
+    """
+    from ..core.config import CONTAINER_ENV
+    from ..writing import generate
+    from .serve import ALLOW_ENV
+
+    settings = Path(cfg.path or "config.yaml").resolve().parent
+    data = Path(cfg.db_path).resolve().parent
+    where = {
+        "settings": {"path": str(settings),
+                     "what": "Your settings, keys file, database and resume"},
+        "backups": {"path": str(data / "backups"),
+                    "what": "Copies of the database, made before anything is deleted"},
+        "logs": {"path": str(settings / "logs"),
+                 "what": "The app's log and the scheduled scans' log"},
+        "documents": {"path": str(Path(generate.default_root()).expanduser()),
+                      "what": "Cover letters and tailored resumes, a folder per job"},
+    }
+    for item in where.values():
+        item["exists"] = Path(item["path"]).is_dir()
+    local = not os.environ.get(CONTAINER_ENV) and not os.environ.get(ALLOW_ENV, "").strip()
+    return {"folders": where, "can_open": local}
+
+
+def open_folder(cfg, which: str) -> dict:
+    """Open one of `folders()` in Finder, Explorer or the file manager."""
+    from .app import open_with_system
+
+    report = folders(cfg)
+    if not report["can_open"]:
+        raise ApiError("folders can only be opened on the machine jobdork runs on", 409)
+    item = report["folders"].get(str(which or ""))
+    if item is None:
+        raise ApiError(f"no such folder; one of {', '.join(FOLDERS)}")
+    path = Path(item["path"])
+    if not path.is_dir():
+        raise ApiError("that folder does not exist yet: nothing has been written to it", 404)
+    open_with_system(path)
+    return {"opened": which}
+
+
+def newer_version(cfg=None, force: bool = False) -> dict:
+    """Whether a newer jobdork is out (core/updates.py), for the page; and
+    the first time a version is seen, a notification about it."""
+    from ..core import notify, updates
+
+    folder = Path(cfg.db_path).parent if cfg is not None else Path("data")
+    found = updates.check(folder, enabled=getattr(cfg, "update_check", True), force=force)
+    found["enabled"] = bool(getattr(cfg, "update_check", True)) and not updates.off()
+    found["can_install"] = bool(found.get("installer"))
+    if found.get("newer") and cfg is not None and updates.first_notice(folder, found["latest"]):
+        notify.notify(cfg, f"jobdork {found['latest']} is out",
+                      f"You have {found['current']}. Settings, Updates installs it.")
+    return found
+
+
+def notify_test(cfg) -> dict:
+    """Show one notification now, as the settings would, so the person can
+    see and hear it (and macOS can ask for permission)."""
+    from ..core import notify
+
+    if not cfg.notifications.enabled:
+        raise ApiError("notifications are off; turn them on first", 409)
+    sound = cfg.notifications.sound
+    if not notify.native():
+        return {"shown": False, "why": "this system shows none (jobdork is in a "
+                                       "container, or Linux has no notify-send)"}
+    shown = notify.notify(cfg, "jobdork notifications are on",
+                          "This is how a scan that finds new job posts tells you.")
+    return {"shown": shown, "sound": sound,
+            "why": "" if shown else "the system did not take it; see Warnings and errors"}
+
+
+def update_job(cfg):
+    """Download this computer's installer for the newest release, check it
+    against the release's checksums, and open it: the Windows installer
+    replaces this copy (closing it first); the Mac disk image opens for the
+    new app to be dragged into Applications."""
+    from ..core import updates
+    from .app import open_with_system
+
+    if not getattr(sys, "frozen", False):
+        raise ApiError("only the desktop app installs its own updates; see how "
+                       "to update this copy under Settings, Updates", 409)
+
+    def work(progress):
+        folder = Path.home() / "Downloads"
+        try:
+            path = updates.download_installer(Path(cfg.db_path).parent, folder,
+                                              progress=progress)
+        except updates.UpdateError as exc:
+            raise RuntimeError(str(exc)) from None
+        open_with_system(path)
+        return f"opened {path.name}; follow the installer to finish the update"
     return work

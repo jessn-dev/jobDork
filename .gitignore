@@ -25,6 +25,8 @@ proposal.md
 !scripts/candidates.csv
 !scripts/boards_review.csv
 !jobdork/data/regions.csv
+# The privacy page the Windows installer shows (packaging/jobdork.iss).
+!packaging/privacy.txt
 
 # Your search is yours. None of this belongs in a repository.
 # Anchored with a leading slash: a bare `data/` also matched jobdork/data/,

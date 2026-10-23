@@ -13,7 +13,9 @@ called a recruiter's when:
   - its company is a known staffing or search firm (KNOWN_FIRMS), or its
     name says what it is ("… Staffing", "… Recruiting", "… Personnel");
   - its advert speaks for a client ("our client", "on behalf of a client");
-  - it came from a built-in board listed as a staffing firm.
+  - it came from a built-in board listed as a staffing firm;
+  - the source itself says so: the Bundesagentur für Arbeit marks
+    temporary staffing and private placement (fetch/arbeitsagentur.py).
 
 and `overlaps()` finds the posts you are already pursuing (applied or
 further) that may be the same job reached the other way: the recruiter's
@@ -91,9 +93,22 @@ class Poster:
         return {"agency": self.agency, "why": self.why}
 
 
-def classify(company: str, description: str = "", industry: str = "") -> Poster:
+# Flags a source sets when it knows the poster is an agency, and what to say.
+AGENCY_FLAGS = {
+    "temporary staffing (Arbeitnehmerüberlassung)":
+        "the Bundesagentur für Arbeit lists it as temporary staffing",
+    "private placement agency":
+        "the Bundesagentur für Arbeit lists it as a private placement agency",
+}
+
+
+def classify(company: str, description: str = "", industry: str = "",
+             flags=()) -> Poster:
     """Employer or recruiter, and why it was called a recruiter."""
     name = (company or "").strip()
+    for flag in flags or ():
+        if flag in AGENCY_FLAGS:
+            return Poster(True, AGENCY_FLAGS[flag])
     if industry == "staffing":
         return Poster(True, "listed as a staffing firm")
     if _FIRMS.search(name):

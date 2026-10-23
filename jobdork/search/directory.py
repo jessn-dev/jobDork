@@ -102,6 +102,7 @@ def select(cfg: Config, boards: list[Board] | None = None) -> list[Board]:
     Countries: `sources.directory.countries`, else `locations.countries`;
     empty in both means every country. A board with no countries recorded is
     left out of a country filter rather than assumed to hire everywhere.
+    Boards named in `sources.directory.skip` are left out.
     """
     directory = cfg.sources.directory
     if not directory.enabled:
@@ -110,10 +111,30 @@ def select(cfg: Config, boards: list[Board] | None = None) -> list[Board]:
     countries = {c.upper() for c in (directory.countries or cfg.locations.countries)}
     industries = {i.lower() for i in directory.industries}
     readable = set(cfg.sources.keyless)
+    skip = {n.casefold() for n in directory.skip}
     return [b for b in boards
             if b.platform in readable
             and (not countries or countries.intersection(b.countries))
-            and (not industries or b.industry in industries)]
+            and (not industries or b.industry in industries)
+            and b.name.casefold() not in skip]
+
+
+def why_not(cfg: Config, board: Board) -> str:
+    """Why `select` leaves this board out, in the Sources page's words; ''
+    when it is read."""
+    d = cfg.sources.directory
+    if not d.enabled:
+        return "built-in boards are off"
+    if board.name.casefold() in {n.casefold() for n in d.skip}:
+        return "switched off"
+    countries = {c.upper() for c in (d.countries or cfg.locations.countries)}
+    if countries and not countries.intersection(board.countries):
+        return "hires outside your countries"
+    if d.industries and board.industry not in {i.lower() for i in d.industries}:
+        return "not one of your industries"
+    if board.platform not in set(cfg.sources.keyless):
+        return f"{board.platform} is not among your sources"
+    return ""
 
 
 # A board with fewer jobs than this is read last in a first scan's quick part:

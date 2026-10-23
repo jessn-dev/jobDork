@@ -25,15 +25,30 @@ What it costs, and how that is kept down:
 
 A posting whose `validThrough` has passed is left out: the site itself says
 it has closed.
+
+Two forms besides JSON-LD, both from SAP SuccessFactors' Career Site Builder
+(American Airlines, ExxonMobil, Duke, XPO, Colgate and some forty more on the
+test lists, 2026-10-23), and found elsewhere too:
+
+  - **Microdata**: the posting page marks the job up with `itemprop`
+    attributes instead of a JSON-LD block. Read into the same shape.
+  - **A sitemap that is a feed**: `/sitemap.xml` is an RSS feed of every
+    open job, title, place, closing date and the whole advert in each item.
+    Jobs are taken from it directly, every one whose title matches, with no
+    posting page read at all. (The same sites' `/services/rss/` feed is
+    closed by their robots.txt; the sitemap is open.)
 """
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
+import html as html_mod
 import json
 import logging
 import re
 import urllib.parse
+from html.parser import HTMLParser
 
 from ..core.textutil import to_text
 from ..db.store import Role
@@ -86,7 +101,7 @@ def _postings_in(node) -> list[dict]:
 
 
 def job_posting(html: str) -> dict:
-    """The page's schema.org JobPosting, or {}."""
+    """The page's schema.org JobPosting, or {}: JSON-LD, else microdata."""
     for block in _LD_BLOCK.findall(html or ""):
         try:
             data = json.loads(block.strip())
@@ -95,7 +110,136 @@ def job_posting(html: str) -> dict:
         postings = _postings_in(data)
         if postings:
             return postings[0]
-    return {}
+    return microdata_posting(html or "")
+
+
+class _Microdata(HTMLParser):
+    """The itemprops of the first schema.org JobPosting on a page.
+
+    A property is a `content` attribute (`<meta itemprop="datePosted"
+    content="…">`) or the element's inner HTML (`<span itemprop="description">
+    …</span>`), kept with its tags so the advert keeps its paragraphs.
+    """
+
+    VOID = {"meta", "link", "br", "img", "hr", "input", "source", "wbr"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.inside = False                 # within the JobPosting element
+        self.depth = 0
+        self.props: dict[str, str] = {}
+        self._open: list[tuple[str, int, list[str]]] = []   # (prop, depth, html)
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if not self.inside:
+            if "jobposting" in (a.get("itemtype") or "").lower():
+                self.inside, self.depth = True, 0
+            else:
+                return
+        for _, _, buf in self._open:
+            buf.append(self.get_starttag_text() or "")
+        prop = (a.get("itemprop") or "").strip()
+        if prop and "content" in a:
+            self.props.setdefault(prop, a["content"] or "")
+        elif prop and tag not in self.VOID and "itemscope" not in a:
+            self._open.append((prop, self.depth, []))
+        if tag not in self.VOID:
+            self.depth += 1
+
+    def handle_endtag(self, tag):
+        if not self.inside or tag in self.VOID:
+            return
+        self.depth -= 1
+        while self._open and self._open[-1][1] >= self.depth:
+            prop, _, buf = self._open.pop()
+            self.props.setdefault(prop, "".join(buf).strip())
+        for _, _, buf in self._open:
+            buf.append(f"</{tag}>")
+        if self.depth <= 0:
+            self.inside = False
+
+    def handle_data(self, data):
+        for _, _, buf in self._open:
+            buf.append(html_mod.escape(data, quote=False))
+
+
+def microdata_posting(html: str) -> dict:
+    """A JobPosting marked up with microdata, in JSON-LD's shape, or {}."""
+    if "jobposting" not in html.lower():
+        return {}
+    parser = _Microdata()
+    with contextlib.suppress(Exception):    # broken markup: whatever was read
+        parser.feed(html)
+    got = parser.props
+    if not got.get("title"):
+        return {}
+    address = {k: got[k] for k in ("addressLocality", "addressRegion",
+                                   "addressCountry", "postalCode") if got.get(k)}
+    posting = {"@type": "JobPosting", "title": to_text(got["title"]),
+               "description": got.get("description", ""),
+               "datePosted": got.get("datePosted", ""),
+               "validThrough": got.get("validThrough", ""),
+               # "Duke Careers": the site's name, not the employer's.
+               "hiringOrganization": re.sub(r"\s+(?:careers?|jobs)$", "",
+                                            to_text(got.get("hiringOrganization", "")),
+                                            flags=re.IGNORECASE)}
+    if address:
+        posting["jobLocation"] = {"address": address}
+    if got.get("jobLocationType"):
+        posting["jobLocationType"] = got["jobLocationType"]
+    return posting
+
+
+# One element's text in a feed item: <tag>text</tag> or <tag><![CDATA[text]]></tag>.
+_ITEM = re.compile(r"<item[\s>](.*?)</item>", re.IGNORECASE | re.DOTALL)
+# "Administrator, Administration Center (Philadelphia, PA, US)": the place
+# in brackets at the end of a feed item's title.
+_TITLE_PLACE = re.compile(r"\s*\(([^()]*)\)\s*$")
+
+
+def _field(item: str, tag: str) -> str:
+    """One element's text in a feed item, CDATA or escaped, as plain text."""
+    m = re.search(rf"<{re.escape(tag)}(?:\s[^>]*)?>(.*?)</{re.escape(tag)}>", item,
+                  re.IGNORECASE | re.DOTALL)
+    if not m:
+        return ""
+    text = m.group(1).strip()
+    cdata = re.fullmatch(r"<!\[CDATA\[(.*)\]\]>", text, re.DOTALL)
+    return cdata.group(1) if cdata else html_mod.unescape(text)
+
+
+def feed_postings(xml: str) -> list[dict]:
+    """The jobs in a sitemap that is an RSS feed, each in JSON-LD's shape
+    with its address under "url"; [] for any other sitemap.
+
+    Read with patterns, as every sitemap here is, not an XML parser: the
+    feed comes from someone else's server, and an XML parser is the usual
+    way in for entity expansion and similar tricks.
+    """
+    if not re.search(r"<rss[\s>]", xml[:2000], re.IGNORECASE):
+        return []
+    found = []
+    for item in _ITEM.findall(xml):
+        link = _field(item, "link").strip()
+        title = _field(item, "title").strip()
+        if not link or not title:
+            continue
+        place = _field(item, "g:location").strip()
+        bracket = _TITLE_PLACE.search(title)
+        if bracket and (not place or bracket.group(1).strip() == place):
+            place = place or bracket.group(1).strip()
+            title = title[:bracket.start()].strip()
+        posting = {"@type": "JobPosting", "url": link, "title": title,
+                   # The advert is escaped HTML inside CDATA: unescaped once more.
+                   "description": html_mod.unescape(_field(item, "description")),
+                   "datePosted": _field(item, "pubDate").strip(),
+                   "validThrough": _field(item, "g:expiration_date").strip(),
+                   "hiringOrganization": _field(item, "g:employer").strip()}
+        if place:
+            posting["jobLocation"] = {"address": place}
+        found.append(posting)
+    return found
 
 
 def posting_key(url: str) -> str:
@@ -139,12 +283,15 @@ def _sitemap_urls(xml: str) -> tuple[list[str], list[tuple[str, str]]]:
 
 
 def postings(fetcher, site: str, robots: Robots | None = None,
-             max_reads: int = MAX_SITEMAP_READS) -> tuple[list[tuple[str, str]], int]:
+             max_reads: int = MAX_SITEMAP_READS,
+             feed: dict | None = None) -> tuple[list[tuple[str, str]], int]:
     """([(posting address, lastmod)], sitemap reads) from a site's sitemaps.
 
     A sitemap index is followed into its children whose address says jobs or
     careers (every child, when none does), up to `max_reads` reads in all.
-    Gzipped sitemaps are skipped rather than unpacked.
+    Gzipped sitemaps are skipped rather than unpacked. A sitemap that is a
+    feed lists its jobs too, and each one's posting goes into `feed`, by
+    `posting_key`, when a dict is given.
     """
     robots = robots or Robots(fetcher)
     pending = [u for u in robots.sitemap_list(site) if not u.lower().endswith(".gz")]
@@ -161,6 +308,10 @@ def postings(fetcher, site: str, robots: Robots | None = None,
         if not resp.ok or not resp.body:
             continue
         children, pages = _sitemap_urls(resp.body)
+        for posting in feed_postings(resp.body):
+            pages.append((posting["url"], date_of(posting["datePosted"])))
+            if feed is not None:
+                feed[posting_key(posting["url"])] = posting
         children = [c for c in children if not c.lower().endswith(".gz")]
         # The path, not the host: on jobs.mayoclinic.org every child says "jobs".
         jobby = [c for c in children if re.search(r"job|career|posting|position|vacanc",
@@ -291,11 +442,22 @@ def fetch(fetcher, cfg, token: str = "", company: str = "",
     today = today or dt.date.today()
     result = SourceResult(source="site")
     robots = Robots(fetcher)
-    listed, reads = postings(fetcher, site, robots)
+    feed: dict[str, dict] = {}
+    listed, reads = postings(fetcher, site, robots, feed=feed)
     result.requests_made += reads
     if not listed:
         result.suspect = True
         result.errors.append(f"{site}: no postings in its sitemap")
+        return result
+    owner = company or urllib.parse.urlsplit(site).netloc
+    if feed:
+        # The sitemap carried every job whole: no posting page to read.
+        for posting in feed.values():
+            if closed(posting, today) or not title_verdict(posting["title"], cfg)[0]:
+                continue
+            role = to_role(posting, posting["url"], owner)
+            if role:
+                result.roles.append(role)
         return result
 
     titled = [(u, m) for u, m in listed if slug_title(u)]
@@ -323,7 +485,7 @@ def fetch(fetcher, cfg, token: str = "", company: str = "",
         if not posting or closed(posting, today):
             continue
         try:
-            role = to_role(posting, url, company or urllib.parse.urlsplit(site).netloc)
+            role = to_role(posting, url, owner)
         except (AttributeError, TypeError, ValueError) as exc:   # one odd page
             result.errors.append(f"{url}: {type(exc).__name__}: {exc}")
             continue

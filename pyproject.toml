@@ -29,7 +29,9 @@ pdf = ["pypdf>=6.21.1"]
 # beyond requests.
 ai = ["anthropic>=1.8"]
 # `jobdork app`: the dashboard in a window of its own rather than a browser tab.
-app = ["pywebview>=6.2"]
+app = ["pywebview>=6.2",
+       # macOS Notification Center under the app's own name (core/notify.py).
+       "pyobjc-framework-UserNotifications>=12; sys_platform == 'darwin'"]
 # Building the installers (packaging/build.py): PyInstaller, and Pillow to
 # turn packaging/icon.png into each platform's icon format.
 package = ["pyinstaller>=6.22", "pillow>=11"]

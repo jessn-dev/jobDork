@@ -388,7 +388,7 @@ Python flavour, which is what a scan uses.
 
 ```yaml
 sources:
-  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, workday, oracle, eightfold, taleo, site]
+  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, workday, oracle, eightfold, taleo, site, arbeitsagentur, arbeitnow]
   companies:
     - name: Stripe
       platform: greenhouse
@@ -397,16 +397,18 @@ sources:
     enabled: true
     countries: []        # empty: follow locations.countries
     industries: []       # empty: every industry
+    skip: []             # employers' boards switched off one by one
   adzuna_countries: [us]
 ```
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `sources.keyless` | list | all thirteen | Which no-credential sources to run. A config that lists them keeps its own list: add `kalibrr`, `himalayas`, `workday`, `oracle`, `eightfold`, `taleo` and `site` to it by hand |
+| `sources.keyless` | list | all fifteen | Which no-credential sources to run. A config that lists them keeps its own list: add `kalibrr`, `himalayas`, `workday`, `oracle`, `eightfold`, `taleo`, `site`, `arbeitsagentur` and `arbeitnow` to it by hand |
 | `sources.companies` | list of objects | `[]` | Employer boards to read |
 | `sources.directory.enabled` | bool | `true` | Read the employer boards jobdork ships with. `directory: false` also switches them off |
 | `sources.directory.countries` | list | `[]` | Only boards hiring in these countries; empty follows `locations.countries` |
 | `sources.directory.industries` | list | `[]` | Only these industries (`healthcare`, `banking`, `retail`…); empty is all |
+| `sources.directory.skip` | list | `[]` | Boards switched off one by one, by employer name as the Sources page lists them |
 | `sources.adzuna_countries` | list | `[]` | Adzuna national indexes; empty follows `locations.countries` |
 
 Each company needs `name`, `platform` and `token`, and the platform must be one
@@ -417,7 +419,9 @@ The directory is a list of employer boards that ships with jobdork, in
 `jobdork/data/boards.csv`, every one found by `discover` on the employer's own
 site and verified with jobs. A board you also list in `companies` is read
 once. Only boards on a platform in `keyless` are read, and each costs
-requests: `jobdork sources` says how many your config reads. See
+requests: `jobdork sources` says how many your config reads. The Sources
+page lists every one, whether it is read and why not, and switches the
+directory, its industries and single boards on and off. See
 [SOURCES.md](SOURCES.md#employer-boards-jobdork-ships-with).
 
 Leave `adzuna_countries` empty and it follows `locations.countries`, so a
@@ -513,8 +517,16 @@ asked for up to 60 days, so with a longer limit screening does it.
 
 ## llm
 
-The AI reader. Off unless `provider` is set. The dashboard's AI page writes
-this section for you.
+The AI readers. Off unless one is set. The dashboard's AI page writes this
+section for you.
+
+```yaml
+llm:
+  readers:
+    - {provider: ollama, model: gemma4:26b}           # asked first
+    - {provider: ollama, model: qwen2.5:3b}           # if the first cannot answer
+    - {provider: anthropic, model: claude-sonnet-5-5} # then this one
+```
 
 **What a hosted model is sent.** Claude, Gemini and ChatGPT get every prompt
 with email addresses, phone numbers and LinkedIn, GitHub and GitLab profile
@@ -525,8 +537,9 @@ it off a resume you use with a hosted model if that matters to you.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `llm.provider` | string | empty (off) | `ollama`, `anthropic` (Claude), `gemini` or `openai` (ChatGPT) |
-| `llm.model` | string | empty | The model's name, e.g. `gemma4:26b`; the AI page lists what is available |
+| `llm.readers` | list | empty (off) | The AI readers, in the order they are asked, up to 6: each `{provider, model}`, and for Ollama an optional `ollama_url`. The first does the work; when it cannot answer (no key held, not reachable, rate limited, an error) the next one does. The same provider may be listed again with another model, but not the same model twice. Setup offers up to 3; the AI page the rest |
+| `llm.provider` | string | empty (off) | The first reader's provider: `ollama`, `anthropic` (Claude), `gemini` or `openai` (ChatGPT). A config with no `readers` has this one reader |
+| `llm.model` | string | empty | The first reader's model, e.g. `gemma4:26b`; the AI page lists what is available |
 | `llm.ollama_url` | URL | `http://localhost:11434` | Where Ollama answers. Must be `http(s)://host:port` |
 | `llm.judge_on_scan` | bool | `false` | After each scan, judge the best job posts not yet judged |
 | `llm.judge_top` | int | `25` | How many a judging run reads, 1 to 500. Bounds what a scan can spend on a paid API |
@@ -557,6 +570,37 @@ Dashboard's hallucination coverage says how many that is.
 | `db` | path | `data/jobdork.db` |
 
 Gitignored. Your history stays yours.
+
+---
+
+## notifications
+
+| Key | Type | Default |
+|---|---|---|
+| `notifications.enabled` | bool | `true` |
+| `notifications.sound` | bool | `true` |
+
+Your computer's own notifications when a scan finds new job posts (one you
+start or a scheduled one), when a scan fails, and when a newer jobdork is
+out: Notification Center on macOS, a toast on Windows, `notify-send` on
+Linux, each with the system's notification sound (a bell). Never for a scan
+that found nothing new. In Docker, which has no desktop, the page shows a
+notice and rings its own bell while it is open. **Settings →
+Notifications** writes these; `notifications: false` is short for off, and
+`JOBDORK_NOTIFY=off` turns them off whatever this says.
+
+---
+
+## update_check
+
+| Key | Type | Default |
+|---|---|---|
+| `update_check` | bool | `true` |
+
+Once a day, when the Dashboard opens, ask GitHub whether a newer jobdork is
+out, and say so in a banner. One request to `api.github.com` for the latest
+release; nothing about you is sent ([PRIVACY.md](../PRIVACY.md)). `false`
+turns it off, as does **Settings → Updates**, which writes this setting. `JOBDORK_UPDATE_CHECK=off` turns it off whatever this says.
 
 ---
 
@@ -625,6 +669,8 @@ always wins over the YAML.
 | `OPENAI_API_KEY` | ChatGPT, from the terminal |
 | `JOBDORK_CONFIG` | Config path override |
 | `JOBDORK_FEEDBACK_URL` | Where the Feedback page's Send goes. By default the maintainers' relay (see [relay/feedback](../relay/feedback/README.md)); an `https://` address replaces it, and `off` turns Send off, leaving "Open as a GitHub issue" and "Save as a file". No Resend or GitHub key is ever read by the app for this |
+| `JOBDORK_NOTIFY` | `off` turns notifications off for this run, whatever `notifications` says |
+| `JOBDORK_UPDATE_CHECK` | `off` stops the Dashboard asking GitHub, once a day, whether a newer jobdork is out, whatever `update_check` says (one request to `api.github.com` for the latest release; the answer is kept in `version-check.json` beside the database) |
 | `JOBDORK_ALLOW_HOSTS` | The dashboard: addresses besides the machine itself it may be opened by, comma separated (a NAS's network address, its Tailscale name); a wildcard is refused. See [DEPLOY.md](DEPLOY.md) |
 | `JOBDORK_DOCS_DIR` | Where the uploaded resume and generated documents are kept. The Docker image sets `/app/data/documents`, inside the kept volume |
 | `JOBDORK_TEMP_DOCS` | Opt-in instead: a temporary folder for the resume and documents, emptied when the dashboard starts and stops; wins over `JOBDORK_DOCS_DIR` |

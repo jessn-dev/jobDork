@@ -1,0 +1,36 @@
+jobdork and your privacy
+
+jobdork runs on this computer and keeps what you give it here: your
+settings, the job posts it finds, your resume, and the letters you ask it
+to write, in %LOCALAPPDATA%\jobdork and Documents\job-applications. Nobody
+who makes jobdork receives any of it. There are no accounts, no analytics,
+no advertising and no tracking.
+
+It goes on the network to do what you set it up to do:
+
+  - Searching job boards and employers' careers sites, with your job titles
+    and place as search terms, when you scan (or at the times you choose
+    under Settings, "Schedule a run").
+  - Sending your resume and job adverts to an AI provider, only if you
+    choose one on the AI page (Claude, Gemini or ChatGPT, under their own
+    privacy policies; or Ollama, on a computer you choose).
+  - Sending a report to the people who make jobdork, only when you press
+    Send on the Feedback page. You see exactly what is sent first.
+
+And one thing by itself:
+
+  - Once a day, when the Dashboard opens, it asks GitHub whether a newer
+    jobdork is out (one request to api.github.com; nothing about you is
+    sent). To turn this off, press "Turn off the daily check" under
+    Settings, Updates.
+
+When a scan finds new job posts, or a newer jobdork is out, Windows shows
+a notification from jobdork, with its sound. Settings, Notifications turns
+them off.
+
+Uninstalling removes the program and leaves your data in
+%LOCALAPPDATA%\jobdork, so a reinstall finds it. Delete that folder, or use
+"Start over" on the Dashboard first, to remove everything.
+
+The full privacy policy:
+https://github.com/jessn-dev/jobDork/blob/main/PRIVACY.md

@@ -13,7 +13,8 @@ It is `jobdork serve` with three differences.
   ~/Documents/job-applications.
 - **A window, not a browser tab.** The server runs on a thread and the window
   on the main thread, which macOS requires. Closing the window ends the run
-  the way Ctrl-C does, so held API keys are forgotten the same way.
+  the way Ctrl-C does, so held API keys are forgotten the same way; while a
+  scan or another job runs, it asks first.
 - **A bridge for what a window cannot do.** A browser opens new tabs and
   saves downloads; this window does neither reliably (on macOS it ignores
   `window.open` outright). The page asks `Bridge` instead: job posts and other
@@ -194,9 +195,12 @@ def widen_path() -> None:
 # are imported only inside functions, and the files read from disk. A build
 # missing one starts, or even opens a window, and fails later in front of the
 # user; self_test() finds it in the build instead.
-SELF_TEST_MODULES = ("webview", "anthropic", "pypdf", "jobdork.web.serve")
+SELF_TEST_MODULES = ("webview", "anthropic", "pypdf", "jobdork.web.serve",
+                     "jobdork.cli")
 WINDOW_BACKENDS = {"darwin": "webview.platforms.cocoa",
                    "win32": "webview.platforms.winforms"}
+# Per platform, more that a build must carry: Notification Center on macOS.
+PLATFORM_MODULES = {"darwin": ("UserNotifications",)}
 SELF_TEST_FILES = ("dashboard.html", "boards.csv", "cities.csv", "regions.csv",
                    "humanizer")
 
@@ -214,7 +218,8 @@ def self_test() -> list[str]:
 
     problems = []
     backend = WINDOW_BACKENDS.get(sys.platform)
-    for name in (*SELF_TEST_MODULES, *([backend] if backend else [])):
+    for name in (*SELF_TEST_MODULES, *([backend] if backend else []),
+                 *PLATFORM_MODULES.get(sys.platform, ())):
         try:
             importlib.import_module(name)
         except Exception as exc:             # any failure to load is the finding
@@ -225,6 +230,46 @@ def self_test() -> list[str]:
     if __version__.endswith("+source"):
         problems.append("no package metadata: the version reads as " + __version__)
     return problems
+
+
+def scheduled_scan(home: Path | None = None) -> int:
+    """What the scan schedule starts: a scan in the app's folder, no window.
+
+    The schedule (core/schedule.py) runs the app's own program with `--scan`,
+    since an installed app has no `jobdork` command to run. It writes to
+    logs/scheduled-scan.log in the app's folder, and shows in the Dashboard's
+    runs like any other scan.
+    """
+    from ..cli import main
+
+    home = (home or app_home()).expanduser()
+    home.mkdir(parents=True, exist_ok=True)
+    os.chdir(home)
+    if sys.stdout is None:                   # a Windows app has none until
+        sys.stdout = sys.stderr = open(os.devnull, "w")  # noqa: SIM115 - the scan opens its log
+    widen_path()
+    return main(["scan", "--scheduled"])
+
+
+def ask_before_closing(busy):
+    """A handler for the window's `closing` event: while a job runs, closing
+    (the red button, Ctrl-F4, Cmd-Q) asks first, since it stops the job.
+
+    It only says whether to ask and what: pywebview shows the question itself
+    after this returns. Showing a dialog from inside the handler would wait
+    on the main thread that is busy running the handler.
+    """
+    def closing(window) -> None:
+        job = busy()
+        window.confirm_close = bool(job)
+        if job:
+            window.localization.update({
+                "global.quitConfirmation":
+                    f"{job[:1].upper()}{job[1:]} is still running. Closing jobdork "
+                    "stops it, and what it has not saved yet is lost.",
+                "global.quit": "Close anyway",
+            })
+    return closing
 
 
 def run(port: int, home: Path | None = None, debug: bool = False) -> int:
@@ -256,8 +301,8 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
     ready = threading.Event()
     running: dict = {}
 
-    def on_ready(url, stop):
-        running.update(url=url, stop=stop)
+    def on_ready(url, stop, busy):
+        running.update(url=url, stop=stop, busy=busy)
         ready.set()
 
     def server():
@@ -276,6 +321,7 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
     bridge._window = webview.create_window(
         "jobdork", running["url"], js_api=bridge, width=WINDOW_SIZE[0],
         height=WINDOW_SIZE[1], min_size=MIN_SIZE)
+    bridge._window.events.closing += ask_before_closing(running["busy"])
     # Not private: the page keeps small conveniences (a remembered tab) in
     # local storage. The token is never stored; it lives in the page.
     webview.start(private_mode=False, storage_path=str(home / "window"), debug=debug)

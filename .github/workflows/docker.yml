@@ -336,6 +336,10 @@ jobs:
             echo
             echo "or compare its SHA-256 with \`SHA256SUMS.txt\`."
             echo
+            echo "Code signing: [policy](https://github.com/$REPO/blob/$TAG/README.md#code-signing-policy)"
+            echo "(free code signing by SignPath.io, certificate by SignPath Foundation, once granted)."
+            echo "Privacy: [PRIVACY.md](https://github.com/$REPO/blob/$TAG/PRIVACY.md)."
+            echo
             echo "What changed in detail: [CHANGELOG](https://github.com/$REPO/blob/$TAG/docs/CHANGELOG.md)."
           } > notes.md
           gh release create "$TAG" --repo "$REPO" --title "jobdork $version" \
