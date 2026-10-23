@@ -517,8 +517,16 @@ asked for up to 60 days, so with a longer limit screening does it.
 
 ## llm
 
-The AI reader. Off unless `provider` is set. The dashboard's AI page writes
-this section for you.
+The AI readers. Off unless one is set. The dashboard's AI page writes this
+section for you.
+
+```yaml
+llm:
+  readers:
+    - {provider: ollama, model: gemma4:26b}           # asked first
+    - {provider: ollama, model: qwen2.5:3b}           # if the first cannot answer
+    - {provider: anthropic, model: claude-sonnet-5-5} # then this one
+```
 
 **What a hosted model is sent.** Claude, Gemini and ChatGPT get every prompt
 with email addresses, phone numbers and LinkedIn, GitHub and GitLab profile
@@ -529,8 +537,9 @@ it off a resume you use with a hosted model if that matters to you.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `llm.provider` | string | empty (off) | `ollama`, `anthropic` (Claude), `gemini` or `openai` (ChatGPT) |
-| `llm.model` | string | empty | The model's name, e.g. `gemma4:26b`; the AI page lists what is available |
+| `llm.readers` | list | empty (off) | The AI readers, in the order they are asked, up to 6: each `{provider, model}`, and for Ollama an optional `ollama_url`. The first does the work; when it cannot answer (no key held, not reachable, rate limited, an error) the next one does. The same provider may be listed again with another model, but not the same model twice. Setup offers up to 3; the AI page the rest |
+| `llm.provider` | string | empty (off) | The first reader's provider: `ollama`, `anthropic` (Claude), `gemini` or `openai` (ChatGPT). A config with no `readers` has this one reader |
+| `llm.model` | string | empty | The first reader's model, e.g. `gemma4:26b`; the AI page lists what is available |
 | `llm.ollama_url` | URL | `http://localhost:11434` | Where Ollama answers. Must be `http(s)://host:port` |
 | `llm.judge_on_scan` | bool | `false` | After each scan, judge the best job posts not yet judged |
 | `llm.judge_top` | int | `25` | How many a judging run reads, 1 to 500. Bounds what a scan can spend on a paid API |

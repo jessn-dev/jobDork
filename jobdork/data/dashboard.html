@@ -361,7 +361,13 @@ mark.cred{background:var(--flagbg);color:var(--fg);border-radius:3px;padding:0 .
 .seg button{background:var(--btn);color:var(--fg);border:0;border-right:1px solid var(--line);
   padding:.4rem .85rem;font:inherit;font-size:.85rem;cursor:pointer}
 .seg button:last-child{border-right:0}
-#ai-provider button{display:inline-flex;align-items:center;gap:.4rem}
+#ai-readers .seg button,#ai-c-provider button{display:inline-flex;align-items:center;gap:.4rem}
+.reader{border:1px solid var(--line);border-radius:8px;padding:.7rem .9rem .3rem;margin:0 0 .8rem;
+  background:var(--card)}
+.reader .rhead{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .7rem;margin-bottom:.55rem}
+.reader .rhead .acts{margin-left:auto;display:inline-flex;gap:.3rem}
+.reader .field{margin-bottom:.6rem}
+.reader .seg{flex-wrap:wrap}
 .plogo{width:15px;height:15px;fill:currentColor;flex:none}
 /* Brand colours where the mark has one; the selected button uses its text
    colour, so the mark keeps its contrast on the accent background. */
@@ -979,32 +985,18 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       do not say plainly whether the job is still open. It never hides a job post.
       Local models cost nothing; the others spend tokens on your key.</p>
 
-    <div class="field"><label>Provider</label>
-      <div class="seg" id="ai-provider"></div></div>
-
-    <div class="field" id="ai-ollama-row"><label>Ollama address</label>
-      <input id="ai-ollama" style="width:20rem" spellcheck="false"></div>
-
-    <div class="field" id="ai-key-row"><label>API key</label>
-      <div class="bar" style="margin:0">
-        <input id="ai-key" type="password" autocomplete="off" spellcheck="false"
-          placeholder="Paste the key" style="width:22rem">
-        <button data-icon="key-round" class="act" id="ai-key-hold">Hold in memory</button>
-        <span id="ai-key-state"></span>
-      </div>
-      <div class="hint">Kept only in this server's memory and never written to the
-        config, the database, a log, or sent back to this page. Forgotten when
-        you stop jobdork, when you click Forget, or a minute after the last
-        dashboard tab closes.</div></div>
-
-    <div class="field"><label>Model</label>
-      <div class="bar" style="margin:0">
-        <select id="ai-models" aria-label="Model" style="width:22rem" hidden></select>
-        <input id="ai-model" aria-label="Model name" style="width:22rem" spellcheck="false"
-          placeholder="Choose or type a model name">
-        <button data-icon="refresh-cw" class="act" id="ai-load">Load models</button>
-        <span id="ai-load-msg" class="hint"></span>
-      </div></div>
+    <div id="ai-readers"></div>
+    <div class="bar" style="margin:-.2rem 0 .3rem">
+      <button data-icon="plus" class="act" id="ai-add">Add another reader</button>
+      <span class="hint" id="ai-add-note"></span>
+    </div>
+    <p class="hint" style="margin:0 0 1rem">Readers are asked in order: the first does the
+      work, and when it cannot answer (no key held, not reachable, rate limited, an error)
+      the next one does, so a second reader keeps things going when the first is down. The
+      same provider can be listed again with another model. A key is per provider, kept
+      in this server's memory only and never written to the config, the database, a log,
+      or sent back to this page; it is forgotten when you stop jobdork, when you click
+      Forget, or a minute after the last dashboard tab closes.</p>
 
     <div class="field" id="ai-when"><label>When to use it</label>
       <label class="check"><input type="checkbox" id="ai-on-scan"> After each scan,
@@ -2689,6 +2681,10 @@ function drawSetup(st) {
       suggests what to search for in the next step, and drafts cover letters.
       Scanning works without it, so you can skip this and set it up later on
       the AI page.</p>
+      <p>Choose one reader to start. <b>Add another reader</b> (up to three here, six
+      later on the AI page) for one to take over when the first cannot answer: Ollama
+      not running, a key missing, a rate limit. It can be the same provider with another
+      model.</p>
       <p class="hint">Ollama runs on your own computer and costs nothing. Claude,
       Gemini and ChatGPT spend tokens on your key. Once the test passes, every
       scan has the model read the ${SETUP_JUDGE_TOP} best new job posts against your
@@ -2849,7 +2845,7 @@ function wireKeyCards(box, keyed, say, redraw) {
     if (!r.ok) { say(cap(await r.text()), 'err'); return; }
     const d = await r.json();
     await redraw(d);
-    say(d.note || '', d.note ? 'hint' : '');
+    say(d.note || '', d.note && d.note.startsWith('Tested') ? 'saved' : d.note ? 'hint' : '');
   };
   box.querySelectorAll('[data-want],[data-replace]').forEach(btn => btn.onclick = () => {
     if (btn.dataset.want) btn.closest('.bar').hidden = true;
@@ -3778,17 +3774,13 @@ const PROVIDER_ICONS = {
 const providerIcon = p => PROVIDER_ICONS[p]
   ? `<svg class="plogo ${p}" viewBox="0 0 24 24" aria-hidden="true"><path d="${PROVIDER_ICONS[p]}"/></svg>` : '';
 
+// The readers, in the order they are asked (config llm.readers). The page
+// keeps them in ai.readers and draws one card each.
+const blankReader = () => ({provider: '', model: '', ollama_url: ''});
+
 async function drawAI() {
   ai = await (await api('/api/llm')).json();
-  $('ai-provider').innerHTML = ['', ...Object.keys(ai.providers)].map(p =>
-    `<button data-p="${p}" ${p ? '' : 'data-icon="power" '}class="${p === ai.provider ? 'on' : ''}">${providerIcon(p)}${
-      p ? esc(ai.providers[p]) : 'Off'}</button>`).join('');
-  $('ai-provider').querySelectorAll('button').forEach(b => b.onclick = () => {
-    if (ai.provider !== b.dataset.p) $('ai-model').value = '';
-    ai.provider = b.dataset.p; paintAI(); loadModels(true);
-  });
-  $('ai-ollama').value = ai.ollama_url;
-  $('ai-model').value = ai.model;
+  ai.readers = ai.readers && ai.readers.length ? ai.readers : [blankReader()];
   $('ai-on-scan').checked = ai.judge_on_scan;
   $('ai-top').value = ai.judge_top;
   $('ai-pages').checked = ai.read_pages;
@@ -3804,8 +3796,131 @@ async function drawAI() {
     ai.checker_provider = b.dataset.p; paintChecker(); loadCheckerModels(true);
   });
   $('ai-c-model').value = ai.checker_model || '';
-  paintAI(); loadModels(true); paintChecker(); loadCheckerModels(true);
+  drawReaders(true); paintChecker(); loadCheckerModels(true);
 }
+
+// The Ollama address a reader uses: its own, or the one saved for all.
+const readerUrl = r => r.ollama_url || ai.ollama_url || '';
+
+// What the cards hold now, read back before anything redraws them.
+function syncReaders() {
+  $('ai-readers').querySelectorAll('.reader').forEach(card => {
+    const r = ai.readers[Number(card.dataset.i)];
+    if (!r) return;
+    r.model = card.querySelector('.r-model').value.trim();
+    if (r.provider === 'ollama') r.ollama_url = card.querySelector('.r-url').value.trim();
+  });
+}
+
+function keyState(p) {
+  const where = ai.keys[p];
+  return where === 'memory'
+    ? `<span class="saved">key held in memory</span> <button data-icon="eraser" class="act r-forget" type="button">Forget</button>`
+    : where === 'environment' ? '<span class="hint">using the key from the environment</span>'
+    : '<span class="hint">No key held</span>';
+}
+
+function drawReaders(loadAll) {
+  const max = ai.max_readers || 6;
+  $('ai-readers').innerHTML = ai.readers.map((r, i) => `<div class="reader" data-i="${i}">
+    <div class="rhead"><b>Reader ${i + 1}</b>
+      <span class="hint">${i === 0 ? 'asked first' : `asked when reader ${i} cannot answer`}</span>
+      <span class="acts">${i > 0 ? `<button data-icon="chevron-left" class="act r-up" type="button" title="Ask this one earlier">Earlier</button>
+        <button data-icon="trash-2" class="act r-del" type="button">Remove</button>` : ''}</span></div>
+    <div class="field"><label>Provider</label><div class="seg r-prov">${
+      [...(i === 0 ? [''] : []), ...Object.keys(ai.providers)].map(p =>
+        `<button type="button" data-p="${p}" ${p ? '' : 'data-icon="power" '}class="${p === r.provider ? 'on' : ''}">${
+          providerIcon(p)}${p ? esc(ai.providers[p]) : 'Off'}</button>`).join('')}</div></div>
+    <div class="field r-url-row" ${r.provider === 'ollama' ? '' : 'hidden'}><label>Ollama address</label>
+      <input class="r-url" style="width:20rem" spellcheck="false" value="${esc(readerUrl(r))}"></div>
+    <div class="field r-key-row" ${r.provider in ai.keys ? '' : 'hidden'}><label>API key for ${esc(ai.providers[r.provider] || '')}</label>
+      <div class="bar" style="margin:0">
+        <input class="r-key" type="password" autocomplete="off" spellcheck="false"
+          placeholder="Paste the key" style="width:22rem">
+        <button data-icon="key-round" class="act r-hold" type="button">Hold in memory</button>
+        <span class="r-key-state">${r.provider in ai.keys ? keyState(r.provider) : ''}</span></div></div>
+    <div class="field r-model-row" ${r.provider ? '' : 'hidden'}><label>Model</label>
+      <div class="bar" style="margin:0">
+        <select class="r-models" aria-label="Model" style="width:22rem" hidden></select>
+        <input class="r-model" aria-label="Model name" style="width:22rem" spellcheck="false"
+          placeholder="Choose or type a model name" value="${esc(r.model)}">
+        <button data-icon="refresh-cw" class="act r-load" type="button">Load models</button>
+        <span class="r-msg hint"></span></div></div>
+  </div>`).join('');
+  const off = !ai.readers[0].provider;
+  $('ai-add').hidden = off;
+  $('ai-add').disabled = ai.readers.length >= max;
+  $('ai-add-note').textContent = off ? '' : ai.readers.length >= max
+    ? (setupStep ? `Up to ${max} here; add more later on the AI page.` : `Up to ${max} readers.`)
+    : (setupStep ? `Optional. Up to ${max} here, more later on the AI page.` : '');
+  // The first reader is what everything else on the page waits for.
+  ai.provider = ai.readers[0].provider;
+  document.querySelectorAll('#ai-on-scan, #ai-top, #ai-pages, #ai-guard')
+    .forEach(el => el.disabled = off);
+  if ($('ai-c-provider').children.length) paintChecker();
+  $('ai-readers').querySelectorAll('.reader').forEach(card => wireReader(card, loadAll));
+}
+
+function wireReader(card, load) {
+  const i = Number(card.dataset.i), r = ai.readers[i];
+  card.querySelectorAll('.r-prov button').forEach(b => b.onclick = () => {
+    syncReaders();
+    if (r.provider !== b.dataset.p) r.model = '';
+    r.provider = b.dataset.p;
+    if (i === 0 && !r.provider) ai.readers = [r];      // Off: no readers at all
+    drawReaders(false);
+    const again = $('ai-readers').querySelector(`.reader[data-i="${i}"]`);
+    if (again) loadReaderModels(again, true);
+  });
+  const del = card.querySelector('.r-del');
+  if (del) del.onclick = () => { syncReaders(); ai.readers.splice(i, 1); drawReaders(true); };
+  const up = card.querySelector('.r-up');
+  if (up) up.onclick = () => {
+    syncReaders();
+    [ai.readers[i - 1], ai.readers[i]] = [ai.readers[i], ai.readers[i - 1]];
+    drawReaders(true);
+  };
+  card.querySelector('.r-load').onclick = () => loadReaderModels(card, false);
+  card.querySelector('.r-hold').onclick = async () => {
+    const box = card.querySelector('.r-key'), key = box.value;
+    const res = await api('/api/llm/key', {method: 'POST', body: form({provider: r.provider, key})});
+    box.value = '';                   // the page does not keep it either
+    if (!res.ok) {
+      card.querySelector('.r-key-state').innerHTML = `<span class="err">${esc(await res.text())}</span>`;
+      return;
+    }
+    ai.keys[r.provider] = 'memory';
+    syncReaders(); drawReaders(true); refreshState();
+  };
+  const forget = card.querySelector('.r-forget');
+  if (forget) forget.onclick = async () => {
+    await api('/api/llm/forget', {method: 'POST', body: form({provider: r.provider})});
+    ai.keys[r.provider] = '';
+    syncReaders(); drawReaders(false);
+  };
+  if (load) loadReaderModels(card, true);
+}
+
+async function loadReaderModels(card, quiet) {
+  const r = ai.readers[Number(card.dataset.i)], msg = card.querySelector('.r-msg');
+  const sel = card.querySelector('.r-models'), input = card.querySelector('.r-model');
+  fillModelsEl(sel, input, []);
+  if (!r || !r.provider || (r.provider in ai.keys && !ai.keys[r.provider])) { msg.textContent = ''; return; }
+  msg.textContent = 'loading…';
+  const url = card.querySelector('.r-url').value.trim() || readerUrl(r);
+  const res = await api(`/api/llm/models?provider=${r.provider}&url=${encodeURIComponent(url)}`);
+  if (!res.ok) { msg.textContent = await res.text(); return; }
+  const models = (await res.json()).models;
+  msg.textContent = `${models.length} available`;
+  fillModelsEl(sel, input, models);
+}
+
+$('ai-add').onclick = () => {
+  syncReaders();
+  if (ai.readers.length >= (ai.max_readers || 6)) return;
+  ai.readers.push(blankReader());
+  drawReaders(false);
+};
 
 function paintChecker() {
   const p = ai.checker_provider;
@@ -3825,7 +3940,7 @@ async function loadCheckerModels(quiet) {
   fillModels('ai-c-models', 'ai-c-model', []);
   if (!p || (p in ai.keys && !ai.keys[p])) { msg.textContent = ''; return; }
   msg.textContent = 'loading…';
-  const r = await api(`/api/llm/models?provider=${p}&url=${encodeURIComponent($('ai-ollama').value)}`);
+  const r = await api(`/api/llm/models?provider=${p}&url=${encodeURIComponent(ai.ollama_url || '')}`);
   if (!r.ok) { msg.textContent = await r.text(); return; }
   const models = (await r.json()).models;
   msg.textContent = `${models.length} available`;
@@ -3838,36 +3953,17 @@ $('ai-c-key-hold').onclick = async () => {
     body: form({provider: ai.checker_provider, key})});
   $('ai-c-key').value = '';            // the page does not keep it either
   if (!r.ok) { $('ai-c-key-state').innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
-  ai.keys[ai.checker_provider] = 'memory'; paintChecker(); paintAI(); loadCheckerModels(false);
+  ai.keys[ai.checker_provider] = 'memory'; paintChecker(); syncReaders(); drawReaders(true);
+  loadCheckerModels(false);
 };
-
-function paintAI() {
-  const p = ai.provider;
-  $('ai-provider').querySelectorAll('button').forEach(b =>
-    b.classList.toggle('on', b.dataset.p === p));
-  $('ai-ollama-row').hidden = p !== 'ollama';
-  $('ai-key-row').hidden = !(p in ai.keys);
-  const where = ai.keys[p];
-  $('ai-key-state').innerHTML = where === 'memory'
-    ? `<span class="saved">held in memory</span> <button data-icon="eraser" class="act" id="ai-forget">Forget</button>`
-    : where === 'environment' ? '<span class="hint">using the key from the environment</span>'
-    : '<span class="hint">No key held</span>';
-  if ($('ai-forget')) $('ai-forget').onclick = async () => {
-    await api('/api/llm/forget', {method: 'POST', body: form({provider: p})});
-    drawAI();
-  };
-  document.querySelectorAll('#ai-model, #ai-models, #ai-load, #ai-on-scan, #ai-top, #ai-pages, #ai-guard')
-    .forEach(el => el.disabled = !p);
-  if ($('ai-c-provider').children.length) paintChecker();
-}
 
 // The loaded models as a real dropdown. A text box with a suggestion list
 // only suggests what matches the text already in it, so once a model was
 // filled in, it offered that one model alone. The text box stays the value
 // that is saved; "Other" shows it, for a model the list does not have.
 const OTHER_MODEL = '\u0000other';
-function fillModels(selId, inputId, models) {
-  const sel = $(selId), input = $(inputId);
+const fillModels = (selId, inputId, models) => fillModelsEl($(selId), $(inputId), models);
+function fillModelsEl(sel, input, models) {
   if (!models.length) { sel.hidden = true; sel.innerHTML = ''; input.hidden = false; return; }
   if (!input.value) input.value = models[0];
   const known = models.includes(input.value);
@@ -3881,44 +3977,41 @@ function fillModels(selId, inputId, models) {
   };
 }
 
-async function loadModels(quiet) {
-  const p = ai.provider, msg = $('ai-load-msg');
-  fillModels('ai-models', 'ai-model', []);
-  if (!p || (p in ai.keys && !ai.keys[p])) { msg.textContent = ''; return; }
-  msg.textContent = 'loading…';
-  const r = await api(`/api/llm/models?provider=${p}&url=${encodeURIComponent($('ai-ollama').value)}`);
-  if (!r.ok) { msg.textContent = await r.text(); return; }
-  const models = (await r.json()).models;
-  msg.textContent = `${models.length} available`;
-  fillModels('ai-models', 'ai-model', models);
-}
-
 async function saveAI() {
+  syncReaders();
+  const readers = ai.readers.filter(r => r.provider).map(r => ({provider: r.provider, model: r.model,
+    ollama_url: r.provider === 'ollama' ? (r.ollama_url || '') : ''}));
+  const seen = new Set();
+  for (const r of readers) {
+    const k = `${r.provider}|${r.model}|${r.ollama_url}`;
+    if (seen.has(k)) {
+      $('ai-msg').className = 'err';
+      $('ai-msg').textContent = `${ai.providers[r.provider]} ${r.model || ''} is listed twice; give the second another model.`;
+      return false;
+    }
+    seen.add(k);
+  }
+  const firstOllama = readers.find(r => r.provider === 'ollama');
   const r = await api('/api/llm', {method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({provider: ai.provider, model: $('ai-model').value.trim(),
-      ollama_url: $('ai-ollama').value.trim(), judge_on_scan: $('ai-on-scan').checked,
+    body: JSON.stringify({readers,
+      ollama_url: firstOllama && firstOllama.ollama_url ? firstOllama.ollama_url : (ai.ollama_url || ''),
+      judge_on_scan: $('ai-on-scan').checked,
       judge_top: Number($('ai-top').value) || 25, read_pages: $('ai-pages').checked,
       guard: $('ai-guard').checked, checker_provider: ai.checker_provider || '',
       checker_model: ai.checker_provider ? $('ai-c-model').value.trim() : ''})});
   if (!r.ok) { $('ai-msg').className = 'err'; $('ai-msg').textContent = await r.text(); return false; }
-  ai = {...ai, ...(await r.json())};
+  const fresh = await r.json();
+  ai = {...ai, ...fresh, readers: fresh.readers.length ? fresh.readers : [blankReader()]};
   $('ai-msg').className = ai.problem ? 'hint' : 'saved';
   $('ai-msg').textContent = (ai.problem ? `Saved. ${ai.problem}` : `Saved: ${ai.label}`) +
+    (ai.readers.length > 1 ? ` · ${ai.readers.length} readers` : '') +
     (ai.checker_label ? ` · checked by ${ai.checker_label}${ai.checker_problem ? ` (${ai.checker_problem})` : ''}` : '');
+  drawReaders(false);
   refreshState();
   return !ai.problem;
 }
 
-$('ai-key-hold').onclick = async () => {
-  const key = $('ai-key').value;
-  const r = await api('/api/llm/key', {method: 'POST',
-    body: form({provider: ai.provider, key})});
-  $('ai-key').value = '';            // the page does not keep it either
-  if (!r.ok) { $('ai-key-state').innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
-  ai.keys[ai.provider] = 'memory'; paintAI(); loadModels(false); refreshState();
-};
-$('ai-load').onclick = () => loadModels(false);
 $('ai-save').onclick = saveAI;
 $('ai-test').onclick = async () => {
   if (!await saveAI()) return;
@@ -3927,10 +4020,12 @@ $('ai-test').onclick = async () => {
   const text = await r.text();
   if (!r.ok) { $('ai-msg').className = 'err'; $('ai-msg').textContent = text; return; }
   const d = JSON.parse(text);
-  $('ai-msg').className = d.checker && d.checker.error ? 'err' : 'saved';
-  $('ai-msg').textContent = `${d.model} answered in ${d.seconds}s` + (!d.checker ? ''
-    : d.checker.error ? ` · second model: ${d.checker.error}`
-    : ` · second model ${d.checker.model} answered in ${d.checker.seconds}s`);
+  const failed = (d.readers || []).filter(x => x.error);
+  $('ai-msg').className = failed.length || (d.checker && d.checker.error) ? 'err' : 'saved';
+  $('ai-msg').textContent = (d.readers || [d]).map(x => x.error
+      ? `${x.model}: ${x.error}` : `${x.model} answered in ${x.seconds}s`).join(' · ') +
+    (!d.checker ? '' : d.checker.error ? ` · second model: ${d.checker.error}`
+      : ` · second model ${d.checker.model} answered in ${d.checker.seconds}s`);
   if ($('setup-next')) $('setup-next').hidden = false;      // the AI setup step
 };
 

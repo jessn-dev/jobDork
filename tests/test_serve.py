@@ -111,6 +111,17 @@ class _Running:
         except urllib.error.HTTPError as exc:
             return exc.code, exc.read()
 
+    def post_json(self, path: str, payload: dict):
+        request = urllib.request.Request(self.base + path,
+                                         data=json.dumps(payload).encode())
+        request.add_header("X-Jobdork-Token", self.token)
+        request.add_header("Content-Type", "application/json")
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                return response.status, response.read()
+        except urllib.error.HTTPError as exc:
+            return exc.code, exc.read()
+
     def _record(self, name, make) -> bool:
         self.queued.append(name)
         return True

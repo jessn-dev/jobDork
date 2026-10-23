@@ -1654,10 +1654,21 @@ def fresh_scan_job(cfg, expect):
 def llm_state(cfg) -> dict:
     """AI settings for the page. Says which keys are held, never what they are."""
     from ..ai import llm
+    from ..core.config import MAX_READERS, SETUP_MAX_READERS
 
     settings = llm.Settings.from_config(cfg)
+    readers = []
+    for r in cfg.llm.readers:
+        one = llm.Settings(provider=r.provider, model=r.model,
+                           ollama_url=r.ollama_url or cfg.llm.ollama_url)
+        readers.append({"provider": r.provider, "model": r.model,
+                        "ollama_url": r.ollama_url, "label": one.label,
+                        "problem": one.problem()})
     return {
         "providers": llm.PROVIDERS,
+        "readers": readers,
+        # Setup offers a few; the AI page, later, the rest.
+        "max_readers": SETUP_MAX_READERS if cfg.setup_step else MAX_READERS,
         "provider": cfg.llm.provider,
         "model": cfg.llm.model,
         "ollama_url": cfg.llm.ollama_url,
@@ -1712,14 +1723,26 @@ def llm_forget(provider: str) -> dict:
 
 
 def llm_test(cfg) -> dict:
-    """Ask the model, and the second model when one is chosen, to answer."""
+    """Ask every reader, one by one, and the second model when one is
+    chosen, to answer. Fails only when no reader answers."""
     from ..ai import llm
 
     settings = llm.Settings.from_config(cfg)
-    try:
-        out = llm.ping(settings)
-    except llm.LLMError as exc:
-        raise ApiError(str(exc), 502) from exc
+    answers = []
+    for reader in [llm.Settings(provider=r.provider, model=r.model,
+                                ollama_url=r.ollama_url or cfg.llm.ollama_url,
+                                context=settings.context)
+                   for r in cfg.llm.readers] or [settings]:
+        try:
+            if reader.problem():
+                raise llm.LLMError(reader.problem())
+            answers.append(llm.ping(reader))
+        except llm.LLMError as exc:
+            answers.append({"model": reader.label, "error": str(exc)})
+    working = [a for a in answers if "error" not in a]
+    if not working:
+        raise ApiError("; ".join(f"{a['model']}: {a['error']}" for a in answers), 502)
+    out = {**working[0], "readers": answers}
     if settings.checker is not None:
         try:
             if settings.checker.problem():
@@ -1832,9 +1855,10 @@ def try_source_keys(cfg, values: dict[str, str]) -> tuple[str, str]:
 def setup_keys(cfg, form: dict) -> str:
     """Save or remove one source's keys. Nothing typed is ever sent back.
 
-    New keys are tried first: refused ones are not saved. When the source
-    cannot be asked (offline, down), they are saved and the returned note
-    says they were not tried.
+    New keys are tried first, and only keys the source accepted are saved:
+    a refused key is not, and neither is one the source could not be asked
+    about (offline, down), so a key that does not work is never kept. The
+    page says which, and to try again later in the second case.
     """
     from ..core.config import (
         SOURCE_KEY_NAMES,
@@ -1859,7 +1883,10 @@ def setup_keys(cfg, form: dict) -> str:
             if verdict == "refused":
                 raise ApiError(why)
             if verdict != "ok":
-                note = f"Saved, but not tried: {why}."
+                raise ApiError(f"Not saved: {why}, so the key could not be tested. "
+                               "Try again when it answers", 503)
+            source = "USAJOBS" if "USAJOBS_API_KEY" in values else "Adzuna"
+            note = f"Tested: {source} accepted the key, and it is saved."
         write_source_keys(cfg, {k: "" if remove else v for k, v in values.items()})
     except ConfigError as exc:
         raise ApiError(str(exc)) from exc

@@ -515,7 +515,10 @@ scoped to that one folder.
 
 A model can read what the rules cannot: the whole advert against your whole
 resume. Judging, letters, reviews and tailored resumes need one; a scan does
-not, and a verdict never hides a job post.
+not, and a verdict never hides a job post. List up to six readers on the AI
+page (setup asks for one, with room for three): they are asked in order, and
+when one cannot answer (no key, Ollama not running, rate limited) the next
+one does. The same provider can be listed again with another model.
 
 ```bash
 jobdork judge                 # the best job posts, read against your resume

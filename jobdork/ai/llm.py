@@ -41,7 +41,7 @@ import os
 import re
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 
 import requests
 
@@ -174,9 +174,18 @@ class Settings:
     context: int = DEFAULT_CONTEXT
     # The second model that checks this one's work (llm.checker_*), or None.
     checker: Settings | None = None
+    # The readers after this one (llm.readers), asked in order when this one
+    # cannot answer: no key, not reachable, rate limited, an error.
+    fallbacks: list[Settings] = field(default_factory=list)
+    # Which reader answered the last call, for the label an output is
+    # recorded under; None until a call is made.
+    answered: Settings | None = None
 
     @classmethod
     def from_config(cls, cfg) -> Settings:
+        """The readers in order, as one Settings: the first that is ready to
+        call (a key held, a model chosen) answers first, and the others
+        follow in their order. None ready: the first, saying why not."""
         llm = getattr(cfg, "llm", None)
         if llm is None:
             return cls()
@@ -186,8 +195,21 @@ class Settings:
         if getattr(llm, "checker_provider", ""):
             checker = cls(provider=llm.checker_provider, model=llm.checker_model,
                           ollama_url=url, context=context)
-        return cls(provider=llm.provider, model=llm.model, ollama_url=url,
-                   context=context, checker=checker)
+        readers = [cls(provider=r.provider, model=r.model,
+                       ollama_url=r.ollama_url or url, context=context)
+                   for r in getattr(llm, "readers", None) or []]
+        if not readers:
+            readers = [cls(provider=llm.provider, model=llm.model, ollama_url=url,
+                           context=context)]
+        ready = [r for r in readers if not r.problem()]
+        first = ready[0] if ready else readers[0]
+        rest = [r for r in readers if r is not first]
+        return cls(provider=first.provider, model=first.model, ollama_url=first.ollama_url,
+                   context=context, checker=checker, fallbacks=rest)
+
+    def chain(self) -> list[Settings]:
+        """This reader and the ones after it, in the order they are asked."""
+        return [replace(self, checker=None, fallbacks=[], answered=None), *self.fallbacks]
 
     def usable_checker(self) -> Settings | None:
         """The second model, when one is chosen and ready to call."""
@@ -209,7 +231,9 @@ class Settings:
 
     @property
     def label(self) -> str:
-        return f"{PROVIDERS.get(self.provider, self.provider)} · {self.model}"
+        """The model's name, or after a call, the name of the one that answered."""
+        who = self.answered or self
+        return f"{PROVIDERS.get(who.provider, who.provider)} · {who.model}"
 
 
 # ── calling a model ───────────────────────────────────────────────────────────
@@ -258,8 +282,30 @@ def complete_json(settings: Settings, system: str, user: str,
     writes it, for a progress bar; hosted models answer in one piece.
     """
     why = settings.problem()
-    if why:
+    if why and not any(not r.problem() for r in settings.fallbacks):
         raise LLMError(why)
+    failed: list[str] = []
+    for reader in settings.chain():
+        if reader.problem():
+            failed.append(f"{reader.label}: {reader.problem()}")
+            continue
+        try:
+            answer = _call_one(reader, system, user, schema, max_tokens, purpose, on_text)
+        except LLMError as exc:
+            failed.append(f"{reader.label}: {exc}")
+            if len(failed) < len(settings.chain()):
+                log.warning("AI reader %s could not answer; asking the next one", reader.label)
+            continue
+        settings.answered = reader
+        return answer
+    if len(failed) == 1:
+        raise LLMError(failed[0].split(": ", 1)[1])
+    raise LLMError("no AI reader could answer. " + "; ".join(failed))
+
+
+def _call_one(settings: Settings, system: str, user: str, schema: dict,
+              max_tokens: int, purpose: str, on_text) -> dict:
+    """One reader, one call. Raises LLMError."""
     if settings.provider in KEYED:
         user = redact(user)
     call = {"ollama": _ollama, "anthropic": _anthropic,

@@ -6,6 +6,46 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-23 — Adzuna and USAJOBS keys are saved only once they work
+
+- **A key is kept only when the source accepted it.** Saving already tried
+  each key with one search and refused a key the source refused; a key it
+  could not be asked about (offline, the service down) was saved with "Saved,
+  but not tried". Now that is refused too: "Not saved: USAJOBS could not be
+  asked (timed out), so the key could not be tested. Try again when it
+  answers" (HTTP 503), so a key that does not work never sits in the keys
+  file. A key that works says "Tested: USAJOBS accepted the key, and it is
+  saved." In setup and on the Sources page alike (`api.setup_keys`).
+  tests/test_core.py.
+
+## Added — 2026-10-23 — Up to six AI readers, each taking over when the one before cannot answer
+
+- **`llm.readers`**: the AI readers in the order they are asked, up to six,
+  each a provider and model (and for Ollama its own address, if not the
+  usual one). The same provider can be listed again with another model, not
+  the same model twice. A config from before, with one `provider` and
+  `model`, is that one reader, and the first reader is always also written
+  as `provider` and `model`, so an older jobdork still reads it.
+- **Fallback, at every model call** (`llm.complete_json`): the first reader
+  that is ready (a key held, a model chosen) is asked; when it cannot answer
+  (not reachable, rate limited, a refused key, an error) the next is, in
+  order. What it produced is recorded under the reader that answered, so a
+  verdict or letter names the model that wrote it. When none can, the error
+  lists each reader's reason. The second model, which checks the first's
+  claims, is unchanged and separate.
+- **The AI page lists them as cards**, one per reader, each with its
+  provider, Ollama address or key, and model list; **Add another reader**
+  below, **Earlier** to move one up, **Remove**. A key is per provider, so
+  two readers on Claude share one. **Save and test** asks each reader on its
+  own and says which answered and how fast, and which could not and why.
+- **Setup's AI step** shows one reader and **Add another reader**, up to
+  three there; the AI page allows six. The server holds to both (400 "at
+  most 3 AI readers in setup; add more later on the AI page").
+- Checked over HTTP on a copy (the browser extension was not connected): the
+  existing config read as one reader, two Ollama readers saved and read
+  back. Not yet seen in a browser. tests/test_readers.py (fallback, order,
+  limits, the old form), docs/CONFIG.md, config.example.yaml, README.
+
 ## Added — 2026-10-23 — The version check can be switched off in the app, and the installer says what goes where
 
 SignPath Foundation's terms ask that software which goes on the network by

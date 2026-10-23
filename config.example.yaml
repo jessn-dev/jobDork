@@ -199,6 +199,12 @@ freshness:
 llm:
   provider: ""              # ollama | anthropic | gemini | openai
   model: ""                 # e.g. gemma4:26b for Ollama
+  # Or several readers, asked in order: the next answers when one cannot
+  # (no key, not reachable, rate limited). Up to 6; same provider, other model
+  # is fine. The AI page writes this.
+  #   readers:
+  #     - {provider: ollama, model: gemma4:26b}
+  #     - {provider: anthropic, model: claude-sonnet-5-5}
   ollama_url: http://localhost:11434
   judge_on_scan: false      # judge the best new job posts after each scan
   judge_top: 25             # how many a judging run reads (1-500)

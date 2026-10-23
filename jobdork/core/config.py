@@ -375,15 +375,40 @@ class Fetch:
     )
 
 
+# At most this many AI readers; setup offers the first SETUP_MAX_READERS of
+# them, and the AI page the rest.
+MAX_READERS = 6
+SETUP_MAX_READERS = 3
+
+
+@dataclass
+class Reader:
+    """One AI reader: a provider and model, and for Ollama its address
+    ("" is llm.ollama_url). The same provider may be listed with other models."""
+
+    provider: str
+    model: str = ""
+    ollama_url: str = ""
+
+    def key(self) -> tuple[str, str, str]:
+        return (self.provider, self.model, self.ollama_url)
+
+
 @dataclass
 class Llm:
     """Which model reads adverts, and when. Never a key: keys stay in memory.
 
     Empty `provider` means off. Both uses are opt-in, and `judge_top` bounds
     what a scan can spend on a paid API.
+
+    `readers` are the models in the order they are asked: the first does the
+    work, and when it cannot answer (no key, not reachable, rate limited, an
+    error) the next one does (ai/llm.py). `provider` and `model` are always
+    the first reader's, as they were before there could be more than one.
     """
     provider: str = ""              # ollama | anthropic | gemini | openai
     model: str = ""
+    readers: list[Reader] = field(default_factory=list)
     ollama_url: str = "http://localhost:11434"
     judge_on_scan: bool = False     # judge the best new roles after each scan
     judge_top: int = 25
@@ -736,7 +761,12 @@ def _build(raw: dict[str, Any]) -> Config:
         context=_context(ai.get("context")),
         checker_provider=str(ai.get("checker_provider") or "").strip().lower(),
         checker_model=str(ai.get("checker_model") or "").strip(),
+        readers=_readers(ai),
     )
+    if cfg.llm.readers:
+        # The first reader is `provider` and `model`, whatever they said.
+        cfg.llm.provider = cfg.llm.readers[0].provider
+        cfg.llm.model = cfg.llm.readers[0].model
 
     cfg.db_path = str(raw.get("db") or "data/jobdork.db")
     check = raw.get("update_check", True)
@@ -979,6 +1009,12 @@ def _validate(cfg: Config) -> None:
         raise ConfigError(
             f"llm.provider is {cfg.llm.provider!r}. Accepted: "
             f"{', '.join(PROVIDERS)}, or empty for off.")
+    for i, reader in enumerate(cfg.llm.readers, 1):
+        if reader.provider not in PROVIDERS:
+            raise ConfigError(f"llm.readers entry {i} has provider {reader.provider!r}. "
+                              f"Accepted: {', '.join(PROVIDERS)}")
+        if reader.ollama_url and not re.match(r"https?://[^\s/]+", reader.ollama_url):
+            raise ConfigError(f"llm.readers entry {i}: ollama_url must be an http(s) address")
     if cfg.llm.checker_provider and cfg.llm.checker_provider not in PROVIDERS:
         raise ConfigError(
             f"llm.checker_provider is {cfg.llm.checker_provider!r}. Accepted: "
@@ -1015,6 +1051,33 @@ def _dealbreaker(i: int, entry) -> Dealbreaker:
     name = str(entry.get("name") or (words[0] if words else "") or f"dealbreaker {i}")
     return Dealbreaker(name=name, words=words, pattern=str(entry.get("pattern") or ""),
                        hard=bool(entry.get("hard", True)))
+
+
+def _readers(ai: dict) -> list[Reader]:
+    """`llm.readers`, a list of {provider, model, ollama_url}; or, in a config
+    from before there could be several, the one `provider` and `model`."""
+    raw = ai.get("readers")
+    if raw is None:
+        provider = str(ai.get("provider") or "").strip().lower()
+        return [Reader(provider, str(ai.get("model") or "").strip())] if provider else []
+    if not isinstance(raw, list):
+        raise ConfigError("llm.readers must be a list of {provider, model}")
+    if len(raw) > MAX_READERS:
+        raise ConfigError(f"llm.readers lists {len(raw)}; at most {MAX_READERS}")
+    readers: list[Reader] = []
+    for i, entry in enumerate(raw, 1):
+        if not isinstance(entry, dict):
+            raise ConfigError(f"llm.readers entry {i} must be a mapping with provider and model")
+        reader = Reader(provider=str(entry.get("provider") or "").strip().lower(),
+                        model=str(entry.get("model") or "").strip(),
+                        ollama_url=str(entry.get("ollama_url") or "").strip().rstrip("/"))
+        if not reader.provider:
+            raise ConfigError(f"llm.readers entry {i} has no provider")
+        if any(r.key() == reader.key() for r in readers):
+            raise ConfigError(f"llm.readers lists {reader.provider} {reader.model or '(no model)'} "
+                              "twice; a second reader needs another model or provider")
+        readers.append(reader)
+    return readers
 
 
 def _directory(raw) -> Directory:
