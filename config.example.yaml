@@ -118,8 +118,14 @@ sources:
   #                    host/path/org/cws (phf.tbe.taleo.net/phf02/COSTCO/41)
   #   site             an employer's own careers site, read through its sitemap
   #                    and the job data on each posting page; its token is the
-  #                    site's address (https://jobs.mayoclinic.org), from discover
-  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, workday, oracle, eightfold, taleo, site]
+  #                    site's address (https://jobs.mayoclinic.org), from discover.
+  #                    SAP SuccessFactors career sites are read this way too
+  #   arbeitsagentur   Germany's Federal Employment Agency, by your titles (in
+  #                    German, as its adverts are). Skipped unless DE is a country
+  #   arbeitnow        jobs in Germany and the rest of Europe, newest first,
+  #                    filtered by your titles. Skipped unless a European
+  #                    country is in countries, or none is
+  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, workday, oracle, eightfold, taleo, site, arbeitsagentur, arbeitnow]
 
   # Employer boards to watch. The token is the board id, not the company name
   # — `mymoose` is Rapid7 — so read it off the employer's own posting URL
@@ -137,11 +143,14 @@ sources:
   # on the employer's own site and re-verified weekly. Read alongside `companies` above.
   #   countries   only boards hiring there; empty follows locations.countries
   #   industries  healthcare, banking, retail, logistics…; empty is all
-  # `jobdork sources` says how many boards your settings read.
+  #   skip        employers' boards switched off one by one, by name
+  # `jobdork sources` says how many boards your settings read, and the
+  # dashboard's Sources page lists them all.
   directory:
     enabled: true
     countries: []
     industries: []
+    skip: []
 
   # Adzuna national indexes. Leave empty and it follows locations.countries,
   # so a Berlin reader gets `de` without knowing the code.

@@ -84,6 +84,7 @@ PLATFORM_NAMES = {
     "greenhouse": "Greenhouse", "ashby": "Ashby", "lever": "Lever",
     "breezy": "Breezy", "smartrecruiters": "SmartRecruiters",
     "workable": "Workable", "adzuna": "Adzuna", "usajobs": "USAJOBS",
+    "arbeitsagentur": "Bundesagentur für Arbeit", "arbeitnow": "Arbeitnow",
 }
 
 

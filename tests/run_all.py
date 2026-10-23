@@ -13,12 +13,15 @@ summary.
 
 from __future__ import annotations
 
+import os
 import sys
 import traceback
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+# As tests/conftest.py does for pytest: no test asks GitHub for a newer release.
+os.environ["JOBDORK_UPDATE_CHECK"] = "off"
 
 
 def main() -> int:

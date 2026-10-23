@@ -9,7 +9,9 @@ Where the jobs come from, what that reaches, and what it does not.
 This tool finds work two ways, and they fail in opposite directions.
 
 **Keyword search.** One query, every employer on a platform. Workable's search,
-Adzuna and USAJOBS all work this way. No list to maintain, no tokens, no
+Kalibrr, Himalayas, the Bundesagentur für Arbeit, Adzuna and USAJOBS all work
+this way; Arbeitnow, which has no search, is read newest first and filtered
+by your titles. No list to maintain, no tokens, no
 per-employer setup — you name a job title and the platform answers for its
 whole market. This is where nearly all the volume comes from.
 
@@ -351,7 +353,9 @@ returning an empty list.
 **USAJOBS, outside the US.** It skips itself when `US` is not in your
 countries, rather than searching a market you cannot work in.
 
-**Platforms with no adapter.** SAP SuccessFactors, iCIMS, UKG, Taleo
+**Platforms with no adapter.** SAP SuccessFactors when an employer has only
+its older `career…successfactors.com` portal (one with a Career Site Builder
+site of its own is read as a careers site, below), iCIMS, UKG, Taleo
 Enterprise (`careersection`; Taleo Business Edition has a reader), Phenom,
 Avature, Jobvite, JazzHR, BambooHR, Paycom, ADP, Paylocity, Recruitee,
 Personio, Teamtailor, Pinpoint, and in India TurboHire, Darwinbox and

@@ -1,8 +1,11 @@
 """What the installed app runs: `jobdork app`, with nothing to type.
 
-Only `--debug` and `--self-test <report>` are read from the command line, and
+Only `--debug`, `--scan` and `--self-test <report>` are read from the command line, and
 anything else is ignored rather than refused: an app has no terminal to show
 a usage error in, and macOS has passed launch arguments of its own in the past.
+
+`--scan` is what the scan schedule runs (jobdork/core/schedule.py): one scan
+in the app's folder, no window, output to its logs/scheduled-scan.log.
 
 `--self-test` checks the build has everything it needs, writes what is
 missing to <report> (a Windows app has no stdout to print it to), and exits
@@ -26,4 +29,6 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if "--self-test" in args and args.index("--self-test") + 1 < len(args):
         raise SystemExit(self_test(args[args.index("--self-test") + 1]))
+    if "--scan" in args:
+        raise SystemExit(app.scheduled_scan())
     raise SystemExit(app.run(port=8765, debug="--debug" in args))

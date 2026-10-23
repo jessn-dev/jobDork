@@ -205,6 +205,18 @@ def rewrite(original: str, payload: dict) -> str:
         # Which built-in employer boards to read; none ticked is every industry.
         data.setdefault("sources", {}).setdefault("directory", {})["industries"] = [
             str(i).strip().lower() for i in payload["industries"] or [] if str(i).strip()]
+    if "directory_enabled" in payload or "directory_skip" in payload:
+        directory = data.setdefault("sources", {}).get("directory")
+        # `directory: false` is the short way of writing it off.
+        if not isinstance(directory, dict):
+            directory = {"enabled": directory is not False}
+            data["sources"]["directory"] = directory
+        if "directory_enabled" in payload:
+            directory["enabled"] = str(payload["directory_enabled"]).lower() in (
+                "1", "true", "yes", "on")
+        if "directory_skip" in payload:
+            directory["skip"] = sorted({str(n).strip() for n in payload["directory_skip"] or []
+                                        if str(n).strip()}, key=str.casefold)
 
     if "credentials" in payload:
         data["credentials"] = [str(c).strip() for c in payload["credentials"] or []

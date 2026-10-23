@@ -14,10 +14,14 @@ is what `rescreen` is for.
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import sys
 import time
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from .. import fetch
 from ..core import telemetry
@@ -117,7 +121,8 @@ def _jobs_for(cfg: Config, part: str = "all") -> list[tuple[str, dict]]:
     directory's (see search/directory.py).
     """
     jobs: list[tuple[str, dict]] = []
-    keyword_sources = ("workable", "kalibrr", "himalayas", "usajobs", "adzuna")
+    keyword_sources = ("workable", "kalibrr", "himalayas", "arbeitsagentur",
+                       "arbeitnow", "usajobs", "adzuna")
 
     if part != "rest":
         for name in cfg.active_sources():
@@ -165,8 +170,56 @@ def _load_resume(cfg: Config, store: Store | None = None):
              if store is not None else "")
     if notes:
         cv.text += "\n\n" + notes
-        cv.skills = resume_mod.extract_skills(cv.text)
+        cv.skills = resume_mod.resume_skills(cv.text)
     return cv
+
+
+class ScanBusy(RuntimeError):
+    """Another scan of the same database is running, in this process or another."""
+
+
+LOCK_FILE = "scan.lock"
+
+
+@contextlib.contextmanager
+def scan_lock(db_path: str) -> Iterator[None]:
+    """Hold the scan lock for this database, or raise ScanBusy.
+
+    The dashboard runs one job at a time, but a scheduled scan, or one typed
+    in a terminal, is another process: two scans at once double every request
+    to hosts that are paced on purpose, and the second earns the rate limit
+    the first was avoiding. An operating-system lock, not a file that says
+    "running": the system lets go of it when the process ends however it
+    ends, so a crashed scan cannot leave the next one refused.
+    """
+    path = Path(db_path).resolve().parent / LOCK_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(path, "a+")             # noqa: SIM115 - held for the scan
+    try:
+        try:
+            if sys.platform == "win32":
+                import msvcrt
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            raise ScanBusy("another scan is already running (from the dashboard, "
+                           "a terminal or the schedule); this one did not start") from None
+        try:
+            yield
+        finally:
+            if sys.platform == "win32":
+                import msvcrt
+                handle.seek(0)
+                with contextlib.suppress(OSError):
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    finally:
+        handle.close()
 
 
 def run(cfg: Config, store: Store, limit: int = 0,
@@ -174,7 +227,13 @@ def run(cfg: Config, store: Store, limit: int = 0,
     """Fetch, screen and store. `limit` caps roles kept, for a quick look.
 
     `part` is "all", or a first scan's "quick" part and the "rest" after it.
+    Raises ScanBusy when another scan of the same database is running.
     """
+    with scan_lock(cfg.db_path):
+        return _run(cfg, store, limit, progress, part)
+
+
+def _run(cfg: Config, store: Store, limit: int, progress, part: str) -> ScanReport:
     report = ScanReport()
     fetcher = Fetcher(
         user_agent=cfg.fetch.user_agent,

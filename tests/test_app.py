@@ -62,10 +62,19 @@ def _fake_webview(on_start=None):
     module.FileDialog = types.SimpleNamespace(OPEN=10, FOLDER=20, SAVE=30)
     module.made = {}
 
+    class Hook(list):
+        """pywebview's event: handlers are added with +=."""
+        def __iadd__(self, handler):
+            self.append(handler)
+            return self
+
     def create_window(title, url, **kw):
         module.made.update(title=title, url=url, **kw)
-        # lambda: a window whose save dialog is never opened in these tests.
-        return types.SimpleNamespace(create_file_dialog=lambda *a, **k: None)
+        module.made["closing"] = Hook()
+        return types.SimpleNamespace(
+            # lambda: a window whose save dialog is never opened in these tests.
+            create_file_dialog=lambda *a, **k: None,
+            events=types.SimpleNamespace(closing=module.made["closing"]))
 
     def start(**kw):
         module.made["start"] = kw
@@ -212,6 +221,7 @@ def test_a_whole_run_opens_setup_from_the_apps_folder_and_stops():
         made = webview.made
         assert made["title"] == "jobdork" and "?t=" in made["url"], made
         assert isinstance(made["js_api"], app.Bridge)
+        assert len(made["closing"]) == 1          # asks before closing mid-scan
         assert made["start"] == {"private_mode": False,
                                  "storage_path": str(home / "window"),
                                  "debug": False}
@@ -225,6 +235,21 @@ def test_a_whole_run_opens_setup_from_the_apps_folder_and_stops():
         assert token not in out
         # Not set up yet: nothing is written until setup's first answer.
         assert not (home / "config.yaml").exists()
+
+
+def test_closing_mid_scan_asks_first_and_otherwise_does_not():
+    job = {"now": "scan"}
+    # lambda: what is running, read when the window closes, as serve passes it.
+    closing = app.ask_before_closing(lambda: job["now"])
+    window = types.SimpleNamespace(confirm_close=False,
+                                   localization={"global.quitConfirmation": "Quit?"})
+    closing(window)
+    assert window.confirm_close is True
+    assert window.localization["global.quitConfirmation"].startswith("Scan is still running")
+    assert window.localization["global.quit"] == "Close anyway"
+    job["now"] = ""
+    closing(window)
+    assert window.confirm_close is False
 
 
 def test_the_users_own_tools_are_found_from_an_app():

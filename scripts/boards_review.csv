@@ -30,3 +30,10 @@ workday,maxine/wd3/Maxis-Career,accept,Maxis's own Workday board (tenant maxine)
 workday,maxine/wd3/Maxis-Early-Careers,accept,Maxis's early-careers Workday board (tenant maxine); linked from maxis.com.my
 site,https://jobs.takeda.com,accept,Takeda's own jobs site; takedajobs.com redirects to it
 oracle,ehaa.fa.ca2.oraclecloud.com/CNRL,accept,Canadian Natural Resources' own Oracle board (site CNRL); linked from cnrl.com/careers (Oracle host names are opaque codes)
+site,https://www.tractorsupply.careers,accept,"Tractor Supply: tractorsupply.jobs (in candidates) redirects to tractorsupply.careers, its own careers site on SuccessFactors; the jobs are Tractor Supply stores and distribution centers"
+workday,ag/wd3/Airbus,accept,"Airbus: its Workday tenant is ag (Airbus Group), linked from airbus.com/careers"
+workday,cba/wd3/CommBank_Careers,accept,"Commonwealth Bank (CommBank): tenant cba, linked from commbank.com.au careers pages"
+oracle,ehpv.fa.em2.oraclecloud.com/CX_1,accept,"DP World: its adverts name DP World (ports and logistics in Rotterdam, Charlotte, Melbourne, Ecuador); linked from dpworld.com/en/careers"
+oracle,emhm.fa.em2.oraclecloud.com/CX_1001,accept,"Emaar: hotel jobs of Emaar Hospitality (Address, Vida), part of Emaar; linked from emaar.com/en/careers"
+oracle,ehjd.fa.em2.oraclecloud.com/fabCareers,accept,"First Abu Dhabi Bank: site fabCareers, corporate banking jobs in Abu Dhabi; linked from bankfab.com careers"
+oracle,ebuu.fa.ap1.oraclecloud.com/CX,accept,Westpac: Sydney and Barangaroo (its head office) banking jobs; linked from westpac.com.au/careers

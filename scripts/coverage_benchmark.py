@@ -6,6 +6,7 @@ What a fresh install finds for someone outside the US: one real default
 scan per test city, counted by source.
 
     python scripts/coverage_benchmark.py                      # Asia
+    python scripts/coverage_benchmark.py --region europe      # or oceania, middleeast
     python scripts/coverage_benchmark.py --only SG --only PH  # some cities
     python scripts/coverage_benchmark.py --title "nurse"      # other titles
 
@@ -56,6 +57,31 @@ REGIONS = {
         ("Hong Kong", "HK", "Hong Kong, Hong Kong"),
         ("Taipei", "TW", "Taipei, Taiwan"),
     ],
+    "europe": [
+        ("London", "GB", "London, United Kingdom"),
+        ("Berlin", "DE", "Berlin, Germany"),
+        ("Munich", "DE", "Munich, Germany"),
+        ("Paris", "FR", "Paris, France"),
+        ("Amsterdam", "NL", "Amsterdam, Netherlands"),
+        ("Madrid", "ES", "Madrid, Spain"),
+        ("Milan", "IT", "Milan, Italy"),
+        ("Stockholm", "SE", "Stockholm, Sweden"),
+        ("Warsaw", "PL", "Warsaw, Poland"),
+        ("Zurich", "CH", "Zurich, Switzerland"),
+        ("Dublin", "IE", "Dublin, Ireland"),
+    ],
+    "oceania": [
+        ("Sydney", "AU", "Sydney, Australia"),
+        ("Melbourne", "AU", "Melbourne, Australia"),
+        ("Perth", "AU", "Perth, Australia"),
+        ("Auckland", "NZ", "Auckland, New Zealand"),
+    ],
+    "middleeast": [
+        ("Dubai", "AE", "Dubai, United Arab Emirates"),
+        ("Abu Dhabi", "AE", "Abu Dhabi, United Arab Emirates"),
+        ("Riyadh", "SA", "Riyadh, Saudi Arabia"),
+        ("Doha", "QA", "Doha, Qatar"),
+    ],
 }
 # Across industries, and short: each title is a search on every source.
 TITLES = ["software engineer", "accountant", "nurse", "customer service"]
@@ -89,7 +115,8 @@ def run_city(label: str, country: str, anchor: str, titles: list[str]) -> dict:
         with Store(db) as store:
             report = scan.run(cfg, store)
         rows = kept(db)
-    lower = {t: [r for r in rows if t.split()[0] in (r["title"] or "").lower()] for t in titles}
+    lower = {t: [r for r in rows if t.split()[0].lower() in (r["title"] or "").lower()]
+             for t in titles}
     return {
         "city": label, "country": country,
         "kept": len(rows),

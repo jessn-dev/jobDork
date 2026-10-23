@@ -556,6 +556,31 @@ main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
 .sortbtn{background:none;border:0;padding:0;font:inherit;color:inherit;
   text-transform:inherit;letter-spacing:inherit;cursor:pointer}
 .sortbtn:hover{color:var(--accent)}
+.update{display:flex;flex-wrap:wrap;gap:.4rem .8rem;align-items:center;
+  border:1px solid var(--accent);border-radius:8px;padding:.55rem .85rem;margin:0 0 .9rem;
+  background:color-mix(in srgb, var(--accent) 7%, var(--bg));font-size:.88rem}
+.update .how{flex-basis:100%;color:var(--muted);font-size:.82rem}
+.update .x{margin-left:auto}
+#sched .row select,#sched .row input[type=time]{min-width:0}
+#sched .said{font-size:.86rem;flex-direction:column;align-items:flex-start;gap:.3rem}
+.folders{display:grid;gap:.1rem;margin:0}
+.folders .row{display:grid;grid-template-columns:minmax(7rem,auto) 1fr auto;gap:.3rem .8rem;
+  align-items:center;padding:.45rem 0;border-top:1px solid var(--line)}
+.folders .row:first-child{border-top:0}
+.folders code{font-size:.8rem;overflow-wrap:anywhere}
+.folders .what{grid-column:2;color:var(--muted);font-size:.8rem}
+@media (max-width:640px){.folders .row{grid-template-columns:1fr}.folders .what{grid-column:1}}
+#dir .inds{display:flex;flex-wrap:wrap;gap:.35rem .5rem;margin:.4rem 0 .8rem}
+#dir .inds label{display:inline-flex;gap:.3rem;align-items:center;font-size:.84rem;
+  border:1px solid var(--line);border-radius:999px;padding:.15rem .6rem;cursor:pointer}
+#dir .inds label:has(input:checked){border-color:var(--accent)}
+#dir .inds .n{color:var(--muted);font-variant-numeric:tabular-nums}
+#dir .list{max-height:28rem;overflow:auto;border:1px solid var(--line);border-radius:8px}
+#dir .list table{margin:0;width:100%}
+#dir .list th{position:sticky;top:0;background:var(--card);z-index:1}
+#dir td.num{text-align:right;font-variant-numeric:tabular-nums}
+#dir tr.off td:not(:last-child){color:var(--muted)}
+#dir td:last-child{white-space:nowrap}
 .bgscan{border:1px solid var(--accent);border-radius:8px;padding:.6rem .8rem;
   color:var(--fg);background:var(--card);font-size:.88rem}
 .keycard{border:1px solid var(--line);border-radius:8px;
@@ -643,6 +668,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   </div>
 </nav>
 <main>
+  <div class="update" id="update" role="status" hidden></div>
   <section id="view-setup" hidden>
     <span class="count" id="setup-progress"></span>
     <div id="setup-body"></div>
@@ -835,6 +861,32 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <div id="act-history"></div>
     </details>
 
+    <h3 style="margin-top:1.6rem">Scan by itself</h3>
+    <p class="hint" style="margin-top:0">Your computer starts a scan at the time you
+      pick, whether or not jobdork is open, and its job posts are here the next time
+      you look. A time missed while the computer slept runs when it wakes. Once a day
+      is plenty: boards are paced on purpose, and more scans earn rate limits.</p>
+    <div class="cleanup" id="sched">
+      <div class="row">
+        <span>Scan</span>
+        <select id="sched-every" aria-label="How often">
+          <option value="off">Never by itself</option>
+          <option value="daily">Every day</option>
+          <option value="weekdays">Every weekday</option>
+          <option value="weekly">Once a week</option>
+        </select>
+        <select id="sched-day" aria-label="Day of the week" hidden>
+          <option value="mon">on Monday</option><option value="tue">on Tuesday</option>
+          <option value="wed">on Wednesday</option><option value="thu">on Thursday</option>
+          <option value="fri">on Friday</option><option value="sat">on Saturday</option>
+          <option value="sun">on Sunday</option>
+        </select>
+        <span id="sched-at-wrap">at <input type="time" id="sched-at" value="08:00" aria-label="Time"></span>
+        <button data-icon="save" class="act primary" id="sched-save">Save</button>
+      </div>
+      <div class="row said" id="sched-state" role="status"></div>
+    </div>
+
     <h3 style="margin-top:1.6rem">Clean up job posts</h3>
     <p class="hint" style="margin-top:0">Preview first; nothing is deleted until
       you press the red button. The database is backed up to
@@ -859,6 +911,11 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       </div>
       <div id="cl-result"></div>
     </div>
+
+    <h3 style="margin-top:1.6rem">Where your files are</h3>
+    <p class="hint" style="margin-top:0">To back them up, move them to another
+      computer, or attach a log to a report.</p>
+    <div class="cleanup"><div class="folders" id="folders"></div></div>
   </section>
 
   <section id="view-tools" hidden>
@@ -1249,6 +1306,13 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <span id="srcmsg"></span>
     </form>
     <div class="log" id="srclog" style="height:9rem" hidden></div>
+
+    <h2 style="margin-top:1.25rem" id="dir-head">Built-in employer boards</h2>
+    <p class="hint">Employers' own boards that come with jobdork, across industries,
+      each found on the employer's website and checked weekly for jobs. A scan reads
+      the ones hiring in your countries; choose industries to read fewer, or switch
+      single boards off. Reading more boards makes scans longer.</p>
+    <div id="dir"><p class="empty">Loading…</p></div>
   </section>
 </main>
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
@@ -1405,7 +1469,8 @@ const cap = s => { s = String(s ?? ''); return s ? s[0].toUpperCase() + s.slice(
 const capHtml = h => String(h ?? '').replace(/^((?:\s|<[^>]+>)*)([a-z])/, (_, a, b) => a + b.toUpperCase());
 // Platforms by their own spelling.
 const PLATFORMS = {greenhouse: 'Greenhouse', ashby: 'Ashby', lever: 'Lever', breezy: 'Breezy',
-  smartrecruiters: 'SmartRecruiters', workable: 'Workable', kalibrr: 'Kalibrr', himalayas: 'Himalayas', workday: 'Workday', adzuna: 'Adzuna', usajobs: 'USAJOBS'};
+  smartrecruiters: 'SmartRecruiters', workable: 'Workable', kalibrr: 'Kalibrr', himalayas: 'Himalayas', workday: 'Workday', adzuna: 'Adzuna', usajobs: 'USAJOBS',
+  arbeitsagentur: 'Bundesagentur für Arbeit', arbeitnow: 'Arbeitnow'};
 const platformName = p => PLATFORMS[p] || cap(p);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1421,7 +1486,7 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
     if (b.dataset.view === 'sources') drawSources();
     if (b.dataset.view === 'resume') { drawResume(); drawProjects(); drawEducation(); drawReview(); drawLetters(); }
     if (b.dataset.view === 'ai') drawAI();
-    if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); }
+    if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); drawSchedule(); drawFolders(); }
   };
 });
 
@@ -1869,6 +1934,7 @@ const ICONS = {
   "file-text": "<path d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\"/><path d=\"M14 2v5a1 1 0 0 0 1 1h5\"/><path d=\"M10 9H8\"/><path d=\"M16 13H8\"/><path d=\"M16 17H8\"/>",
   "file-user": "<path d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\"/><path d=\"M14 2v5a1 1 0 0 0 1 1h5\"/><path d=\"M16 22a4 4 0 0 0-8 0\"/><circle cx=\"12\" cy=\"15\" r=\"3\"/>",
   "filter": "<path d=\"M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z\"/>",
+  "folder-open": "<path d=\"m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2\"/>",
   "flask-conical": "<path d=\"M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2\"/><path d=\"M6.453 15h11.094\"/><path d=\"M8.5 2h7\"/>",
   "house": "<path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>",
   "key-round": "<path d=\"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z\"/><circle cx=\"16.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>",
@@ -4648,6 +4714,7 @@ async function drawSources() {
     ${d.dormant.map(s => `<tr><td>${esc(platformName(s.name))}</td><td class="hint">${esc(cap(s.why))}</td></tr>`).join('')}
     </table>`;
   drawSourceKeys();
+  drawDirectory();
   const boards = d.companies;
   $('boards-head').textContent = `Employer boards (${boards.length})`;
   $('ed-boards').innerHTML = editorTable([
@@ -4660,6 +4727,78 @@ async function drawSources() {
     if (ok) drawSources();
     return ok;
   });
+}
+
+// The built-in employer boards (data/boards.csv): on or off, which
+// industries, and single boards switched off (sources.directory.skip).
+let dirData = null, dirFilter = '', dirShow = 'all';
+async function drawDirectory() {
+  const r = await api('/api/directory');
+  if (!r.ok) { $('dir').innerHTML = `<p class="err">${esc(await r.text())}</p>`; return; }
+  dirData = await r.json();
+  const d = dirData;
+  $('dir-head').textContent = `Built-in employer boards (${d.enabled ? d.read + ' of ' + d.total + ' read' : 'off'})`;
+  const picked = new Set(d.industries);
+  $('dir').innerHTML = `
+    <div class="bar"><label class="check-inline"><input type="checkbox" id="dir-on" ${d.enabled ? 'checked' : ''}>
+      Read the built-in boards</label>
+      <span class="hint">${d.countries.length ? 'Hiring in ' + esc(d.countries.map(c => COUNTRIES[c] || c).join(', ')) : 'Every country'}</span></div>
+    <div ${d.enabled ? '' : 'hidden'}>
+    <p class="hint" style="margin:.6rem 0 0">Industries: ${picked.size ? 'only the ticked ones are read' : 'none ticked, so every one is read'}.</p>
+    <div class="inds">${Object.entries(d.by_industry).map(([k, v]) => `<label>
+      <input type="checkbox" value="${esc(k)}" ${picked.has(k) ? 'checked' : ''}>${esc(cap(k))}
+      <span class="n">${v.boards}</span></label>`).join('')}</div>
+    <div class="bar" style="margin:0 0 .5rem">
+      <input id="dir-find" placeholder="Find an employer" value="${esc(dirFilter)}" style="width:16rem">
+      <select id="dir-show"><option value="all">All boards</option><option value="read">Read</option>
+        <option value="not">Not read</option></select>
+      <span class="hint" id="dir-count"></span></div>
+    <div class="list"><table class="data"><thead><tr><th>Employer</th><th>Industry</th>
+      <th>Countries</th><th>Jobs</th><th>System</th><th>Read</th></tr></thead>
+      <tbody id="dir-rows"></tbody></table></div></div>`;
+  $('dir-show').value = dirShow;
+  paintDirectoryRows();
+  $('dir-on').onchange = e => saveDirectory({directory_enabled: e.target.checked},
+    e.target.checked ? 'Built-in boards are on.' : 'Built-in boards are off.');
+  $('dir').querySelectorAll('.inds input').forEach(b => b.onchange = () => {
+    const now = [...$('dir').querySelectorAll('.inds input:checked')].map(x => x.value);
+    saveDirectory({industries: now}, now.length ? `Reading ${now.length} industr${now.length === 1 ? 'y' : 'ies'}.` : 'Reading every industry.');
+  });
+  $('dir-find').oninput = e => { dirFilter = e.target.value; paintDirectoryRows(); };
+  $('dir-show').onchange = e => { dirShow = e.target.value; paintDirectoryRows(); };
+}
+
+function paintDirectoryRows() {
+  const d = dirData, q = dirFilter.trim().toLowerCase();
+  const rows = d.boards.filter(b => (!q || b.name.toLowerCase().includes(q))
+    && (dirShow === 'all' || (dirShow === 'read') === !b.why));
+  $('dir-count').textContent = `${rows.length} shown`;
+  $('dir-rows').innerHTML = rows.map(b => {
+    // Only a board you switched off, or one that is read, is yours to switch;
+    // the rest follow your countries, industries and sources.
+    const mine = !b.why || b.why === 'switched off';
+    return `<tr class="${b.why ? 'off' : ''}"><td>${esc(b.name)}</td><td>${esc(cap(b.industry))}</td>
+      <td>${esc(b.countries.join(', '))}</td>
+      <td class="num" title="${b.verified ? 'Counted ' + esc(b.verified) : ''}">${b.jobs || ''}</td>
+      <td>${esc(platformName(b.platform))}</td>
+      <td>${mine ? `<label class="check-inline"><input type="checkbox" data-board="${esc(b.name)}" ${b.why ? '' : 'checked'}>
+        ${b.why ? 'Off' : 'Yes'}</label>` : `<span class="hint">${esc(cap(b.why))}</span>`}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="hint">No board matches.</td></tr>';
+  $('dir-rows').querySelectorAll('[data-board]').forEach(c => c.onchange = () => {
+    const name = c.dataset.board;
+    const skip = d.skip.filter(n => n.toLowerCase() !== name.toLowerCase());
+    if (!c.checked) skip.push(name);
+    saveDirectory({directory_skip: skip}, c.checked ? `${name} is read again.` : `${name} is switched off.`);
+  });
+}
+
+async function saveDirectory(change, said) {
+  const r = await api('/api/config', {method: 'POST',
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify(change)});
+  if (!r.ok) { toast(`Not saved: ${await r.text()}`, 'err'); drawDirectory(); return; }
+  cfg = await r.json();
+  toast(said + (cfg.rescan ? ` ${cfg.rescan}` : ''));
+  drawDirectory();
 }
 
 // Keys for Adzuna and USAJOBS, where your countries can use them.
@@ -4739,5 +4878,99 @@ $('fold').onclick = () => {
 };
 setRail(store.get('jobdork-rail') === '1');
 
+// ── scan by itself ───────────────────────────────────────────────────────────
+// The schedule lives in the computer's own scheduler (core/schedule.py), and
+// this shows what it has, read back from there.
+function paintScheduleForm() {
+  const every = $('sched-every').value;
+  $('sched-day').hidden = every !== 'weekly';
+  $('sched-at-wrap').hidden = every === 'off';
+}
+$('sched-every').onchange = paintScheduleForm;
+
+function paintSchedule(st) {
+  const box = $('sched-state');
+  if (!st.supported) {
+    $('sched').querySelector('.row').hidden = true;
+    box.innerHTML = `<span class="hint">${esc(st.why)}</span>`;
+    return;
+  }
+  if (st.on && st.every !== 'other') {
+    $('sched-every').value = st.every;
+    $('sched-at').value = st.at;
+    $('sched-day').value = st.day || 'mon';
+  } else if (!st.on) $('sched-every').value = 'off';
+  paintScheduleForm();
+  if (st.problem) { box.innerHTML = `<span class="err">${esc(st.problem)}</span>`; return; }
+  if (!st.on) { box.innerHTML = '<span class="hint">Off: scans run only when you start one.</span>'; return; }
+  box.innerHTML = `<span>On: ${esc(st.describe)}. Each one is listed under All runs, from the schedule;
+    what it printed is in <code>${esc(st.log)}</code>.</span>` +
+    (st.other_copy ? `<span class="err">It starts a different copy of jobdork than this one
+      (moved, or installed twice). Save here to make it start this one.</span>` : '');
+}
+
+async function drawSchedule() {
+  try {
+    const r = await api('/api/schedule');
+    if (r.ok) paintSchedule(await r.json());
+  } catch (e) { /* the server is gone; pageProblem has it */ }
+}
+
+$('sched-save').onclick = async () => {
+  const btn = $('sched-save');
+  btn.disabled = true;
+  try {
+    const r = await api('/api/schedule', {method: 'POST', body: form({
+      every: $('sched-every').value, at: $('sched-at').value, day: $('sched-day').value})});
+    if (!r.ok) { toast(`Not saved: ${await r.text()}`, 'err'); return; }
+    const d = await r.json();
+    paintSchedule(d);
+    toast(d.on ? `Scans run by themselves ${d.describe}` : 'Scans no longer run by themselves');
+  } finally { btn.disabled = false; }
+};
+
+// ── where the files are ──────────────────────────────────────────────────────
+const FOLDER_NAMES = {settings: 'Settings and data', backups: 'Backups', logs: 'Logs',
+  documents: 'Letters and resumes'};
+async function drawFolders() {
+  let d;
+  try {
+    const r = await api('/api/folders');
+    if (!r.ok) return;
+    d = await r.json();
+  } catch (e) { return; }
+  $('folders').innerHTML = Object.entries(d.folders).map(([k, f]) => `<div class="row">
+    <b>${esc(FOLDER_NAMES[k] || k)}</b><code>${esc(f.path)}</code>
+    ${d.can_open ? `<button data-icon="folder-open" class="act" data-folder="${esc(k)}"
+      ${f.exists ? '' : 'disabled title="Nothing has been written here yet"'}>Open</button>` : '<span></span>'}
+    <span class="what">${esc(f.what)}</span></div>`).join('');
+  $('folders').querySelectorAll('[data-folder]').forEach(b => b.onclick = async () => {
+    const r = await api('/api/folders/open', {method: 'POST', body: form({which: b.dataset.folder})});
+    if (!r.ok) toast(`Not opened: ${await r.text()}`, 'err');
+  });
+}
+
+// ── a newer version ──────────────────────────────────────────────────────────
+// Asked once per page load; the server asks GitHub at most once a day
+// (core/updates.py). Dismissed, it stays away until the next release.
+async function checkVersion() {
+  let d;
+  try {
+    const r = await api('/api/version');
+    if (!r.ok) return;
+    d = await r.json();
+  } catch (e) { return; }
+  if (!d.newer || store.get('jobdork-skip-version') === d.latest) return;
+  const box = $('update');
+  box.innerHTML = `<b>jobdork ${esc(d.latest)} is out.</b> <span>You have ${esc(d.current)}.</span>
+    <a href="${esc(d.url)}" data-out>What is new, and the download</a>
+    <button class="linkbtn x" aria-label="Dismiss until the next version">Not now</button>
+    <span class="how">${esc(d.how)}</span>`;
+  box.querySelector('[data-out]').onclick = e => { e.preventDefault(); openOut(d.url); };
+  box.querySelector('.x').onclick = () => { store.set('jobdork-skip-version', d.latest); box.hidden = true; };
+  box.hidden = false;
+}
+
 connect(); loadRoles(); refreshState(); pollActivity(); loadMetrics();
+drawSchedule(); drawFolders(); setTimeout(checkVersion, 1500);
 </script></body></html>

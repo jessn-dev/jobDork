@@ -166,6 +166,71 @@ def test_discover_offers_the_site_when_no_board_can_be_read():
     assert report.found[0].note == ""                 # their own site, no check needed
 
 
+# SuccessFactors' Career Site Builder, as jobs.aa.com and careers.duke.edu
+# answered on 2026-10-23: microdata on the page, or a sitemap that is a feed.
+_MICRODATA = """<html><body><div itemscope itemtype="http://schema.org/JobPosting">
+<h1><span itemprop="title">Registered Nurse (RN) - Cardiac</span></h1>
+<span itemprop="jobLocation" itemscope itemtype="http://schema.org/Place">
+ <span itemprop="address" itemscope itemtype="http://schema.org/PostalAddress">
+  <meta itemprop="addressLocality" content="Durham"><meta itemprop="addressRegion" content="NC">
+  <meta itemprop="postalCode" content="27710"><meta itemprop="addressCountry" content="US">
+ </span></span>
+<meta itemprop="datePosted" content="Fri Oct 16 00:00:00 UTC 2026">
+<meta itemprop="hiringOrganization" content="Duke Careers">
+<span itemprop="description"><span class="jobdescription"><p>Care for <b>patients</b>.</p>
+<div><p>Nights &amp; weekends.</p></div></span></span>
+<div>Apply now</div></div></body></html>"""
+
+_FEED = """<?xml version="1.0" encoding="UTF-8" ?><rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel>
+<title>Jobs at Acme</title>
+<item><title>Aircraft Mechanic (Tulsa, OK, US)</title>
+<description><![CDATA[&lt;p&gt;Fix &lt;b&gt;aircraft&lt;/b&gt;.&lt;/p&gt;]]></description>
+<link>https://jobs.acme.org/job/Tulsa-Aircraft-Mechanic-OK-74115/1441000100/</link>
+<guid>1441000100</guid><g:expiration_date>2026-11-22</g:expiration_date>
+<g:employer>Acme Airlines</g:employer><g:location>Tulsa, OK, US</g:location></item>
+<item><title>Aircraft Mechanic II (Dallas, TX, US)</title><description>x</description>
+<link>https://jobs.acme.org/job/Dallas-Aircraft-Mechanic-II-TX-75001/1441000200/</link>
+<g:expiration_date>2026-09-01</g:expiration_date><g:location>Dallas, TX, US</g:location></item>
+<item><title>Flight Attendant (Miami, FL, US)</title><description>x</description>
+<link>https://jobs.acme.org/job/Miami-Flight-Attendant-FL-33101/1441000300/</link></item>
+</channel></rss>"""
+
+
+def test_a_page_marked_up_with_microdata_is_read_like_json_ld():
+    posting = site.job_posting(_MICRODATA)
+    role = site.to_role(posting, SITE + "/job/x/1441005600/", "Duke")
+    assert role.title == "Registered Nurse (RN) - Cardiac"
+    assert role.location_raw == "Durham, NC, US" and role.posted_at == "2026-10-16"
+    assert role.company == "Duke"                    # "Duke Careers" is the site's name
+    assert "Care for patients" in role.description and "Nights & weekends." in role.description
+    assert "Apply now" not in role.description
+
+
+def test_a_sitemap_that_is_a_feed_gives_whole_jobs_with_no_page_read():
+    fetcher = _Site({SITE + "/sitemap.xml": _FEED})
+    result = site.fetch(fetcher, _cfg("aircraft mechanic"), token=SITE, company="Acme",
+                        today=TODAY)
+    assert [(r.title, r.location_raw, r.company) for r in result.roles] == [
+        ("Aircraft Mechanic", "Tulsa, OK, US", "Acme Airlines")]   # II has closed
+    assert result.roles[0].description.startswith("Fix aircraft")
+    assert result.roles[0].url.endswith("/1441000100/")
+    assert [u for u in fetcher.asked if "/job/" in u] == []
+    assert result.requests_made == 1
+
+
+def test_discover_offers_a_successfactors_career_site_as_a_site_board():
+    """Duke: SuccessFactors behind its Career Site Builder, postings in microdata."""
+    posting = SITE + "/job/Durham-Registered-Nurse-NC-27710/1441005600/"
+    fetcher = _Site({
+        SITE + "/": '<a href="https://career4.successfactors.com/career?company=acmeP">Jobs</a>',
+        SITE + "/sitemap.xml": _sitemap(posting),
+        posting: _MICRODATA,
+    })
+    report = discover.discover(SITE, fetcher)
+    assert [(f.platform, f.status) for f in report.found] == [("site", "verified")]
+    assert report.unsupported == []                  # not also "successfactors, no adapter"
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

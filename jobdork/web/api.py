@@ -183,8 +183,14 @@ def _post(row, status: str = "") -> dict:
     from ..search import agency
 
     company = row["company"] or ""
+    try:
+        # A database row's `in` looks at its values, not its columns.
+        flags = json.loads(row["flags"] or "[]")
+    except (IndexError, KeyError, json.JSONDecodeError, TypeError):
+        flags = []
     poster = agency.classify(company, row["description"] or "",
-                             "staffing" if company.casefold() in _staffing_boards() else "")
+                             "staffing" if company.casefold() in _staffing_boards() else "",
+                             flags if isinstance(flags, list) else [])
     return {"uid": row["uid"], "company": company, "title": row["title"] or "",
             "description": row["description"] or "", "work_mode": row["work_mode"] or "",
             "city": row["city"] or "", "state": row["state"] or "",
@@ -624,6 +630,28 @@ def sources_report(cfg) -> dict:
                       for c in cfg.sources.companies],
         "directory": _directory_view(cfg),
     }
+
+
+def directory_boards(cfg) -> dict:
+    """Every built-in employer board, for the Sources page: whether this
+    config reads it and, if not, why; and the industries to choose from."""
+    from ..search import directory
+
+    boards = directory.load()
+    d = cfg.sources.directory
+    rows, industries = [], {}
+    for b in boards:
+        why = directory.why_not(cfg, b)
+        rows.append({"name": b.name, "platform": b.platform, "industry": b.industry,
+                     "countries": list(b.countries), "jobs": b.jobs,
+                     "verified": b.verified, "site": b.site, "why": why})
+        tally = industries.setdefault(b.industry or "other", {"boards": 0, "read": 0})
+        tally["boards"] += 1
+        tally["read"] += not why
+    return {"enabled": d.enabled, "industries": d.industries, "skip": d.skip,
+            "countries": d.countries or list(cfg.locations.countries),
+            "read": sum(not r["why"] for r in rows), "total": len(rows),
+            "by_industry": dict(sorted(industries.items())), "boards": rows}
 
 
 def _directory_view(cfg) -> dict:
@@ -2263,3 +2291,87 @@ def digest_job(cfg, email: str, new_only: bool = True, attach_csv: bool = False)
             message_id = digest_mod.send(built, email)
         return f"sent {len(rows)} role(s) to {email} (id {message_id})"
     return work
+
+
+# ── the scan schedule ─────────────────────────────────────────────────────────
+
+
+def schedule_state(cfg) -> dict:
+    """What the system's scheduler has for this install (core/schedule.py)."""
+    from ..core import schedule
+
+    return schedule.status(cfg.path or "")
+
+
+def schedule_save(cfg, form: dict) -> dict:
+    """Turn the scan schedule on (every, at, day) or off (every=off)."""
+    from ..core import schedule
+    from ..core.config import ConfigError
+
+    every = str(form.get("every") or "").strip().lower()
+    try:
+        if every == "off":
+            return schedule.uninstall(cfg.path or "")
+        plan = schedule.Plan(every, str(form.get("at") or ""), str(form.get("day") or "mon"))
+        return schedule.install(cfg.path or "", plan)
+    except ConfigError as exc:
+        raise ApiError(str(exc)) from None
+
+
+# ── where the app keeps things ────────────────────────────────────────────────
+
+FOLDERS = ("settings", "backups", "logs", "documents")
+
+
+def folders(cfg) -> dict:
+    """The folders worth knowing about, and whether this server can open them.
+
+    Opening a folder happens on the machine the server runs on, so it is
+    offered only when that is the machine the page is on: not in a container,
+    and not when the dashboard is opened from other machines on the network.
+    """
+    from ..core.config import CONTAINER_ENV
+    from ..writing import generate
+    from .serve import ALLOW_ENV
+
+    settings = Path(cfg.path or "config.yaml").resolve().parent
+    data = Path(cfg.db_path).resolve().parent
+    where = {
+        "settings": {"path": str(settings),
+                     "what": "Your settings, keys file, database and resume"},
+        "backups": {"path": str(data / "backups"),
+                    "what": "Copies of the database, made before anything is deleted"},
+        "logs": {"path": str(settings / "logs"),
+                 "what": "The app's log and the scheduled scans' log"},
+        "documents": {"path": str(Path(generate.default_root()).expanduser()),
+                      "what": "Cover letters and tailored resumes, a folder per job"},
+    }
+    for item in where.values():
+        item["exists"] = Path(item["path"]).is_dir()
+    local = not os.environ.get(CONTAINER_ENV) and not os.environ.get(ALLOW_ENV, "").strip()
+    return {"folders": where, "can_open": local}
+
+
+def open_folder(cfg, which: str) -> dict:
+    """Open one of `folders()` in Finder, Explorer or the file manager."""
+    from .app import open_with_system
+
+    report = folders(cfg)
+    if not report["can_open"]:
+        raise ApiError("folders can only be opened on the machine jobdork runs on", 409)
+    item = report["folders"].get(str(which or ""))
+    if item is None:
+        raise ApiError(f"no such folder; one of {', '.join(FOLDERS)}")
+    path = Path(item["path"])
+    if not path.is_dir():
+        raise ApiError("that folder does not exist yet: nothing has been written to it", 404)
+    open_with_system(path)
+    return {"opened": which}
+
+
+def newer_version(cfg=None) -> dict:
+    """Whether a newer jobdork is out (core/updates.py), for the Dashboard."""
+    from ..core import updates
+
+    folder = Path(cfg.db_path).parent if cfg is not None else Path("data")
+    return updates.check(folder)

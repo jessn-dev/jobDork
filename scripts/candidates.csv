@@ -876,3 +876,122 @@ Clip,banking,MX,https://www.clip.mx
 Nu México,banking,MX,https://nu.com.mx
 Rappi,tech,MX,https://www.rappi.com
 Grupo Lala,food,MX,https://www.lala.com.mx
+Tesco,retail,GB,https://www.tescoplc.com
+Sainsbury's,retail,GB,https://www.about.sainsburys.co.uk
+Marks & Spencer,retail,GB,https://corporate.marksandspencer.com
+Boots,retail,GB,https://www.boots.jobs
+Barclays,banking,GB,https://home.barclays
+Lloyds Banking Group,banking,GB,https://www.lloydsbankinggroup.com
+NatWest Group,banking,GB,https://www.natwestgroup.com
+Aviva,insurance,GB,https://www.aviva.com
+Legal & General,insurance,GB,https://group.legalandgeneral.com
+Vodafone,telecom,GB,https://www.vodafone.com
+BT Group,telecom,GB,https://www.bt.com
+Rolls-Royce,aerospace,GB,https://www.rolls-royce.com
+BAE Systems,aerospace,GB,https://www.baesystems.com
+Ocado Group,retail,GB,https://www.ocadogroup.com
+Deliveroo,tech,GB,https://careers.deliveroo.co.uk
+Allianz,insurance,DE,https://www.allianz.com
+Deutsche Bank,banking,DE,https://www.db.com
+BMW Group,automotive,DE,https://www.bmwgroup.com
+Mercedes-Benz Group,automotive,DE,https://group.mercedes-benz.com
+Volkswagen Group,automotive,DE,https://www.volkswagen-group.com
+Bosch,manufacturing,DE,https://www.bosch.com
+BASF,manufacturing,DE,https://www.basf.com
+Bayer,pharma,DE,https://www.bayer.com
+Deutsche Telekom,telecom,DE,https://www.telekom.com
+DHL Group,logistics,DE,https://group.dhl.com
+Lufthansa Group,transportation,DE,https://www.lufthansagroup.com
+Zalando,retail,DE,https://jobs.zalando.com
+Delivery Hero,tech,DE,https://careers.deliveryhero.com
+Adidas,consumer goods,DE,https://careers.adidas-group.com
+Fresenius,healthcare,DE,https://www.fresenius.com
+Henkel,consumer goods,DE,https://www.henkel.com
+Lidl,retail,DE,https://www.lidl.com
+L'Oréal,consumer goods,FR,https://www.loreal.com
+LVMH,retail,FR,https://www.lvmh.com
+TotalEnergies,energy,FR,https://totalenergies.com
+BNP Paribas,banking,FR,https://group.bnpparibas
+AXA,insurance,FR,https://www.axa.com
+Danone,food,FR,https://www.danone.com
+Carrefour,retail,FR,https://www.carrefour.com
+Airbus,aerospace,FR,https://www.airbus.com
+Schneider Electric,manufacturing,FR,https://www.se.com
+Orange,telecom,FR,https://www.orange.com
+Decathlon,retail,FR,https://joinus.decathlon.fr
+Michelin,manufacturing,FR,https://www.michelin.com
+ING,banking,NL,https://www.ing.com
+ABN AMRO,banking,NL,https://www.abnamro.com
+ASML,tech,NL,https://www.asml.com
+Heineken,food,NL,https://www.theheinekencompany.com
+Ahold Delhaize,retail,NL,https://www.aholddelhaize.com
+Booking.com,tech,NL,https://careers.booking.com
+Adyen,tech,NL,https://careers.adyen.com
+Novo Nordisk,pharma,DK,https://www.novonordisk.com
+IKEA,retail,SE,https://www.ikea.com
+Ericsson,telecom,SE,https://www.ericsson.com
+Volvo Group,automotive,SE,https://www.volvogroup.com
+H&M Group,retail,SE,https://career.hm.com
+Nokia,telecom,FI,https://www.nokia.com
+Equinor,energy,NO,https://www.equinor.com
+DNB,banking,NO,https://www.dnb.no
+Santander,banking,ES,https://www.santander.com
+BBVA,banking,ES,https://www.bbva.com
+Inditex,retail,ES,https://www.inditex.com
+Telefónica,telecom,ES,https://www.telefonica.com
+Iberdrola,utilities,ES,https://www.iberdrola.com
+Enel,utilities,IT,https://www.enel.com
+Eni,energy,IT,https://www.eni.com
+UniCredit,banking,IT,https://www.unicreditgroup.eu
+Intesa Sanpaolo,banking,IT,https://group.intesasanpaolo.com
+Generali,insurance,IT,https://www.generali.com
+PKO Bank Polski,banking,PL,https://www.pkobp.pl
+Allegro,retail,PL,https://allegro.tech
+Nestlé,food,CH,https://www.nestle.com
+UBS,banking,CH,https://www.ubs.com
+Zurich Insurance,insurance,CH,https://www.zurich.com
+ABB,manufacturing,CH,https://global.abb
+Ryanair,transportation,IE,https://careers.ryanair.com
+CRH,construction,IE,https://www.crh.com
+Woolworths Group,retail,AU,https://www.woolworthsgroup.com.au
+Coles Group,retail,AU,https://www.colesgroup.com.au
+Wesfarmers,retail,AU,https://www.wesfarmers.com.au
+Telstra,telecom,AU,https://www.telstra.com.au
+Optus,telecom,AU,https://www.optus.com.au
+Commonwealth Bank,banking,AU,https://www.commbank.com.au
+Westpac,banking,AU,https://www.westpac.com.au
+ANZ,banking,AU,https://www.anz.com
+National Australia Bank,banking,AU,https://www.nab.com.au
+Macquarie Group,banking,AU,https://www.macquarie.com
+BHP,mining,AU,https://www.bhp.com
+Rio Tinto,mining,AU,https://www.riotinto.com
+Fortescue,mining,AU,https://www.fortescue.com
+Qantas,transportation,AU,https://www.qantas.com
+Ramsay Health Care,healthcare,AU,https://www.ramsayhealth.com
+CSL,pharma,AU,https://www.csl.com
+Medibank,insurance,AU,https://www.medibank.com.au
+Australia Post,logistics,AU,https://auspost.com.au
+Fonterra,food,NZ,https://www.fonterra.com
+Air New Zealand,transportation,NZ,https://www.airnewzealand.co.nz
+Spark New Zealand,telecom,NZ,https://www.spark.co.nz
+Fisher & Paykel Healthcare,medical devices,NZ,https://www.fphcare.com
+Emirates Group,transportation,AE,https://www.emiratesgroupcareers.com
+Etihad Airways,transportation,AE,https://www.etihad.com
+Qatar Airways,transportation,QA,https://careers.qatarairways.com
+ADNOC,energy,AE,https://www.adnoc.ae
+Saudi Aramco,energy,SA,https://www.aramco.com
+SABIC,manufacturing,SA,https://www.sabic.com
+Emaar,real estate,AE,https://www.emaar.com
+Majid Al Futtaim,retail,AE,https://www.majidalfuttaim.com
+stc,telecom,SA,https://www.stc.com.sa
+Careem,tech,AE,https://www.careem.com
+noon,retail,AE,https://www.noon.com
+Emirates NBD,banking,AE,https://www.emiratesnbd.com
+First Abu Dhabi Bank,banking,AE,https://www.bankfab.com
+Al-Futtaim,retail,AE,https://www.alfuttaim.com
+e&,telecom,AE,https://www.eand.com
+DP World,logistics,AE,https://www.dpworld.com
+Talabat,tech,AE,https://www.talabat.com
+Chalhoub Group,retail,AE,https://www.chalhoubgroup.com
+Mubadala,banking,AE,https://www.mubadala.com
+Qatar National Bank,banking,QA,https://www.qnb.com

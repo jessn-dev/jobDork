@@ -62,6 +62,10 @@ HOST_RATES: dict[str, float] = {
     "www.kalibrr.com": 1.0,
     # Himalayas answers 429 past an unpublished limit.
     "himalayas.app": 1.0,
+    # The Bundesagentur publishes no limit for its search; two a second.
+    "rest.arbeitsagentur.de": 2.0,
+    # Arbeitnow asks not to be abused, and answered 429 at a page a second.
+    "www.arbeitnow.com": 0.5,
 }
 DEFAULT_RATE = 3.0
 

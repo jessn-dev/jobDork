@@ -388,7 +388,7 @@ Python flavour, which is what a scan uses.
 
 ```yaml
 sources:
-  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, workday, oracle, eightfold, taleo, site]
+  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, workday, oracle, eightfold, taleo, site, arbeitsagentur, arbeitnow]
   companies:
     - name: Stripe
       platform: greenhouse
@@ -397,16 +397,18 @@ sources:
     enabled: true
     countries: []        # empty: follow locations.countries
     industries: []       # empty: every industry
+    skip: []             # employers' boards switched off one by one
   adzuna_countries: [us]
 ```
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `sources.keyless` | list | all thirteen | Which no-credential sources to run. A config that lists them keeps its own list: add `kalibrr`, `himalayas`, `workday`, `oracle`, `eightfold`, `taleo` and `site` to it by hand |
+| `sources.keyless` | list | all fifteen | Which no-credential sources to run. A config that lists them keeps its own list: add `kalibrr`, `himalayas`, `workday`, `oracle`, `eightfold`, `taleo`, `site`, `arbeitsagentur` and `arbeitnow` to it by hand |
 | `sources.companies` | list of objects | `[]` | Employer boards to read |
 | `sources.directory.enabled` | bool | `true` | Read the employer boards jobdork ships with. `directory: false` also switches them off |
 | `sources.directory.countries` | list | `[]` | Only boards hiring in these countries; empty follows `locations.countries` |
 | `sources.directory.industries` | list | `[]` | Only these industries (`healthcare`, `banking`, `retail`…); empty is all |
+| `sources.directory.skip` | list | `[]` | Boards switched off one by one, by employer name as the Sources page lists them |
 | `sources.adzuna_countries` | list | `[]` | Adzuna national indexes; empty follows `locations.countries` |
 
 Each company needs `name`, `platform` and `token`, and the platform must be one
@@ -417,7 +419,9 @@ The directory is a list of employer boards that ships with jobdork, in
 `jobdork/data/boards.csv`, every one found by `discover` on the employer's own
 site and verified with jobs. A board you also list in `companies` is read
 once. Only boards on a platform in `keyless` are read, and each costs
-requests: `jobdork sources` says how many your config reads. See
+requests: `jobdork sources` says how many your config reads. The Sources
+page lists every one, whether it is read and why not, and switches the
+directory, its industries and single boards on and off. See
 [SOURCES.md](SOURCES.md#employer-boards-jobdork-ships-with).
 
 Leave `adzuna_countries` empty and it follows `locations.countries`, so a
@@ -625,6 +629,7 @@ always wins over the YAML.
 | `OPENAI_API_KEY` | ChatGPT, from the terminal |
 | `JOBDORK_CONFIG` | Config path override |
 | `JOBDORK_FEEDBACK_URL` | Where the Feedback page's Send goes. By default the maintainers' relay (see [relay/feedback](../relay/feedback/README.md)); an `https://` address replaces it, and `off` turns Send off, leaving "Open as a GitHub issue" and "Save as a file". No Resend or GitHub key is ever read by the app for this |
+| `JOBDORK_UPDATE_CHECK` | `off` stops the Dashboard asking GitHub, once a day, whether a newer jobdork is out (one request to `api.github.com` for the latest release; the answer is kept in `version-check.json` beside the database) |
 | `JOBDORK_ALLOW_HOSTS` | The dashboard: addresses besides the machine itself it may be opened by, comma separated (a NAS's network address, its Tailscale name); a wildcard is refused. See [DEPLOY.md](DEPLOY.md) |
 | `JOBDORK_DOCS_DIR` | Where the uploaded resume and generated documents are kept. The Docker image sets `/app/data/documents`, inside the kept volume |
 | `JOBDORK_TEMP_DOCS` | Opt-in instead: a temporary folder for the resume and documents, emptied when the dashboard starts and stops; wins over `JOBDORK_DOCS_DIR` |

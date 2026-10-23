@@ -116,7 +116,9 @@ started it from: `~/Library/Application Support/jobdork` on macOS,
 (`--home` or `$JOBDORK_HOME` to choose another). Letters and CVs still go to
 `~/Documents/job-applications`. Job posts open in your own browser, and a file
 you download is saved where you choose. Closing the window stops it, and any
-API key it held is forgotten as with `jobdork serve`.
+API key it held is forgotten as with `jobdork serve`; while a scan is
+running it asks first. The Dashboard's **Where your files are** opens these
+folders, and a banner says when a newer version is out.
 
 Installers for macOS and Windows, so none of the above is needed, are built
 by CI on every pull request and will be attached to the
@@ -185,13 +187,16 @@ one and **Delete** to remove its file and text at once.
 **Nothing here needs a credential to start.** Workable's cross-employer search
 takes a job title and answers for its whole market — no token, no account, no
 list of employers to maintain. Himalayas adds remote jobs open to your
-country and your hours, and Kalibrr adds Philippine and Indonesian jobs.
+country and your hours, Kalibrr adds Philippine and Indonesian jobs, the
+Bundesagentur für Arbeit (Germany's employment agency) German ones, and
+Arbeitnow jobs across Europe.
 
 Alongside them, **employer boards** read one company each, with the full
 advert: Greenhouse, Ashby, Lever, Breezy, SmartRecruiters, Workday, Oracle
 Recruiting Cloud, Eightfold, Taleo Business Edition, and an employer's own
-careers site when it marks its postings up for search engines. **368 of them
-ship built in**, 308 of them US employers across 26 industries (hospitals,
+careers site when it marks its postings up for search engines (SAP
+SuccessFactors' career sites among them). **423 of them ship built in**, 340
+of them US employers across 27 industries (hospitals,
 banks, retailers, insurers, airlines, government contractors and more); a
 scan reads the ones hiring in your countries, and you can narrow them to
 industries or switch them off (`sources.directory`, see
@@ -371,6 +376,18 @@ every job post a scan found, with its status, notes and AI verdict, and scans
 again from nothing. It says how many it will delete, and how many of those you
 are pursuing, before anything goes; the database is backed up first. Posts you
 deleted before stay deleted, and posts added by hand are kept.
+
+### Scans that run by themselves
+
+On the Dashboard, **Scan by itself**: every day, every weekday or once a week,
+at a time you pick. It goes into your computer's own scheduler (launchd on
+macOS, Task Scheduler on Windows, crontab on Linux), so it runs whether or not
+jobdork is open, and a time missed while the computer slept runs when it
+wakes. The scan is listed under All runs like any other, and what it printed
+is in `logs/scheduled-scan.log` beside your config. Only one scan runs at a
+time: one that finds another running, from the dashboard or a terminal,
+steps aside. In Docker, schedule `docker exec jobdork jobdork scan --scheduled`
+on the host instead ([DEPLOY.md](docs/DEPLOY.md)).
 
 ### Or have it mailed to you
 
@@ -601,7 +618,8 @@ A tool that quietly fails at something looks broken rather than out of scope.
 - **Employers not on a platform here, and not named by you.** Coverage is
   keyword search, the employer boards jobdork ships with (US first), and the
   companies you add. A site that refuses scripts is not worked around, and
-  SAP SuccessFactors, UKG and iCIMS have no reader yet. `jobdork dork` covers
+  UKG and iCIMS have no reader yet, nor SuccessFactors without a career site
+  of its own. `jobdork dork` covers
   the rest.
 - **Screening an advert that arrived truncated.** Adzuna caps every advert at
   exactly 500 characters. Dealbreakers, work-mode detection and resume

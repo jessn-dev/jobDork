@@ -218,6 +218,20 @@ the NAS and nothing personal should outlive a run, add
 letters then go to a temporary folder, emptied when jobdork starts and stops,
 and you upload the resume again after each restart.
 
+**Scans by themselves.** The Dashboard's **Scan by itself** works on a
+computer, not in a container, which has no scheduler of its own. Use the
+NAS's instead (on Synology: Control Panel, Task Scheduler, Create, Scheduled
+Task, User-defined script, run as root) with:
+
+```bash
+docker exec jobdork jobdork scan --scheduled
+```
+
+It writes to `data/logs/scheduled-scan.log` and is listed
+under All runs on the Dashboard. Once a day is plenty. A scan already running
+(one you started from the dashboard) makes it step aside rather than run
+twice.
+
 ---
 
 ## 5. Point jobdork at the AI machine

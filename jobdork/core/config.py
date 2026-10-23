@@ -93,6 +93,8 @@ KEYLESS_SOURCES = (
     "eightfold",        # per-employer board on Eightfold; token host/domain
     "taleo",            # per-employer board on Taleo Business Edition; token host/path/org/cws
     "site",             # an employer's own careers site: sitemap + schema.org postings
+    "arbeitsagentur",   # Germany's Federal Employment Agency; runs when DE is a country
+    "arbeitnow",        # jobs in Europe; runs when a European country is yours
 )
 
 # Sources that are registered but dormant until a key is present.
@@ -325,6 +327,11 @@ class Directory:
     enabled: bool = True
     countries: list[str] = field(default_factory=list)
     industries: list[str] = field(default_factory=list)
+    # Boards switched off one by one, by the employer's name as boards.csv
+    # writes it (the Sources page's list): a board that keeps listing jobs
+    # you never want, or one you already read from `companies` under
+    # another token.
+    skip: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -1018,6 +1025,7 @@ def _directory(raw) -> Directory:
                                                 "sources.directory.countries")],
         industries=[i.lower() for i in _str_list(raw.get("industries"),
                                                  "sources.directory.industries")],
+        skip=_str_list(raw.get("skip"), "sources.directory.skip"),
     )
 
 

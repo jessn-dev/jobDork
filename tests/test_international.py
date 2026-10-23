@@ -361,7 +361,9 @@ def test_skills_read_as_they_are_written():
 
     assert skill_name("aws") == "AWS" and skill_name("ci/cd") == "CI/CD"
     assert skill_name("machine learning") == "Machine learning"
-    assert all(skill_name(t)[:1] == skill_name(t)[:1].upper() or t in ("dbt", "grpc")
+    # Names their makers write in lower case keep it.
+    assert all(skill_name(t)[:1] == skill_name(t)[:1].upper()
+               or t in ("dbt", "grpc", "athenahealth", "eclinicalworks")
                for t in SKILL_TERMS)
     assert (flag_label("fit: has aws, spring boot; wants next.js")
             == "Fit: has AWS, Spring Boot; wants Next.js")

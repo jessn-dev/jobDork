@@ -223,6 +223,49 @@ def test_the_quick_sample_takes_the_smallest_boards():
                                                                 unknown.key}
 
 
+def test_a_board_switched_off_is_not_read_and_says_why():
+    cfg = _cfg(("US",), skip=["beta BANK"])
+    assert [b.name for b in directory.select(cfg, BOARDS)] == ["Acme Health"]
+    why = {b.name: directory.why_not(cfg, b) for b in BOARDS}
+    assert why == {"Acme Health": "", "Beta Bank": "switched off",
+                   "Gamma": "hires outside your countries",
+                   "Delta": "icims is not among your sources"}
+    assert directory.why_not(_cfg(industries=["banking"]), BOARDS[0]) == \
+        "not one of your industries"
+    assert directory.why_not(_cfg(enabled=False), BOARDS[0]) == "built-in boards are off"
+
+
+def test_the_page_switches_boards_on_off_and_one_by_one():
+    from jobdork.core import setup
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "config.yaml"
+        path.write_text(TITLES + "sources:\n  directory: false\n")
+        cfg = setup.write(str(path), {"directory_enabled": True,
+                                      "directory_skip": ["Beta Bank", " ", "Acme Health"]})
+        d = cfg.sources.directory
+        assert d.enabled and d.skip == ["Acme Health", "Beta Bank"]
+        cfg = setup.write(str(path), {"directory_skip": [], "industries": ["Retail"]})
+        d = cfg.sources.directory
+        assert d.enabled and d.skip == [] and d.industries == ["retail"]
+        assert not setup.write(str(path), {"directory_enabled": "false"}).sources.directory.enabled
+
+
+def test_boards_newly_read_start_a_scan():
+    from jobdork.web import serve as serve_mod
+
+    names = [b.name for b in directory.load()[:2]]
+    base = {"titles_include": ["nurse"], "locations": Locations(countries=[])}
+    skipped = Config(**base, sources=Sources(directory=Directory(skip=names)))
+    every = Config(**base)
+    assert serve_mod.search_changes(skipped, every)[0]        # skipped, then read
+    assert not serve_mod.search_changes(every, skipped)[0]    # fewer is no scan
+    off = Config(**base, sources=Sources(directory=Directory(enabled=False)))
+    assert serve_mod.search_changes(off, every)[0]
+    narrow = Config(**base, sources=Sources(directory=Directory(industries=["banking"])))
+    assert serve_mod.search_changes(narrow, every)[0]         # every industry again
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

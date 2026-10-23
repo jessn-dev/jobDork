@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -1101,4 +1102,92 @@ def test_saving_ai_settings_writes_no_key_to_the_config():
         text = Path(run.config_path).read_text()
         assert "llama3.2:3b" in text and "smuggled" not in text
         assert run.cfg_now.llm.provider == "ollama"
+    _with_server(check)
+
+
+# ── the scan schedule, the folders, a newer version ───────────────────────────
+
+
+def test_the_schedule_is_saved_and_read_back_through_the_page():
+    from jobdork.core import schedule
+
+    calls = []
+
+    def run_cmd(argv, **kw):
+        calls.append(argv)
+        return type("Done", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    def check(run):
+        agent = schedule.LaunchAgent(folder=Path(run.tmp.name) / "agents",
+                                     run=run_cmd, uid=1)
+        saved = schedule.scheduler, schedule.unsupported
+        # lambda: every request gets this stand-in instead of the real launchd.
+        schedule.scheduler = lambda: agent
+        # lambda: as on a Mac, whatever machine the tests run on.
+        schedule.unsupported = lambda: ""
+        try:
+            code, body = run.get("/api/schedule")
+            assert code == 200 and json.loads(body) == {"supported": True, "on": False}
+            code, body = run.post("/api/schedule", {"every": "weekly", "at": "07:00",
+                                                    "day": "tue"})
+            state = json.loads(body)
+            assert code == 200 and state["on"] and state["describe"] == "every Tuesday at 07:00"
+            assert agent.path.is_file()
+            code, body = run.post("/api/schedule", {"every": "hourly", "at": "07:00"})
+            assert code == 400 and b"every must be" in body
+            code, body = run.post("/api/schedule", {"every": "off"})
+            assert code == 200 and not json.loads(body)["on"] and not agent.path.exists()
+        finally:
+            schedule.scheduler, schedule.unsupported = saved
+    _with_server(check)
+
+
+def test_the_folders_are_listed_and_only_opened_on_this_machine():
+    from jobdork.web import app as app_mod
+
+    opened = []
+
+    def check(run):
+        code, body = run.get("/api/folders")
+        report = json.loads(body)
+        assert code == 200 and set(report["folders"]) == {"settings", "backups", "logs",
+                                                          "documents"}
+        assert report["folders"]["settings"]["path"] == str(Path(run.tmp.name).resolve())
+        saved = app_mod.open_with_system
+        app_mod.open_with_system = opened.append
+        try:
+            code, _ = run.post("/api/folders/open", {"which": "settings"})
+            assert code == 200 and opened == [Path(run.tmp.name).resolve()]
+            code, body = run.post("/api/folders/open", {"which": "backups"})
+            assert code == 404 and b"does not exist yet" in body
+            code, _ = run.post("/api/folders/open", {"which": "/etc"})
+            assert code == 400
+            os.environ["JOBDORK_ALLOW_HOSTS"] = "nas.local"
+            try:
+                code, _ = run.post("/api/folders/open", {"which": "settings"})
+                assert code == 409
+            finally:
+                os.environ.pop("JOBDORK_ALLOW_HOSTS")
+        finally:
+            app_mod.open_with_system = saved
+        assert len(opened) == 1
+    _with_server(check)
+
+
+def test_the_version_check_is_off_in_tests():
+    def check(run):
+        code, body = run.get("/api/version")
+        assert code == 200 and json.loads(body)["newer"] is False
+    _with_server(check)
+
+
+def test_the_built_in_boards_are_listed_with_why_each_is_read_or_not():
+    def check(run):
+        code, body = run.get("/api/directory")
+        d = json.loads(body)
+        assert code == 200 and d["enabled"] and d["total"] == len(d["boards"]) > 300
+        read = [b for b in d["boards"] if not b["why"]]
+        assert d["read"] == len(read) and all("US" in b["countries"] for b in read)
+        assert any(b["why"] == "hires outside your countries" for b in d["boards"])
+        assert sum(v["boards"] for v in d["by_industry"].values()) == d["total"]
     _with_server(check)

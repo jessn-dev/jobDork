@@ -41,7 +41,7 @@ THIN = 400
 
 # Platforms whose adverts already arrive whole. Fetching them again would cost
 # a request per role to learn nothing.
-ALREADY_FULL = ("workable", "greenhouse", "ashby", "lever", "usajobs")
+ALREADY_FULL = ("workable", "greenhouse", "ashby", "lever", "usajobs", "arbeitnow")
 
 # Platforms that cannot be read, and why. Named rather than silently skipped.
 UNREACHABLE = {
@@ -206,9 +206,18 @@ def _eightfold(fetcher, row) -> tuple[str, bool]:
     return to_text(info.get("jobDescription") or ""), read and bool(info)
 
 
+def _arbeitsagentur(fetcher, row) -> tuple[str, bool]:
+    """The agency's page is drawn by script; the advert is in its detail record."""
+    from ..fetch import arbeitsagentur
+
+    info, read = arbeitsagentur.record(fetcher, row["url"] or "")
+    return to_text(info.get("stellenangebotsBeschreibung") or ""), read and bool(info)
+
+
 # Platforms whose advert is not on the page the role links to.
 PLATFORM_READERS = {"smartrecruiters": _smartrecruiters, "workday": _workday,
-                    "oracle": _oracle, "eightfold": _eightfold}
+                    "oracle": _oracle, "eightfold": _eightfold,
+                    "arbeitsagentur": _arbeitsagentur}
 
 
 def enrich(cfg, store: Store, fetcher, limit: int = 0, platform: str = "",
