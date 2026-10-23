@@ -24,7 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 # Only needed to read a PDF resume. Scanning, filtering and tracking all work
 # without it, and a missing parser says so rather than scoring nothing.
-pdf = ["pypdf>=4.0"]
+pdf = ["pypdf>=6.21.1"]
 # The Claude provider on the AI page. Ollama, Gemini and ChatGPT need nothing
 # beyond requests.
 ai = ["anthropic>=1.8"]

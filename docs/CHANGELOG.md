@@ -6,6 +6,16 @@ it and into an entry when the work is done.
 
 ---
 
+## Security — 2026-10-23 — pypdf 6.21.1
+
+- `requirements.lock`: pypdf 6.19.0 → 6.21.1 for eight advisories
+  (CVE-2026-113786 and CVE-2026-113789 to -113795; fixed by 6.21.1 at the
+  latest), which failed CI's dependency audit on pull request #25. Hashes
+  from PyPI, and the downloaded wheel matched. The `pdf` extra now asks for
+  `pypdf>=6.21.1`, so a fresh `pip install '.[pdf]'` cannot pick a
+  vulnerable one. `pip-audit --strict` passes; the suite and a real resume
+  PDF read the same.
+
 ## Added — 2026-10-23 — Feedback is sent: the relay is live
 
 - **The feedback relay is deployed** on Cloudflare Workers at
