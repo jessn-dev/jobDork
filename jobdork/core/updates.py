@@ -66,7 +66,8 @@ def _fetch(url: str) -> dict:
         "Accept": "application/vnd.github+json",
         "User-Agent": f"jobdork/{__version__} (update check)",
     })
-    with urllib.request.urlopen(request, timeout=TIMEOUT) as answer:
+    # Safe: always LATEST_URL, a fixed https address.
+    with urllib.request.urlopen(request, timeout=TIMEOUT) as answer:  # nosec B310
         return json.loads(answer.read(256 * 1024).decode("utf-8"))
 
 

@@ -48,7 +48,6 @@ import json
 import logging
 import re
 import urllib.parse
-import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 
 from ..core.textutil import to_text
@@ -192,37 +191,51 @@ def microdata_posting(html: str) -> dict:
     return posting
 
 
-_G = "{http://base.google.com/ns/1.0}"
+# One element's text in a feed item: <tag>text</tag> or <tag><![CDATA[text]]></tag>.
+_ITEM = re.compile(r"<item[\s>](.*?)</item>", re.IGNORECASE | re.DOTALL)
 # "Administrator, Administration Center (Philadelphia, PA, US)": the place
 # in brackets at the end of a feed item's title.
 _TITLE_PLACE = re.compile(r"\s*\(([^()]*)\)\s*$")
 
 
+def _field(item: str, tag: str) -> str:
+    """One element's text in a feed item, CDATA or escaped, as plain text."""
+    m = re.search(rf"<{re.escape(tag)}(?:\s[^>]*)?>(.*?)</{re.escape(tag)}>", item,
+                  re.IGNORECASE | re.DOTALL)
+    if not m:
+        return ""
+    text = m.group(1).strip()
+    cdata = re.fullmatch(r"<!\[CDATA\[(.*)\]\]>", text, re.DOTALL)
+    return cdata.group(1) if cdata else html_mod.unescape(text)
+
+
 def feed_postings(xml: str) -> list[dict]:
     """The jobs in a sitemap that is an RSS feed, each in JSON-LD's shape
-    with its address under "url"; [] for any other sitemap."""
+    with its address under "url"; [] for any other sitemap.
+
+    Read with patterns, as every sitemap here is, not an XML parser: the
+    feed comes from someone else's server, and an XML parser is the usual
+    way in for entity expansion and similar tricks.
+    """
     if not re.search(r"<rss[\s>]", xml[:2000], re.IGNORECASE):
         return []
-    try:
-        root = ET.fromstring(xml)
-    except ET.ParseError:
-        return []
     found = []
-    for item in root.iter("item"):
-        link = (item.findtext("link") or "").strip()
-        title = (item.findtext("title") or "").strip()
+    for item in _ITEM.findall(xml):
+        link = _field(item, "link").strip()
+        title = _field(item, "title").strip()
         if not link or not title:
             continue
-        place = (item.findtext(f"{_G}location") or "").strip()
+        place = _field(item, "g:location").strip()
         bracket = _TITLE_PLACE.search(title)
         if bracket and (not place or bracket.group(1).strip() == place):
             place = place or bracket.group(1).strip()
             title = title[:bracket.start()].strip()
         posting = {"@type": "JobPosting", "url": link, "title": title,
-                   "description": html_mod.unescape(item.findtext("description") or ""),
-                   "datePosted": (item.findtext("pubDate") or "").strip(),
-                   "validThrough": (item.findtext(f"{_G}expiration_date") or "").strip(),
-                   "hiringOrganization": (item.findtext(f"{_G}employer") or "").strip()}
+                   # The advert is escaped HTML inside CDATA: unescaped once more.
+                   "description": html_mod.unescape(_field(item, "description")),
+                   "datePosted": _field(item, "pubDate").strip(),
+                   "validThrough": _field(item, "g:expiration_date").strip(),
+                   "hiringOrganization": _field(item, "g:employer").strip()}
         if place:
             posting["jobLocation"] = {"address": place}
         found.append(posting)

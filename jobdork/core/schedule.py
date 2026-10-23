@@ -35,7 +35,9 @@ import shlex
 import subprocess
 import sys
 import tempfile
-import xml.etree.ElementTree as ET
+
+# Safe: parses only Task Scheduler's own answer about our own task.
+import xml.etree.ElementTree as ET  # nosec B405
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
@@ -295,7 +297,9 @@ class WindowsTask:
         # ElementTree refuses a str that declares an encoding.
         text = re.sub(r"^<\?xml[^>]*\?>", "", text.strip())
         try:
-            root = ET.fromstring(text)
+            # Safe: Task Scheduler's own answer about our own task, not
+            # anything from a network.
+            root = ET.fromstring(text)  # nosec B314
         except ET.ParseError:
             return None, []
         ns = {"t": _TASK_NS}

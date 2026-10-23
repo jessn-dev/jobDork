@@ -100,6 +100,9 @@ the multinationals on the built-in list; Adzuna only with a key.
     into the same shape (`microdata_posting`); any careers site doing the
     same now reads too. A site's own name as employer ("Duke Careers") is
     trimmed to the employer's.
+  - The feed is read with patterns, as every sitemap here is, not an XML
+    parser: it comes from someone else's server (CI's code scan, bandit
+    B314, caught the first version).
   - Not used: the same sites' `/services/rss/` search feed, which their
     robots.txt closes. Nothing that answered with a bot challenge (SAP's own
     jobs.sap.com) is worked around.
