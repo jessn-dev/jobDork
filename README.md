@@ -123,7 +123,8 @@ folders, and a banner says when a newer version is out.
 Installers for macOS and Windows, so none of the above is needed, are built
 by CI on every pull request and will be attached to the
 [Releases](https://github.com/jessn-dev/jobDork/releases) page from the next
-release on, with how to get past the unsigned warnings.
+release on, with how to get past the unsigned warnings. See the
+[code signing policy](#code-signing-policy).
 
 ---
 
@@ -181,6 +182,39 @@ when the dashboard starts and when it stops.
 
 Either way, the Resume page lists every cover letter, with **View** to read
 one and **Delete** to remove its file and text at once.
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/),
+certificate by [SignPath Foundation](https://signpath.org/).
+
+- The Windows installer (`jobdork-<version>-windows-x64-setup.exe`) and the
+  program inside it are what is signed. They are built from this repository's
+  source by GitHub Actions ([desktop.yml](.github/workflows/desktop.yml)),
+  from a release tag, and nothing built anywhere else is signed.
+- Every release is approved by hand before it is signed, and before it is
+  published (see [SECURITY.md](SECURITY.md)).
+- Only jobdork's own program is signed. The libraries packed into it are
+  the work of their own projects and are not signed by jobdork.
+- Signing has been applied for (October 2026). Until it is granted, the
+  installers on the Releases page are unsigned, and the release notes say
+  how to open them.
+
+**Team roles**
+
+| Role | Who |
+|---|---|
+| Committers and reviewers | [@jessn-dev](https://github.com/jessn-dev), the repository's owner. Changes reach `main` only by pull request with every check passing; a contribution from anyone else is reviewed before it is merged |
+| Approvers | [@jessn-dev](https://github.com/jessn-dev), who approves each release in the `release` environment and each signing request in SignPath |
+
+Everyone with one of these roles uses multi-factor authentication for GitHub
+and SignPath.
+
+**Privacy.** jobdork sends nothing to its makers. It goes on the network
+only to do what you set it up to do (search job boards, use the AI provider
+you choose, send feedback when you press Send) and to check, once a day, for
+a newer release, which can be turned off. Every destination is listed in the
+[privacy policy](PRIVACY.md).
 
 ## Where the jobs come from
 
@@ -703,6 +737,7 @@ blocking automated readers makes the market worse for everyone.
 | [docs/HISTORY.md](docs/HISTORY.md) | How jobdork got here, from a Google search builder, and the decisions that turned around |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | What changed, and every bug found on the way |
 | [SECURITY.md](SECURITY.md) | How releases are checked, signed and approved, and how to verify an image |
+| [PRIVACY.md](PRIVACY.md) | What jobdork keeps, where, and every place it goes on the network |
 
 ### Start here
 
@@ -1190,4 +1225,5 @@ jobdork dork \
 
 ## License
 
-MIT
+MIT. Privacy: [PRIVACY.md](PRIVACY.md). Code signing:
+[code signing policy](#code-signing-policy).

@@ -6,6 +6,33 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-23 — A privacy policy and a code signing policy
+
+For the application to SignPath Foundation's free code signing, whose terms
+ask for both, and because jobdork never said in one place what it sends where.
+
+- **[PRIVACY.md](../PRIVACY.md)**: what jobdork keeps and in which folders
+  (settings, database, backups, resume, keys file, documents, logs; AI keys in
+  memory only), how to delete it (Start over; uninstalling leaves the data
+  folder), and every place it goes on the network: job boards and employers'
+  sites (your titles and place as search terms), Adzuna and USAJOBS with your
+  keys, the AI provider you choose (adverts and your resume, under that
+  provider's policy), the Feedback relay (only on Send; a public issue, an
+  email with screenshots and your reply address, your IP kept an hour for the
+  rate limit), the once-a-day version check (`JOBDORK_UPDATE_CHECK=off`), and
+  email digests through your own Resend key. And what it does not do: no
+  analytics, accounts or tracking, the Dashboard on 127.0.0.1 behind a token,
+  no system changes beyond its folders and the optional scan schedule.
+- **"Code signing policy" in the README**, in SignPath's required wording:
+  what is signed (the Windows installer and program, built by
+  `desktop.yml` from a tag), that each release is approved by hand, the team
+  roles (committers, reviewers and approvers, with multi-factor
+  authentication), and a privacy statement linking PRIVACY.md. It says
+  signing has been applied for and the installers are unsigned until it is
+  granted. The README's documentation table and licence line link both.
+- **Release notes** (`docker.yml`) link the code signing policy and the
+  privacy policy at the release's own tag.
+
 ## Added — 2026-10-23 — Europe, Australia and the Gulf: employers added and measured
 
 - **119 large employers of Europe, Australia, New Zealand and the Gulf**,
