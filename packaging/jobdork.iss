@@ -4,6 +4,12 @@
 ; Installs for the current user only, so no administrator prompt. Settings,
 ; job posts and the resume live in %LOCALAPPDATA%\jobdork, not here, and an
 ; uninstall leaves them: they are the user's, and a reinstall should find them.
+;
+; privacy.txt is shown before installing ("Information" page): what jobdork
+; keeps, what it sends where, and how to turn off the one thing it does by
+; itself (the daily version check). SignPath Foundation's terms ask for this
+; of software that goes on the network unasked. Keep it in step with
+; PRIVACY.md.
 
 [Setup]
 ; Never change AppId: it is how Windows knows a new version replaces this one.
@@ -25,6 +31,8 @@ OutputBaseFilename=jobdork-{#Version}-windows-x64-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+; Relative to this script's folder.
+InfoBeforeFile=privacy.txt
 CloseApplications=yes
 
 [Tasks]

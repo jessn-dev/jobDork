@@ -376,6 +376,49 @@ def test_no_answer_off_or_a_prerelease_shows_nothing():
     assert updates.parse("0.0.0+source") is None
 
 
+def test_the_setting_turns_the_check_off_and_asks_nothing():
+    asked = []
+
+    def fetch(url):
+        asked.append(url)
+        return {"tag_name": "v9.0.0", "html_url": "https://github.com/x"}
+
+    with tempfile.TemporaryDirectory() as tmp, _env(JOBDORK_UPDATE_CHECK=None):
+        assert not updates.check(tmp, current="0.14.3", fetch=fetch, enabled=False)["newer"]
+        assert asked == []
+        assert updates.check(tmp, current="0.14.3", fetch=fetch)["newer"]
+
+
+def test_update_check_is_a_setting_the_page_can_write():
+    from jobdork.core import config as config_mod
+    from jobdork.core import setup
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "config.yaml"
+        path.write_text("titles: {include: [nurse]}\n", encoding="utf-8")
+        assert config_mod.load(str(path)).update_check is True
+        assert setup.write(str(path), {"update_check": False}).update_check is False
+        assert "update_check: false" in path.read_text(encoding="utf-8")
+        assert setup.write(str(path), {"update_check": "true"}).update_check is True
+        path.write_text("titles: {include: [nurse]}\nupdate_check: sometimes\n",
+                        encoding="utf-8")
+        try:
+            config_mod.load(str(path))
+        except ConfigError as exc:
+            assert "update_check" in str(exc)
+        else:
+            raise AssertionError("accepted update_check: sometimes")
+
+
+def test_the_windows_installer_shows_the_privacy_page_first():
+    root = Path(__file__).resolve().parent.parent / "packaging"
+    script = (root / "jobdork.iss").read_text(encoding="utf-8")
+    assert "InfoBeforeFile=privacy.txt" in script
+    text = (root / "privacy.txt").read_text(encoding="utf-8")
+    assert "api.github.com" in text and "Check once a day whether a newer" in text
+    assert "PRIVACY.md" in text
+
+
 def test_the_tests_never_ask_github():
     assert updates.off()
 

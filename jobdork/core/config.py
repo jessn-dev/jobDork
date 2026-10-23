@@ -419,6 +419,9 @@ class Config:
     fetch: Fetch = field(default_factory=Fetch)
     llm: Llm = field(default_factory=Llm)
     db_path: str = "data/jobdork.db"
+    # Ask GitHub once a day whether a newer jobdork is out (core/updates.py).
+    # The Dashboard's Updates card switches it; JOBDORK_UPDATE_CHECK=off wins.
+    update_check: bool = True
     path: str = ""          # where this config was read from, or will be written
     # The first-run step still to do; empty once set up. See core.setup.
     setup_step: str = ""
@@ -736,6 +739,10 @@ def _build(raw: dict[str, Any]) -> Config:
     )
 
     cfg.db_path = str(raw.get("db") or "data/jobdork.db")
+    check = raw.get("update_check", True)
+    if not isinstance(check, bool):
+        raise ConfigError("update_check must be true or false")
+    cfg.update_check = check
     cfg.credentials = _str_list(raw.get("credentials"), "credentials")
     setup = raw.get("setup") or {}
     if not isinstance(setup, dict):

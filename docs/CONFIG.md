@@ -564,6 +564,20 @@ Gitignored. Your history stays yours.
 
 ---
 
+## update_check
+
+| Key | Type | Default |
+|---|---|---|
+| `update_check` | bool | `true` |
+
+Once a day, when the Dashboard opens, ask GitHub whether a newer jobdork is
+out, and say so in a banner. One request to `api.github.com` for the latest
+release; nothing about you is sent ([PRIVACY.md](../PRIVACY.md)). `false`
+turns it off, as does the Dashboard's **Updates** card, which writes this
+setting. `JOBDORK_UPDATE_CHECK=off` turns it off whatever this says.
+
+---
+
 ## Scoring
 
 Points, so you can tell why one role is above another.
@@ -629,7 +643,7 @@ always wins over the YAML.
 | `OPENAI_API_KEY` | ChatGPT, from the terminal |
 | `JOBDORK_CONFIG` | Config path override |
 | `JOBDORK_FEEDBACK_URL` | Where the Feedback page's Send goes. By default the maintainers' relay (see [relay/feedback](../relay/feedback/README.md)); an `https://` address replaces it, and `off` turns Send off, leaving "Open as a GitHub issue" and "Save as a file". No Resend or GitHub key is ever read by the app for this |
-| `JOBDORK_UPDATE_CHECK` | `off` stops the Dashboard asking GitHub, once a day, whether a newer jobdork is out (one request to `api.github.com` for the latest release; the answer is kept in `version-check.json` beside the database) |
+| `JOBDORK_UPDATE_CHECK` | `off` stops the Dashboard asking GitHub, once a day, whether a newer jobdork is out, whatever `update_check` says (one request to `api.github.com` for the latest release; the answer is kept in `version-check.json` beside the database) |
 | `JOBDORK_ALLOW_HOSTS` | The dashboard: addresses besides the machine itself it may be opened by, comma separated (a NAS's network address, its Tailscale name); a wildcard is refused. See [DEPLOY.md](DEPLOY.md) |
 | `JOBDORK_DOCS_DIR` | Where the uploaded resume and generated documents are kept. The Docker image sets `/app/data/documents`, inside the kept volume |
 | `JOBDORK_TEMP_DOCS` | Opt-in instead: a temporary folder for the resume and documents, emptied when the dashboard starts and stops; wins over `JOBDORK_DOCS_DIR` |

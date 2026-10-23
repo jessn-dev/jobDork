@@ -916,6 +916,18 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <p class="hint" style="margin-top:0">To back them up, move them to another
       computer, or attach a log to a report.</p>
     <div class="cleanup"><div class="folders" id="folders"></div></div>
+
+    <h3 style="margin-top:1.6rem">Updates</h3>
+    <div class="cleanup">
+      <div class="row">
+        <label class="check-inline"><input type="checkbox" id="upd-on">
+          Check once a day whether a newer jobdork is out</label>
+      </div>
+      <p class="hint" id="upd-said" style="margin:.3rem 0 0">One request to GitHub for the
+        number of the latest release; nothing about you is sent. The only thing jobdork asks
+        the network by itself: see the
+        <a href="https://github.com/jessn-dev/jobDork/blob/main/PRIVACY.md" data-out>privacy policy</a>.</p>
+    </div>
   </section>
 
   <section id="view-tools" hidden>
@@ -1486,7 +1498,7 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
     if (b.dataset.view === 'sources') drawSources();
     if (b.dataset.view === 'resume') { drawResume(); drawProjects(); drawEducation(); drawReview(); drawLetters(); }
     if (b.dataset.view === 'ai') drawAI();
-    if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); drawSchedule(); drawFolders(); }
+    if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); drawSchedule(); drawFolders(); drawUpdates(); }
   };
 });
 
@@ -4950,6 +4962,27 @@ async function drawFolders() {
   });
 }
 
+// ── updates: the once-a-day check, on or off (config `update_check`) ──────────
+async function drawUpdates() {
+  if (!cfg) cfg = await (await api('/api/config')).json();
+  const box = $('upd-on');
+  box.checked = cfg.update_check && !cfg.update_check_env_off;
+  box.disabled = !!cfg.update_check_env_off;
+  if (cfg.update_check_env_off) $('upd-said').textContent =
+    'Off: JOBDORK_UPDATE_CHECK=off is set where jobdork runs, and wins over this.';
+}
+$('upd-on').onchange = async e => {
+  const on = e.target.checked;
+  const r = await api('/api/config', {method: 'POST',
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify({update_check: on})});
+  if (!r.ok) { toast(`Not saved: ${await r.text()}`, 'err'); e.target.checked = !on; return; }
+  cfg = await r.json();
+  toast(on ? 'jobdork checks for a newer version once a day.' : 'jobdork no longer checks for a newer version.');
+  if (on) checkVersion(); else $('update').hidden = true;
+};
+document.querySelectorAll('#upd-said [data-out]').forEach(a =>
+  a.onclick = e => { e.preventDefault(); openOut(a.href); });
+
 // ── a newer version ──────────────────────────────────────────────────────────
 // Asked once per page load; the server asks GitHub at most once a day
 // (core/updates.py). Dismissed, it stays away until the next release.
@@ -4972,5 +5005,5 @@ async function checkVersion() {
 }
 
 connect(); loadRoles(); refreshState(); pollActivity(); loadMetrics();
-drawSchedule(); drawFolders(); setTimeout(checkVersion, 1500);
+drawSchedule(); drawFolders(); drawUpdates(); setTimeout(checkVersion, 1500);
 </script></body></html>

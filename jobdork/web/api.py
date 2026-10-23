@@ -2374,4 +2374,4 @@ def newer_version(cfg=None) -> dict:
     from ..core import updates
 
     folder = Path(cfg.db_path).parent if cfg is not None else Path("data")
-    return updates.check(folder)
+    return updates.check(folder, enabled=getattr(cfg, "update_check", True))

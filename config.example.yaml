@@ -207,3 +207,8 @@ llm:
 
 # Where the database lives. Gitignored, so your history stays yours.
 db: data/jobdork.db
+
+# Once a day the Dashboard asks GitHub whether a newer jobdork is out (one
+# request to api.github.com; see PRIVACY.md). false turns it off; so does the
+# Dashboard's Updates card, or JOBDORK_UPDATE_CHECK=off.
+update_check: true

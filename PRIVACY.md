@@ -120,7 +120,10 @@ number of the latest jobdork release, so it can tell you when a newer one is
 out. The request goes to `api.github.com` and carries nothing about you
 beyond what any connection carries (your IP address, and a User-Agent naming
 jobdork and its version). The answer is kept in `version-check.json` beside
-your database. Set `JOBDORK_UPDATE_CHECK=off` to turn it off. See
+your database. To turn it off, untick **Check once a day whether a newer
+jobdork is out** under **Updates** on the Dashboard (it writes
+`update_check: false` to your settings), or set `JOBDORK_UPDATE_CHECK=off`.
+The Windows installer shows this before installing. See
 [GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
 
 ### Email digests

@@ -1191,3 +1191,15 @@ def test_the_built_in_boards_are_listed_with_why_each_is_read_or_not():
         assert any(b["why"] == "hires outside your countries" for b in d["boards"])
         assert sum(v["boards"] for v in d["by_industry"].values()) == d["total"]
     _with_server(check)
+
+
+def test_the_page_reads_and_writes_the_update_check():
+    def check(run):
+        code, body = run.get("/api/config")
+        state = json.loads(body)
+        assert code == 200 and state["update_check"] is True
+        assert state["update_check_env_off"] is True          # the tests set it off
+        code, body = run.post("/api/config", {"update_check": "false"})
+        assert code == 200 and json.loads(body)["update_check"] is False
+        assert run.queued == []                                # nothing to re-screen
+    _with_server(check)

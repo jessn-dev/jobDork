@@ -52,6 +52,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from ..ai.llm import VAULT
 from ..core import feedback as feedback_mod
+from ..core import updates as updates_mod
 from ..core.config import (
     CONTAINER_ENV,
     CONTAINER_MARKERS,
@@ -268,6 +269,9 @@ def _config_payload(cfg) -> dict:
                           "hard": d.hard}
                          for d in cfg.dealbreakers],
         "dealbreaker_suggestions": _deal_suggestions(),
+        "update_check": cfg.update_check,
+        # The environment wins over the setting; the page says so.
+        "update_check_env_off": updates_mod.off(),
         "path": cfg.path,
     }
 

@@ -218,6 +218,10 @@ def rewrite(original: str, payload: dict) -> str:
             directory["skip"] = sorted({str(n).strip() for n in payload["directory_skip"] or []
                                         if str(n).strip()}, key=str.casefold)
 
+    if "update_check" in payload:
+        data["update_check"] = str(payload["update_check"]).lower() in (
+            "1", "true", "yes", "on")
+
     if "credentials" in payload:
         data["credentials"] = [str(c).strip() for c in payload["credentials"] or []
                                if str(c).strip()]

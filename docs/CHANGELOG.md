@@ -6,6 +6,32 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-23 — The version check can be switched off in the app, and the installer says what goes where
+
+SignPath Foundation's terms ask that software which goes on the network by
+itself shows its privacy policy when installed and lets you turn that off.
+jobdork's one such request is the daily version check, which only an
+environment variable could stop.
+
+- **"Updates" on the Dashboard**: a box, ticked by default, "Check once a
+  day whether a newer jobdork is out". Unticking it writes
+  `update_check: false` to config.yaml (new setting, docs/CONFIG.md) and the
+  check asks nothing; ticking it again checks at once. When
+  `JOBDORK_UPDATE_CHECK=off` is set, the box is unticked and greyed, and says
+  the environment wins. Saving it starts no scan or re-screen.
+- **The Windows installer shows a privacy page before installing**
+  (`packaging/privacy.txt`, Inno Setup's `InfoBeforeFile`): what jobdork
+  keeps and where, what it sends where and when, the version check and how to
+  turn it off, what an uninstall leaves, and a link to PRIVACY.md.
+  `.gitignore` drops every `*.txt` (the dork tool's output), so it names
+  this file as an exception; without it CI's installer build would have
+  failed on a missing file.
+- PRIVACY.md says how to turn the check off in the app. Checked over HTTP on
+  a copy (the browser extension was not connected): the card is on the page,
+  saving writes the setting, and the version check then answers without
+  asking. Not seen in a built Windows installer yet. tests/test_schedule.py,
+  tests/test_serve.py.
+
 ## Added — 2026-10-23 — A privacy policy and a code signing policy
 
 For the application to SignPath Foundation's free code signing, whose terms

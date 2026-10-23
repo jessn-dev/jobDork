@@ -8,7 +8,8 @@ repository, at most once a day: the answer is kept in `version-check.json`
 beside the database. What is sent is what any request to GitHub sends (this
 machine's address and a User-Agent naming jobdork and its version); nothing
 about you or your search. `JOBDORK_UPDATE_CHECK=off` turns it off, and the
-tests turn it off for every run.
+tests turn it off for every run. `update_check: false` in config.yaml, which the
+Dashboard's Updates card writes, turns it off for one install.
 
 Asked by the page, never at start: a dashboard opened offline costs one
 failed request and no wait, and a check that fails is simply not shown.
@@ -102,10 +103,11 @@ def latest(cache_dir: str | Path, fetch=_fetch, now=time.time) -> dict | None:
 
 
 def check(cache_dir: str | Path, current: str = __version__, fetch=_fetch,
-          now=time.time) -> dict:
-    """What the page shows: {"newer": False} or the release to move to."""
+          now=time.time, enabled: bool = True) -> dict:
+    """What the page shows: {"newer": False} or the release to move to.
+    `enabled` is the config's `update_check`; False asks nothing."""
     mine = parse(current)
-    if mine is None or off():
+    if mine is None or off() or not enabled:
         return {"newer": False, "current": current}
     release = latest(cache_dir, fetch=fetch, now=now)
     if not release or (parse(release["version"]) or (0, 0, 0)) <= mine:
