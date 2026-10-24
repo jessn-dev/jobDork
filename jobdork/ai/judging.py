@@ -80,6 +80,9 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
     if not cfg.resume_path:
         raise LLMError("no resume configured. Upload one on the Resume page")
     resume_text = resume_mod.load(cfg.resume_path).text
+    # Counted from the resume's dates here, not added up by the model.
+    span = resume_mod.work_span(resume_text)
+    work = span.line() if span else ""
     # What the person added on the Resume page: read with the resume, and
     # accepted by the claim check as part of their record.
     notes = resume_doc.record_notes(store.projects(), store.education())
@@ -113,7 +116,8 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
                 # Measured here, from the board's dates: the model has no clock.
                 "posting": freshness.prompt_block(
                     row["posted_at"] or "",
-                    grouping.earliest_seen(store.conn, uid=row["uid"]), cfg.freshness)}
+                    grouping.earliest_seen(store.conn, uid=row["uid"]), cfg.freshness),
+                "work": work}
         try:
             verdict = judge(settings, role, resume_text, notes)
         except LLMError as exc:
@@ -131,7 +135,7 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
             report.disagreed += 1
             telemetry.tick(count="models disagree")
         check_verdict(settings, store, row, verdict, record,
-                      enabled=cfg.llm.guard)
+                      enabled=cfg.llm.guard, posting=role["posting"], work=work)
         if verdict.get("guard", {}).get("unsupported"):
             report.flagged += 1
             telemetry.tick(count="unsupported claims")
@@ -181,13 +185,21 @@ def verdict_text(verdict: dict) -> str:
                       *verdict.get("concerns", [])]).strip()
 
 
+def guard_sources(row, resume_text: str, posting: str = "",
+                  work: str = "") -> dict[str, str]:
+    """What a verdict is checked against: what its model was given, the
+    measured work history with the resume it was counted from."""
+    return {"advert": guard.advert_source(row, posting),
+            "resume": resume_text + (f"\n\n{work}" if work else "")}
+
+
 def check_verdict(settings, store, row, verdict: dict, resume_text: str,
-                  enabled: bool = True) -> None:
+                  enabled: bool = True, posting: str = "", work: str = "") -> None:
     """Guard one verdict and record it. Adds `guard` and `ai_output_id` to it."""
     text = verdict_text(verdict)
     if enabled:
-        report = guard.check(settings, text, {"advert": guard.advert_source(row),
-                                              "resume": resume_text})
+        report = guard.check(settings, text,
+                             guard_sources(row, resume_text, posting, work))
         verdict["guard"] = report.to_dict()
     verdict["ai_output_id"] = store.add_ai_output(
         "judge", text, uid=row["uid"], model=settings.label,

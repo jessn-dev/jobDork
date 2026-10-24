@@ -540,6 +540,82 @@ def years_claimed(text: str) -> int:
                default=0)
 
 
+_MONTHS = {m: i for i, m in enumerate(
+    ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
+_MONTH = r"((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*)\.?\s+((?:19|20)\d\d)"
+_SPAN = re.compile(_MONTH + r"\s*(?:-|\u2013|\u2014|to)\s*(?:" + _MONTH + r"|(present|current|now))",
+                   re.IGNORECASE)
+# Words near a date range that make it study, not work.
+_STUDY = re.compile(r"universit|college|school|bachelor|master|degree|diploma|"
+                    r"institute|academy|education|b\.?s\.?c?\b|m\.?s\.?c?\b",
+                    re.IGNORECASE)
+
+
+@dataclass
+class WorkSpan:
+    first: str                    # as written: "January 2016"
+    last: str                     # "September 2023", or "Present"
+    months: int                   # worked, overlapping roles counted once
+
+    def line(self) -> str:
+        years, months = divmod(self.months, 12)
+        length = (f"{years} year{'s' * (years != 1)}"
+                  + (f" {months} month{'s' * (months != 1)}" if months else ""))
+        return (f"Work history in the resume: {self.first} to {self.last}, "
+                f"{length} in all: every role together, not any one field or "
+                "title, counted from its dated roles with overlaps counted once "
+                "(study not counted).")
+
+
+def work_span(text: str, today: tuple[int, int] | None = None) -> WorkSpan | None:
+    """How long the resume's dated roles cover, counted here rather than by a
+    model: "over 5 years" was the claim a model made most often and the one
+    it could least back, since a resume gives dates, not totals.
+
+    Only "Month YYYY - Month YYYY" (or "- Present") ranges count, and one
+    with a university, school or degree beside it is study. Overlapping roles
+    are merged. None when no work range is found.
+    """
+    import time
+
+    now = today or time.localtime()[:2]
+    spans = []
+    for m in _SPAN.finditer(text or ""):
+        # Its own line before it, and a few characters after (PDF text can
+        # run "December 2015Bachelor's" together), not the next entry.
+        before = text[max(0, m.start() - 60):m.start()].rsplit("\n", 1)[-1]
+        if _STUDY.search(before + text[m.end():m.end() + 12]):
+            continue
+        start = (int(m.group(2)), _MONTHS[m.group(1)[:3].lower()])
+        end = (now if m.group(5) else
+               (int(m.group(4)), _MONTHS[m.group(3)[:3].lower()]))
+        if end >= start:
+            spans.append((start, end, m))
+    if not spans:
+        return None
+    # lambda: ranges in order of their start.
+    spans.sort(key=lambda s: s[0])
+    total, cur_start, cur_end = 0, spans[0][0], spans[0][1]
+    for start, end, _ in spans[1:]:
+        if start <= cur_end:
+            cur_end = max(cur_end, end)
+            continue
+        total += _months(cur_start, cur_end)
+        cur_start, cur_end = start, end
+    total += _months(cur_start, cur_end)
+    first = min(spans, key=lambda s: s[0])[2]
+    last = max(spans, key=lambda s: s[1])[2]
+    return WorkSpan(first=f"{first.group(1)} {first.group(2)}",
+                    last=(last.group(5).capitalize() if last.group(5)
+                          else f"{last.group(3)} {last.group(4)}"),
+                    months=total)
+
+
+def _months(start: tuple[int, int], end: tuple[int, int]) -> int:
+    """Months from start to end, both counted: Jan to Mar is 3."""
+    return (end[0] - start[0]) * 12 + end[1] - start[1] + 1
+
+
 # An advert naming fewer skills than this is scored as though it named this
 # many. A 500-character teaser that mentions only "java" is not a perfect fit
 # for anyone who knows Java; it is an advert too short to judge, and scoring

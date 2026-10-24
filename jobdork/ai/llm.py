@@ -385,6 +385,10 @@ def _post(url: str, body: dict, headers: dict, timeout: int) -> dict:
         raise LLMError("the provider did not answer JSON") from None
 
 
+# What a reasoning model may spend thinking before it answers (GPT-OSS).
+REASONING_TOKENS = 4000
+
+
 def _ollama(s: Settings, system: str, user: str, schema: dict,
             max_tokens: int, on_text=None) -> str:
     # Roughly 3.5 characters a token for English. A prompt that may not fit
@@ -394,6 +398,12 @@ def _ollama(s: Settings, system: str, user: str, schema: dict,
         log.warning("prompt of about %d tokens may not fit llm.context %d; "
                     "Ollama drops the start of what does not fit", needed, s.context)
     url = s.ollama_url.rstrip("/") + "/api/chat"
+    # GPT-OSS cannot stop reasoning: "think": false is ignored, the reasoning
+    # used the whole budget and the answer came back empty. At "low" it
+    # answered at once and wrongly ("used Jenkins" unsupported beside "Built
+    # CI with Jenkins"); "medium" was right, in about 300 tokens. So it gets
+    # medium, and room for that on top of the answer's own budget.
+    reasons = s.model.startswith("gpt-oss")
     body = {
         "model": s.model,
         "messages": [{"role": "system", "content": system},
@@ -402,10 +412,11 @@ def _ollama(s: Settings, system: str, user: str, schema: dict,
         # Thinking models (gemma4) otherwise spend the whole token budget
         # reasoning and are cut off mid-answer. The schema does the
         # structuring; non-thinking models accept and ignore this.
-        "think": False,
+        "think": "medium" if reasons else False,
         # Ollama constrains decoding to the schema itself.
         "format": schema,
-        "options": {"temperature": 0, "num_predict": max_tokens,
+        "options": {"temperature": 0,
+                    "num_predict": max_tokens + (REASONING_TOKENS if reasons else 0),
                     "num_ctx": s.context},
     }
     if on_text:
@@ -672,6 +683,17 @@ languages or years), not keyword overlap. "summary" is one sentence. \
 "reasons" and "concerns" are short, specific, at most five each, and quote \
 the advert where it helps.
 
+Every statement about the candidate rests on words in the resume (or the \
+added block): name skills, tools and employers as the resume writes them. \
+Never state what it does not: no size or scale ("large-scale", \
+"enterprise"), no seniority, and nothing about what their background or \
+recent roles are "focused on", "primarily" or "mainly"; name the titles and \
+dates instead. For years of experience use only <<MEASURED>>, which the tool \
+counted from the resume's dates: never add up dates yourself. A related skill is not the \
+skill (Docker is not Kubernetes). A requirement the resume does not show is \
+a concern written as a gap, naming the thing as the advert does: "the resume \
+does not mention Django".
+
 <<POSTING DATES>> is measured by the tool from the job board's own data and \
 is the only date that says how old the post is: dates in the resume are the \
 candidate's history. Score fit on substance alone, never on the post's age; \
@@ -706,6 +728,8 @@ def judge(settings: Settings, role: dict, resume_text: str, notes: str = "") -> 
         f"Location: {role.get('location', '')}\n\n"
         + (f"<<POSTING DATES>>\n{role['posting']}\n<</POSTING DATES>>\n\n"
            if role.get("posting") else "")
+        + (f"<<MEASURED>>\n{role['work']}\n<</MEASURED>>\n\n"
+           if role.get("work") else "")
         + _fenced("ADVERT", advert, MAX_ADVERT) + "\n\n"
         + _fenced("RESUME", resume_text, MAX_RESUME)
         + ("\n\n" + _fenced("ADDED", notes, MAX_RESUME) if notes else "")

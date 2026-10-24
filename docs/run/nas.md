@@ -129,7 +129,9 @@ mostly on the processor, much slower). Tested with jobdork:
 |---|---|---|
 | `gemma4:26b` | 18.6 GB | Good at everything, cover letters and tailored edits included. Needs about 24 GB: a Mac with 32 GB, or a large graphics card |
 | `qwen2.5:3b` | 1.9 GB | Fine for sorting job posts (verdicts, ATS keywords). Too many unsupported claims for writing |
-| `llama3.2:3b` | 2.0 GB | Not recommended: rated every post "strong", and failed on tailored edits |
+| `llama3.2:3b` | 2.0 GB | Not recommended: rated every post "strong", and failed on tailored edits; as a checker it flagged almost everything |
+| `qwen3.8:27b` | 18 GB | The best checker measured: right about 99% of the time on 574 facts, with the fewest false alarms. About 36 seconds per job post |
+| `mistral-small3.2:24b` | 15 GB | Second-best checker |
 
 As a rule, pick the largest model that fits. Whatever you choose, jobdork
 checks every model's claims against your resume and the ad and shows what it

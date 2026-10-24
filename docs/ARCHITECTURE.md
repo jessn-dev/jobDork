@@ -233,7 +233,13 @@ is data.
 own prompts: extract single claims, verify each against the known sources
 (resume, advert, page), and count the unsupported ones. The model's
 "supported" is not trusted on its own: it must give a quote, and a script
-checks the quote is in the source it named. A check that fails is recorded as
+checks the quote is in the source it named (by words, so punctuation and
+PDF text that runs words together do not matter). A gap ("does not mention
+X") is settled by script the other way: X must be named in the claim and
+absent from the source, or the gap is contradicted. Claims are matched to
+the checker's answers by their words, then by number. A verdict's years of
+experience come from `resume.work_span`, counted from the resume's dates
+and given to the model as `<<MEASURED>>`, which the guard can quote. A check that fails is recorded as
 unchecked; it never blocks the output. Page reads are checked by the quote rule
 alone, with no extra call.
 

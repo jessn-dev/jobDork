@@ -6,6 +6,63 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-24 — The hallucination rate counted the check's own mistakes
+
+- **The Dashboard said 15-20% of what the AI wrote was made up.** Half of
+  that was the check. Of the 130 claims flagged in the two databases on
+  this machine, 68 were gaps ("the resume does not mention Django"), which
+  the check could only fail, since nothing can be quoted for what is not
+  there; about 13 were true claims ("has Java") lost because the checker
+  echoed the claim back without its full stop, or quoted with punctuation
+  the source did not have; one was the post's age, which the checker was
+  never shown. About a third were real: "large-scale", "over 5 years",
+  "distributed", "primarily GCP", none of them in the resume.
+- **The check (`ai/guard.py`):** a gap is settled by script: the claim must
+  be worded as one ("does not mention", "lacks", "no … experience"), name
+  the thing, and the thing must be nowhere in the source it names, or the
+  gap is contradicted. Checkers answer gaps "supported" with the missing
+  thing as the quote, or with no quote; both get the same script check,
+  the thing taken from the claim's own words when not quoted. Claims are
+  matched to the checker's answers by their words, then by number when
+  recognisably the same claim. Quotes match by words: a single word whole
+  ("java" is not in "javascript"), several with their spaces dropped, since
+  PDF text runs words together ("remotefreelance"). A source named the way
+  the model sees it ("JESSE NGOLAB resume" in 403 of 420 answers) is that
+  source. Flagged claims are stored with their source and quote.
+- **The verdict (`ai/judging.py`, `ai/llm.py`):** years of experience are
+  counted by `resume.work_span` from the resume's dated roles, overlaps
+  once and study left out, and given to the model as `<<MEASURED>>`
+  ("January 2016 to September 2023, 7 years 8 months in all: every role
+  together, not any one field"), which the check can quote. The prompt
+  forbids scale, seniority, "primarily", "focused on", and adding up dates,
+  and asks for gaps worded as gaps. The post's dates go to the check too.
+  A rule asking for role titles instead of "recent roles are in…" was
+  tried and taken out: 7.4% against 6.4% without it.
+- **Measured** on a copy of the database, local models only, the same 30
+  job posts: 20.0% flagged before; 10.4% with the new check on the old
+  verdicts; 6.4% with the new verdicts, gemma4:26b checking itself.
+- **The checker matters most.** Eight local models checked the same 574
+  claims; where they disagreed (233 claims) the truth was decided by hand
+  against the resume and advert. qwen3.8:27b: 99.3% right, 70% of its flags
+  real, 87.5% of real errors caught, 1.7% flagged. mistral-small3.2:24b
+  97.2%; gemma4:26b on its own work 94.2% (16% of its flags real);
+  gpt-oss:20b 91.6%; bespoke-minicheck 87.0%; llama3.1:8b 85.3% (37.5% of
+  real errors caught); qwen3:30b 75.7%; phi4:14b
+  and llama3.2:3b unusable (phi4's 16K context drops the sources;
+  llama3.2 flags almost everything). One resume and one person's labels:
+  a direction, not a benchmark. The guide's checker section says so.
+- **GPT-OSS on Ollama answered nothing as a checker**: it ignores "think":
+  false, reasoned through the whole token budget and returned an empty
+  answer; at "low" it answered wrongly. It now gets "medium" and 4,000
+  tokens on top of the answer's.
+- This machine's configs now check with qwen3.8:27b (the desktop app's then
+  with Gemini); the app's fallback checker had been llama3.2:3b.
+- README, docs/CONFIG.md, docs/run/nas.md, config.example.yaml and the
+  guide's AI page name qwen3.8:27b as the checker to pull.
+- tests/test_guard.py and tests/test_ai.py cover gaps (including a made-up
+  claim using gap words to pass), matching, glued text, the work span and
+  the measured block.
+
 ## Fixed — 2026-10-24 — Nothing could be copied in the desktop app
 
 - **No text in the app window could be selected**, on macOS or Windows:
@@ -17,6 +74,7 @@ it and into an entry when the work is done.
   The browser dashboard (`jobdork serve`) was never affected.
 - tests/test_app.py checks the window is made with it. Not yet tried in a
   built app.
+
 
 ## Added — 2026-10-24 — Groq as an AI provider
 

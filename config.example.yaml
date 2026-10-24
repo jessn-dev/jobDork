@@ -205,6 +205,10 @@ llm:
   #   readers:
   #     - {provider: ollama, model: gemma4:26b}
   #     - {provider: anthropic, model: claude-sonnet-5-5}
+  # Checkers: a second model checks the readers' work, tried in order like
+  # readers. qwen3.8:27b checked best of eight local models measured.
+  #   checkers:
+  #     - {provider: ollama, model: qwen3.8:27b}
   ollama_url: http://localhost:11434
   judge_on_scan: false      # judge the best new job posts after each scan
   judge_top: 25             # how many a judging run reads (1-500)

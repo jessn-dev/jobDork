@@ -281,6 +281,26 @@ def test_groq_lists_chat_models_only():
     assert models == ["openai/gpt-oss-20b", "llama-3.3-70b-versatile"]
 
 
+def test_gpt_oss_on_ollama_reasons_at_medium_with_room_for_it():
+    """It ignores "think": false and spent the whole budget reasoning, so the
+    answer came back empty; gemma and the rest still have reasoning off."""
+    sent = []
+
+    def fake(url, body, headers, timeout):
+        sent.append(body)
+        return {"message": {"content": "{}"}}
+    saved = llm._post
+    llm._post = fake
+    try:
+        for model in ("gpt-oss:20b", "gemma4:26b"):
+            llm._ollama(llm.Settings(provider="ollama", model=model), "s", "u", {}, 500)
+    finally:
+        llm._post = saved
+    oss, gemma = sent
+    assert oss["think"] == "medium" and oss["options"]["num_predict"] == 500 + llm.REASONING_TOKENS
+    assert gemma["think"] is False and gemma["options"]["num_predict"] == 500
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]
