@@ -6,6 +6,25 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-24 — A release page opens with its downloads
+
+- **The installers were at the bottom of the page.** GitHub lists a
+  release's files after its text, always, and 0.14.4's text is its whole
+  changelog, about 110,000 characters: the `.dmg` and the Windows setup
+  were a long scroll away. That order cannot be changed on GitHub's side.
+- So the page now opens with a **Download** table linking each file
+  directly (Mac, Windows, the Docker command, the checksums), then the
+  first-open warnings, then how to check a download is the real one, and
+  last **What changed**, folded under a line you click to open ("114
+  changes in this release"). The files are reached first either way.
+- The whole page is built by `scripts/release_notes.py --page <tag> <image>
+  <digest>`, which the release job runs, instead of 60 lines of `echo` in
+  `docker.yml`; tests/test_release_notes.py checks the order and the links.
+- The v0.14.4 page was rebuilt this way by hand (`gh release edit`), with
+  its real image digest; its three download links answer.
+- 0.14.4 itself was released on 2026-10-24 (tag on the merge of #28): the
+  first release with installers, and with its notes from the changelog.
+
 ## Fixed — 2026-10-23 — Two dependencies with known vulnerabilities
 
 - **pypdf 6.21.1 had three advisories** (CVE-2026-115572, -115580,
@@ -5426,10 +5445,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   schedule's Task Scheduler entry and the close-mid-scan question tried on
   Windows, and the crontab line on Linux; the Feedback page's Send tried in a
   browser against the live relay.
-- **Release 0.14.4.** `pyproject.toml` and every page now say 0.14.4
-  (branch docs/run-guides); once merged, tag `v0.14.4`. The published 0.14.3
-  restarts over and over without a mapped `config.yaml`, so until 0.14.4 is
-  out the Docker and NAS instructions do not work.
 - **The weekly board re-verify cannot open its pull request** until the
   repository has the `BOARDS_PR_TOKEN` secret (see the top of
   `.github/workflows/boards.yml`); a person has to add it. Until then the

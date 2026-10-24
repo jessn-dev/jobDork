@@ -54,6 +54,22 @@ def test_a_long_release_gives_what_fits_and_links_the_rest():
     assert "### And " in text and "#added--2026-10-01--entry-5)" in text
 
 
+def test_the_page_opens_with_the_downloads_and_folds_the_changes():
+    rn = _script()
+    # lambda: git as the two tags would answer: v1 had "One", v2 added "Two".
+    rn._git = lambda *a: _log("One") if a[1].startswith("v1") else _log("Two", "One")
+    text = rn.page("v2.0.0", "someone/jobdork", "sha256:abc", previous="v1.0.0")
+    assert text.startswith("## Download")
+    base = "https://github.com/jessn-dev/jobDork/releases/download/v2.0.0/"
+    for name in ("jobdork-2.0.0-macos-arm64.dmg", "jobdork-2.0.0-windows-x64-setup.exe",
+                 "SHA256SUMS.txt"):
+        assert f"]({base}{name})" in text
+    assert "`docker pull someone/jobdork:2.0.0`" in text and "someone/jobdork@sha256:abc" in text
+    assert text.index("## Download") < text.index("## Check it is the real one") \
+        < text.index("<details>") < text.index("Two") < text.index("</details>")
+    assert "1 change in this release" in text and "— One" not in text
+
+
 def test_the_link_is_the_one_github_makes_for_the_heading():
     rn = _script()
     assert (rn.anchor("## Changed — 2026-09-30 — version 0.14.3; `v0.14.2` was never released")
