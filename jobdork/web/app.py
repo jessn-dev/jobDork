@@ -322,9 +322,11 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
     bridge = Bridge()
     webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
     webview.settings["ALLOW_DOWNLOADS"] = True
+    # text_select: pywebview makes a page unselectable unless asked, so no
+    # log line, error or letter could be copied out of the app.
     bridge._window = webview.create_window(
         "jobdork", running["url"], js_api=bridge, width=WINDOW_SIZE[0],
-        height=WINDOW_SIZE[1], min_size=MIN_SIZE)
+        height=WINDOW_SIZE[1], min_size=MIN_SIZE, text_select=True)
     bridge._window.events.closing += ask_before_closing(running["busy"])
     # Not private: the page keeps small conveniences (a remembered tab) in
     # local storage. The token is never stored; it lives in the page.

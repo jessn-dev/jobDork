@@ -221,6 +221,7 @@ def test_a_whole_run_opens_setup_from_the_apps_folder_and_stops():
         made = webview.made
         assert made["title"] == "jobdork" and "?t=" in made["url"], made
         assert isinstance(made["js_api"], app.Bridge)
+        assert made["text_select"] is True        # logs and letters can be copied
         assert len(made["closing"]) == 1          # asks before closing mid-scan
         assert made["start"] == {"private_mode": False,
                                  "storage_path": str(home / "window"),

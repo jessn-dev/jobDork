@@ -6,6 +6,18 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-24 — Nothing could be copied in the desktop app
+
+- **No text in the app window could be selected**, on macOS or Windows:
+  not a log line on the Activity page, an error, a letter or an advert.
+  pywebview makes a page unselectable unless the window is created with
+  `text_select=True` (it adds `user-select: none` to the body), and
+  `jobdork app` did not ask. It does now; Cmd+C and Ctrl+C copy what is
+  selected (pywebview handles the shortcut on macOS, WebView2 on Windows).
+  The browser dashboard (`jobdork serve`) was never affected.
+- tests/test_app.py checks the window is made with it. Not yet tried in a
+  built app.
+
 ## Added — 2026-10-24 — Groq as an AI provider
 
 - **Groq** is a fifth provider on the AI page, beside Ollama, Claude,
@@ -32,6 +44,7 @@ it and into an entry when the work is done.
 - Guide, README, CONFIG, the run guides and privacy notes name Groq; the
   AI page and setup pictures are retaken. tests/test_ai.py checks the
   calls and the model list with the network stubbed.
+
 
 ## Fixed — 2026-10-24 — A job post could send the app into your network
 
