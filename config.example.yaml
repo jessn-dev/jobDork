@@ -181,7 +181,7 @@ fetch:
 # does not. Off while provider is empty; the dashboard's AI page writes this
 # section for you. Keys never go here (a key in this file stops the
 # load): type it on the AI page, where it is held in memory only, or set
-# ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY for the terminal.
+# ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY / GROQ_API_KEY for the terminal.
 # See docs/CONFIG.md#llm.
 # How a job post's age counts. A post in its first two days is at the top of
 # the pile; after three weeks it may be filled, reposted by a script, or
@@ -197,7 +197,7 @@ freshness:
   points: {new: 5, older: -5, stale: -15}
 
 llm:
-  provider: ""              # ollama | anthropic | gemini | openai
+  provider: ""              # ollama | anthropic | gemini | openai | groq
   model: ""                 # e.g. gemma4:26b for Ollama
   # Or several readers, asked in order: the next answers when one cannot
   # (no key, not reachable, rate limited). Up to 6; same provider, other model

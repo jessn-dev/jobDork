@@ -20,7 +20,7 @@ Or copy `config.example.yaml` to `config.yaml` and edit it
 is three lines).
 
 **Keys come from the environment here**, since there is no AI page to type
-them into: put `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `OPENAI_API_KEY` in
+them into: put `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY` or `GROQ_API_KEY` in
 `.env` for an AI reader, and `ADZUNA_APP_ID`/`ADZUNA_APP_KEY` or
 `USAJOBS_API_KEY`/`USAJOBS_EMAIL` for those sources. The full list:
 [../CONFIG.md](../CONFIG.md#environment). Ollama needs no key.

@@ -519,8 +519,8 @@ jobdork tailor <uid>          # your resume rewritten for one post, as a PDF
   (see [freshness](docs/CONFIG.md#freshness)) and given to the model in its
   own block, apart from the dates in your resume. New posts rank higher,
   stale ones lower and marked, and ghost listings past 90 days are dropped.
-- **Any of four providers:** Ollama running locally (free), Claude, Gemini or
-  ChatGPT. **Keys are held in memory only**: typed on the AI page, never
+- **Any of five providers:** Ollama running locally (free), Claude, Gemini,
+  ChatGPT or Groq (open models, fast, with a free tier). **Keys are held in memory only**: typed on the AI page, never
   written to the config, the database or a log, and wiped when the server
   stops or you click Forget. The terminal reads them from the environment.
 - **Judging** gives a score, a verdict and its reasons beside the rule-based

@@ -212,6 +212,75 @@ def test_the_age_rule_covers_every_source_but_not_direct_evidence():
     assert Checker(listing.Finding("closed", "410", hard=True)).check(row, old).state == "closed"
 
 
+# ── Groq ──────────────────────────────────────────────────────────────────────
+
+def _groq_call(model: str, user: str = "judge me@example.com") -> tuple[dict, dict]:
+    """One Groq call with the network stubbed. (what was sent, the answer)."""
+    sent = {}
+
+    def fake(url, body, headers, timeout):
+        sent.update(url=url, body=body, auth=headers.get("Authorization", ""))
+        return {"choices": [{"message": {"content": '{"ok": true}'}}]}
+
+    saved = llm._post
+    llm._post = fake
+    llm.VAULT.put("groq", "gsk_test1234567890abcdef")
+    try:
+        answer = llm._call_one(llm.Settings(provider="groq", model=model), "sys", user,
+                               {"type": "object"}, 500, "", None)
+    finally:
+        llm._post = saved
+        llm.VAULT.forget("groq")
+    return sent, answer
+
+
+def test_groq_is_a_keyed_hosted_provider():
+    assert llm.PROVIDERS["groq"] == "Groq" and "groq" in llm.KEYED
+    assert llm.ENV_KEYS["groq"] == ("GROQ_API_KEY",)
+    assert llm.Settings(provider="groq", model="openai/gpt-oss-20b").problem().startswith("no Groq key")
+
+
+def test_groq_gpt_oss_gets_a_strict_schema_and_brief_reasoning():
+    sent, answer = _groq_call("openai/gpt-oss-120b")
+    assert answer == {"ok": True}
+    assert sent["url"] == "https://api.groq.com/openai/v1/chat/completions"
+    assert sent["auth"] == "Bearer gsk_test1234567890abcdef"
+    body = sent["body"]
+    assert body["response_format"]["type"] == "json_schema"
+    assert body["response_format"]["json_schema"]["strict"] is True
+    assert body["reasoning_effort"] == "low" and body["include_reasoning"] is False
+    assert "me@example.com" not in body["messages"][1]["content"], "contact details removed"
+
+
+def test_other_groq_models_get_json_mode_with_the_shape_in_the_prompt():
+    sent, _ = _groq_call("llama-3.3-70b-versatile")
+    body = sent["body"]
+    assert body["response_format"] == {"type": "json_object"}
+    assert "reasoning_effort" not in body, "only GPT-OSS takes it"
+    assert "matching this schema" in body["messages"][1]["content"]
+
+
+def test_groq_lists_chat_models_only():
+    saved = llm._get
+    # lambda: stands in for Groq's /models answer; no request is made.
+    llm._get = lambda url, headers: {"data": [
+        {"id": "llama-3.3-70b-versatile", "active": True},
+        {"id": "openai/gpt-oss-20b", "active": True},
+        {"id": "whisper-large-v3", "active": True},
+        {"id": "canopylabs/orpheus-v1-english", "active": True},
+        {"id": "meta-llama/llama-prompt-guard-2-86m", "active": True},
+        {"id": "openai/gpt-oss-safeguard-20b", "active": True},
+        {"id": "groq/compound", "active": True},
+        {"id": "retired-model", "active": False}]}
+    llm.VAULT.put("groq", "gsk_test1234567890abcdef")
+    try:
+        models = llm.list_models(llm.Settings(provider="groq"))
+    finally:
+        llm._get = saved
+        llm.VAULT.forget("groq")
+    assert models == ["openai/gpt-oss-20b", "llama-3.3-70b-versatile"]
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

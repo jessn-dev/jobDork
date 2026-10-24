@@ -362,7 +362,7 @@ _KEY_PROBLEMS = (
      "job source",
      "docs/CONFIG.md, sections \"sources\" and \"Environment\""),
     (re.compile(r"key was refused|enter an? \w+ key first|no api key|"
-                r"(ANTHROPIC|GEMINI|GOOGLE|OPENAI)_API_KEY", re.I),
+                r"(ANTHROPIC|GEMINI|GOOGLE|OPENAI|GROQ)_API_KEY", re.I),
      "AI",
      "docs/CONFIG.md, section \"llm\", or the AI page"),
 )

@@ -528,7 +528,7 @@ llm:
     - {provider: anthropic, model: claude-sonnet-5-5} # then this one
 ```
 
-**What a hosted model is sent.** Claude, Gemini and ChatGPT get every prompt
+**What a hosted model is sent.** Claude, Gemini, ChatGPT and Groq get every prompt
 with email addresses, phone numbers and LinkedIn, GitHub and GitLab profile
 links removed (`llm.redact`). Year ranges, figures and standards such as
 "NIST 800-53" are left alone. A local Ollama model gets the text as it is,
@@ -538,7 +538,7 @@ it off a resume you use with a hosted model if that matters to you.
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `llm.readers` | list | empty (off) | The AI readers, in the order they are asked, up to 6: each `{provider, model}`, and for Ollama an optional `ollama_url`. The first does the work; when it cannot answer (no key held, not reachable, rate limited, an error) the next one does. The same provider may be listed again with another model, but not the same model twice. Setup offers up to 3; the AI page the rest |
-| `llm.provider` | string | empty (off) | The first reader's provider: `ollama`, `anthropic` (Claude), `gemini` or `openai` (ChatGPT). A config with no `readers` has this one reader |
+| `llm.provider` | string | empty (off) | The first reader's provider: `ollama`, `anthropic` (Claude), `gemini`, `openai` (ChatGPT) or `groq`. A config with no `readers` has this one reader |
 | `llm.model` | string | empty | The first reader's model, e.g. `gemma4:26b`; the AI page lists what is available |
 | `llm.ollama_url` | URL | `http://localhost:11434` | Where Ollama answers. Must be `http(s)://host:port` |
 | `llm.judge_on_scan` | bool | `false` | After each scan, judge the best job posts not yet judged |
@@ -676,6 +676,7 @@ always wins over the YAML.
 | `ANTHROPIC_API_KEY` | Claude, from the terminal (the dashboard takes keys on its AI page) |
 | `GEMINI_API_KEY` or `GOOGLE_API_KEY` | Gemini, from the terminal |
 | `OPENAI_API_KEY` | ChatGPT, from the terminal |
+| `GROQ_API_KEY` | Groq, from the terminal |
 | `JOBDORK_CONFIG` | Config path override |
 | `JOBDORK_FEEDBACK_URL` | Where the Feedback page's Send goes. By default the maintainers' relay (see [relay/feedback](../relay/feedback/README.md)); an `https://` address replaces it, and `off` turns Send off, leaving "Open as a GitHub issue" and "Save as a file". No Resend or GitHub key is ever read by the app for this |
 | `JOBDORK_NOTIFY` | `off` turns notifications off for this run, whatever `notifications` says |

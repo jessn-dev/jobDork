@@ -413,7 +413,7 @@ class Llm:
     error) the next one does (ai/llm.py). `provider` and `model` are always
     the first reader's, as they were before there could be more than one.
     """
-    provider: str = ""              # ollama | anthropic | gemini | openai
+    provider: str = ""              # ollama | anthropic | gemini | openai | groq
     model: str = ""
     readers: list[Reader] = field(default_factory=list)
     ollama_url: str = "http://localhost:11434"
