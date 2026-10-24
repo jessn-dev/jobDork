@@ -127,6 +127,22 @@ def _deal_row(d: dict) -> dict:
 
 
 
+def _models(given: list) -> list[dict]:
+    """Readers or checkers from the page, in order: named fields only, and an
+    Ollama address only for Ollama."""
+    out = []
+    for r in given:
+        if not isinstance(r, dict) or not str(r.get("provider") or "").strip():
+            continue
+        row = {"provider": str(r["provider"]).strip().lower(),
+               "model": str(r.get("model") or "").strip()}
+        url = str(r.get("ollama_url") or "").strip()
+        if url and row["provider"] == "ollama":
+            row["ollama_url"] = url
+        out.append(row)
+    return out
+
+
 def rewrite(original: str, payload: dict) -> str:
     """Replace the editable settings in a config file, keeping its comments.
 
@@ -245,27 +261,30 @@ def rewrite(original: str, payload: dict) -> str:
         # Named fields only: whatever else the page sends, a key included,
         # never reaches the file.
         for key, cast in (("provider", str), ("model", str),
-                          ("ollama_url", str), ("judge_top", int),
-                          ("checker_provider", str), ("checker_model", str)):
+                          ("ollama_url", str), ("judge_top", int)):
             if key in given:
                 section[key] = cast(given[key]).strip() if cast is str \
                     else cast(given[key])
         for key in ("judge_on_scan", "read_pages", "guard"):
             if key in given:
                 section[key] = str(given[key]).lower() in ("1", "true", "yes", "on")
+        if isinstance(given.get("checkers"), list):
+            # The checkers, in order, as the readers below; the first is also
+            # written as checker_provider and checker_model.
+            checkers = _models(given["checkers"])
+            section["checkers"] = checkers
+            section["checker_provider"] = checkers[0]["provider"] if checkers else ""
+            section["checker_model"] = checkers[0]["model"] if checkers else ""
+        elif "checker_provider" in given or "checker_model" in given:
+            # One second model, as a page from before the list sent it.
+            provider = str(given.get("checker_provider") or "").strip().lower()
+            model = str(given.get("checker_model") or "").strip()
+            section["checkers"] = [{"provider": provider, "model": model}] if provider else []
+            section["checker_provider"], section["checker_model"] = provider, model
         if isinstance(given.get("readers"), list):
             # The AI page's readers, in order; named fields only. The first is
             # also written as provider and model, which every jobdork reads.
-            readers = []
-            for r in given["readers"]:
-                if not isinstance(r, dict) or not str(r.get("provider") or "").strip():
-                    continue
-                row = {"provider": str(r["provider"]).strip().lower(),
-                       "model": str(r.get("model") or "").strip()}
-                url = str(r.get("ollama_url") or "").strip()
-                if url and row["provider"] == "ollama":
-                    row["ollama_url"] = url
-                readers.append(row)
+            readers = _models(given["readers"])
             section["readers"] = readers
             section["provider"] = readers[0]["provider"] if readers else ""
             section["model"] = readers[0]["model"] if readers else ""

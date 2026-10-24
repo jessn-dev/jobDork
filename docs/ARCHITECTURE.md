@@ -237,6 +237,16 @@ checks the quote is in the source it named. A check that fails is recorded as
 unchecked; it never blocks the output. Page reads are checked by the quote rule
 alone, with no extra call.
 
+**Another model checks than the one that wrote it** (`guard.checking`). One
+model marking its own work misses what it got wrong the same way twice. The
+order is the chosen checkers (`llm.checkers`), then the other readers, then
+the writer itself as the last resort, all as one chain: `complete_json` asks
+the next when one cannot answer, exactly as it does for readers. The writer
+is whichever reader answered (`Settings.answered`), so when the first reader
+was down and the second wrote, the first may check. The checking chain is a
+copy, so the guard's calls never change the label the output is recorded
+under.
+
 Each output is an `ai_outputs` row with its guard counts and your rating, which
 is what the Dashboard's hallucination rate, coverage and feedback are counted
 from.

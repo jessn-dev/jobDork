@@ -426,9 +426,12 @@ class Llm:
     # Tokens an Ollama model may use per call (llm.DEFAULT_CONTEXT). Ignored
     # by hosted models, which size themselves.
     context: int = 16_384
-    # A second model that checks the first (ai/guard.py): it runs the claim
-    # checks on everything the first writes or judges, and scores each judged
-    # job post itself. Off when empty. Same Ollama address and context.
+    # Second models that check the readers' work (ai/guard.py), in the order
+    # they are tried, like `readers`: they run the claim checks on everything
+    # a reader writes or judges, and score each judged job post themselves.
+    # None chosen: another reader checks, when one is listed. `checker_provider`
+    # and `checker_model` are always the first checker's.
+    checkers: list[Reader] = field(default_factory=list)
     checker_provider: str = ""
     checker_model: str = ""
 
@@ -770,11 +773,14 @@ def _build(raw: dict[str, Any]) -> Config:
         checker_provider=str(ai.get("checker_provider") or "").strip().lower(),
         checker_model=str(ai.get("checker_model") or "").strip(),
         readers=_readers(ai),
+        checkers=_readers(ai, "checkers"),
     )
     if cfg.llm.readers:
         # The first reader is `provider` and `model`, whatever they said.
         cfg.llm.provider = cfg.llm.readers[0].provider
         cfg.llm.model = cfg.llm.readers[0].model
+    first = cfg.llm.checkers[0] if cfg.llm.checkers else Reader("")
+    cfg.llm.checker_provider, cfg.llm.checker_model = first.provider, first.model
 
     cfg.db_path = str(raw.get("db") or "data/jobdork.db")
     check = raw.get("update_check", True)
@@ -1025,20 +1031,13 @@ def _validate(cfg: Config) -> None:
         raise ConfigError(
             f"llm.provider is {cfg.llm.provider!r}. Accepted: "
             f"{', '.join(PROVIDERS)}, or empty for off.")
-    for i, reader in enumerate(cfg.llm.readers, 1):
-        if reader.provider not in PROVIDERS:
-            raise ConfigError(f"llm.readers entry {i} has provider {reader.provider!r}. "
-                              f"Accepted: {', '.join(PROVIDERS)}")
-        if reader.ollama_url and not re.match(r"https?://[^\s/]+", reader.ollama_url):
-            raise ConfigError(f"llm.readers entry {i}: ollama_url must be an http(s) address")
-    if cfg.llm.checker_provider and cfg.llm.checker_provider not in PROVIDERS:
-        raise ConfigError(
-            f"llm.checker_provider is {cfg.llm.checker_provider!r}. Accepted: "
-            f"{', '.join(PROVIDERS)}, or empty for no second model.")
-    if (cfg.llm.checker_provider and cfg.llm.checker_provider == cfg.llm.provider
-            and cfg.llm.checker_model and cfg.llm.checker_model == cfg.llm.model):
-        raise ConfigError("llm.checker_model is the model it would check; choose "
-                          "another model, or none")
+    for name, listed in (("readers", cfg.llm.readers), ("checkers", cfg.llm.checkers)):
+        for i, reader in enumerate(listed, 1):
+            if reader.provider not in PROVIDERS:
+                raise ConfigError(f"llm.{name} entry {i} has provider {reader.provider!r}. "
+                                  f"Accepted: {', '.join(PROVIDERS)}")
+            if reader.ollama_url and not re.match(r"https?://[^\s/]+", reader.ollama_url):
+                raise ConfigError(f"llm.{name} entry {i}: ollama_url must be an http(s) address")
     if not re.match(r"https?://[^\s/]+", cfg.llm.ollama_url):
         raise ConfigError("llm.ollama_url must be an http(s) address")
     if not 1 <= cfg.llm.judge_top <= 500:
@@ -1069,29 +1068,31 @@ def _dealbreaker(i: int, entry) -> Dealbreaker:
                        hard=bool(entry.get("hard", True)))
 
 
-def _readers(ai: dict) -> list[Reader]:
-    """`llm.readers`, a list of {provider, model, ollama_url}; or, in a config
-    from before there could be several, the one `provider` and `model`."""
-    raw = ai.get("readers")
+def _readers(ai: dict, name: str = "readers") -> list[Reader]:
+    """`llm.readers` (or `llm.checkers`), a list of {provider, model,
+    ollama_url}; or, in a config from before there could be several, the one
+    `provider` and `model` (`checker_provider` and `checker_model`)."""
+    raw = ai.get(name)
     if raw is None:
-        provider = str(ai.get("provider") or "").strip().lower()
-        return [Reader(provider, str(ai.get("model") or "").strip())] if provider else []
+        prefix = "checker_" if name == "checkers" else ""
+        provider = str(ai.get(prefix + "provider") or "").strip().lower()
+        return [Reader(provider, str(ai.get(prefix + "model") or "").strip())] if provider else []
     if not isinstance(raw, list):
-        raise ConfigError("llm.readers must be a list of {provider, model}")
+        raise ConfigError(f"llm.{name} must be a list of {{provider, model}}")
     if len(raw) > MAX_READERS:
-        raise ConfigError(f"llm.readers lists {len(raw)}; at most {MAX_READERS}")
+        raise ConfigError(f"llm.{name} lists {len(raw)}; at most {MAX_READERS}")
     readers: list[Reader] = []
     for i, entry in enumerate(raw, 1):
         if not isinstance(entry, dict):
-            raise ConfigError(f"llm.readers entry {i} must be a mapping with provider and model")
+            raise ConfigError(f"llm.{name} entry {i} must be a mapping with provider and model")
         reader = Reader(provider=str(entry.get("provider") or "").strip().lower(),
                         model=str(entry.get("model") or "").strip(),
                         ollama_url=str(entry.get("ollama_url") or "").strip().rstrip("/"))
         if not reader.provider:
-            raise ConfigError(f"llm.readers entry {i} has no provider")
+            raise ConfigError(f"llm.{name} entry {i} has no provider")
         if any(r.key() == reader.key() for r in readers):
-            raise ConfigError(f"llm.readers lists {reader.provider} {reader.model or '(no model)'} "
-                              "twice; a second reader needs another model or provider")
+            raise ConfigError(f"llm.{name} lists {reader.provider} {reader.model or '(no model)'} "
+                              "twice; a second one needs another model or provider")
         readers.append(reader)
     return readers
 

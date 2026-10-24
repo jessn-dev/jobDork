@@ -55,13 +55,17 @@ only after the owner approves it in the `release` environment. A push to
 
 ## How a release is made, and signed off
 
-1. Set the new version in `pyproject.toml` and merge it into `main` through a
-   pull request; the checks must pass. The tag in step 2 must match it: a
-   tag that does not is stopped before the approval step.
+1. Set the new version with `python scripts/set_version.py <new version>`,
+   which writes it into `pyproject.toml` and into every page that names the
+   release to copy (the image tag, the installers' names, the tag command
+   below), and merge it into `main` through a pull request; the checks must
+   pass, and they fail if any page still names the old release. The tag in
+   step 2 must match it: a tag that does not is stopped before the approval
+   step.
 2. **After the merge**, bring `main` up to date, then tag it and push the tag:
    `git checkout main && git pull`, then check that `main` now says the new
    version, `grep -m1 '^version' pyproject.toml`, and only then
-   `git tag v0.14.3 && git push origin v0.14.3`. Only an admin can create a
+   `git tag v0.14.4 && git push origin v0.14.4`. Only an admin can create a
    `v*` tag, and once pushed it can never be moved or deleted, so a tag made
    before the pull lands on the old commit for good (as `v0.14.0`,
    `v0.14.1` and `v0.14.2` did). Pushing a branch or opening a pull request does not put
@@ -73,8 +77,9 @@ only after the owner approves it in the `release` environment. A push to
    signature, and creates the **GitHub Release** page for the tag: the exact
    image digest, the command to verify it, the desktop installers (the
    macOS `.dmg` and the Windows setup `.exe`, with `SHA256SUMS.txt` and how
-   to get past the unsigned warnings), and the changes since the last
-   release. The installers are not signed, but each carries a build
+   to get past the unsigned warnings), and what changed: the
+   `docs/CHANGELOG.md` entries written since the last release, in full
+   (`scripts/release_notes.py`), not a list of pull request titles. The installers are not signed, but each carries a build
    provenance attestation: `gh attestation verify <file> --repo
    jessn-dev/jobDork` shows this repository's workflow built it from the
    tagged commit.
@@ -86,7 +91,7 @@ only after the owner approves it in the `release` environment. A push to
 Check that it was built by this repository's workflow and not altered since:
 
 ```bash
-cosign verify jessengolab/jobdork:<version> \
+cosign verify jessengolab/jobdork:0.14.4 \
   --certificate-identity-regexp '^https://github.com/jessn-dev/jobDork/\.github/workflows/docker\.yml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
@@ -148,5 +153,5 @@ got into the GitHub or Docker Hub account could get around everything above.
   user can read jobdork's database and settings.
 - **The dashboard's access token.** It is printed in the container's log and
   put in the link you open; treat that link as a password. See
-  [docs/DEPLOY.md](docs/DEPLOY.md) for keeping the dashboard on your own
+  [docs/run/nas.md](docs/run/nas.md) for keeping the dashboard on your own
   network.

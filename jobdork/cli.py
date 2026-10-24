@@ -1383,7 +1383,7 @@ def _overrides_parser() -> argparse.ArgumentParser:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="jobdork",
-        description="Watch North American job boards and only hear about the "
+        description="Watch job boards, wherever you are, and only hear about the "
                     "job posts that pass your own filters.",
     )
     parser.add_argument("--version", action="version", version=f"jobdork {__version__}")

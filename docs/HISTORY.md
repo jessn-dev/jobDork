@@ -65,8 +65,9 @@ markets without one, and a list would need building and keeping current.
   changed by pull request only, and an image published only for a version
   tag, after the owner approves it, signed and with a record of how it was
   built. The code said 0.13.0 when publishing began, so releases start at
-  0.14: `v0.14.0` and `v0.14.1` were never released, 0.14.2 was the first,
-  then 0.14.3. (The changelog's August headings 0.14.0 and 0.15.0 predate
+  0.14: `v0.14.0`, `v0.14.1` and `v0.14.2` were tagged but never released
+  (each tag landed on a commit whose code said an older version), so 0.14.3
+  was the first. (The changelog's August headings 0.14.0 and 0.15.0 predate
   this and were never releases.)
 - **New sources:** Kalibrr (the Philippines and Indonesia), Himalayas (remote
   jobs filtered to your country and hours), Workday.

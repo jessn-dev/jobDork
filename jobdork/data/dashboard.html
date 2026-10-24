@@ -361,7 +361,7 @@ mark.cred{background:var(--flagbg);color:var(--fg);border-radius:3px;padding:0 .
 .seg button{background:var(--btn);color:var(--fg);border:0;border-right:1px solid var(--line);
   padding:.4rem .85rem;font:inherit;font-size:.85rem;cursor:pointer}
 .seg button:last-child{border-right:0}
-#ai-readers .seg button,#ai-c-provider button{display:inline-flex;align-items:center;gap:.4rem}
+#ai-readers .seg button,#ai-checkers .seg button{display:inline-flex;align-items:center;gap:.4rem}
 .reader{border:1px solid var(--line);border-radius:8px;padding:.7rem .9rem .3rem;margin:0 0 .8rem;
   background:var(--card)}
 .reader .rhead{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .7rem;margin-bottom:.55rem}
@@ -1063,26 +1063,20 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
         advert. A 26B local model takes about a minute per job post, and the
         check adds two more calls to each.</div></div>
 
-    <div class="field" id="ai-check"><label>Second model, to check the first</label>
-      <div class="seg" id="ai-c-provider"></div>
-      <div class="bar" style="margin:.4rem 0 0" id="ai-c-key-row" hidden>
-        <input id="ai-c-key" type="password" autocomplete="off" spellcheck="false"
-          placeholder="Paste its key" style="width:22rem">
-        <button data-icon="key-round" class="act" id="ai-c-key-hold">Hold in memory</button>
-        <span id="ai-c-key-state"></span>
+    <div class="field" id="ai-check"><label>Second models, to check the readers</label>
+      <div id="ai-checkers"></div>
+      <div class="bar" style="margin:-.2rem 0 .3rem">
+        <button data-icon="plus" class="act" id="ai-c-add">Add another checker</button>
+        <span class="hint" id="ai-c-add-note"></span>
       </div>
-      <div class="bar" style="margin:.4rem 0 0" id="ai-c-model-row">
-        <select id="ai-c-models" aria-label="Second model" style="width:22rem" hidden></select>
-        <input id="ai-c-model" aria-label="Second model name" style="width:22rem" spellcheck="false"
-          placeholder="Choose or type its model name">
-        <button data-icon="refresh-cw" class="act" id="ai-c-load">Load models</button>
-        <span id="ai-c-load-msg" class="hint"></span>
-      </div>
-      <div class="hint">Off unless you choose one. A different model runs the claim
-        checks on everything the first judges, writes and suggests, and scores each
-        judged job post itself: scores 20 or more points apart are marked
-        <b>models disagree</b>. It never hides or blocks anything. About three more
-        calls per output on its key; a local Ollama model costs nothing.</div></div>
+      <div class="hint">Off unless you choose one. A checker runs the claim checks on
+        everything a reader judges, writes and suggests, and scores each judged job post
+        itself: scores 20 or more points apart are marked <b>models disagree</b>. Checkers
+        are tried in order, like readers, so one that cannot answer does not leave an
+        output unchecked. With none chosen or none ready, the claim checks go to another
+        reader than the one that wrote it, and to the same one only when no other is
+        ready. It never hides or blocks anything. About three more calls per output on
+        its key; a local Ollama model costs nothing.</div></div>
 
     <div class="bar">
       <button data-icon="save" class="act primary" id="ai-save">Save</button>
@@ -3840,8 +3834,15 @@ const PROVIDER_ICONS = {
 const providerIcon = p => PROVIDER_ICONS[p]
   ? `<svg class="plogo ${p}" viewBox="0 0 24 24" aria-hidden="true"><path d="${PROVIDER_ICONS[p]}"/></svg>` : '';
 
-// The readers, in the order they are asked (config llm.readers). The page
-// keeps them in ai.readers and draws one card each.
+// The readers, in the order they are asked (config llm.readers), and the
+// checkers, in the order they are tried (llm.checkers). The page keeps them
+// in ai.readers and ai.checkers and draws one card each, the same card.
+const AI_LISTS = {
+  readers: {box: 'ai-readers', add: 'ai-add', note: 'ai-add-note', name: 'Reader',
+    when: i => i === 0 ? 'asked first' : `asked when reader ${i} cannot answer`},
+  checkers: {box: 'ai-checkers', add: 'ai-c-add', note: 'ai-c-add-note', name: 'Checker',
+    when: i => i === 0 ? 'checks first' : `checks when checker ${i} cannot answer`},
+};
 const blankReader = () => ({provider: '', model: '', ollama_url: ''});
 
 async function drawAI() {
@@ -3853,16 +3854,8 @@ async function drawAI() {
   $('ai-guard').checked = ai.guard;
   $('ai-msg').textContent = ai.problem ? ai.problem : `Ready: ${ai.label}`;
   $('ai-msg').className = ai.problem ? 'hint' : 'saved';
-  // The second model: its own provider buttons, key and model list.
-  $('ai-c-provider').innerHTML = ['', ...Object.keys(ai.providers)].map(p =>
-    `<button data-p="${p}" ${p ? '' : 'data-icon="power" '}>${providerIcon(p)}${
-      p ? esc(ai.providers[p]) : 'None'}</button>`).join('');
-  $('ai-c-provider').querySelectorAll('button').forEach(b => b.onclick = () => {
-    if (ai.checker_provider !== b.dataset.p) $('ai-c-model').value = '';
-    ai.checker_provider = b.dataset.p; paintChecker(); loadCheckerModels(true);
-  });
-  $('ai-c-model').value = ai.checker_model || '';
-  drawReaders(true); paintChecker(); loadCheckerModels(true);
+  ai.checkers = ai.checkers && ai.checkers.length ? ai.checkers : [blankReader()];
+  drawReaders(true);
 }
 
 // The Ollama address a reader uses: its own, or the one saved for all.
@@ -3870,8 +3863,8 @@ const readerUrl = r => r.ollama_url || ai.ollama_url || '';
 
 // What the cards hold now, read back before anything redraws them.
 function syncReaders() {
-  $('ai-readers').querySelectorAll('.reader').forEach(card => {
-    const r = ai.readers[Number(card.dataset.i)];
+  document.querySelectorAll('#ai-readers .reader, #ai-checkers .reader').forEach(card => {
+    const r = ai[card.dataset.list][Number(card.dataset.i)];
     if (!r) return;
     r.model = card.querySelector('.r-model').value.trim();
     if (r.provider === 'ollama') r.ollama_url = card.querySelector('.r-url').value.trim();
@@ -3887,16 +3880,23 @@ function keyState(p) {
 }
 
 function drawReaders(loadAll) {
-  const max = ai.max_readers || 6;
-  $('ai-readers').innerHTML = ai.readers.map((r, i) => `<div class="reader" data-i="${i}">
-    <div class="rhead"><b>Reader ${i + 1}</b>
-      <span class="hint">${i === 0 ? 'asked first' : `asked when reader ${i} cannot answer`}</span>
+  drawList('readers', loadAll);
+  // Checkers check readers: with no reader there is nothing to check.
+  $('ai-check').hidden = !ai.readers[0].provider;
+  if (ai.checkers) drawList('checkers', loadAll);
+}
+
+function drawList(list, loadAll) {
+  const max = ai.max_readers || 6, kind = AI_LISTS[list], items = ai[list];
+  $(kind.box).innerHTML = items.map((r, i) => `<div class="reader" data-list="${list}" data-i="${i}">
+    <div class="rhead"><b>${kind.name} ${i + 1}</b>
+      <span class="hint">${kind.when(i)}</span>
       <span class="acts">${i > 0 ? `<button data-icon="chevron-left" class="act r-up" type="button" title="Ask this one earlier">Earlier</button>
         <button data-icon="trash-2" class="act r-del" type="button">Remove</button>` : ''}</span></div>
     <div class="field"><label>Provider</label><div class="seg r-prov">${
       [...(i === 0 ? [''] : []), ...Object.keys(ai.providers)].map(p =>
         `<button type="button" data-p="${p}" ${p ? '' : 'data-icon="power" '}class="${p === r.provider ? 'on' : ''}">${
-          providerIcon(p)}${p ? esc(ai.providers[p]) : 'Off'}</button>`).join('')}</div></div>
+          providerIcon(p)}${p ? esc(ai.providers[p]) : (list === 'readers' ? 'Off' : 'None')}</button>`).join('')}</div></div>
     <div class="field r-url-row" ${r.provider === 'ollama' ? '' : 'hidden'}><label>Ollama address</label>
       <input class="r-url" style="width:20rem" spellcheck="false" value="${esc(readerUrl(r))}"></div>
     <div class="field r-key-row" ${r.provider in ai.keys ? '' : 'hidden'}><label>API key for ${esc(ai.providers[r.provider] || '')}</label>
@@ -3913,37 +3913,38 @@ function drawReaders(loadAll) {
         <button data-icon="refresh-cw" class="act r-load" type="button">Load models</button>
         <span class="r-msg hint"></span></div></div>
   </div>`).join('');
-  const off = !ai.readers[0].provider;
-  $('ai-add').hidden = off;
-  $('ai-add').disabled = ai.readers.length >= max;
-  $('ai-add-note').textContent = off ? '' : ai.readers.length >= max
-    ? (setupStep ? `Up to ${max} here; add more later on the AI page.` : `Up to ${max} readers.`)
+  const off = !items[0].provider, what = list === 'readers' ? 'readers' : 'checkers';
+  $(kind.add).hidden = off;
+  $(kind.add).disabled = items.length >= max;
+  $(kind.note).textContent = off ? '' : items.length >= max
+    ? (setupStep ? `Up to ${max} here; add more later on the AI page.` : `Up to ${max} ${what}.`)
     : (setupStep ? `Optional. Up to ${max} here, more later on the AI page.` : '');
-  // The first reader is what everything else on the page waits for.
-  ai.provider = ai.readers[0].provider;
-  document.querySelectorAll('#ai-on-scan, #ai-top, #ai-pages, #ai-guard')
-    .forEach(el => el.disabled = off);
-  if ($('ai-c-provider').children.length) paintChecker();
-  $('ai-readers').querySelectorAll('.reader').forEach(card => wireReader(card, loadAll));
+  if (list === 'readers') {
+    // The first reader is what everything else on the page waits for.
+    ai.provider = items[0].provider;
+    document.querySelectorAll('#ai-on-scan, #ai-top, #ai-pages, #ai-guard')
+      .forEach(el => el.disabled = off);
+  }
+  $(kind.box).querySelectorAll('.reader').forEach(card => wireReader(card, loadAll));
 }
 
 function wireReader(card, load) {
-  const i = Number(card.dataset.i), r = ai.readers[i];
+  const list = card.dataset.list, i = Number(card.dataset.i), r = ai[list][i];
   card.querySelectorAll('.r-prov button').forEach(b => b.onclick = () => {
     syncReaders();
     if (r.provider !== b.dataset.p) r.model = '';
     r.provider = b.dataset.p;
-    if (i === 0 && !r.provider) ai.readers = [r];      // Off: no readers at all
+    if (i === 0 && !r.provider) ai[list] = [r];        // Off: none at all
     drawReaders(false);
-    const again = $('ai-readers').querySelector(`.reader[data-i="${i}"]`);
+    const again = $(AI_LISTS[list].box).querySelector(`.reader[data-i="${i}"]`);
     if (again) loadReaderModels(again, true);
   });
   const del = card.querySelector('.r-del');
-  if (del) del.onclick = () => { syncReaders(); ai.readers.splice(i, 1); drawReaders(true); };
+  if (del) del.onclick = () => { syncReaders(); ai[list].splice(i, 1); drawReaders(true); };
   const up = card.querySelector('.r-up');
   if (up) up.onclick = () => {
     syncReaders();
-    [ai.readers[i - 1], ai.readers[i]] = [ai.readers[i], ai.readers[i - 1]];
+    [ai[list][i - 1], ai[list][i]] = [ai[list][i], ai[list][i - 1]];
     drawReaders(true);
   };
   card.querySelector('.r-load').onclick = () => loadReaderModels(card, false);
@@ -3968,7 +3969,7 @@ function wireReader(card, load) {
 }
 
 async function loadReaderModels(card, quiet) {
-  const r = ai.readers[Number(card.dataset.i)], msg = card.querySelector('.r-msg');
+  const r = ai[card.dataset.list][Number(card.dataset.i)], msg = card.querySelector('.r-msg');
   const sel = card.querySelector('.r-models'), input = card.querySelector('.r-model');
   fillModelsEl(sel, input, []);
   if (!r || !r.provider || (r.provider in ai.keys && !ai.keys[r.provider])) { msg.textContent = ''; return; }
@@ -3981,47 +3982,14 @@ async function loadReaderModels(card, quiet) {
   fillModelsEl(sel, input, models);
 }
 
-$('ai-add').onclick = () => {
-  syncReaders();
-  if (ai.readers.length >= (ai.max_readers || 6)) return;
-  ai.readers.push(blankReader());
-  drawReaders(false);
-};
-
-function paintChecker() {
-  const p = ai.checker_provider;
-  $('ai-c-provider').querySelectorAll('button').forEach(b =>
-    b.classList.toggle('on', b.dataset.p === p));
-  $('ai-c-model-row').hidden = !p;
-  $('ai-c-key-row').hidden = !(p in ai.keys);
-  const where = ai.keys[p];
-  $('ai-c-key-state').innerHTML = where === 'memory' ? '<span class="saved">held in memory</span>'
-    : where === 'environment' ? '<span class="hint">using the key from the environment</span>'
-    : '<span class="hint">No key held</span>';
-  document.querySelectorAll('#ai-c-provider button').forEach(b => b.disabled = !ai.provider);
+for (const [list, kind] of Object.entries(AI_LISTS)) {
+  $(kind.add).onclick = () => {
+    syncReaders();
+    if (ai[list].length >= (ai.max_readers || 6)) return;
+    ai[list].push(blankReader());
+    drawReaders(false);
+  };
 }
-
-async function loadCheckerModels(quiet) {
-  const p = ai.checker_provider, msg = $('ai-c-load-msg');
-  fillModels('ai-c-models', 'ai-c-model', []);
-  if (!p || (p in ai.keys && !ai.keys[p])) { msg.textContent = ''; return; }
-  msg.textContent = 'loading…';
-  const r = await api(`/api/llm/models?provider=${p}&url=${encodeURIComponent(ai.ollama_url || '')}`);
-  if (!r.ok) { msg.textContent = await r.text(); return; }
-  const models = (await r.json()).models;
-  msg.textContent = `${models.length} available`;
-  fillModels('ai-c-models', 'ai-c-model', models);
-}
-$('ai-c-load').onclick = () => loadCheckerModels(false);
-$('ai-c-key-hold').onclick = async () => {
-  const key = $('ai-c-key').value;
-  const r = await api('/api/llm/key', {method: 'POST',
-    body: form({provider: ai.checker_provider, key})});
-  $('ai-c-key').value = '';            // the page does not keep it either
-  if (!r.ok) { $('ai-c-key-state').innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
-  ai.keys[ai.checker_provider] = 'memory'; paintChecker(); syncReaders(); drawReaders(true);
-  loadCheckerModels(false);
-};
 
 // The loaded models as a real dropdown. A text box with a suggestion list
 // only suggests what matches the text already in it, so once a model was
@@ -4043,20 +4011,27 @@ function fillModelsEl(sel, input, models) {
   };
 }
 
-async function saveAI() {
-  syncReaders();
-  const readers = ai.readers.filter(r => r.provider).map(r => ({provider: r.provider, model: r.model,
+// A list's chosen models, as saved; null (and a message) when one is listed twice.
+function listToSave(list) {
+  const out = ai[list].filter(r => r.provider).map(r => ({provider: r.provider, model: r.model,
     ollama_url: r.provider === 'ollama' ? (r.ollama_url || '') : ''}));
   const seen = new Set();
-  for (const r of readers) {
+  for (const r of out) {
     const k = `${r.provider}|${r.model}|${r.ollama_url}`;
     if (seen.has(k)) {
       $('ai-msg').className = 'err';
       $('ai-msg').textContent = `${ai.providers[r.provider]} ${r.model || ''} is listed twice; give the second another model.`;
-      return false;
+      return null;
     }
     seen.add(k);
   }
+  return out;
+}
+
+async function saveAI() {
+  syncReaders();
+  const readers = listToSave('readers'), checkers = listToSave('checkers');
+  if (!readers || !checkers) return false;
   const firstOllama = readers.find(r => r.provider === 'ollama');
   const r = await api('/api/llm', {method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -4064,15 +4039,17 @@ async function saveAI() {
       ollama_url: firstOllama && firstOllama.ollama_url ? firstOllama.ollama_url : (ai.ollama_url || ''),
       judge_on_scan: $('ai-on-scan').checked,
       judge_top: Number($('ai-top').value) || 25, read_pages: $('ai-pages').checked,
-      guard: $('ai-guard').checked, checker_provider: ai.checker_provider || '',
-      checker_model: ai.checker_provider ? $('ai-c-model').value.trim() : ''})});
+      guard: $('ai-guard').checked, checkers})});
   if (!r.ok) { $('ai-msg').className = 'err'; $('ai-msg').textContent = await r.text(); return false; }
   const fresh = await r.json();
-  ai = {...ai, ...fresh, readers: fresh.readers.length ? fresh.readers : [blankReader()]};
+  ai = {...ai, ...fresh, readers: fresh.readers.length ? fresh.readers : [blankReader()],
+        checkers: fresh.checkers.length ? fresh.checkers : [blankReader()]};
+  const c = fresh.checkers[0];
   $('ai-msg').className = ai.problem ? 'hint' : 'saved';
   $('ai-msg').textContent = (ai.problem ? `Saved. ${ai.problem}` : `Saved: ${ai.label}`) +
     (ai.readers.length > 1 ? ` · ${ai.readers.length} readers` : '') +
-    (ai.checker_label ? ` · checked by ${ai.checker_label}${ai.checker_problem ? ` (${ai.checker_problem})` : ''}` : '');
+    (c ? ` · checked by ${c.label}${c.problem ? ` (${c.problem})` : ''}` +
+      (fresh.checkers.length > 1 ? `, then ${fresh.checkers.length - 1} more` : '') : '');
   drawReaders(false);
   refreshState();
   return !ai.problem;
@@ -4087,11 +4064,12 @@ $('ai-test').onclick = async () => {
   if (!r.ok) { $('ai-msg').className = 'err'; $('ai-msg').textContent = text; return; }
   const d = JSON.parse(text);
   const failed = (d.readers || []).filter(x => x.error);
-  $('ai-msg').className = failed.length || (d.checker && d.checker.error) ? 'err' : 'saved';
+  const checkers = d.checkers || [];
+  $('ai-msg').className = failed.length || checkers.some(x => x.error) ? 'err' : 'saved';
   $('ai-msg').textContent = (d.readers || [d]).map(x => x.error
       ? `${x.model}: ${x.error}` : `${x.model} answered in ${x.seconds}s`).join(' · ') +
-    (!d.checker ? '' : d.checker.error ? ` · second model: ${d.checker.error}`
-      : ` · second model ${d.checker.model} answered in ${d.checker.seconds}s`);
+    checkers.map(x => x.error ? ` · checker ${x.model}: ${x.error}`
+      : ` · checker ${x.model} answered in ${x.seconds}s`).join('');
   if ($('setup-next')) $('setup-next').hidden = false;      // the AI setup step
 };
 

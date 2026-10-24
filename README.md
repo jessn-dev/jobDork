@@ -1,7 +1,22 @@
 # jobDork
 
+<!-- Health -->
+[![Build](https://github.com/jessn-dev/jobDork/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/jessn-dev/jobDork/actions/workflows/docker.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fjessn-dev.github.io%2FjobDork%2Fbadges%2Fcoverage.json)](https://github.com/jessn-dev/jobDork/actions/workflows/guide.yml)
+[![Known vulnerabilities](https://img.shields.io/endpoint?url=https%3A%2F%2Fjessn-dev.github.io%2FjobDork%2Fbadges%2Fvulnerabilities.json)](SECURITY.md)
+<!-- Ecosystem -->
+[![Latest release](https://img.shields.io/github/v/release/jessn-dev/jobDork)](https://github.com/jessn-dev/jobDork/releases/latest)
+[![Docker image](https://img.shields.io/docker/v/jessengolab/jobdork?sort=semver&label=docker)](https://hub.docker.com/r/jessengolab/jobdork)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](#license)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
+<!-- Community -->
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Code style: Ruff](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fastral-sh%2Fruff%2Fmain%2Fassets%2Fbadge%2Fv2.json)](https://github.com/astral-sh/ruff)
+[![User guide](https://img.shields.io/badge/user%20guide-read%20it-blue.svg)](https://jessn-dev.github.io/jobDork/)
+
+**New here? The [user guide](https://jessn-dev.github.io/jobDork/) shows
+every page of the app, with pictures:** what Match, Fit and AI mean, every
+status and button, and how to send feedback.
 
 Find work two ways, and only hear about the roles that pass filters you wrote
 down once.
@@ -71,117 +86,38 @@ behalf. [What it cannot do](#what-it-cannot-do) has the full list.
 
 ---
 
-## Install
+## Install and run
+
+There are four ways in, each with its own guide in
+[docs/run/](docs/run/README.md):
+
+| | For | Guide |
+|---|---|---|
+| **Desktop app** | macOS (Apple Silicon) and Windows: an installer, the dashboard in its own window, scheduled scans, notifications, an Update button | [docs/run/desktop.md](docs/run/desktop.md) |
+| **From source** | Any system with Python 3.10+, Linux and Intel Macs included: the dashboard in your browser, or its own window | [docs/run/source.md](docs/run/source.md) |
+| **In the terminal** | Every command without a dashboard: cron jobs, scripts, servers with no screen | [docs/run/cli.md](docs/run/cli.md) |
+| **Docker** | The published image on your computer, or always on a NAS, opened from anywhere over Tailscale | [docs/run/docker.md](docs/run/docker.md), [docs/run/nas.md](docs/run/nas.md) |
+
+From source, in four lines:
 
 ```bash
-git clone <your-fork>
-cd jobDork
+git clone https://github.com/jessn-dev/jobDork.git && cd jobDork
 python3 -m venv .venv && .venv/bin/pip install -e '.[pdf]'
 .venv/bin/python scripts/build_gazetteer.py
 .venv/bin/python -m jobdork serve      # opens setup in your browser
 ```
 
-With no config, the dashboard opens on setup, one question per screen: your
-resume, an AI model (or skip it), the job titles to look for (suggested from
-your resume when AI is set up), where you are, pay, and what will be searched.
-It ends with a first scan: a quick one, so job posts are there in about a
-minute, then the rest of the employer boards in the background. Answers are
-saved as you go, to `config.yaml`; stop any time and you come back to the same
-step. `jobdork setup` asks the same in the terminal. For the AI reader, add
-`'.[ai]'` to use Claude; a local Ollama, Gemini and ChatGPT need nothing extra.
-
-Prefer a file? Copy `config.example.yaml` to `config.yaml` and edit it; a config
-you write yourself skips setup.
+Whichever you pick, the first start opens setup, one question per screen:
+your resume, an AI model (or skip it), the job titles to look for (suggested
+from your resume when AI is set up), where you are, pay, and what will be
+searched. It ends with a first scan: a quick one, so job posts are there in
+about a minute, then the rest of the employer boards in the background.
+Answers are saved as you go, to `config.yaml`; stop any time and you come
+back to the same step.
 
 **There is no `config.yaml` in the repository.** It is gitignored, along with
 `.env`, `data/` and `out/`, so a fresh clone has none and nothing you put in
 yours ever conflicts on a pull. Your search stays yours.
-
-`build_gazetteer.py` downloads the place list the radius measures against. Run
-it with no arguments and it builds for the countries in your config; `all`
-builds every country. Without it the tool falls back to about 125 bundled
-metros and still works in the places most postings name.
-
-### The desktop app
-
-```bash
-.venv/bin/pip install -e '.[pdf,app]'
-.venv/bin/python -m jobdork app
-```
-
-The same dashboard in a window of its own, with nothing to type afterwards.
-It keeps its settings, job posts and resume in its own folder, not the one you
-started it from: `~/Library/Application Support/jobdork` on macOS,
-`%LOCALAPPDATA%\jobdork` on Windows, `~/.local/share/jobdork` on Linux
-(`--home` or `$JOBDORK_HOME` to choose another). Letters and CVs still go to
-`~/Documents/job-applications`. Job posts open in your own browser, and a file
-you download is saved where you choose. Closing the window stops it, and any
-API key it held is forgotten as with `jobdork serve`; while a scan is
-running it asks first. **Settings → Where your files are** opens these
-folders, and a banner says when a newer version is out.
-
-Installers for macOS and Windows, so none of the above is needed, are built
-by CI on every pull request and will be attached to the
-[Releases](https://github.com/jessn-dev/jobDork/releases) page from the next
-release on, with how to get past the unsigned warnings. See the
-[code signing policy](#code-signing-policy).
-
----
-
-### Running in Docker
-
-```bash
-docker build -t jobdork .
-docker run --rm -p 127.0.0.1:8765:8765 \
-  -v "$PWD/config.yaml:/app/config.yaml" \
-  -v "$PWD/.env:/app/.env:ro" \
-  -v "$PWD/data:/app/data" -v "$PWD/out:/app/out" jobdork
-```
-
-Open the URL it prints. It runs as a non-root user, and the dashboard is
-published to your own machine only.
-
-**On a NAS or a home server,** the quickest way is [`compose.yaml`](compose.yaml),
-pasted into the NAS's Docker app as a project; [docs/DEPLOY.md](docs/DEPLOY.md)
-says where that is on Synology, QNAP, UGREEN, TrueNAS, Unraid and Portainer,
-and covers
-installing Docker and Tailscale, running the AI on a separate computer, and
-opening the dashboard from anywhere. In short, name the address you will open
-it by, and publish the port to your network rather than to the NAS alone:
-
-```bash
-docker run -d --restart unless-stopped -p 8765:8765 \
-  -e JOBDORK_ALLOW_HOSTS=192.168.1.50 \
-  -v /volume1/docker/jobdork/data:/app/data jessengolab/jobdork:0.14.4
-```
-
-With no config mapped, the dashboard opens on first-run setup, and your
-answers are saved to `data/config.yaml`.
-
-`JOBDORK_ALLOW_HOSTS` takes addresses separated by commas (`192.168.1.50`,
-`nas.local`), on any port, or `address:port` for one port only. Nothing else
-is let in, and a wildcard is refused. The container's log prints the full URL
-with its access token; every request still needs that token, and a new one is
-made each time the container starts. Keep it on your home network: do not
-forward the port on your router.
-
-Set the AI page's Ollama address to the computer that runs Ollama, by its
-Tailscale name (`http://my-mac.tail1234.ts.net:11434`); inside the container,
-`localhost` is the container itself. A NAS processor is too slow for a model:
-on an 8 GB NAS one AI verdict took 8 minutes at 100% load. `llm.context`
-(default 16,384 tokens) is how much text jobdork asks Ollama to make room for
-on each call.
-
-**Your resume and cover letters are kept,** in Docker in `data/documents`
-inside the same volume as scan results and settings, so a restart keeps
-them; on your own machine the resume is kept in `data/` and documents in
-`~/Documents/job-applications`. On a shared machine where nothing personal
-should outlive a run, add `-e JOBDORK_TEMP_DOCS=/tmp/jobdork`: the resume and
-every document then go to a folder inside the container that is emptied
-when the dashboard starts and when it stops.
-
-Either way, the Resume page lists every cover letter, with **View** to read
-one and **Delete** to remove its file and text at once.
 
 ## Code signing policy
 
@@ -422,7 +358,7 @@ wakes. The scan is listed under All runs like any other, and what it printed
 is in `logs/scheduled-scan.log` beside your config. Only one scan runs at a
 time: one that finds another running, from the dashboard or a terminal,
 steps aside. In Docker, schedule `docker exec jobdork jobdork scan --scheduled`
-on the host instead ([DEPLOY.md](docs/DEPLOY.md)).
+on the host instead ([docs/run/docker.md](docs/run/docker.md#scans-that-run-by-themselves)).
 
 When a scan finds new job posts, your computer shows a notification with a
 bell (Notification Center on macOS, a toast on Windows, `notify-send` on
@@ -601,6 +537,12 @@ jobdork tailor <uid>          # your resume rewritten for one post, as a PDF
   on a letter, so "ten years of Java" where the resume says ten
   years overall does not reach an employer unread. The check costs two model
   calls per output and can be turned off (`llm.guard`).
+- **A different model checks than the one that wrote it.** Choose up to six
+  checkers on the AI page, tried in order like readers, so one that is down,
+  out of credit or rate limited hands over to the next. With none chosen,
+  another of your readers checks; the model that wrote it checks itself
+  only when nothing else is ready. Checkers also score each judged job post
+  themselves, and scores far apart are marked **models disagree**.
 - **A resume review** quotes the line each point is about, and drops any
   point quoting something not in your resume. Against a post it also lists
   what the advert asks for that the resume does not show.
@@ -738,19 +680,25 @@ blocking automated readers makes the market worse for everyone.
 
 | | |
 |---|---|
+| [User guide](https://jessn-dev.github.io/jobDork/) | How to use the app, page by page, with pictures; source in [guide/](guide/README.md) |
+| [docs/run/](docs/run/README.md) | The ways to run it, side by side, then one guide each: [desktop app](docs/run/desktop.md), [from source](docs/run/source.md), [terminal](docs/run/cli.md), [Docker](docs/run/docker.md), [NAS or home server](docs/run/nas.md) |
 | [docs/CONFIG.md](docs/CONFIG.md) | Every setting, what it accepts, what happens when it is wrong |
 | [docs/PLATFORMS.md](docs/PLATFORMS.md) | Each source's endpoint, quirks, rate limits and verification status |
 | [docs/SOURCES.md](docs/SOURCES.md) | Where coverage comes from, board tokens, the gazetteer |
 | [docs/REGIONS.md](docs/REGIONS.md) | What a scan reaches region by region, what has been measured, and the plan for the rest |
-| [docs/DEPLOY.md](docs/DEPLOY.md) | Running it on a NAS or home server: Docker, compose, Tailscale, Ollama on another machine |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pipeline fits together and why |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Choices that shape jobdork, what was ruled out, and when to revisit them |
+| [docs/DORK.md](docs/DORK.md) | `jobdork dork`, the Google search builder: every flag, board and example |
 | [docs/HISTORY.md](docs/HISTORY.md) | How jobdork got here, from a Google search builder, and the decisions that turned around |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | What changed, and every bug found on the way |
 | [SECURITY.md](SECURITY.md) | How releases are checked, signed and approved, and how to verify an image |
 | [PRIVACY.md](PRIVACY.md) | What jobdork keeps, where, and every place it goes on the network |
 
 ### Start here
+
+**Using it** — the [user guide](https://jessn-dev.github.io/jobDork/).
+
+**Installing it** — [the ways to run it](docs/run/README.md), side by side.
 
 **Setting it up** — [CONFIG.md](docs/CONFIG.md), then the
 [minimal config](docs/CONFIG.md#minimal-working-config).
@@ -796,6 +744,8 @@ for one that is throttling. Those roles are reported as `SUSPECT`, not as
 
 ## Development
 
+Contributions are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) says how.
+
 ```bash
 pip install -e '.[dev]'     # pytest and ruff
 pytest                      # the whole suite
@@ -819,22 +769,9 @@ in the source. None of them calls a real model or a real site.
 
 ### Building the desktop app
 
-```bash
-pip install -e '.[pdf,ai,app,package]'
-python packaging/build.py   # macOS: dist/jobdork-<version>-macos-arm64.dmg
-                            # Windows: dist/jobdork-<version>-windows-x64-setup.exe
-```
-
-Builds for the machine it runs on; Windows also needs
-[Inno Setup 6](https://jrsoftware.org/isdl.php). Before packaging, the built
-app runs its own `--self-test` and the build stops if a module or data file
-is missing from it. CI builds both (`.github/workflows/desktop.yml`); a run's
-installers are under its Artifacts for a week. The app writes what it would
-print to `logs/app.log` in its folder (never the token). For a problem that
-only shows in the app, run it with `--debug` for the window's developer tools
-(right-click, Inspect): `jobdork app --debug` from source, or
-`/Applications/jobdork.app/Contents/MacOS/jobdork --debug` and
-`jobdork.exe --debug` once installed.
+`python packaging/build.py` builds the installer for the machine it runs on;
+what it needs and how to debug the built app are in
+[docs/run/desktop.md](docs/run/desktop.md#building-the-installers-yourself).
 
 ---
 
@@ -871,370 +808,37 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for what each part does.
 
 ---
 
-## The dork generator
-
-The original tool, moved into `jobdork/dork/` rather than rewritten. It runs as
-`jobdork dork` (or `python -m jobdork.dork`) and takes its own flags.
-
-Results are always saved to a plain-text file. Optionally export a named CSV, email it, open every query in your browser, or schedule the whole thing to run automatically.
-
----
-
-## How it works
-
-The tool constructs a Google search URL for every job board you select. Each URL combines Google operators to zero in on real listings:
-
-```
-site:boards.greenhouse.io
-  ("mid" OR "mid-level" OR "intermediate" OR "senior" OR "sr" OR "lead" OR "staff")
-  ("data engineer" OR "analytics engineer")
-  ("remote" OR "work from home" OR "wfh" OR "hybrid")
-  "Chicago, IL"
-  after:2026-03-01
-  &tbs=qdr:w
-```
-
-| Operator | Purpose |
-|---|---|
-| `site:` | Restrict to a specific domain / ATS portal |
-| `"quoted phrase"` | Require an exact match |
-| `(A OR B OR C)` | Expand search with boolean OR |
-| `after:YYYY-MM-DD` | Only show results published after this date |
-| `tbs=qdr:w` | Google's built-in recency filter (past week by default) |
-| `filetype:pdf` | Restrict to PDF files (resume intel mode) |
-| `intitle:` | Require a phrase in the page title |
-| `-"phrase"` | Exclude results containing this phrase |
-
----
-
-## Quick start
-
-### Interactive mode
-
-Run with no arguments to step through a guided prompt:
-
-```bash
-jobdork dork
-```
-
-Every prompt defaults to a sensible value — just press Enter to accept it.
-Blank answers for export, email, and recurring search always mean **no**.
-
-### CLI mode
-
-```bash
-jobdork dork \
-  --title "software engineer | developer | SWE" \
-  --location "Austin, TX" \
-  --level "mid | senior" \
-  --arrangement "remote | hybrid" \
-  --since 1w \
-  --csv \
-  --open
-```
-
----
-
-## Pipe-separated OR values
-
-`--title`, `--level`, and `--arrangement` all accept tokens separated by `|`.  
-Each group is expanded into a Google boolean OR clause in every query.
-
-```bash
-# Multiple role aliases
---title "data engineer | analytics engineer | ETL developer"
-# -> ("data engineer" OR "analytics engineer" OR "ETL developer")
-
-# Multiple role levels — keywords for each level are merged
---level "mid | senior"
-# -> ("mid" OR "mid-level" OR "intermediate" OR "senior" OR "sr" OR "lead" OR "staff")
-
-# Multiple work arrangements — each token expands to its search terms
---arrangement "remote | hybrid"
-# -> ("remote" OR "work from home" OR "wfh" OR "hybrid")
-```
-
----
-
-## All flags
-
-### Search parameters
-
-| Flag | Default | Description |
-|---|---|---|
-| `--title` | *(none)* | Role title; pipe-separate aliases for OR |
-| `--location` | *(none)* | City/state — omit for location-agnostic results |
-| `--level` | `any` | Role level; pipe-separate for OR: `"mid \| senior"` |
-| `--arrangement` | *(none)* | Work type; pipe-separate for OR: `"remote \| hybrid \| on-site"` |
-| `--benefits` | *(none)* | Benefit phrases; pipe-separate: `"visa sponsorship \| relocation"` |
-| `--sites` | *(default boards)* | Space-separated board keys — or `all` for every site |
-| `--since` | `1w` | Recency via Google `tbs=`: `any` `1d` `3d` `1w` `1m` |
-| `--after` | *(none)* | `after:YYYY-MM-DD` operator for precise date cutoff |
-
-### Output options
-
-| Flag | Description |
-|---|---|
-| `--open` | Auto-open every query URL in browser tabs |
-| `--csv` | Export to `<role>_<since>_<YYYYMMDD_HHMM>.csv` |
-| `--email ADDRESS` | Email the CSV via Resend (implies `--csv`) |
-| `--log-file PATH` | Custom log path (default: `./logs/job_dork.log`) |
-
-### Automation
-
-| Flag | Description |
-|---|---|
-| `--cron daily\|3d\|1w` | Install a recurring cron / Task Scheduler job |
-| `--setup-email` | Interactive wizard to save Resend credentials to `.env` |
-
-### Info flags
-
-```bash
-jobdork dork --list-sites    # all boards (standard + opt-in)
-jobdork dork --list-levels   # role levels and their keyword expansions
-jobdork dork --list-dates    # date filter options
-jobdork dork --list-cron     # cron schedule options
-```
-
----
-
-## Role levels
-
-Pass a single level or pipe-separate multiple levels.
-
-| Level | Keywords added to query |
-|---|---|
-| `intern` | intern, internship, co-op, student |
-| `junior` | junior, jr, entry level, associate, new grad |
-| `mid` | mid, mid-level, intermediate |
-| `senior` | senior, sr, lead, staff |
-| `principal` | principal, staff, distinguished |
-| `manager` | manager, engineering manager, team lead |
-| `director` | director, head of, vp of |
-| `executive` | vp, vice president, cto, cpo, c-level |
-| `any` | *(no keyword filter)* |
-
-Example — mid and senior combined:
-
-```bash
---level "mid | senior"
-# -> ("mid" OR "mid-level" OR "intermediate" OR "senior" OR "sr" OR "lead" OR "staff")
-```
-
----
-
-## Work arrangement tokens
-
-| Token | Expands to |
-|---|---|
-| `remote` | `"remote"`, `"work from home"`, `"wfh"` |
-| `hybrid` | `"hybrid"` |
-| `on-site` | `"on-site"`, `"onsite"`, `"in-office"`, `"in office"` |
-
----
-
-## CSV filename format
-
-CSV files are named automatically:
-
-```
-<role_slug>_<since>_<YYYYMMDD_HHMM>.csv
-```
-
-Examples:
-
-```
-data_engineer_analytics_engineer_1w_20260327_1430.csv
-software_engineer_developer_SWE_3d_20260327_0900.csv
-search_1w_20260327_1800.csv          # when no title is provided
-```
-
----
-
-## Site strategies
-
-### Standard boards (searched by default)
-
-Run `jobdork dork --list-sites` for the full list. Covers:
-
-- **Aggregators** — LinkedIn, Indeed, Glassdoor, Builtin, Dice, ZipRecruiter, Monster, CareerBuilder, FlexJobs, Wellfound, YC's Work at a Startup
-- **ATS portals** — Lever, Greenhouse, Workday, Ashby, Workable, SmartRecruiters, iCIMS, Breezy, Rippling
-- **Open web** — company career pages via keyword match
-
-### Opt-in strategies
-
-Pass these via `--sites` to unlock additional search modes:
-
-| Key | Operator | What it finds |
-|---|---|---|
-| `google_docs` | `site:docs.google.com` | Startups often drop job lists in public Docs before hitting formal boards |
-| `google_sheets` | `site:docs.google.com/spreadsheets` | Same pattern in spreadsheet form |
-| `linkedin_posts` | `site:linkedin.com/posts` | Recruiter posts that go live before the official listing |
-| `hiring_manager` | `intitle:"hiring manager"` | Pages to surface hiring managers for direct outreach |
-| `pdf_resumes` | `filetype:pdf` | Publicly uploaded resumes — useful for studying formatting in your field |
-
-```bash
-# Search hidden market alongside standard boards
-jobdork dork --title "product manager" \
-  --sites linkedin greenhouse lever google_docs google_sheets
-
-# Surface hiring managers for direct outreach
-jobdork dork --title "machine learning engineer" \
-  --sites hiring_manager linkedin_posts --open
-
-# Study how others in your field format their resumes
-jobdork dork --title "data scientist" --sites pdf_resumes --open
-
-# Everything at once
-jobdork dork --title "backend engineer" --sites all
-```
-
----
-
-## Advanced search techniques
-
-### Force a precise date cutoff
-
-Combine `--since` (Google's `tbs` param) with `--after` (the `after:` operator) for maximum precision:
-
-```bash
-jobdork dork --title "frontend engineer" --since 1m --after 2026-03-01
-```
-
-### Filter by benefits
-
-Add quoted benefit phrases to every query:
-
-```bash
-jobdork dork --title "software engineer" \
-  --benefits "visa sponsorship | relocation assistance | 4-day work week"
-```
-
-### Exclude seniority levels you're not targeting
-
-Add minus-sign phrases directly to `--title` or add them manually to a query. For example, if you want mid-level only and want to suppress senior results, you can add them as extra quoted terms in the query after generating, or contribute an `--exclude-levels` PR.
-
----
-
-## Scheduling recurring searches
-
-### macOS / Linux (cron)
-
-```bash
-jobdork dork \
-  --title "backend engineer | platform engineer" \
-  --level "senior" --arrangement remote \
-  --since 1w --csv --cron 1w
-```
-
-Schedules: `daily`, `3d`, `1w`
-
-Remove: `crontab -e` → delete the line containing `# job_dork_auto`
-
-### Windows (Task Scheduler)
-
-Same flags — the tool detects Windows and uses `schtasks.exe` automatically.
-
-Remove: `schtasks /Delete /TN "JobDorkSearch" /F`
-
----
-
-## Email delivery (Resend)
-
-### 1. Create a free account
-
-- API key: <https://resend.com/api-keys>
-- Verified domain: <https://resend.com/domains>
-
-### 2. Configure credentials
-
-```bash
-jobdork dork --setup-email
-```
-
-Or create `.env` manually:
-
-```env
-RESEND_API_KEY="re_xxxxxxxxxxxx"
-RESEND_FROM="Job Dork <jobs@yourdomain.com>"
-```
-
-> Add `.env` to `.gitignore` — never commit credentials.
-
-### 3. Send results
-
-```bash
-jobdork dork --title "data engineer" --csv --email you@example.com
-```
-
----
-
-## Customising the tool
-
-All of its configuration lives in **`jobdork/dork/boards.py`** — no need to
-touch `generator.py`:
-
-| Table | What to edit |
-|---|---|
-| `SITE_DORKS` | Add/remove job boards or search strategies |
-| `DEFAULT_SITES` | Change which boards are searched by default |
-| `LEVEL_KEYWORDS` | Add keywords to a role level |
-| `ARRANGEMENT_TERMS` | Add synonyms for remote/hybrid/on-site |
-| `DATE_FILTERS` | Add new recency presets |
-| `CRON_SCHEDULES` | Add new recurring schedule options |
-| `DEFAULT_DATE_FILTER` | Change the global default (currently `1w`) |
-
----
-
-## Output files
-
-| File | Description |
-|---|---|
-| `dork_results.txt` | Plain-text list of every query and URL, in the directory you ran it from (always written) |
-| `<role>_<since>_<ts>.csv` | Structured export — produced with `--csv` or `--email` |
-| `logs/job_dork.log` | Timestamped run log |
-
----
-
-## Examples
-
-```bash
-# Senior remote Python roles posted in the last 3 days, open in browser
-jobdork dork \
-  --title "python engineer | backend engineer" \
-  --level senior --arrangement remote --since 3d --open
-
-# Mid or senior data roles in NYC, export CSV
-jobdork dork \
-  --title "data engineer | analytics engineer" \
-  --level "mid | senior" --location "New York, NY" --since 1w --csv
-
-# Product managers on ATS portals only
-jobdork dork \
-  --title "product manager | PM | product lead" \
-  --level mid --sites greenhouse lever ashby workable --csv
-
-# Weekly email digest — remote senior engineering roles
-jobdork dork \
-  --title "software engineer | SWE | backend engineer" \
-  --level senior --arrangement remote \
-  --since 1w --csv --email you@example.com --cron 1w
-
-# Hidden job market — Google Docs/Sheets + social posts
-jobdork dork \
-  --title "growth marketer | growth manager" \
-  --sites google_docs google_sheets linkedin_posts --open
-
-# Roles with visa sponsorship posted after March 1st
-jobdork dork \
-  --title "software engineer" \
-  --benefits "visa sponsorship" \
-  --after 2026-03-01 --since 1m --csv
-```
-
----
+## Credits
+
+jobdork builds on two other projects' work, each in its own repository:
+
+- **[humanizer](https://github.com/blader/humanizer)** by blader (MIT), the
+  rules for spotting signs of AI writing, themselves drawn from Wikipedia's
+  "Signs of AI writing" guide. Its `SKILL.md` is copied into
+  [`jobdork/data/humanizer/`](jobdork/data/humanizer/) with its own licence
+  beside it. Drafting models are given it in full, and
+  `jobdork/writing/humanize.py` checks drafts for the patterns a script can
+  find. A newer `SKILL.md` copied there updates what models are told; the
+  script's patterns are kept in step by hand.
+- **[HalluLens](https://github.com/facebookresearch/HalluLens)** (Bang et al.,
+  *HalluLens: LLM Hallucination Benchmark*,
+  [arXiv:2504.17550](https://arxiv.org/abs/2504.17550)), the method the
+  hallucination check follows: split an output into single claims and verify
+  each against its source. Only the method is used. None of HalluLens's code,
+  prompts or data is included (they are under CC BY-NC, which this licence
+  could not carry); `jobdork/ai/guard.py` is jobdork's own.
+
+Also: place names from [GeoNames](https://www.geonames.org/) (CC BY 4.0),
+downloaded by `scripts/build_gazetteer.py`; icons from
+[Lucide](https://lucide.dev/) (ISC), inlined in the dashboard.
 
 ## License
 
-MIT. Privacy: [PRIVACY.md](PRIVACY.md). Code signing:
+[GNU General Public License v3.0 or later](LICENSE) (GPL-3.0-or-later): you
+may use, change and share jobdork, and anything you distribute that is built
+from it must be shared under the same licence, with its source. The
+humanizer rules keep their own MIT licence
+([jobdork/data/humanizer/LICENSE](jobdork/data/humanizer/LICENSE)).
+
+Privacy: [PRIVACY.md](PRIVACY.md). Code signing:
 [code signing policy](#code-signing-policy).

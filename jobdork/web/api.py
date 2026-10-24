@@ -1658,16 +1658,21 @@ def llm_state(cfg) -> dict:
     from ..core.config import MAX_READERS, SETUP_MAX_READERS
 
     settings = llm.Settings.from_config(cfg)
-    readers = []
-    for r in cfg.llm.readers:
-        one = llm.Settings(provider=r.provider, model=r.model,
-                           ollama_url=r.ollama_url or cfg.llm.ollama_url)
-        readers.append({"provider": r.provider, "model": r.model,
+
+    def listed(models) -> list[dict]:
+        out = []
+        for r in models:
+            one = llm.Settings(provider=r.provider, model=r.model,
+                               ollama_url=r.ollama_url or cfg.llm.ollama_url)
+            out.append({"provider": r.provider, "model": r.model,
                         "ollama_url": r.ollama_url, "label": one.label,
                         "problem": one.problem()})
+        return out
+
     return {
         "providers": llm.PROVIDERS,
-        "readers": readers,
+        "readers": listed(cfg.llm.readers),
+        "checkers": listed(cfg.llm.checkers),
         # Setup offers a few; the AI page, later, the rest.
         "max_readers": SETUP_MAX_READERS if cfg.setup_step else MAX_READERS,
         "provider": cfg.llm.provider,
@@ -1680,10 +1685,6 @@ def llm_state(cfg) -> dict:
         "keys": {p: llm.key_for(p)[1] for p in llm.KEYED},
         "problem": settings.problem(),
         "label": settings.label if cfg.llm.provider else "",
-        "checker_provider": cfg.llm.checker_provider,
-        "checker_model": cfg.llm.checker_model,
-        "checker_problem": settings.checker.problem() if settings.checker else "",
-        "checker_label": settings.checker.label if settings.checker else "",
     }
 
 
@@ -1724,34 +1725,31 @@ def llm_forget(provider: str) -> dict:
 
 
 def llm_test(cfg) -> dict:
-    """Ask every reader, one by one, and the second model when one is
-    chosen, to answer. Fails only when no reader answers."""
+    """Ask every reader, one by one, and every chosen checker, to answer.
+    Fails only when no reader answers."""
     from ..ai import llm
 
     settings = llm.Settings.from_config(cfg)
-    answers = []
-    for reader in [llm.Settings(provider=r.provider, model=r.model,
+
+    def ask(models) -> list[dict]:
+        answers = []
+        for one in models:
+            try:
+                if one.problem():
+                    raise llm.LLMError(one.problem())
+                answers.append(llm.ping(one))
+            except llm.LLMError as exc:
+                answers.append({"model": one.label, "error": str(exc)})
+        return answers
+
+    answers = ask([llm.Settings(provider=r.provider, model=r.model,
                                 ollama_url=r.ollama_url or cfg.llm.ollama_url,
                                 context=settings.context)
-                   for r in cfg.llm.readers] or [settings]:
-        try:
-            if reader.problem():
-                raise llm.LLMError(reader.problem())
-            answers.append(llm.ping(reader))
-        except llm.LLMError as exc:
-            answers.append({"model": reader.label, "error": str(exc)})
+                   for r in cfg.llm.readers] or [settings])
     working = [a for a in answers if "error" not in a]
     if not working:
         raise ApiError("; ".join(f"{a['model']}: {a['error']}" for a in answers), 502)
-    out = {**working[0], "readers": answers}
-    if settings.checker is not None:
-        try:
-            if settings.checker.problem():
-                raise llm.LLMError(settings.checker.problem())
-            out["checker"] = llm.ping(settings.checker)
-        except llm.LLMError as exc:
-            out["checker"] = {"error": str(exc)}
-    return out
+    return {**working[0], "readers": answers, "checkers": ask(settings.checkers)}
 
 
 # ── first-run setup ───────────────────────────────────────────────────────────

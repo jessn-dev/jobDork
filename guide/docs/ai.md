@@ -1,0 +1,95 @@
+# AI: readers and checkers
+
+The **AI reader** page, **AI** in the menu.
+
+An AI model can read what rules cannot: the whole advert against your whole
+resume. It gives its own [AI score](scores.md#ai-the-models-opinion), writes
+cover letters and tailored resumes, and reviews your resume. It never hides
+a job post, and jobdork scans without one.
+
+![The AI page](images/ai.png)
+
+## Choosing a model
+
+| Provider | Costs | Your data |
+|---|---|---|
+| **Ollama (local)** | Free. Runs on your own computer; needs a recent computer (a Mac with Apple Silicon, or a PC with a graphics card) | Never leaves your computer |
+| **Claude**, **Gemini**, **ChatGPT** | Paid by use, on your own key from that company | Sent to that company, with your email, phone number and profile links removed first |
+
+For Ollama: install it from [ollama.com](https://ollama.com), download a
+model (`ollama pull gemma4:26b` for good results with 32 GB of memory, a
+smaller one otherwise), then choose **Ollama (local)** here and **Load
+models**. For the others: paste your key and **Hold in memory**.
+
+**Keys are held in memory only**: never written to a file, the database or
+a log, and forgotten when jobdork stops, when you click **Forget**, or a
+minute after the last dashboard tab closes. You paste it again next time.
+
+## Readers
+
+**Reader 1** does the work. Add up to six with **Add another reader**: when
+one cannot answer (no key held, not running, rate limited, an error), the
+next one does, so a second reader keeps things going when the first is down.
+**Earlier** moves one up the order; **Remove** takes it out. The same
+provider can be listed twice with different models.
+
+Each reader card has the **Provider**, the **Ollama address** (for Ollama on
+another computer), the **API key** (for paid providers) and the **Model**
+(**Load models** lists what is available).
+
+## When to use it
+
+- **After each scan, judge the top N job posts not yet judged**: the AI
+  scores your best new posts by itself after every scan.
+- **When checking postings, read pages that do not say whether the job is
+  open**: helps **Check still open** with unclear pages.
+- **Check each verdict and draft for claims your resume and the advert do
+  not support**: the hallucination check, below. On by default.
+
+A large local model takes about a minute per job post, and the check adds
+two more calls to each.
+
+## Checkers: a second model to check the first {#checkers}
+
+![Checkers](images/ai-checkers.png)
+
+A different model checks the readers' work better than the reader checks
+itself: one model marking its own work misses what it got wrong the same
+way twice. Add up to six **checkers** with **Add another checker**, tried in order like readers. A
+checker:
+
+- runs the hallucination check on everything a reader writes, and
+- scores each judged job post itself; scores 20 or more points apart are
+  marked **models disagree**.
+
+With no checker chosen (or none ready), the check goes to another of your
+readers than the one that wrote it, and to the same one only when no other
+is ready. A checker costs about three more calls per output on its key; a
+local Ollama model costs nothing.
+
+## The hallucination check {#the-hallucination-check}
+
+AI models sometimes state things that are not true: *hallucinations*. For
+a job application that matters: a cover letter claiming a certification you
+do not have can cost you the job.
+
+So every verdict, letter, review and tailored resume is checked:
+
+1. The text is split into single facts ("Has seven years of telemetry
+   nursing").
+2. Each fact is looked up in your resume and the advert. A fact only counts
+   as supported if its exact words are found there, by a script, not just
+   because a model says so.
+3. Facts found in neither are **flagged**: struck out in an AI verdict,
+   listed on a letter, marked **READ** on a document.
+
+The [Dashboard](dashboard.md#the-numbers) shows the share of unsupported
+facts over time (the *hallucination rate*), by kind of writing and by
+model, so you can see which model to trust. The method follows
+[HalluLens](https://arxiv.org/abs/2504.17550), a published way of measuring
+hallucination.
+
+## Save and test
+
+**Save** keeps your choices. **Save and test** also asks every reader and
+checker to answer, and says how long each took or why it could not.

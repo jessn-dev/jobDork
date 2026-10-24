@@ -799,10 +799,11 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             if path == "/api/llm":
                 from ..core.config import MAX_READERS, SETUP_MAX_READERS
                 limit = SETUP_MAX_READERS if cfg.setup_step else MAX_READERS
-                if isinstance(form.get("readers"), list) and len(form["readers"]) > limit:
-                    return self._reject(400, f"at most {limit} AI readers"
-                                        + (" in setup; add more later on the AI page"
-                                           if cfg.setup_step else ""))
+                for name in ("readers", "checkers"):
+                    if isinstance(form.get(name), list) and len(form[name]) > limit:
+                        return self._reject(400, f"at most {limit} AI {name}"
+                                            + (" in setup; add more later on the AI page"
+                                               if cfg.setup_step else ""))
                 try:
                     fresh = self._write_config({"llm": form})
                 except Exception as exc:
