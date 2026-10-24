@@ -1,5 +1,11 @@
 # Proposes updates as pull requests, which then pass the same tests and scans
 # as any change before anything is published.
+#
+# Each waits a week after a version is published before proposing it. A
+# malicious release (a hijacked maintainer account, a typosquat taken over)
+# is usually found and pulled within days, and requirements.lock's checksums
+# only stop a tampered copy of a version already pinned, not a bad new one.
+# Security updates for a published advisory are not held back by this.
 version: 2
 updates:
   # The actions, pinned to commits in the workflow.
@@ -7,14 +13,20 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
   # The base image's digest in the Dockerfile.
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
   # Python dependencies. requirements.lock carries their checksums; after an
   # update, regenerate it inside the base image (the command is at its top).
   - package-ecosystem: pip
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7

@@ -1445,8 +1445,11 @@ window.addEventListener('unhandledrejection', e => pageProblem('error',
 // In the desktop app (`jobdork app`) the page is in a window with no tabs and
 // no downloads of its own, so links and files go through the app instead.
 const desk = () => (window.pywebview && window.pywebview.api) || null;
+// A job post's address comes from whoever posted it. Only a web address
+// leaves; `javascript:` or `data:` in an href would run in this page.
+const webHref = url => /^https?:\/\//i.test(url || '') ? url : '#';
 function openOut(url) {
-  if (!/^https?:\/\//i.test(url || '')) return;
+  if (webHref(url) === '#') return;
   if (desk()) desk().open_url(url);
   else window.open(url, '_blank', 'noopener,noreferrer');
 }
@@ -1811,7 +1814,7 @@ function card(r) {
     <div class="acts">
       <button data-icon="eye" class="act" onclick="openRole('${r.uid}')">Open</button>
       <button data-icon="star" class="act" onclick="act('${r.uid}','interested')">Interested</button>
-      <button data-icon="external-link" class="act" onclick="apply('${r.uid}','${esc(r.url)}', this)">Apply</button>
+      <button data-icon="external-link" class="act" data-url="${esc(r.url)}" onclick="apply('${r.uid}', this.dataset.url, this)">Apply</button>
       <button data-icon="skip-forward" class="act" onclick="act('${r.uid}','skipped')">Skip</button>
       <select onchange="act('${r.uid}', this.value)">${opts}</select>
       <input class="note" value="${esc(r.note)}" placeholder="Note (Enter saves)"
@@ -2068,7 +2071,8 @@ function drawDetail(tab) {
        `Advert ${Number(d.advert_chars).toLocaleString()} chars`].filter(Boolean)
         .map(m => `<span>${esc(m)}</span>`).join('')}</div>
     ${(d.copies || []).length ? `<div class="alsoat"><span class="hint">Also posted at</span>${
-      d.copies.map(c => `<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer"
+      d.copies.map(c => `<a href="${esc(webHref(c.url))}" data-url="${esc(c.url)}"
+        onclick="event.preventDefault(); openOut(this.dataset.url)"
         title="${esc(cap(c.note || 'not checked yet'))} · last listed ${esc(c.last_seen)} · advert ${c.advert_chars} chars">${
         esc(platformName(c.platform))}${c.listing ? ' ' + listingTag({state: c.listing, note: c.note, checked_at: ''}, true) : ''}</a>`).join('')
     }<span class="hint">A status set here applies to every copy.</span></div>` : ''}
@@ -2585,7 +2589,7 @@ $('fbk-send').onclick = async () => {
     msg.innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
   const d = await r.json();
   msg.innerHTML = `<span class="saved">Sent. Thank you.</span>${d.issue_url
-    ? ` <a href="${esc(d.issue_url)}" target="_blank" rel="noopener">See the issue</a>` : ''}`;
+    ? ` <a href="${esc(webHref(d.issue_url))}" target="_blank" rel="noopener">See the issue</a>` : ''}`;
   $('fbk').reset(); $('fbk-out').hidden = false; fbkShown = null;
 };
 
@@ -2883,7 +2887,7 @@ function keyCardsHtml(keyed) {
         : '<span class="hint">set in .env or the environment, which the app does not change</span>'}</div>`
       : `<div class="bar"><button type="button" class="act" data-want="${k.name}">Yes, add a free key</button></div>`}
     <div class="keyform" data-keyform="${k.name}" hidden>
-      <div class="hint">Get one free at <a href="${esc(k.signup)}" target="_blank"
+      <div class="hint">Get one free at <a href="${esc(webHref(k.signup))}" target="_blank"
         rel="noopener noreferrer">${esc(new URL(k.signup).host)}</a>, then paste it here.</div>
       <div class="bar">${k.fields.map(f => /EMAIL/.test(f.name)
         ? `<input type="email" autocomplete="off" spellcheck="false" data-key="${f.name}"
@@ -5259,7 +5263,7 @@ async function checkVersion() {
   const box = $('update');
   box.innerHTML = `<b>jobdork ${esc(d.latest)} is out.</b> <span>You have ${esc(d.current)}.</span>
     <button class="act primary" id="update-go" type="button">${d.can_install ? 'Update' : 'How to update'}</button>
-    <a href="${esc(d.url)}" data-out>What is new</a>
+    <a href="${esc(webHref(d.url))}" data-out>What is new</a>
     <button class="linkbtn x" aria-label="Dismiss until the next version">Not now</button>`;
   box.querySelector('[data-out]').onclick = e => { e.preventDefault(); openOut(d.url); };
   box.querySelector('#update-go').onclick = () =>

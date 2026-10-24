@@ -26,18 +26,29 @@ an empty array both for a board that does not exist and for one that is
 throttling you. That distinction cannot be made here; it belongs to the
 adapter, which knows whether a board ever had jobs. This layer reports what
 happened and never decides what it meant.
+
+Public addresses only. Many of the addresses fetched come from job posts (an
+apply link, a careers page, "Check if still open"), and anyone can write a
+job post. One pointed at 192.168.1.1 or localhost would have the app send a
+request into your own network: a router's page, a printer, a NAS. So every
+request, and every redirect it follows, is refused unless its host resolves
+to public addresses only (`refusal`). The AI models, Ollama on this machine
+among them, are reached through ai/llm.py, not through here.
 """
 
 from __future__ import annotations
 
 import contextlib
+import ipaddress
 import logging
+import socket
 import threading
 import time
 import urllib.parse
 from dataclasses import dataclass, field
 
 import requests
+from requests.adapters import HTTPAdapter
 
 log = logging.getLogger("jobdork.fetch")
 
@@ -99,6 +110,65 @@ class Blocked(Exception):
     """The host is refusing, or has been blocked by the circuit breaker."""
 
 
+class PrivateAddress(requests.RequestException):
+    """The address is in this machine or its network, not on the internet."""
+
+
+def _public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    # ::ffff:127.0.0.1 is 127.0.0.1; Python before 3.13 does not say so.
+    mapped = getattr(ip, "ipv4_mapped", None)
+    if mapped is not None:
+        ip = mapped
+    # is_global is False for private, loopback, link-local (169.254, where
+    # cloud metadata lives), 100.64/10 (carrier NAT, Tailscale) and reserved.
+    return ip.is_global and not ip.is_multicast
+
+
+def refusal(url: str, resolve=socket.getaddrinfo) -> str:
+    """Why `url` is not fetched, or "" when its host is public.
+
+    Every address the name resolves to must be public: a name with one
+    public and one private address could be connected to either. A name
+    that does not resolve is let through, to fail as the request would.
+    The name is resolved again when connecting, so a server that answers
+    with a different address the second time (DNS rebinding) is not caught
+    here; that takes a server built for it, not just a job post.
+    """
+    parts = urllib.parse.urlsplit(url)
+    host = (parts.hostname or "").rstrip(".")
+    if not host:
+        return f"no host in {url!r}"
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    if literal is not None:
+        return "" if _public(literal) else f"{host} is not a public address"
+    try:
+        found = resolve(host, parts.port or 443, proto=socket.IPPROTO_TCP)
+    except (OSError, UnicodeError):
+        return ""
+    for *_, sockaddr in found:
+        try:
+            ip = ipaddress.ip_address(str(sockaddr[0]).split("%", 1)[0])
+        except ValueError:
+            continue
+        if not _public(ip):
+            return f"{host} is in this machine or its network ({ip})"
+    return ""
+
+
+class _PublicOnly(HTTPAdapter):
+    """Checks each request it sends, so a redirect is checked too: requests
+    sends every hop of one through the adapter again."""
+
+    def send(self, request, *args, **kwargs):
+        why = refusal(request.url)
+        if why:
+            raise PrivateAddress(f"refused: {why}")
+        return super().send(request, *args, **kwargs)
+
+
 @dataclass
 class Response:
     url: str
@@ -142,6 +212,9 @@ class Fetcher:
         self.timeout = timeout
         self.retries = retries
         self.session = session or requests.Session()
+        if hasattr(self.session, "mount"):
+            for prefix in ("http://", "https://"):
+                self.session.mount(prefix, _PublicOnly())
         self.session.headers["User-Agent"] = user_agent
         self._hosts: dict[str, _HostState] = {}
         self._hosts_lock = threading.Lock()
@@ -280,6 +353,8 @@ class Fetcher:
                     headers=headers,
                     timeout=self.timeout,
                 )
+            except PrivateAddress as exc:      # asking again changes nothing
+                return Response(url=url, status=0, host=host, error=str(exc))
             except requests.RequestException as exc:
                 last = Response(url=url, status=0, host=host, error=str(exc))
                 if attempt + 1 < attempts:

@@ -96,6 +96,19 @@ def test_the_subprocess_is_scoped_to_one_folder():
     assert sum(1 for part in command if part == "--add-dir") == 1
 
 
+def test_the_subprocess_has_file_tools_only_and_no_mcp_servers():
+    """A posting that talks the agent round must find no shell, no web and
+    none of the user's MCP servers, whatever their own settings allow."""
+    command = generate.build_command(Path("/tmp/onejob"))
+    tools = command[command.index("--tools") + 1].split(",")
+    assert set(tools) <= {"Read", "Write", "Edit", "Glob", "Grep"}
+    for risky in ("Bash", "WebFetch", "WebSearch", "Task", "Agent", "NotebookEdit"):
+        assert risky not in tools
+    assert "--strict-mcp-config" in command
+    assert "--mcp-config" not in command
+    assert "--dangerously-skip-permissions" not in command
+
+
 # ── ordering and preconditions ─────────────────────────────────────────────────
 
 def test_a_cover_letter_will_not_go_before_the_cv():
