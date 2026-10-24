@@ -34,6 +34,11 @@ only after the owner approves it in the `release` environment. A push to
   and is refused.
 - **The base image is pinned by digest**, which names exact contents; a tag
   can be moved to point at something else.
+- **Dependabot waits a week** before proposing a new version of an action,
+  the base image or a Python package (`.github/dependabot.yml`). A
+  malicious release is usually found and pulled within days, and the
+  checksums above only stop a tampered copy of a version already pinned.
+  Fixes for a published advisory are not held back.
 - **Every GitHub Action is pinned to a commit**, not a tag. The scanners run
   from their official images, also pinned by digest.
 - **The published image is signed** with [Sigstore](https://www.sigstore.dev/)
@@ -126,6 +131,12 @@ got into the GitHub or Docker Hub account could get around everything above.
 - [x] Dependabot alerts and security updates.
 - [x] Private vulnerability reporting.
 
+**Set on 2026-10-23:**
+- [x] Code scanning: CodeQL default setup (Python, JavaScript and the
+      workflows), on every pull request and push to `main`, and weekly.
+      Not yet a required check: its first findings are being sorted first.
+- [x] Passkeys on the owner's GitHub and Docker Hub accounts.
+
 **Set, confirmed 2026-10-02:**
 - [x] A Docker Hub personal access token for this workflow only, with the
       Read & Write scope (not Delete), saved as the secret `DOCKERHUB_TOKEN`
@@ -135,13 +146,37 @@ got into the GitHub or Docker Hub account could get around everything above.
       `release` environment (not at repository level).
 
 **Still to do by the owner:**
-- [ ] Two-factor authentication on GitHub, preferably a passkey or security key.
-- [ ] Two-factor authentication on Docker Hub.
 - [ ] If offered under Actions → General, require actions to be pinned to a
       full commit SHA.
 - [ ] `BOARDS_PR_TOKEN`, for the weekly boards re-check: a fine-grained
       personal access token for this repository only, with Contents and Pull
       requests set to Read and write and nothing else. Rotate it yearly.
+
+---
+
+## What a job post cannot do
+
+Every job post is written by someone unknown: its title, its text and its
+links. The app treats them as hostile.
+
+- **In the dashboard** every piece of it is escaped before it is shown, and
+  a link opens only if it is a web address (`http:` or `https:`), so a
+  `javascript:` link does nothing. The page loads nothing from anywhere
+  else (its Content-Security-Policy). `tests/test_page_safety.py` fails on
+  the two patterns that once let a link run script.
+- **In the AI model's prompt** it sits between markers it cannot close,
+  labelled as data. The model's answers are text shown to you; nothing it
+  says is run.
+- **For a draft by Claude Code** (`claude -p`, `jobdork/writing/generate.py`)
+  the agent works in that one job's folder with file tools only: no shell,
+  no web, none of your MCP servers, whatever your own Claude Code settings
+  allow. A posting that persuades it can spoil that one draft, not reach
+  the rest of your machine.
+- **As an address to fetch** (an apply link, a careers page) it reaches
+  public addresses only. One that names this machine or its network
+  (`localhost`, `192.168.x.x`, `169.254.169.254`), or redirects there, is
+  refused (`jobdork/fetch/http.py`), so a posting cannot use the app to
+  reach your router, printer or NAS.
 
 ---
 

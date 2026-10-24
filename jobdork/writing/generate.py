@@ -30,6 +30,13 @@ files. So:
   directory and nothing else — never `~/.claude/skills`, which would be write
   access to every skill you own. A compromise can damage one role's folder.
 
+  It has file tools and nothing else. `--tools` leaves it Read, Write, Edit,
+  Glob and Grep: no shell, no web, no subagents, whatever your own Claude
+  Code settings allow, and `--strict-mcp-config` loads none of your MCP
+  servers (mail, drive and the like). Without these a posting that talked
+  the agent round could run commands on your machine, or send your resume
+  somewhere, through a tool you had allowed for your own work.
+
   Links are scheme-checked. Apply URLs are employer-supplied on several
   platforms, so `javascript:` and `data:` never reach a file.
 
@@ -121,6 +128,10 @@ FILENAMES = {
 }
 
 SAFE_SCHEMES = ("http", "https")
+
+# All the agent needs to read the resume and advert and write one file. No
+# Bash, WebFetch, WebSearch or Task: the advert is in its prompt.
+AGENT_TOOLS = "Read,Write,Edit,Glob,Grep"
 
 TIMEOUT = 600
 
@@ -300,11 +311,14 @@ def cli_available() -> str:
 
 
 def build_command(folder: Path) -> list[str]:
-    """The subprocess is scoped to this one folder and nothing else."""
+    """The subprocess is scoped to this one folder and nothing else, with
+    file tools only (AGENT_TOOLS) and none of your MCP servers."""
     return [
         "claude", "-p",
         "--add-dir", str(folder),
         "--permission-mode", "acceptEdits",
+        "--tools", AGENT_TOOLS,
+        "--strict-mcp-config",
     ]
 
 

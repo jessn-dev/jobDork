@@ -6,6 +6,68 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-24 — A job post could send the app into your network
+
+- **Addresses from job posts were fetched as given.** An apply link, a
+  careers page or "Check if still open" could name `192.168.1.1`,
+  `localhost` or `169.254.169.254`, and the app would send a request into
+  the user's own network: a router's page, a printer, a NAS, or a cloud
+  machine's metadata. The dashboard refuses such a request itself (token
+  and Host checks); the other devices on a home network mostly do not.
+- `fetch/http.py` now mounts an adapter on the fetcher's session that
+  refuses any request, and any redirect it follows, whose host is not a
+  public address: private, loopback, link-local, carrier NAT (100.64/10,
+  Tailscale too), multicast, and IPv6's equivalents including
+  `::ffff:127.0.0.1`. A name is refused if any address it resolves to is
+  one of those. A refusal is not retried, and reads "refused: … is in this
+  machine or its network". The AI models, Ollama among them, go through
+  `ai/llm.py`, so a local model still works.
+- Not caught: a server built to answer with a public address and then a
+  private one (DNS rebinding), since the name is resolved again to connect.
+- tests/test_fetch_guard.py checks the addresses, a name with one private
+  address among public ones, and a redirect into the network from a local
+  server; nothing in it goes online.
+
+## Fixed — 2026-10-24 — A drafting agent with your own tools
+
+- **`claude -p` ran with every tool your own Claude Code settings allowed**,
+  and with all your MCP servers. It drafts from a job advert, which anyone
+  can write, so a posting that talked the agent round could have run a
+  shell command your settings allow (`Bash(python:*)`, say), fetched a web
+  page, or used a mail or drive server, with your resume in its folder.
+  The folder limit covered the file tools, not those.
+- `build_command` now passes `--tools Read,Write,Edit,Glob,Grep` (no shell,
+  web, subagents) and `--strict-mcp-config` with no config (no MCP
+  servers). Checked that the installed CLI (2.1.309) accepts both, without
+  calling it. tests/test_generate.py checks the command has no risky tool.
+
+## Fixed — 2026-10-24 — A job post's link could run script in the dashboard
+
+- **The Apply button put a post's address inside its `onclick` string**,
+  escaped with `esc()`. The browser decodes `&#39;` back to `'` before the
+  handler runs, so an address with a `'` in it (an employer's own site can
+  give any) ended the string and ran what followed, in the page that holds
+  the dashboard's token: it could read your resume and settings through the
+  API. The address now rides in `data-url`, as Open advert's already did.
+- **"Also posted at" links used a post's address as their `href`** as given,
+  so a `javascript:` one ran when clicked. Every built link now goes
+  through `webHref()`, which keeps only `http:`/`https:`; those links open
+  through `openOut` like the rest (in the desktop app, in your browser).
+- tests/test_page_safety.py reads the page's source and fails on both
+  patterns; it failed on the old page.
+- SECURITY.md has a new section, "What a job post cannot do".
+
+## Changed — 2026-10-24 — Dependabot waits a week for a new version
+
+- `.github/dependabot.yml` sets `cooldown: default-days: 7` for the actions,
+  the base image and pip. `requirements.lock`'s checksums stop a tampered
+  copy of a pinned version, not a malicious new release, and those are
+  usually found and pulled within days. Updates for a published advisory
+  are not held back.
+- SECURITY.md says so, records CodeQL default setup (turned on 2026-10-23,
+  not yet a required check) and the owner's passkeys on GitHub and Docker
+  Hub, and drops those two from the owner's to-do list.
+
 ## Changed — 2026-10-24 — A release page opens with its downloads
 
 - **The installers were at the bottom of the page.** GitHub lists a
@@ -5436,6 +5498,8 @@ open; a digest arrives, and what arrived with it is what was not there before.
 
 ## Still outstanding
 
+- **CodeQL as a required check**, once its first findings are sorted
+  (turned on 2026-10-23); or a different scanner, if it proves weak.
 - **The desktop app, the rest of it** (`jobdork app`, the macOS build and
   the CI workflow are done): the first Windows build passing in CI (the
   Inno Setup script and WebView2 are untried until it does), then the
