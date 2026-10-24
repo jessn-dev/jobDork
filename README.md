@@ -119,32 +119,23 @@ back to the same step.
 `.env`, `data/` and `out/`, so a fresh clone has none and nothing you put in
 yours ever conflicts on a pull. Your search stays yours.
 
-## Code signing policy
+## Unsigned installers
 
-Free code signing provided by [SignPath.io](https://about.signpath.io/),
-certificate by [SignPath Foundation](https://signpath.org/).
+The installers on the Releases page are **not code-signed**, so macOS and
+Windows warn the first time you open one;
+[the desktop guide](docs/run/desktop.md#the-first-open-warning) says how to
+get past it. What you can check instead:
 
-- The Windows installer (`jobdork-<version>-windows-x64-setup.exe`) and the
-  program inside it are what is signed. They are built from this repository's
-  source by GitHub Actions ([desktop.yml](.github/workflows/desktop.yml)),
-  from a release tag, and nothing built anywhere else is signed.
-- Every release is approved by hand before it is signed, and before it is
-  published (see [SECURITY.md](SECURITY.md)).
-- Only jobdork's own program is signed. The libraries packed into it are
-  the work of their own projects and are not signed by jobdork.
-- Signing has been applied for (October 2026). Until it is granted, the
-  installers on the Releases page are unsigned, and the release notes say
-  how to open them.
-
-**Team roles**
-
-| Role | Who |
-|---|---|
-| Committers and reviewers | [@jessn-dev](https://github.com/jessn-dev), the repository's owner. Changes reach `main` only by pull request with every check passing; a contribution from anyone else is reviewed before it is merged |
-| Approvers | [@jessn-dev](https://github.com/jessn-dev), who approves each release in the `release` environment and each signing request in SignPath |
-
-Everyone with one of these roles uses multi-factor authentication for GitHub
-and SignPath.
+- The installers are built from this repository's source by GitHub Actions
+  ([desktop.yml](.github/workflows/desktop.yml)), from a release tag, and
+  every release is approved by hand before it is published (see
+  [SECURITY.md](SECURITY.md)).
+- Each download carries a build attestation, so you can confirm it is the
+  one this repository built
+  ([how](docs/run/desktop.md#the-first-open-warning)).
+- Changes reach `main` only by pull request with every check passing, and
+  the owner, [@jessn-dev](https://github.com/jessn-dev), uses
+  multi-factor authentication on GitHub.
 
 **Privacy.** jobdork sends nothing to its makers. It goes on the network
 only to do what you set it up to do (search job boards, use the AI provider
@@ -848,5 +839,5 @@ from it must be shared under the same licence, with its source. The
 humanizer rules keep their own MIT licence
 ([jobdork/data/humanizer/LICENSE](jobdork/data/humanizer/LICENSE)).
 
-Privacy: [PRIVACY.md](PRIVACY.md). Code signing:
-[code signing policy](#code-signing-policy).
+Privacy: [PRIVACY.md](PRIVACY.md). Installers:
+[unsigned](#unsigned-installers).

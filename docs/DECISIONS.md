@@ -61,6 +61,10 @@ first release (the window needs WebKitGTK on the user's system; Docker and
 (sign macOS first: $99 a year, then notarise in CI); Linux users ask for
 an app; or updates need to reach people without them downloading again.
 
+**2026-10-24:** free Windows signing from SignPath Foundation was applied
+for and not granted. The installers stay unsigned; a paid certificate is
+the next option when the warnings are reported to stop people.
+
 ---
 
 ## First-run onboarding: a resume-first wizard, and AI does not block scanning — 2026-10-02

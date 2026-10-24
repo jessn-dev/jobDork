@@ -6,6 +6,20 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-24 — SignPath signing dropped: the installers stay unsigned
+
+- **SignPath Foundation did not grant free code signing**, so everything
+  written for the application is gone: the README's "Code signing policy"
+  (SignPath's required wording, team roles, MFA on SignPath) is now
+  **Unsigned installers**, saying the installers are not signed, how to
+  open them, and what can be checked instead (built by Actions from a tag,
+  approved by hand, an attestation per download). The release notes link
+  there instead of claiming signing "once granted"; docs/run/desktop.md no
+  longer says signing was applied for; the installer script's comment
+  gives its own reason for the privacy page, which stays.
+- docs/DECISIONS.md's desktop-app entry records the refusal: a paid
+  certificate is the next option if the warnings stop people installing.
+
 ## Fixed — 2026-10-24 — The hallucination rate counted the check's own mistakes
 
 - **The Dashboard said 15-20% of what the AI wrote was made up.** Half of
@@ -68,6 +82,7 @@ it and into an entry when the work is done.
 - tests/test_guard.py and tests/test_ai.py cover gaps (including a made-up
   claim using gap words to pass), matching, glued text, the work span and
   the measured block.
+
 
 ## Fixed — 2026-10-24 — Nothing could be copied in the desktop app
 

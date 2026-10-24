@@ -7,8 +7,8 @@
 ;
 ; privacy.txt is shown before installing ("Information" page): what jobdork
 ; keeps, what it sends where, and how to turn off the one thing it does by
-; itself (the daily version check). SignPath Foundation's terms ask for this
-; of software that goes on the network unasked. Keep it in step with
+; itself (the daily version check): software that goes on the network
+; unasked should say so before it is installed. Keep it in step with
 ; PRIVACY.md.
 
 [Setup]
