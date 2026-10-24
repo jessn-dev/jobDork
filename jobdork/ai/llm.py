@@ -172,8 +172,9 @@ class Settings:
     model: str = ""
     ollama_url: str = DEFAULT_OLLAMA_URL
     context: int = DEFAULT_CONTEXT
-    # The second model that checks this one's work (llm.checker_*), or None.
-    checker: Settings | None = None
+    # The second models that check the readers' work (llm.checkers), in the
+    # order they are tried; empty when none is chosen.
+    checkers: list[Settings] = field(default_factory=list)
     # The readers after this one (llm.readers), asked in order when this one
     # cannot answer: no key, not reachable, rate limited, an error.
     fallbacks: list[Settings] = field(default_factory=list)
@@ -191,10 +192,12 @@ class Settings:
             return cls()
         url = llm.ollama_url or DEFAULT_OLLAMA_URL
         context = int(getattr(llm, "context", 0) or DEFAULT_CONTEXT)
-        checker = None
-        if getattr(llm, "checker_provider", ""):
-            checker = cls(provider=llm.checker_provider, model=llm.checker_model,
-                          ollama_url=url, context=context)
+        checkers = [cls(provider=r.provider, model=r.model,
+                        ollama_url=r.ollama_url or url, context=context)
+                    for r in getattr(llm, "checkers", None) or []]
+        if not checkers and getattr(llm, "checker_provider", ""):
+            checkers = [cls(provider=llm.checker_provider, model=llm.checker_model,
+                            ollama_url=url, context=context)]
         readers = [cls(provider=r.provider, model=r.model,
                        ollama_url=r.ollama_url or url, context=context)
                    for r in getattr(llm, "readers", None) or []]
@@ -205,16 +208,21 @@ class Settings:
         first = ready[0] if ready else readers[0]
         rest = [r for r in readers if r is not first]
         return cls(provider=first.provider, model=first.model, ollama_url=first.ollama_url,
-                   context=context, checker=checker, fallbacks=rest)
+                   context=context, checkers=checkers, fallbacks=rest)
 
     def chain(self) -> list[Settings]:
         """This reader and the ones after it, in the order they are asked."""
-        return [replace(self, checker=None, fallbacks=[], answered=None), *self.fallbacks]
+        return [replace(self, checkers=[], fallbacks=[], answered=None), *self.fallbacks]
 
-    def usable_checker(self) -> Settings | None:
-        """The second model, when one is chosen and ready to call."""
-        c = self.checker
-        return c if c is not None and not c.problem() else None
+    def checker_chain(self) -> Settings | None:
+        """The chosen second models that are ready to call, as one Settings
+        that tries them in order; None when none is chosen or ready. One that
+        is the model this one's answer came from is left out: it would only
+        agree with itself."""
+        who = self.answered or self
+        ready = [c for c in self.checkers if not c.problem()
+                 and (c.provider, c.model) != (who.provider, who.model)]
+        return replace(ready[0], fallbacks=ready[1:], answered=None) if ready else None
 
     def problem(self) -> str:
         """Why this cannot be used right now, or "" when it can."""

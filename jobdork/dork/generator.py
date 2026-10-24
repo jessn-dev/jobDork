@@ -6,11 +6,11 @@ Builds targeted Google dork queries to surface job postings on LinkedIn,
 Indeed, Glassdoor, 20+ ATS portals, the hidden job market, and more.
 
 Usage:
-    python main.py                           # interactive mode
-    python main.py --help                    # show all flags
-    ./run.sh --help                          # run via shell wrapper (recommended)
+    jobdork dork                             # interactive mode
+    jobdork dork --help                      # show all flags
+    ./run.sh dork --help                     # from a clone, finding the venv
 
-    python main.py \\
+    jobdork dork \\
         --title "software engineer | developer | SWE" \\
         --location "Chicago, IL" \\
         --level "mid | senior" \\
@@ -867,6 +867,7 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
+        prog="jobdork dork",
         description="Generate Google dork queries to find job postings.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,

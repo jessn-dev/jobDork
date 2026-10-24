@@ -85,9 +85,9 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
     notes = resume_doc.record_notes(store.projects(), store.education())
     record = resume_text + ("\n\n" + notes if notes else "")
 
+    checker = settings.checker_chain()
     report = JudgeReport(model=settings.label + (
-        f", checked by {settings.usable_checker().label}"
-        if settings.usable_checker() else ""))
+        f", checked by {checker.label}" if checker else ""))
     if uid:
         row = store.get(uid)
         rows = [row] if row is not None else []
@@ -161,10 +161,11 @@ def second_opinion(settings, role: dict, resume_text: str, verdict: dict,
     Never blocks the verdict: a failure is recorded on it, and the first
     model's score stands either way.
     """
-    checker = settings.usable_checker()
+    checker = settings.checker_chain()
     if checker is None:
         return
     try:
+        # The chosen checkers in order: the next scores when one cannot.
         other = judge(checker, role, resume_text, notes)
     except LLMError as exc:
         verdict["second"] = {"model": checker.label, "error": str(exc)[:300]}

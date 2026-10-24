@@ -6,6 +6,193 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-23 — Two dependencies with known vulnerabilities
+
+- **pypdf 6.21.1 had three advisories** (CVE-2026-115572, -115580,
+  -115585): a crafted PDF could make reading it run for a very long time.
+  jobdork reads PDF resumes, so a malicious one could hang an upload.
+  `requirements.lock` now pins 6.21.2, and the `pdf` extra asks for 6.21.2
+  or newer.
+- **setuptools 84.0.0** (GHSA-xmj3-9gf7-h52w), used only to build: on
+  Windows, a crafted wheel could write outside its folder. Now 84.1.0.
+- Both were published after the lock was last made, so the security job's
+  `pip-audit --strict` would have failed the next push to main. Found while
+  measuring the new vulnerability badge. Only those two lines of the lock
+  changed, with PyPI's own hashes; `pip-audit` on the lock now finds none.
+
+## Added — 2026-10-23 — Release pages carry the changelog
+
+- **A release page now says what changed**: the `docs/CHANGELOG.md` entries
+  written since the release before it, in full, newest first
+  (`scripts/release_notes.py`, run by the release job in `docker.yml`).
+  Before, GitHub generated the notes from pull request titles, so a release
+  said "chore: release 0.14.1 (see docs/CHANGELOG.md) by @jessn-dev in #11"
+  and nothing else.
+- A release's entries are the ones above the newest entry the previous
+  release's changelog had, read from the two tags with git, so nothing has
+  to be marked by hand. A page holds 125,000 characters: entries are given
+  in full while they fit, and the rest are listed by title, linked to their
+  place in the changelog (0.14.4's 110 entries come to about 113,000).
+- tests/test_release_notes.py: only the new entries, the first release
+  taking all, the overflow linked, GitHub's heading links.
+
+## Added — 2026-10-23 — Badges: build, coverage, vulnerabilities, version, licence, contributing
+
+- The README opens with three rows of badges: **health** (the build, test
+  coverage, known vulnerabilities), **ecosystem** (latest release, the
+  Docker image's version, Python, the licence) and **community** (pull
+  requests welcome, code style, the user guide).
+- **Coverage and vulnerabilities are measured here, with no outside
+  service or account**: the guide workflow runs the tests under `coverage`
+  and `pip-audit` on `requirements.lock` (exactly what the image and the
+  installers carry), and `scripts/badges.py` writes two small files that
+  shields.io reads from the GitHub Pages site. They are measured on every
+  push to main and every Monday, since new advisories appear without any
+  change here. Coverage today: 75%.
+- **CONTRIBUTING.md**, new, which "PRs welcome" links to: setting up, what a
+  pull request needs (tests, changelog, the guide and its pictures, the
+  docs), and that contributions are under the GPL. A pull request template
+  carries the same checklist.
+
+## Added — 2026-10-23 — A user guide, published on GitHub Pages
+
+- **https://jessn-dev.github.io/jobDork/**: how to use jobdork, page by
+  page, for people who will never read the code. Getting started and setup;
+  the Dashboard; Job posts; the job post window and every AI tool in it;
+  **Match, Fit and AI** explained, with how each is worked out; every
+  **status** and tag (age, still open, recruiter, the yellow tags); Search,
+  Resume, Sources, AI (readers, checkers, the hallucination check) and
+  Settings; **sending feedback**, with screenshots and what is and is not
+  sent; and a glossary.
+- **22 pictures from the real dashboard**, taken by
+  `scripts/guide_screenshots.py` on a made-up person's data
+  (`scripts/guide_demo.py`: a nurse in Chicago, invented employers, links to
+  example.com), scored by jobdork's own rules. The guide is public, so no
+  real resume, search or employer list is ever photographed. Headless Chrome
+  over the DevTools protocol (`scripts/guide_shots.mjs`); needs Chrome and
+  Node.
+- **It cannot fall behind the app**: `tests/test_guide.py` fails when the
+  dashboard shows a button or heading the guide never names, a status has
+  no row, a menu page has no guide page, or a picture is missing, unused, or
+  not taken by the script (so it would go stale). The build is strict: a
+  link to a missing page or section fails the pull request.
+- Built with MkDocs and Material (pinned in `guide/requirements.txt`; MkDocs
+  stays on 1.x) by `.github/workflows/guide.yml`, which publishes from main.
+  How to keep it current: `guide/README.md`. The repository's Settings →
+  Pages → Source has to be set to GitHub Actions once.
+
+## Added — 2026-10-23 — The pages follow the version, in one step
+
+- **Every page that tells you which release to copy names the current one,
+  set in one step.** `python scripts/set_version.py 0.14.5` writes the
+  version into `pyproject.toml` and into every page where a reader copies
+  it: the image tag (`jessengolab/jobdork:…`), the installers' names
+  (`jobdork-…-macos-arm64.dmg`, `…-windows-x64-setup.exe`), and the tag
+  command in SECURITY.md. Before, `compose.yaml` and the NAS guide named
+  0.14.4 by hand while `pyproject.toml` said 0.14.3, and nothing would have
+  noticed either going stale; the run guides wrote `<version>` instead, which
+  a reader had to look up.
+- Found by shape, in every page (README, SECURITY.md, PRIVACY.md,
+  `compose.yaml`, all of `docs/`), so a new page is covered without being
+  listed. The changelog and the history are left out: they name past
+  versions on purpose. A version stated as a fact ("0.14.4 or newer",
+  "0.14.3 and older") has none of these shapes and never changes.
+- **A stale page fails the checks**: `tests/test_version.py` runs
+  `set_version.py --check`, so a pull request that sets a new version
+  without the pages cannot merge, and the release tag's check in
+  `docker.yml` runs it again before anything is built. SECURITY.md's release
+  steps start with the script.
+- `pyproject.toml` set to 0.14.4 with it, as the next release (step 1 of
+  SECURITY.md's release; tag `v0.14.4` after merging).
+- README: a release badge that shows the newest release by itself.
+- tests/test_version.py: every page on the pyproject version, new pages
+  included and the changelog left out, what to copy changed and facts kept,
+  a malformed version refused.
+
+## Changed — 2026-10-23 — Licence: GNU GPL v3 or later
+
+- **jobdork is now under the GNU General Public License v3.0 or later**
+  (strong copyleft), replacing MIT. `LICENSE` is the FSF's text unchanged,
+  `pyproject.toml` says `GPL-3.0-or-later`, and so does the image's
+  `org.opencontainers.image.licenses` label; the README badge and License
+  section say what it means in a line.
+- **The installers now carry `LICENSE`**, as the GPL asks of anything
+  distributed built: CI installs jobdork editable, whose metadata names the
+  licence file without holding it, so the MIT text was never in the app
+  either. `packaging/jobdork.spec` adds it to the bundle, and the app's
+  `--self-test` fails a build without it.
+- Both authors of every commit are the owner, so no one else's permission
+  was needed.
+- The vendored humanizer rules keep their own MIT licence, which the GPL can
+  carry. HalluLens is CC BY-NC, which it could not: none of its code,
+  prompts or data was ever included, only its method, and the README's new
+  Credits section says so.
+
+## Fixed — 2026-10-23 — The hallucination check had one checker and no fallback
+
+- **Readers could fall back through six models; the check could not.** The
+  second model (`llm.checker_*`) was one model: when it was down, out of
+  credit or rate limited, the claim check failed and the output was recorded
+  unchecked, lowering coverage, though other ready models were listed. With
+  no second model chosen, the check ran on the same reader chain that wrote
+  the output, so with several readers the first still checked its own work.
+- **`llm.checkers` is now a list, up to six, tried in order** like
+  `llm.readers` (setup offers three). The old `checker_provider` and
+  `checker_model` still read as a one-entry list, and are written as the
+  first checker's, as `provider` and `model` are for readers.
+- **Who checks, in order** (`guard.checking`): the chosen checkers, then the
+  other readers, then the model that wrote it, only when nothing else is
+  ready. The writer is the reader that answered (`Settings.answered`), so
+  when the second reader wrote because the first was down, the first may
+  check. One chain, so `complete_json` hands over to the next on any failure.
+  The report's `second` is now whether the model that answered is not the
+  writer.
+- The guard checks on a copy of the settings: its calls no longer change
+  which model a verdict is recorded under (`ai_outputs.model`), which they
+  could when the guard and the writer shared one chain.
+- A checker that is the same model as the writer is passed over for that
+  output (and for the judged post's second score), instead of the config
+  refusing a checker equal to the first reader: with fallback, the first
+  reader can be the right checker for what the second wrote.
+- **The AI page** shows checkers as cards, like readers: Earlier, Remove,
+  **Add another checker**, a key and models per card; hidden while no reader
+  is set. **Save and test** asks every checker. The second score on judged
+  posts tries the checkers in order too (`Settings.checker_chain`).
+- docs/CONFIG.md (`llm.checkers`), docs/ARCHITECTURE.md, README.
+  tests/test_guard.py (a checker that cannot answer hands over, reader
+  fallback with the writer last, a checker equal to the writer passed over),
+  tests/test_readers.py (config list and old keys, the page's save, setup's
+  limit of three). Checked on the AI page against a scratch config: two
+  checker cards, saved back as `llm.checkers`.
+
+## Changed — 2026-10-23 — Documentation: one guide per way to run it
+
+- **docs/run/**, new: [README.md](run/README.md) puts the ways to run
+  jobdork side by side (what each gives, what it needs, where it keeps your
+  files, how to move between them), then one guide each:
+  [desktop.md](run/desktop.md) (installers, the first-open warning,
+  verifying a download, schedule, notifications, updates, uninstalling,
+  `--debug`, building the installers), [source.md](run/source.md) (install,
+  the extras, the dashboard, the window on Linux, updating),
+  [cli.md](run/cli.md) (every command, keys from the environment, cron and
+  Task Scheduler by hand), [docker.md](run/docker.md) (the image on your own
+  computer, the data folder, Ollama from a container, updating) and
+  [nas.md](run/nas.md) (docs/DEPLOY.md, moved; DEPLOY.md now points there).
+- **What was missing:** no guide for the desktop app beyond a paragraph,
+  none for Docker on your own computer apart from the NAS, no list of the
+  commands for terminal-only use, no uninstall or update steps, nothing on
+  Linux needing GTK or Qt for the window.
+- **What was outdated:** the README installed through one path and mixed in
+  the others; `jobdork dork --help` showed `python main.py`, a file that has
+  not existed since the move into `jobdork/dork/` (now `jobdork dork`, with
+  its own usage name); `jobdork --help` said "North American job boards";
+  `jobdork/data/humanizer/README` named `jobdork/humanize.py`.
+- **The README** is shorter: an Install and run table pointing to the guides,
+  and the dork generator's 360-line flag reference moved to
+  [docs/DORK.md](DORK.md). New Credits section for humanizer, HalluLens,
+  GeoNames and Lucide. Links to DEPLOY.md in SECURITY.md, CONFIG.md,
+  compose.yaml, the Dockerfile and `core/schedule.py` updated.
+
 ## Added — 2026-10-23 — Update from the app: download, check, install
 
 - **Settings → Updates** says which version you have and whether a newer one
@@ -5239,9 +5426,10 @@ open; a digest arrives, and what arrived with it is what was not there before.
   schedule's Task Scheduler entry and the close-mid-scan question tried on
   Windows, and the crontab line on Linux; the Feedback page's Send tried in a
   browser against the live relay.
-- **Release 0.14.4.** `compose.yaml` and docs/DEPLOY.md name it, and the
-  published 0.14.3 restarts over and over without a mapped `config.yaml`;
-  until 0.14.4 is out, the NAS instructions do not work.
+- **Release 0.14.4.** `pyproject.toml` and every page now say 0.14.4
+  (branch docs/run-guides); once merged, tag `v0.14.4`. The published 0.14.3
+  restarts over and over without a mapped `config.yaml`, so until 0.14.4 is
+  out the Docker and NAS instructions do not work.
 - **The weekly board re-verify cannot open its pull request** until the
   repository has the `BOARDS_PR_TOKEN` secret (see the top of
   `.github/workflows/boards.yml`); a person has to add it. Until then the

@@ -80,6 +80,41 @@ def test_the_page_writes_the_readers_and_the_first_is_provider_and_model():
         assert cfg.llm.readers == [] and cfg.llm.provider == ""
 
 
+def test_checkers_are_a_list_like_readers_and_the_old_single_one_still_reads():
+    cfg = _load("llm:\n  provider: ollama\n  model: a\n  checkers:\n"
+                "    - {provider: ollama, model: b}\n    - {provider: gemini, model: g}\n")
+    assert [(c.provider, c.model) for c in cfg.llm.checkers] == [("ollama", "b"), ("gemini", "g")]
+    assert (cfg.llm.checker_provider, cfg.llm.checker_model) == ("ollama", "b")
+    assert [c.model for c in llm.Settings.from_config(cfg).checkers] == ["b", "g"]
+    old = _load("llm: {provider: ollama, model: a, checker_provider: ollama, checker_model: b}\n")
+    assert [c.model for c in old.llm.checkers] == ["b"]
+    # The reader itself may be listed: it checks what another reader wrote.
+    assert _load("llm:\n  provider: ollama\n  model: a\n  checkers:\n"
+                 "    - {provider: ollama, model: a}\n").llm.checkers[0].model == "a"
+    seven = "".join(f"    - {{provider: ollama, model: m{i}}}\n" for i in range(7))
+    _refused("llm:\n  checkers:\n" + seven, "llm.checkers lists 7")
+    _refused("llm:\n  checkers:\n    - {provider: mistral, model: a}\n", "llm.checkers entry 1")
+
+
+def test_the_page_writes_the_checkers_and_the_first_is_checker_provider():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "config.yaml"
+        path.write_text(TITLES, encoding="utf-8")
+        cfg = setup.write(str(path), {"llm": {"checkers": [
+            {"provider": "gemini", "model": "g"}, {"provider": "", "model": "ignored"},
+            {"provider": "ollama", "model": "b", "ollama_url": "http://box:11434"}]}})
+        assert [(c.provider, c.model) for c in cfg.llm.checkers] == [("gemini", "g"),
+                                                                     ("ollama", "b")]
+        assert cfg.llm.checkers[1].ollama_url == "http://box:11434"
+        assert (cfg.llm.checker_provider, cfg.llm.checker_model) == ("gemini", "g")
+        # A page from before the list sends one second model.
+        cfg = setup.write(str(path), {"llm": {"checker_provider": "ollama",
+                                              "checker_model": "c"}})
+        assert [c.model for c in cfg.llm.checkers] == ["c"]
+        cfg = setup.write(str(path), {"llm": {"checkers": []}})
+        assert cfg.llm.checkers == [] and cfg.llm.checker_provider == ""
+
+
 def _fake_ollama(answers: dict):
     """Ollama stand-in: each model answers as `answers` says, or raises."""
     asked = []
@@ -158,6 +193,10 @@ def test_setup_allows_three_readers_and_the_ai_page_six():
         code, body = run.post_json("/api/llm", {"readers": readers(3)})
         assert code == 200 and len(json.loads(body)["readers"]) == 3
         assert json.loads(body)["max_readers"] == 3
+        code, body = run.post_json("/api/llm", {"checkers": readers(4)})
+        assert code == 400 and b"at most 3 AI checkers" in body
+        code, body = run.post_json("/api/llm", {"checkers": readers(2)[1:]})
+        assert code == 200 and [c["model"] for c in json.loads(body)["checkers"]] == ["m1"]
 
         text = path.read_text(encoding="utf-8").replace("setup: {step: ai}\n", "")
         text = "\n".join(line for line in text.splitlines()

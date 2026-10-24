@@ -18,8 +18,11 @@ a = Analysis(
     [str(ROOT / "packaging" / "jobdork_app.py")],
     pathex=[str(ROOT)],
     # The dashboard page, the board list, the gazetteer, the humanizer rules;
-    # and the package's metadata, which `jobdork.__version__` is read from.
-    datas=collect_data_files("jobdork") + copy_metadata("jobdork"),
+    # the package's metadata, which `jobdork.__version__` is read from; and
+    # the GPL's text, which must travel with every built copy. CI installs
+    # editable, whose metadata does not carry LICENSE itself.
+    datas=collect_data_files("jobdork") + copy_metadata("jobdork")
+    + [(str(ROOT / "LICENSE"), ".")],
     # Imported only inside functions or behind a try, so named here: the
     # Claude provider and the PDF reader are extras a pip install may skip,
     # and an app user cannot add them afterwards. The command line runs the

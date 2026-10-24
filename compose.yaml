@@ -3,7 +3,7 @@
 # Paste this into your NAS's Docker app (Synology Container Manager → Project,
 # QNAP Container Station → Applications, UGREEN Docker → Project, TrueNAS →
 # Install via YAML, Portainer → Stacks), or run `docker compose up -d` in the
-# folder that holds it. Step by step: docs/DEPLOY.md.
+# folder that holds it. Step by step: docs/run/nas.md.
 #
 # Change two things before starting it:
 #   1. the version tag on `image`, to the release you want (Docker Hub lists

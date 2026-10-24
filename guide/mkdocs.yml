@@ -1,0 +1,60 @@
+# The user guide, published to GitHub Pages by .github/workflows/guide.yml.
+# How to keep it in step with the app: guide/README.md.
+site_name: jobdork user guide
+site_description: How to use jobdork, page by page
+site_url: https://jessn-dev.github.io/jobDork/
+repo_url: https://github.com/jessn-dev/jobDork
+repo_name: jessn-dev/jobDork
+edit_uri: edit/main/guide/docs/
+docs_dir: docs
+strict: true
+# Strict turns these warnings into a failed build: a link to a page or a
+# section that does not exist stops the guide from publishing.
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.footer
+    - search.suggest
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      toggle: {icon: material/weather-night, name: Dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      toggle: {icon: material/weather-sunny, name: Light mode}
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Welcome: index.md
+  - Getting started: getting-started.md
+  - Using it:
+      - Dashboard: dashboard.md
+      - Job posts: job-posts.md
+      - The job post window: job-window.md
+      - Scores explained: scores.md
+      - Statuses and tags: statuses.md
+  - Setting it up:
+      - Search: search.md
+      - Resume: resume.md
+      - Sources: sources.md
+      - AI: ai.md
+      - Settings: settings.md
+  - Feedback: feedback.md
+  - Glossary: glossary.md

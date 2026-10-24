@@ -41,3 +41,9 @@ config.local.yaml
 # Cloudflare wrangler, relay/feedback
 .wrangler/
 node_modules/
+
+# Coverage runs and the user guide's local preview (guide/README.md)
+.coverage
+coverage.json
+.venv-guide/
+guide/site/

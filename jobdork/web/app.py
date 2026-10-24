@@ -229,6 +229,10 @@ def self_test() -> list[str]:
                  if not (data / name).exists()]
     if __version__.endswith("+source"):
         problems.append("no package metadata: the version reads as " + __version__)
+    # The GPL's text travels with every built copy (packaging/jobdork.spec).
+    bundle = getattr(sys, "_MEIPASS", "")
+    if bundle and not (Path(bundle) / "LICENSE").exists():
+        problems.append("missing LICENSE: the GPL's text must ship with the app")
     return problems
 
 

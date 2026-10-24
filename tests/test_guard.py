@@ -98,7 +98,7 @@ def test_a_second_model_checks_when_one_is_chosen_and_ready():
     original = guard.complete_json
     guard.complete_json = fake
     try:
-        first = _Ready("ollama", "writer", checker=_Ready("ollama", "checker"))
+        first = _Ready("ollama", "writer", checkers=[_Ready("ollama", "checker")])
         report = guard.check(first, "text", {"resume": RESUME})
     finally:
         guard.complete_json = original
@@ -111,12 +111,66 @@ def test_a_second_model_that_cannot_be_called_falls_back_and_says_so():
     guard.complete_json = _fake([{"claims": []}])
     try:
         # No key held for it, so Settings.problem() names that.
-        first = _Ready("ollama", "writer", checker=llm.Settings("anthropic", "x"))
+        first = _Ready("ollama", "writer", checkers=[llm.Settings("anthropic", "x")])
         report = guard.check(first, "text", {"resume": RESUME})
     finally:
         guard.complete_json = original
     assert report.checked and not report.second
     assert report.note.startswith("second model ") and "x not used" in report.note
+
+
+def _claims_then_verdicts(seen, down=()):
+    """A fake model call: records who was asked, fails for the names in
+    `down`, and otherwise answers one claim, then its supported verdict."""
+    def fake(settings, *a, **k):
+        for one in settings.chain():
+            seen.append(one.model)
+            if one.model in down:
+                continue
+            settings.answered = one
+            if k.get("purpose") == "guard_extract":
+                return {"claims": ["Seven years of Python"]}
+            return {"results": [{"claim": "Seven years of Python", "verdict": "supported",
+                                 "source": "resume", "quote": "Seven years of Python"}]}
+        raise llm.LLMError("no AI reader could answer")
+    return fake
+
+
+def test_a_checker_that_cannot_answer_hands_over_to_the_next():
+    """2026-10-23: one second model, and when it was down or rate limited the
+    output went unchecked, though up to six readers could fall back."""
+    seen = []
+    original = guard.complete_json
+    guard.complete_json = _claims_then_verdicts(seen, down={"c1"})
+    try:
+        first = _Ready("ollama", "writer",
+                       checkers=[_Ready("ollama", "c1"), _Ready("ollama", "c2")])
+        report = guard.check(first, "text", {"resume": RESUME})
+    finally:
+        guard.complete_json = original
+    assert seen == ["c1", "c2", "c1", "c2"]
+    assert report.checked and report.second and report.model.endswith("· c2")
+
+
+def test_with_no_checker_another_reader_checks_and_the_writer_comes_last():
+    order, _ = guard.checking(_Ready("ollama", "r1", fallbacks=[_Ready("ollama", "r2")]))
+    assert [s.model for s in order.chain()] == ["r2", "r1"]
+    # The second reader wrote it (the first could not answer): the first checks.
+    writer = _Ready("ollama", "r1", fallbacks=[_Ready("ollama", "r2")])
+    writer.answered = writer.fallbacks[0]
+    order, _ = guard.checking(writer)
+    assert [s.model for s in order.chain()] == ["r1", "r2"]
+    # One reader alone checks itself, as before.
+    order, note = guard.checking(_Ready("ollama", "solo"))
+    assert [s.model for s in order.chain()] == ["solo"] and not note
+
+
+def test_a_checker_that_is_the_writer_is_passed_over():
+    first = _Ready("ollama", "r1", checkers=[_Ready("ollama", "r1"), _Ready("ollama", "c")],
+                   fallbacks=[_Ready("ollama", "r2")])
+    order, _ = guard.checking(first)
+    assert [s.model for s in order.chain()] == ["c", "r2", "r1"]
+    assert first.checker_chain().model == "c"
 
 
 def test_the_ai_verdict_reads_your_projects_and_education_too():
@@ -172,11 +226,11 @@ def test_two_scores_far_apart_are_marked_as_a_disagreement():
         judging.judge = lambda s, role, resume, notes="": {"score": 40, "verdict": "weak",
                                                            "summary": "thin match"}
         verdict = {"score": 85, "verdict": "strong"}
-        judging.second_opinion(_Ready("ollama", "a", checker=_Ready("ollama", "b")),
+        judging.second_opinion(_Ready("ollama", "a", checkers=[_Ready("ollama", "b")]),
                                {}, RESUME, verdict)
         assert verdict["disagree"] and verdict["second"]["score"] == 40
         close = {"score": 50, "verdict": "possible"}
-        judging.second_opinion(_Ready("ollama", "a", checker=_Ready("ollama", "b")),
+        judging.second_opinion(_Ready("ollama", "a", checkers=[_Ready("ollama", "b")]),
                                {}, RESUME, close)
         assert not close["disagree"]
         alone = {"score": 85}

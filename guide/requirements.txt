@@ -1,0 +1,5 @@
+# What builds the user guide (guide/mkdocs.yml); CI installs exactly this.
+# Not a dependency of jobdork itself.
+# MkDocs 2 drops the plugin and theme system Material is built on: stay on 1.x.
+mkdocs==1.6.1
+mkdocs-material==9.7.7

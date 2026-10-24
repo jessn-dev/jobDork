@@ -23,7 +23,7 @@ The scheduler is the only record: what the page shows is read back from it,
 so an entry removed by hand reads as off, and one that starts another copy
 of jobdork (the app moved, a second install) says so. Nothing is kept in
 config.yaml. A container has no scheduler of its own; there the host's
-starts `docker exec`, as docs/DEPLOY.md shows.
+starts `docker exec`, as docs/run/docker.md shows.
 """
 
 from __future__ import annotations
@@ -145,7 +145,7 @@ def unsupported() -> str:
     if os.environ.get(CONTAINER_ENV):
         return ("jobdork is running in a container, which has no scheduler of "
                 "its own. Schedule `docker exec jobdork jobdork scan` on the "
-                "host instead (docs/DEPLOY.md).")
+                "host instead (docs/run/docker.md).")
     if sys.platform not in ("darwin", "win32") and not _which("crontab"):
         return "this system has no crontab command to schedule with"
     return ""

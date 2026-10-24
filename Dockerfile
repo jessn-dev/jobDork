@@ -36,7 +36,7 @@ FROM python:3.14-alpine@sha256:601e99e090cb08c2784a42395487709500bc39930307fe72f
 
 LABEL org.opencontainers.image.title="jobdork" \
       org.opencontainers.image.source="https://github.com/jessn-dev/jobDork" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="GPL-3.0-or-later"
 
 # A non-root user with a fixed id, 1000: the folders mounted from a NAS or a
 # server (data/, and config.yaml if one is mapped) must be writable by it, and a known id makes
@@ -66,7 +66,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 # To open it from another computer (a NAS opened from a laptop), publish the
 # port to the network instead and name the address it is opened by:
 #   -p 8765:8765 -e JOBDORK_ALLOW_HOSTS=192.168.1.50
-# The access token is still required; see docs/DEPLOY.md.
+# The access token is still required; see docs/run/nas.md.
 ENV JOBDORK_IN_CONTAINER=1
 
 # Print as it happens. Without this Python holds output back when it is not

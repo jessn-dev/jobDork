@@ -1,0 +1,186 @@
+// Photographs the dashboard for the user guide: guide/docs/images/*.png.
+//
+//   node scripts/guide_shots.mjs <dashboard url with ?t=token> <out dir> [setup url]
+//
+// Run through scripts/guide_screenshots.py, which starts the dashboard on the
+// made-up demo (scripts/guide_demo.py) and passes the address. Headless
+// Chrome over the DevTools protocol; nothing to install but Chrome and Node.
+// Light theme, one window size, so pictures stay alike from one run to the
+// next. Each shot is a whole page, or one part of it (`clip`, a selector).
+
+import { spawn } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+const [,, url, out, setupUrl] = process.argv;
+if (!url || !out) {
+  console.error('usage: node scripts/guide_shots.mjs <url> <out dir> [setup url]');
+  process.exit(2);
+}
+
+const CHROME = [
+  process.env.CHROME,
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium',
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+].find(p => p && existsSync(p));
+if (!CHROME) { console.error('Chrome not found; set CHROME to its path'); process.exit(2); }
+
+const WIDTH = 1280, HEIGHT = 860, PORT = 9334;
+const profile = mkdtempSync(join(tmpdir(), 'jobdork-guide-'));
+const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${PORT}`,
+  `--user-data-dir=${profile}`, '--hide-scrollbars', `--window-size=${WIDTH},${HEIGHT}`,
+  'about:blank'], {stdio: 'ignore'});
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+let tabs;
+for (let i = 0; i < 60 && !tabs; i++) {
+  try { tabs = await (await fetch(`http://127.0.0.1:${PORT}/json`)).json(); } catch { await sleep(250); }
+}
+const ws = new WebSocket(tabs.find(t => t.type === 'page').webSocketDebuggerUrl);
+await new Promise(r => { ws.onopen = r; });
+let id = 0;
+const waiting = {};
+ws.onmessage = m => { const d = JSON.parse(m.data); if (waiting[d.id]) { waiting[d.id](d); delete waiting[d.id]; } };
+const send = (method, params = {}) => new Promise(r => {
+  const i = ++id; waiting[i] = r; ws.send(JSON.stringify({id: i, method, params}));
+});
+const run = async js => {
+  const d = await send('Runtime.evaluate', {expression: `(async () => { ${js} })()`,
+                                            awaitPromise: true, returnByValue: true});
+  if (d.result && d.result.exceptionDetails) throw new Error(`${js}\n${d.result.exceptionDetails.text}`);
+  return d.result && d.result.result ? d.result.result.value : undefined;
+};
+
+await send('Page.enable');
+await send('Runtime.enable');
+await send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: 'light'}]});
+await send('Emulation.setDeviceMetricsOverride', {width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false});
+
+async function open(address) {
+  await send('Page.navigate', {url: address});
+  await sleep(2500);
+}
+
+// Go to a page of the dashboard by its menu button.
+const view = name => `document.querySelector('nav [data-view=${name}]').click();`;
+
+async function shoot(name, {clip, full, pad = 8, height} = {}) {
+  await sleep(700);
+  let params = {format: 'png'};
+  if (clip) {
+    const box = await run(`const el = document.querySelector(${JSON.stringify(clip)});
+      if (!el) return null; el.scrollIntoView({block: 'start'});
+      const r = el.getBoundingClientRect(); return {x: r.x, y: r.y, w: r.width, h: r.height};`);
+    if (!box) throw new Error(`${name}: nothing matches ${clip}`);
+    await sleep(300);
+    const again = await run(`const r = document.querySelector(${JSON.stringify(clip)}).getBoundingClientRect();
+      return {x: r.x + scrollX, y: r.y + scrollY, w: r.width, h: r.height};`);
+    params.captureBeyondViewport = true;
+    params.clip = {x: Math.max(0, again.x - pad), y: Math.max(0, again.y - pad),
+                   width: again.w + 2 * pad, height: (height || again.h) + 2 * pad, scale: 1};
+  } else {
+    await run(`window.scrollTo(0, 0); document.querySelector('main') && document.querySelector('main').scrollTo(0, 0);`);
+    await sleep(300);
+    if (full) params.captureBeyondViewport = true;
+  }
+  const shot = await send('Page.captureScreenshot', params);
+  writeFileSync(join(out, `${name}.png`), Buffer.from(shot.result.data, 'base64'));
+  console.log(`  ${name}.png`);
+}
+
+// Hover over a badge so its explanation opens, as a mouse would, and
+// photograph the badge with it.
+async function tip(name, selector) {
+  await run(`document.querySelector(${JSON.stringify(selector)}).closest('.role').scrollIntoView({block: 'start'});
+    scrollBy(0, -20);`);
+  await sleep(300);
+  const at = await run(`const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
+    return {x: r.x + r.width / 2, y: r.y + r.height / 2};`);
+  await send('Input.dispatchMouseEvent', {type: 'mouseMoved', x: at.x, y: at.y});
+  await sleep(400);
+  const box = await run(`const b = document.querySelector(${JSON.stringify(selector)});
+    const t = b.querySelector('.tip'); const a = b.getBoundingClientRect(), c = t.getBoundingClientRect();
+    const x = Math.min(a.x, c.x), y = Math.min(a.y, c.y);
+    return {x: x + scrollX, y: y + scrollY, w: Math.max(a.right, c.right) - x, h: Math.max(a.bottom, c.bottom) - y};`);
+  const shot = await send('Page.captureScreenshot', {format: 'png', captureBeyondViewport: true,
+    clip: {x: box.x - 8, y: box.y - 8, width: box.w + 16, height: box.h + 16, scale: 1}});
+  writeFileSync(join(out, `${name}.png`), Buffer.from(shot.result.data, 'base64'));
+  console.log(`  ${name}.png`);
+  await send('Input.dispatchMouseEvent', {type: 'mouseMoved', x: 1, y: 1});
+}
+
+try {
+  if (setupUrl) {
+    await open(setupUrl);
+    await shoot('setup');
+  }
+
+  await open(url);
+  await shoot('dashboard');
+  await shoot('dashboard-buttons', {clip: '#view-scan > .bar:nth-of-type(2)'});
+
+  await run(view('roles'));
+  await sleep(1500);
+  await shoot('job-posts');
+  await shoot('job-posts-filters', {clip: '#view-roles'});
+  await shoot('job-card', {clip: '#list .role'});
+  await tip('badge-match', '#list .role .badge.match');
+  await tip('badge-fit', '#list .role .badge.fit');
+  await tip('badge-ai', '#list .role .badge.ai');
+
+  // The job post's window: the advert, then the AI tools tab.
+  const uid = await run(`const r = await api('/api/roles?scope=open'); const d = await r.json();
+    const roles = d.roles || d; const withAi = roles.find(x => x.ai); return (withAi || roles[0]).uid;`);
+  await run(`await openRole('${uid}');`);
+  await sleep(1200);
+  await shoot('job-window');
+  await shoot('job-window-statuses', {clip: '#dlg-head .statusbar'});
+  await run(`drawDetail('tools');`);
+  await sleep(1500);
+  await shoot('job-window-ai-tools');
+  await run(`document.getElementById('detail').close();`);
+
+  await run(`document.getElementById('scope').value = 'dropped'; await loadRoles();`);
+  await sleep(1200);
+  await shoot('job-posts-dropped');
+  await run(`document.getElementById('scope').value = 'open'; await loadRoles();`);
+
+  await run(view('settings'));
+  await sleep(1500);
+  await shoot('search');
+  await shoot('search-dealbreakers', {clip: '#view-settings .sgroup.wide'});
+
+  await run(view('resume'));
+  await sleep(1500);
+  await shoot('resume');
+
+  await run(view('sources'));
+  await sleep(2000);
+  await shoot('sources');
+
+  await run(view('ai'));
+  await sleep(1500);
+  await shoot('ai');
+  await shoot('ai-checkers', {clip: '#ai-check'});
+
+  await run(view('prefs'));
+  await sleep(1500);
+  await shoot('settings');
+
+  await run(view('tools'));
+  await sleep(800);
+  await run(`document.getElementById('fbk-title').value = 'Scan stops at Workday boards';
+    document.getElementById('fbk-details').value = 'I pressed Run a scan. It stopped after the Workday boards with no message. I expected it to carry on to the other sources.';`);
+  await shoot('feedback');
+  await run(`document.getElementById('fbk-preview').click();`);
+  await sleep(1500);
+  await shoot('feedback-preview', {clip: '#fbk-out'});
+} finally {
+  ws.close();
+  chrome.kill();
+  await sleep(500);
+  rmSync(profile, {recursive: true, force: true});
+}
+process.exit(0);

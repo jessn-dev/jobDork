@@ -21,7 +21,7 @@ blocks the output; it lowers coverage on the dashboard instead.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from .llm import LLMError, Settings, complete_json
 
@@ -174,29 +174,56 @@ def verify(settings: Settings, claims: list[str],
     return out
 
 
+def checking(settings: Settings) -> tuple[Settings, str]:
+    """Who checks what `settings` wrote, as one Settings that tries them in
+    order, and a note naming any chosen checker that could not be used.
+
+    One model marking its own work misses what it got wrong the same way
+    twice, so the model that wrote it comes last: the chosen checkers
+    (llm.checkers) first, then the other readers, then the writer itself
+    when nothing else is ready. Each is asked in turn when the one before
+    cannot answer (llm.complete_json), so one checker being down, out of
+    credit or rate limited no longer leaves the output unchecked.
+    """
+    writer = settings.answered or settings
+    wrote = (writer.provider, writer.model)
+    skipped = [c for c in settings.checkers if c.problem()]
+    order: list[Settings] = []
+    for one in [*settings.checkers, *settings.chain()]:
+        if (one.problem() or (one.provider, one.model) == wrote
+                or any(o.provider == one.provider and o.model == one.model
+                       and o.ollama_url == one.ollama_url for o in order)):
+            continue
+        order.append(replace(one, checkers=[], fallbacks=[], answered=None))
+    order.append(replace(writer, checkers=[], fallbacks=[], answered=None))
+    note = "; ".join(f"second model {c.label} not used: {c.problem()}" for c in skipped)
+    return replace(order[0], fallbacks=order[1:]), note
+
+
 def check(settings: Settings, text: str, sources: dict[str, str]) -> GuardReport:
     """Extract and verify. Never raises; a failure is `checked=False`.
 
-    With a second model chosen (llm.checker_*) and ready, that model checks:
-    one model marking its own work misses what it got wrong the same way
-    twice. A second model that cannot be called (no key held, say) falls back
-    to the first, and the report says so.
+    A model other than the one that wrote it checks when one is ready
+    (`checking`); the report names the model that did and says whether it
+    was a second one.
     """
-    use, note = settings, ""
-    if settings.checker is not None:
-        if settings.usable_checker():
-            use = settings.checker
-        else:
-            note = (f"second model {settings.checker.label} not used: "
-                    f"{settings.checker.problem()}")
-    base = {"model": use.label if use.provider else "", "second": use is not settings,
-            "note": note}
+    use, note = checking(settings)
+    writer = settings.answered or settings
     if use.problem():
-        return GuardReport(error=use.problem(), **base)
+        return GuardReport(error=use.problem(), model=use.label if use.provider else "",
+                           note=note)
+
+    def report(**found) -> GuardReport:
+        # After the calls, `use.label` is the model that answered the last.
+        who = use.answered or use
+        return GuardReport(model=use.label, note=note,
+                           second=(who.provider, who.model) != (writer.provider, writer.model),
+                           **found)
+
     try:
         claims = extract_claims(use, text)
         if not claims:
-            return GuardReport(checked=True, **base)
-        return GuardReport(checked=True, claims=verify(use, claims, sources), **base)
+            return report(checked=True)
+        return report(checked=True, claims=verify(use, claims, sources))
     except LLMError as exc:
-        return GuardReport(error=str(exc), **base)
+        return report(error=str(exc))

@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jobdork"
-version = "0.14.3"
+version = "0.14.4"
 description = "Google dork job search plus direct ATS scanning, anywhere in the world"
 readme = "README.md"
 requires-python = ">=3.10"
-license = "MIT"
+license = "GPL-3.0-or-later"
 authors = [{ name = "jessn-dev" }]
 keywords = ["jobs", "job-search", "ats", "scraper", "cli"]
 
@@ -24,7 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 # Only needed to read a PDF resume. Scanning, filtering and tracking all work
 # without it, and a missing parser says so rather than scoring nothing.
-pdf = ["pypdf>=6.21.1"]
+pdf = ["pypdf>=6.21.2"]
 # The Claude provider on the AI page. Ollama, Gemini and ChatGPT need nothing
 # beyond requests.
 ai = ["anthropic>=1.8"]
