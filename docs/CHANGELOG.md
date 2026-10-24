@@ -57,6 +57,12 @@ it and into an entry when the work is done.
   tokens on top of the answer's.
 - This machine's configs now check with qwen3.8:27b (the desktop app's then
   with Gemini); the app's fallback checker had been llama3.2:3b.
+- **CodeQL found a slow pattern (py/redos, high)** in reading what a gap
+  claim says is missing: a run of filler words ("no any  any  any …") could
+  split its spaces many ways and take exponential time on a claim built
+  that way, and claims come from models reading job posts. Each filler word
+  now owns the spaces after it, and only a claim's first 300 characters are
+  read; tests/test_guard.py times a hostile claim.
 - README, docs/CONFIG.md, docs/run/nas.md, config.example.yaml and the
   guide's AI page name qwen3.8:27b as the checker to pull.
 - tests/test_guard.py and tests/test_ai.py cover gaps (including a made-up

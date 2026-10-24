@@ -210,13 +210,17 @@ _MISSING_AFTER = re.compile(
     r"(?:mention|show|list|state|include|name|have|cite|describe|demonstrate|indicate|"
     r"specify|lacks?|lacking|missing|without|no)\s+"
     r"(?:(?:any|professional|direct|explicit|experience|evidence|sign|record|mention|"
-    r"background)\s+(?:in|with|of|for|on)?\s*)*(.+?)\.?$", re.IGNORECASE)
+    r"background)(?:\s+(?:in|with|of|for|on))?\s+)*(.+?)\.?$", re.IGNORECASE)
+# Each filler word owns the spaces after it: an optional "\s*" beside "\s+"
+# let a run of them split many ways, and "no any any any ..." took
+# exponential time (CodeQL py/redos).
 _MISSING_BEFORE = re.compile(
     r"^(?:the\s+)?(.+?)\s+(?:is|are)(?:\s+not|n't)\s+(?:mentioned|shown|listed|stated|"
     r"included|named)", re.IGNORECASE)
 
 
 def _missing(claim: str) -> str:
+    claim = claim[:300]                         # a claim is a sentence
     m = _MISSING_BEFORE.search(claim) or _MISSING_AFTER.search(claim)
     return m.group(1) if m else ""
 

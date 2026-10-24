@@ -408,6 +408,18 @@ def test_a_gap_with_no_quote_is_read_from_the_claims_own_words():
     assert got == {gaps[0]: "supported", gaps[1]: "contradicted"}, got
 
 
+def test_reading_a_gap_takes_no_time_on_a_hostile_claim():
+    """Claims come from models reading job posts, so a claim can be built to
+    make the pattern backtrack: "no any  any  any ..." once took exponential
+    time (CodeQL py/redos)."""
+    import time
+    assert guard._missing("Lacks any direct experience in Kubernetes") == "Kubernetes"
+    started = time.monotonic()
+    for claim in ("no " + "any  " * 28 + "\n!\n!", "no" + " any" * 5000 + "\n!"):
+        guard._missing(claim)
+    assert time.monotonic() - started < 1
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]
