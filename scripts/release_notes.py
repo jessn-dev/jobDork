@@ -2,11 +2,18 @@
 """
 release_notes.py
 ================
-What changed in a release, for its GitHub Release page: the docs/CHANGELOG.md
-entries written since the release before it, in full.
+A release's GitHub Release page: the downloads first, then how to check
+them, then what changed (the docs/CHANGELOG.md entries written since the
+release before it, in full).
 
-    python scripts/release_notes.py v0.14.5              # since the tag before it
+    python scripts/release_notes.py --page v0.14.5 <image> <digest>  # the whole page
+    python scripts/release_notes.py v0.14.5              # what changed, since the tag before it
     python scripts/release_notes.py v0.14.5 v0.14.3      # since a tag you name
+
+GitHub lists a release's files (assets) after its text, always, and that
+order cannot be changed. So the page opens with a Download table linking
+each file directly, and the changelog, which is long, is folded under a
+"What changed" line you click to open: the files are found first either way.
 
 GitHub's own release notes list pull request titles ("chore: release 0.14.1
 (see docs/CHANGELOG.md) by @jessn-dev in #11"), which say nothing. The
@@ -89,7 +96,10 @@ def notes(tag: str, previous: str = "") -> str:
     new = since(current, before)
     if not new:
         return "## What changed\n\nNo changelog entries since the last release.\n"
-    out, used, left = ["## What changed", ""], 0, []
+    # Folded: GitHub shows the files after the text, and this is long.
+    out, used, left = ["## What changed", "",
+                       f"<details><summary><b>{len(new)} change{'' if len(new) == 1 else 's'} in this release</b>, "
+                       "newest first (click to read)</summary>", ""], 0, []
     for entry in new:
         heading, _, rest = entry.partition("\n")
         block = f"### {heading[3:]}\n{rest}\n"
@@ -109,10 +119,64 @@ def notes(tag: str, previous: str = "") -> str:
         if len(links) < len(left):
             out.append(f"- …and the older ones in [the changelog]({REPO}/blob/{ref}/{CHANGELOG})")
         out.append("")
+    out += ["</details>", ""]
     return "\n".join(out)
 
 
+def page(tag: str, image: str, digest: str, previous: str = "") -> str:
+    """The whole release page: downloads, first opening, checking, changes."""
+    version = tag.removeprefix("v")
+    files = f"{REPO}/releases/download/{tag}"
+    mac = f"jobdork-{version}-macos-arm64.dmg"
+    win = f"jobdork-{version}-windows-x64-setup.exe"
+    return "\n".join([
+        "## Download", "",
+        "| For | Download |",
+        "|---|---|",
+        f"| **Mac** with Apple Silicon (M1 or later) | [{mac}]({files}/{mac}) |",
+        f"| **Windows** 10 or 11, 64-bit | [{win}]({files}/{win}) |",
+        f"| **Docker** (a NAS or a server) | `docker pull {image}:{version}` |",
+        f"| Checksums of the two installers | [SHA256SUMS.txt]({files}/SHA256SUMS.txt) |",
+        "",
+        "**Mac:** open the `.dmg` and drag jobdork into Applications. "
+        "**Windows:** run the setup; it installs for you alone, no administrator needed. "
+        "Linux, an Intel Mac, or from source: "
+        f"[the ways to run it]({REPO}/blob/{tag}/docs/run/README.md). "
+        "New to jobdork? The [user guide](https://jessn-dev.github.io/jobDork/) "
+        "shows every page of the app.", "",
+        "### The first time you open it", "",
+        "The installers are not signed yet, so each system warns once:", "",
+        "- **macOS** says it cannot check jobdork for malicious software. Click **Done**,",
+        "  open **System Settings → Privacy & Security**, scroll down to the line about",
+        "  jobdork and click **Open Anyway**, then **Open Anyway** again.",
+        "- **Windows** shows \"Windows protected your PC\". Click **More info**, then "
+        "**Run anyway**.", "",
+        "## Check it is the real one", "",
+        "An installer: compare its SHA-256 with `SHA256SUMS.txt`, or with the "
+        "[GitHub CLI](https://cli.github.com/):", "",
+        "```bash",
+        f"gh attestation verify {mac} --repo {REPO.removeprefix('https://github.com/')}",
+        "```", "",
+        f"The image `{image}:{version}` is exactly:", "",
+        "```", f"{image}@{digest}", "```", "",
+        "Built, scanned, checked and signed by this repository's workflow after approval.",
+        "Verify it before you run it, then pull it by that digest:", "",
+        "```bash",
+        f"cosign verify {image}@{digest} \\",
+        f"  --certificate-identity-regexp '^{REPO}/\\.github/workflows/docker\\.yml@' \\",
+        "  --certificate-oidc-issuer https://token.actions.githubusercontent.com",
+        "```", "",
+        f"Code signing: [policy]({REPO}/blob/{tag}/README.md#code-signing-policy) "
+        "(free code signing by SignPath.io, certificate by SignPath Foundation, once granted). "
+        f"Privacy: [PRIVACY.md]({REPO}/blob/{tag}/PRIVACY.md).", "",
+        notes(tag, previous if previous else previous_tag(tag)),
+    ])
+
+
 def main(argv: list[str]) -> int:
+    if argv[:1] == ["--page"] and len(argv) == 4:
+        sys.stdout.write(page(*argv[1:]))
+        return 0
     if not 1 <= len(argv) <= 2 or argv[0].startswith("-"):
         print(__doc__.split("\n\n")[1])
         return 2

@@ -303,56 +303,11 @@ jobs:
           IMAGE: ${{ needs.publish.outputs.image }}
           DIGEST: ${{ needs.publish.outputs.digest }}
           REPO: ${{ github.repository }}
+        # The page (scripts/release_notes.py): the downloads first, because
+        # GitHub lists the files after the text; then how to check them; then
+        # the changelog's entries since the last release, folded.
         run: |
           version="${TAG#v}"
-          {
-            echo "## Image"
-            echo
-            echo "\`$IMAGE:$version\`, which is exactly:"
-            echo
-            echo "\`\`\`"
-            echo "$IMAGE@$DIGEST"
-            echo "\`\`\`"
-            echo
-            echo "Built, scanned, checked and signed by this repository's workflow after approval."
-            echo "Verify it before you run it, then pull it by that digest:"
-            echo
-            echo "\`\`\`bash"
-            echo "cosign verify $IMAGE@$DIGEST \\"
-            echo "  --certificate-identity-regexp '^https://github.com/$REPO/\\.github/workflows/docker\\.yml@' \\"
-            echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
-            echo "\`\`\`"
-            echo
-            echo "## Desktop app"
-            echo
-            echo "- **Mac with Apple Silicon** (M1 or later): \`jobdork-$version-macos-arm64.dmg\`."
-            echo "  Open it and drag jobdork into Applications."
-            echo "- **Windows 10 or 11** (64-bit): \`jobdork-$version-windows-x64-setup.exe\`."
-            echo "  Installs for you alone; no administrator needed."
-            echo
-            echo "The installers are not signed yet, so each system warns once:"
-            echo
-            echo "- **macOS** says it cannot check jobdork for malicious software. Click **Done**,"
-            echo "  open **System Settings → Privacy & Security**, scroll down to the line about"
-            echo "  jobdork and click **Open Anyway**, then **Open Anyway** again."
-            echo "- **Windows** shows \"Windows protected your PC\". Click **More info**, then **Run anyway**."
-            echo
-            echo "To check a download is the one this repository's workflow built, with the"
-            echo "[GitHub CLI](https://cli.github.com/):"
-            echo
-            echo "\`\`\`bash"
-            echo "gh attestation verify jobdork-$version-macos-arm64.dmg --repo $REPO"
-            echo "\`\`\`"
-            echo
-            echo "or compare its SHA-256 with \`SHA256SUMS.txt\`."
-            echo
-            echo "Code signing: [policy](https://github.com/$REPO/blob/$TAG/README.md#code-signing-policy)"
-            echo "(free code signing by SignPath.io, certificate by SignPath Foundation, once granted)."
-            echo "Privacy: [PRIVACY.md](https://github.com/$REPO/blob/$TAG/PRIVACY.md)."
-            echo
-            # The changelog's entries since the last release, in full: what
-            # changed and why, not a list of pull request titles.
-            python3 scripts/release_notes.py "$TAG"
-          } > notes.md
+          python3 scripts/release_notes.py --page "$TAG" "$IMAGE" "$DIGEST" > notes.md
           gh release create "$TAG" --repo "$REPO" --title "jobdork $version" \
             --notes-file notes.md --verify-tag installers/*
