@@ -67,6 +67,17 @@ readers than the one that wrote it, and to the same one only when no other
 is ready. A checker costs about three more calls per output on its key; a
 local Ollama model costs nothing.
 
+**Which local model checks best.** Measured in October 2026 on 30 AI
+verdicts (574 facts, the true answer for each decided by hand), checking
+`gemma4:26b`'s work: **`qwen3.8:27b`** was right about 99% of the time and
+caught the most real mistakes; `mistral-small3.2:24b` came second; `gemma4`
+checking itself raised five false alarms for every real one. Small models
+cannot do it: `llama3.2:3b` and `phi4:14b` (its context is too short)
+flagged nearly everything. A checker needs about as much memory as the
+reader, so with both local, 48 GB is comfortable. Download it with
+`ollama pull qwen3.8:27b`. One resume and one person's answers: a direction,
+not a benchmark.
+
 ## The hallucination check {#the-hallucination-check}
 
 AI models sometimes state things that are not true: *hallucinations*. For
@@ -80,8 +91,15 @@ So every verdict, letter, review and tailored resume is checked:
 2. Each fact is looked up in your resume and the advert. A fact only counts
    as supported if its exact words are found there, by a script, not just
    because a model says so.
-3. Facts found in neither are **flagged**: struck out in an AI verdict,
+3. A gap ("the resume does not mention Django") is checked the other way
+   round: a script makes sure the missing thing really is nowhere in your
+   resume. If it is there after all, the gap is flagged as wrong.
+4. Facts found in neither are **flagged**: struck out in an AI verdict,
    listed on a letter, marked **READ** on a document.
+
+Your years of experience are counted by jobdork from the dates in your
+resume (roles that overlap counted once, study left out), and the AI is
+given that figure rather than adding up dates itself.
 
 The [Dashboard](dashboard.md#the-numbers) shows the share of unsupported
 facts over time (the *hallucination rate*), by kind of writing and by

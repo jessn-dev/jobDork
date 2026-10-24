@@ -543,6 +543,14 @@ jobdork tailor <uid>          # your resume rewritten for one post, as a PDF
   another of your readers checks; the model that wrote it checks itself
   only when nothing else is ready. Checkers also score each judged job post
   themselves, and scores far apart are marked **models disagree**.
+  Measured on 574 facts decided by hand, `qwen3.8:27b` checked best of
+  eight local models (99% right, most real mistakes caught); a model
+  checking its own work raised five false alarms for every real one.
+- **Gaps are checked by script.** "The resume does not mention Django" is
+  only kept if Django really is nowhere in the resume.
+- **Years of experience are counted, not guessed.** jobdork reads the dated
+  roles in the resume (overlaps once, study left out) and gives the model
+  that figure, so it never adds up dates itself.
 - **A resume review** quotes the line each point is about, and drops any
   point quoting something not in your resume. Against a post it also lists
   what the advert asks for that the resume does not show.

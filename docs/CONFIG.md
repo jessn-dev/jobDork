@@ -545,7 +545,7 @@ it off a resume you use with a hosted model if that matters to you.
 | `llm.judge_top` | int | `25` | How many a judging run reads, 1 to 500. Bounds what a scan can spend on a paid API |
 | `llm.read_pages` | bool | `false` | When checking postings, ask the model about pages that do not say whether the job is open |
 | `llm.guard` | bool | `true` | Check each verdict and draft for claims the resume and the advert do not support. Two more model calls per output |
-| `llm.checkers` | list | empty (none) | Second models that check the readers' work, in the order they are tried, up to 6, written like `readers`. They run the `guard` checks on everything a reader judges or writes, and score each judged job post themselves; scores 20 or more points apart are marked "models disagree". When one cannot answer, the next is asked. A checker that is the model that wrote an output is passed over for that output. With none chosen or none ready, the claim checks go to another reader, and to the writer itself only when no other is ready. Never blocks or hides anything. A key, if one is needed, is held in memory like a reader's |
+| `llm.checkers` | list | empty (none) | Second models that check the readers' work, in the order they are tried, up to 6, written like `readers`. They run the `guard` checks on everything a reader judges or writes, and score each judged job post themselves; scores 20 or more points apart are marked "models disagree". When one cannot answer, the next is asked. Of eight local models measured in October 2026, `qwen3.8:27b` checked best ([guide](../guide/docs/ai.md#checkers)). A checker that is the model that wrote an output is passed over for that output. With none chosen or none ready, the claim checks go to another reader, and to the writer itself only when no other is ready. Never blocks or hides anything. A key, if one is needed, is held in memory like a reader's |
 | `llm.checker_provider`, `llm.checker_model` | string | empty | The first checker's provider and model. A config with no `checkers` list has this one checker, as configs did before the list |
 
 ```yaml
@@ -553,8 +553,8 @@ llm:
   readers:
     - {provider: ollama, model: gemma4:26b}
   checkers:
-    - {provider: anthropic, model: claude-haiku-5-5}  # checks first
-    - {provider: ollama, model: qwen2.5:3b}           # if Claude cannot answer
+    - {provider: ollama, model: qwen3.8:27b}          # checks first
+    - {provider: anthropic, model: claude-haiku-5-5}  # if qwen cannot answer
 ```
 
 **Keys are never read from this file.** `llm.key`, `llm.api_key` or
