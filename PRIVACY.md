@@ -31,7 +31,7 @@ Support/jobdork` on macOS, `%LOCALAPPDATA%\jobdork` on Windows,
 `~/.local/share/jobdork` on Linux. **Settings → Where your files are**
 card shows the exact paths and opens them.
 
-**Keys for AI providers** (Claude, Gemini, ChatGPT) are held in memory only.
+**Keys for AI providers** (Claude, Gemini, ChatGPT, Groq) are held in memory only.
 They are never written to disk, and are forgotten when jobdork stops, or a
 minute after the last Dashboard window closes.
 
@@ -75,11 +75,16 @@ provider to be judged, reviewed or written from:
 
 - **Ollama** runs on a computer you choose, usually your own; nothing leaves
   your network unless you point it elsewhere.
-- **Anthropic (Claude), Google (Gemini) or OpenAI (ChatGPT)** receive the text
-  of each request, under their own terms and privacy policies:
+- **Anthropic (Claude), Google (Gemini), OpenAI (ChatGPT) or Groq** receive
+  the text of each request, under their own terms and privacy policies:
   [Anthropic](https://www.anthropic.com/legal/privacy),
   [Google](https://policies.google.com/privacy),
-  [OpenAI](https://openai.com/policies/privacy-policy).
+  [OpenAI](https://openai.com/policies/privacy-policy),
+  [Groq](https://groq.com/privacy-policy). Groq runs open models (Llama,
+  GPT-OSS, Qwen and others) on its own servers; by its
+  [data page](https://console.groq.com/docs/your-data) it keeps no requests
+  by default, apart from logs of up to 30 days for abuse and reliability,
+  which Zero Data Retention in its settings turns off.
 - **Drafts written with the `claude` command** (cover letters, CVs) go
   through your own Claude Code installation, under your account with
   Anthropic.

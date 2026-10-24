@@ -69,7 +69,7 @@ def relay_url() -> str:
 
 _SECRETS = [
     # Provider keys by their prefixes, then anything long and key-like.
-    re.compile(r"\b(sk-ant-|sk-|re_|ghp_|gho_|github_pat_|AIza)[A-Za-z0-9_\-]{12,}"),
+    re.compile(r"\b(sk-ant-|sk-|gsk_|re_|ghp_|gho_|github_pat_|AIza)[A-Za-z0-9_\-]{12,}"),
     re.compile(r"\b(?=[A-Za-z0-9_\-]*\d)(?=[A-Za-z0-9_\-]*[A-Za-z])[A-Za-z0-9_\-]{32,}\b"),
     # The dashboard's own token in an address, and any key=value secret.
     re.compile(r"(?i)\b((?:t|\w*(?:token|key|secret|password))=)[^\s&\"']+"),

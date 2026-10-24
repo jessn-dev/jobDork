@@ -1,8 +1,8 @@
 """
 jobdork.ai.llm
 ==============
-A language model as a second reader: local through Ollama, or Claude, Gemini
-or ChatGPT through their APIs.
+A language model as a second reader: local through Ollama, or Claude, Gemini,
+ChatGPT or Groq through their APIs.
 
 It is used for two things, both optional and both on top of the rule-based
 screen rather than instead of it:
@@ -24,7 +24,7 @@ cannot promise that no copy of a string survives in freed memory — the
 request library makes its own for the header — so this is "never persisted,
 dropped as soon as it is not needed", not a guarantee against someone who can
 read this process's memory. Keys in the environment (ANTHROPIC_API_KEY,
-GEMINI_API_KEY, OPENAI_API_KEY) are used by the command line, which has no
+GEMINI_API_KEY, OPENAI_API_KEY, GROQ_API_KEY) are used by the command line, which has no
 page to type into.
 
 **Adverts are hostile input**, as in generate.py: fenced, fence markers
@@ -54,12 +54,14 @@ PROVIDERS = {
     "anthropic": "Claude",
     "gemini": "Gemini",
     "openai": "ChatGPT",
+    "groq": "Groq",
 }
-KEYED = ("anthropic", "gemini", "openai")
+KEYED = ("anthropic", "gemini", "openai", "groq")
 ENV_KEYS = {
     "anthropic": ("ANTHROPIC_API_KEY",),
     "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
     "openai": ("OPENAI_API_KEY",),
+    "groq": ("GROQ_API_KEY",),
 }
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
 # Ollama on the same computer, as a container reaches it (Docker Desktop).
@@ -250,7 +252,7 @@ class Settings:
 # ── privacy ───────────────────────────────────────────────────────────────────
 # A resume carries an email address, a phone number and profile links, and none
 # of them helps a model judge fit or write a letter. They are removed from
-# anything sent to a hosted model (Claude, Gemini, ChatGPT). A local Ollama
+# anything sent to a hosted model (Claude, Gemini, ChatGPT, Groq). A local Ollama
 # model sees the text as it is: nothing leaves the machine.
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 _PROFILE = re.compile(r"(?:https?://)?(?:www\.)?(?:linkedin\.com|github\.com|gitlab\.com)"
@@ -317,7 +319,7 @@ def _call_one(settings: Settings, system: str, user: str, schema: dict,
     if settings.provider in KEYED:
         user = redact(user)
     call = {"ollama": _ollama, "anthropic": _anthropic,
-            "gemini": _gemini, "openai": _openai}[settings.provider]
+            "gemini": _gemini, "openai": _openai, "groq": _groq}[settings.provider]
     from ..core import telemetry
 
     started = time.time()
@@ -484,6 +486,41 @@ def _gemini(s: Settings, system: str, user: str, schema: dict,
     return "".join(p.get("text", "") for p in parts if isinstance(p, dict))
 
 
+GROQ_API = "https://api.groq.com/openai/v1"
+# Groq hosts many open models. These two follow a schema strictly; the rest
+# get JSON mode, which promises JSON but not its shape, with the shape in the
+# prompt as for Gemini, and the answer checked as every answer is. They also
+# reason before answering, and that counts against max_tokens, so they are
+# asked to reason briefly and not send the reasoning back.
+_GROQ_STRICT = ("openai/gpt-oss-20b", "openai/gpt-oss-120b")
+
+
+def _groq(s: Settings, system: str, user: str, schema: dict,
+          max_tokens: int) -> str:
+    key, _ = key_for("groq")
+    body = {
+        "model": s.model,
+        "messages": [{"role": "system", "content": system},
+                     {"role": "user", "content": user}],
+        "max_completion_tokens": max_tokens,
+        "temperature": 0,
+    }
+    if s.model in _GROQ_STRICT:
+        body["response_format"] = {"type": "json_schema", "json_schema": {
+            "name": "answer", "schema": schema, "strict": True}}
+        body["reasoning_effort"] = "low"
+        body["include_reasoning"] = False
+    else:
+        body["messages"][1]["content"] = user + (
+            "\n\nAnswer with one JSON object matching this schema:\n"
+            + json.dumps(schema))
+        body["response_format"] = {"type": "json_object"}
+    data = _post(GROQ_API + "/chat/completions", body,
+                 {"Authorization": f"Bearer {key}"}, CLOUD_TIMEOUT)
+    choices = data.get("choices") or [{}]
+    return ((choices[0] or {}).get("message") or {}).get("content", "")
+
+
 # Models whose refusals can be rescued server-side by another model.
 _FALLBACK_MODELS = ("claude-opus-5", "claude-fable-5-1")
 
@@ -560,6 +597,16 @@ def list_models(settings: Settings) -> list[str]:
         # Chat models only; embeddings, audio and image models cannot answer.
         return sorted((i for i in ids if re.match(r"(gpt-|o\d|chatgpt)", i)
                        and not re.search(r"audio|realtime|image|tts|transcribe|search", i)),
+                      reverse=True)
+    if p == "groq":
+        resp = _get(GROQ_API + "/models", {"Authorization": f"Bearer {key}"})
+        # Chat models only: not speech (Whisper), voices (Orpheus), the
+        # classifiers (Prompt Guard, Safeguard), or Compound, which searches
+        # the web and runs code with what it is sent.
+        return sorted((m.get("id", "") for m in resp.get("data", [])
+                       if m.get("id") and m.get("active", True)
+                       and not re.search(r"whisper|orpheus|tts|guard|compound",
+                                         m["id"], re.I)),
                       reverse=True)
     if p == "gemini":
         resp = _get("https://generativelanguage.googleapis.com/v1beta/models"

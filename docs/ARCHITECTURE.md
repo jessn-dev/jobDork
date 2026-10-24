@@ -221,7 +221,7 @@ A scan runs without it, and it is never a filter: a verdict sits beside the
 rule-based score and never hides a post.
 
 **One entry point for every provider.** `ai/llm.py` asks for one JSON object
-matching a schema, from Ollama, Claude, Gemini or ChatGPT, and records the
+matching a schema, from Ollama, Claude, Gemini, ChatGPT or Groq, and records the
 call (`llm_calls`, with its purpose). Keys live in memory in the server
 process and nowhere else.
 

@@ -14,7 +14,7 @@ a job post, and jobdork scans without one.
 | Provider | Costs | Your data |
 |---|---|---|
 | **Ollama (local)** | Free. Runs on your own computer; needs a recent computer (a Mac with Apple Silicon, or a PC with a graphics card) | Never leaves your computer |
-| **Claude**, **Gemini**, **ChatGPT** | Paid by use, on your own key from that company | Sent to that company, with your email, phone number and profile links removed first |
+| **Claude**, **Gemini**, **ChatGPT**, **Groq** | Paid by use, on your own key from that company (Groq also has a free tier, with low limits) | Sent to that company, with your email, phone number and profile links removed first |
 
 For Ollama: install it from [ollama.com](https://ollama.com), download a
 model (`ollama pull gemma4:26b` for good results with 32 GB of memory, a

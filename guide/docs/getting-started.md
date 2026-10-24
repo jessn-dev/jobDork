@@ -25,7 +25,7 @@ the same step.
 1. **Your resume** (required). A PDF, Word (`.docx`), Markdown or text
    file. Every job post is scored against it. It stays on your computer.
 2. **AI** (optional). Connect Ollama, a free AI that runs on your own
-   computer, or paste a key for Claude, Gemini or ChatGPT. **Skip for now**
+   computer, or paste a key for Claude, Gemini, ChatGPT or Groq. **Skip for now**
    leaves it for later, on the [AI page](ai.md). jobdork works without it; the
    AI adds a second opinion and writing help.
 3. **What you are looking for** (required). Under **Job titles to search

@@ -12,7 +12,7 @@ It goes on the network to do what you set it up to do:
     and place as search terms, when you scan (or at the times you choose
     under Settings, "Schedule a run").
   - Sending your resume and job adverts to an AI provider, only if you
-    choose one on the AI page (Claude, Gemini or ChatGPT, under their own
+    choose one on the AI page (Claude, Gemini, ChatGPT or Groq, under their own
     privacy policies; or Ollama, on a computer you choose).
   - Sending a report to the people who make jobdork, only when you press
     Send on the Feedback page. You see exactly what is sent first.

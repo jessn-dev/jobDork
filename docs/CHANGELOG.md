@@ -6,6 +6,33 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-24 — Groq as an AI provider
+
+- **Groq** is a fifth provider on the AI page, beside Ollama, Claude,
+  Gemini and ChatGPT: open models (Llama, GPT-OSS, Qwen and others) on
+  Groq's own servers, fast, paid by use with a free tier whose limits are
+  low (about 8,000 tokens a minute for GPT-OSS 20B), so a second reader
+  helps. Its key is held in memory like the others, or read from
+  `GROQ_API_KEY` in the terminal.
+- `openai/gpt-oss-20b` and `-120b` are asked for the answer's exact shape
+  (strict JSON schema), with brief reasoning and the reasoning left out of
+  the reply, since it counts against the answer's length. Every other
+  Groq model gets JSON mode, with the shape in the prompt as for Gemini.
+- **Load models** lists Groq's chat models only: not speech (Whisper),
+  voices (Orpheus), the classifiers (Prompt Guard, Safeguard), or
+  Compound, which searches the web and runs code with what it is sent.
+- As for every hosted model, contact details are removed from the resume
+  first. PRIVACY.md links Groq's policy and its data page: by default it
+  keeps no requests, apart from logs of up to 30 days for abuse and
+  reliability, which its Zero Data Retention setting turns off.
+- A key typed into feedback text is scrubbed by its `gsk_` prefix too, and
+  a run that fails for a missing `GROQ_API_KEY` points at the AI settings.
+- No logo on its button yet (the page carries the others' marks inline,
+  and Groq's could not be fetched while building this).
+- Guide, README, CONFIG, the run guides and privacy notes name Groq; the
+  AI page and setup pictures are retaken. tests/test_ai.py checks the
+  calls and the model list with the network stubbed.
+
 ## Fixed — 2026-10-24 — A job post could send the app into your network
 
 - **Addresses from job posts were fetched as given.** An apply link, a
@@ -67,6 +94,7 @@ it and into an entry when the work is done.
 - SECURITY.md says so, records CodeQL default setup (turned on 2026-10-23,
   not yet a required check) and the owner's passkeys on GitHub and Docker
   Hub, and drops those two from the owner's to-do list.
+
 
 ## Changed — 2026-10-24 — A release page opens with its downloads
 

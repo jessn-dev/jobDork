@@ -10,7 +10,7 @@ Linux or an Intel Mac. For the terminal commands without a dashboard, see
 - **Python 3.10 or newer** (`python3 --version`).
 - **git**, or the repository's ZIP from GitHub.
 - Optional: [Ollama](https://ollama.com) for a free local AI model, or a key
-  for Claude, Gemini or ChatGPT. jobdork scans without any.
+  for Claude, Gemini, ChatGPT or Groq. jobdork scans without any.
 
 ## Install
 
@@ -30,7 +30,7 @@ On Windows the venv's programs are in `.venv\Scripts\` rather than
 | Extra | Adds | Needed for |
 |---|---|---|
 | `pdf` | `pypdf` | Reading a PDF resume (`.docx`, `.md` and `.txt` need nothing) |
-| `ai` | `anthropic` | Claude as an AI reader or checker. Ollama, Gemini and ChatGPT need nothing extra |
+| `ai` | `anthropic` | Claude as an AI reader or checker. Ollama, Gemini, ChatGPT and Groq need nothing extra |
 | `app` | `pywebview` (and macOS notifications) | The desktop window, `jobdork app` |
 | `package` | PyInstaller, Pillow | Building the installers ([desktop.md](desktop.md#building-the-installers-yourself)) |
 | `dev` | pytest, ruff | Running the tests ([Development](../../README.md#development)) |
