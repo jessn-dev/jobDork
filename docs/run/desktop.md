@@ -27,9 +27,9 @@ installing ([PRIVACY.md](../../PRIVACY.md) in full).
 
 ### The first-open warning
 
-The installers are not signed yet (signing has been applied for; see the
-[code signing policy](../../README.md#code-signing-policy)), so each system
-warns once:
+The installers are not code-signed (see
+[why](../DECISIONS.md#a-desktop-app-a-pywebview-window-unsigned-at-first--2026-10-21)),
+so each system warns once:
 
 - **macOS** says it cannot check jobdork for malicious software. Click
   **Done**, open **System Settings → Privacy & Security**, scroll down to the

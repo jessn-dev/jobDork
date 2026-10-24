@@ -166,8 +166,7 @@ def page(tag: str, image: str, digest: str, previous: str = "") -> str:
         f"  --certificate-identity-regexp '^{REPO}/\\.github/workflows/docker\\.yml@' \\",
         "  --certificate-oidc-issuer https://token.actions.githubusercontent.com",
         "```", "",
-        f"Code signing: [policy]({REPO}/blob/{tag}/README.md#code-signing-policy) "
-        "(free code signing by SignPath.io, certificate by SignPath Foundation, once granted). "
+        f"The installers are unsigned: [how to open them]({REPO}/blob/{tag}/docs/run/desktop.md#the-first-open-warning). "
         f"Privacy: [PRIVACY.md]({REPO}/blob/{tag}/PRIVACY.md).", "",
         notes(tag, previous if previous else previous_tag(tag)),
     ])
