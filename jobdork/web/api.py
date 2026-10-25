@@ -128,6 +128,7 @@ def role_detail(cfg, uid: str) -> dict:
         ]
         ai = ai_fields(row)
         posted_by = recruiters(store, [row])[uid]
+        unlisted = bool(not_on_own_board(store, [row]))
         # The verdict's rating, so the dialog shows which thumb is pressed.
         if ai["ai"] and ai["ai"].get("ai_output_id"):
             output = store.ai_output(int(ai["ai"]["ai_output_id"]))
@@ -137,6 +138,9 @@ def role_detail(cfg, uid: str) -> dict:
         flags = json.loads(row["flags"] or "[]")
     except (json.JSONDecodeError, TypeError):
         flags = []
+    if unlisted:
+        from ..search import ownboard
+        flags.append(ownboard.flag_text(row["company"] or ""))
 
     return {
         "uid": row["uid"],
@@ -217,6 +221,25 @@ def recruiters(store, rows) -> dict[str, dict]:
         out[row["uid"]] = {"poster": post["poster"].to_dict(),
                            "overlap": agency.overlaps(post, pursued) if pursued else []}
     return out
+
+
+def not_on_own_board(store, rows) -> set[str]:
+    """The Adzuna posts among these rows that the employer's own board, read
+    in the same scan, does not carry (search/ownboard.py)."""
+    from ..search import ownboard
+
+    adzuna = [(r["uid"], r["company"] or "", r["title"] or "", r["last_seen"] or "")
+              for r in rows if r["platform"] == "adzuna"]
+    if not adzuna:
+        return set()
+    marks = ",".join("?" for _ in ownboard.OWN_BOARDS)
+    platforms = sorted(ownboard.OWN_BOARDS)
+    board = store.conn.execute(
+        # Safe: only ? placeholders are interpolated.
+        f"SELECT company, title, last_seen FROM roles WHERE platform IN ({marks}) "  # nosec B608
+        f"UNION ALL SELECT company, title, seen_at FROM dropped WHERE platform IN ({marks})",
+        platforms + platforms).fetchall()
+    return ownboard.missing(adzuna, [(c or "", t or "", s or "") for c, t, s in board])
 
 
 def _credentials(cfg, advert: str) -> list[dict]:

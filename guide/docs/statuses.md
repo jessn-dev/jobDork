@@ -90,3 +90,4 @@ you when a post looks like one you are already pursuing.
 | **Fit: has …; wants …** | Which of the advert's skills you have, and which not ([Fit](scores.md#fit-your-skills-against-the-adverts)) |
 | **Advert is only 180 chars, too short to screen** | Only a summary arrived. **Fetch missing adverts**, or paste it in the post's window |
 | **States it will not sponsor a visa** | The advert says so. Most say nothing: treat a post without it as unknown, not as sponsoring |
+| **Not on Acme's own board, which jobdork read: may be filled, or not a real opening** | An Adzuna post whose job the employer's own board does not list, though jobdork read that board in the same scan. Adzuna keeps some posts after the job is gone, and some were never real. Worth checking on the employer's site before you apply. An employer whose board jobdork does not read never gets this tag |

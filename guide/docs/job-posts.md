@@ -35,7 +35,7 @@ it, the source it came from, and when jobdork first saw it.
 
 **Yellow tags** are things worth knowing before you apply: *Arrangement not
 stated*, *Unconfirmed salary* (no pay given), a dealbreaker that cost points,
-an older post, and the **Fit** line (which of the advert's skills you have,
+an older post, an Adzuna post missing from the employer's own board, and the **Fit** line (which of the advert's skills you have,
 and which you do not). See [tags](statuses.md#yellow-tags).
 
 **May be a job you have already applied to** appears when a post looks like

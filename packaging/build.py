@@ -85,9 +85,28 @@ def dmg(ver: str) -> Path:
     arch = "arm64" if platform.machine() == "arm64" else "x86_64"
     out = DIST / f"jobdork-{ver}-macos-{arch}.dmg"
     out.unlink(missing_ok=True)
-    run("hdiutil", "create", "-volname", "jobdork", "-srcfolder", stage,
-        "-fs", "HFS+", "-format", "UDZO", "-ov", out)
+    if _diskutil_image():
+        # macOS 27 warns that `hdiutil create -volname -format` is deprecated
+        # for this. The image is APFS (it takes no filesystem), which every
+        # macOS the app runs on (12 and later) reads.
+        run("diskutil", "image", "create", "from", "--format", "UDZO",
+            "--volumeName", "jobdork", stage, out)
+    else:
+        run("hdiutil", "create", "-volname", "jobdork", "-srcfolder", stage,
+            "-fs", "HFS+", "-format", "UDZO", "-ov", out)
     return out
+
+
+def _diskutil_image() -> bool:
+    """`diskutil image create from` is there and names the volume (macOS 27).
+
+    Asked by its help, not by whether it runs: CI's macOS 15 has the command
+    but no `--volumeName`, and refused it (exit 64); there `hdiutil` is used,
+    and does not warn.
+    """
+    help_ = subprocess.run(["diskutil", "image", "create", "from", "--help"],
+                           capture_output=True, text=True)
+    return help_.returncode == 0 and "--volumeName" in help_.stdout + help_.stderr
 
 
 def windows_installer(ver: str) -> Path:

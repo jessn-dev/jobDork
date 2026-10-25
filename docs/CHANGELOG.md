@@ -6,6 +6,54 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-25 — CodeQL results are required on main
+
+- The rules for `main` now include "Require code scanning results": a pull
+  request that brings a new CodeQL security alert of high severity or
+  above, or a new error, cannot be merged until it is fixed or dismissed.
+  Alerts already on `main` do not count; there were none open (20 sorted
+  the same day: 8 fixed, 12 dismissed with their reasons).
+- Off the Still outstanding list. A different scanner stays an option if
+  CodeQL proves weak.
+
+## Added — 2026-10-25 — An Adzuna post missing from the employer's own board is flagged
+
+- **A yellow tag**, "Not on Northbridge Health's own board, which jobdork
+  read: may be filled, or not a real opening", on an Adzuna post whose job
+  the employer's own board does not list. Adzuna keeps showing some posts
+  after the job is filled or withdrawn, and some were never real; its pages
+  cannot be read to ask (enrich.py), so the employer's board is asked.
+- **Only when jobdork read that board** in the same scan: one of its jobs,
+  kept or dropped by your filters, was seen within a day of the Adzuna post.
+  An employer whose board jobdork does not read is never flagged; absence
+  there proves nothing.
+- **Compared loosely**, to keep real jobs unflagged: the employer name
+  without case, punctuation, "The" or company suffixes ("The Home Depot,
+  Inc." is "The Home Depot"); the title anywhere on the board, one inside
+  the other counting ("Registered Nurse" in "Registered Nurse - ICU"),
+  places not compared, as the two write them differently. A board copy
+  dropped by your filters still vouches for the job.
+- Worked out when the list or a post is shown (`search/ownboard.py`), so it
+  follows the latest scan with nothing stored. The post stays listed: a
+  reason to check the employer's site, not proof. "Ghost" on its own stays
+  the age tag. Guide: Tags. Tests: the matching rules, a dropped copy, the
+  list and the post's window, and that every board platform discover reads
+  counts as an employer's own.
+
+## Fixed — 2026-10-25 — The macOS build makes its disk image without hdiutil's deprecation warning
+
+- macOS 27 warns that `hdiutil create -volname -format` is deprecated in
+  favour of `diskutil image create from`. The build now uses that where it
+  exists, giving the same compressed (UDZO) image, as APFS: it takes no
+  filesystem, and every macOS the app runs on (12 and later) reads APFS.
+- Where it cannot name the volume, `hdiutil` is used as before: CI's
+  macOS 15 has `diskutil image create from` but no `--volumeName`, and
+  refused it (the first CI build of this change failed there), so the
+  build asks the command's help for `--volumeName` rather than whether it
+  runs. Tried on macOS 27.0.1 with the build's own `dmg()` on a stand-in
+  app: no warning, the Applications link kept; the CI build checks the
+  `hdiutil` path.
+
 ## Fixed — 2026-10-25 — Folding the menu no longer pushes it down
 
 - Folded to its icons, the menu put the arrow under the logo: the top grew
@@ -285,7 +333,6 @@ dismissed on GitHub with the reason written there.
   the resume is dropped and listed; self-description is left out while a
   company seeking someone is kept.
 
-
 ## Fixed — 2026-10-24 — The desktop app could not open a PDF, save a file or open a link
 
 - **"Could not open the PDF: desk().open_file is not a function"**, for a
@@ -314,7 +361,6 @@ dismissed on GitHub with the reason written there.
   tests/test_app.py the Bridge's calls, PDF-only, and that the page names
   exactly the Bridge's calls without eval. SECURITY.md says what the page
   can ask of the app.
-
 
 ## Changed — 2026-10-24 — SignPath signing dropped: the installers stay unsigned
 
@@ -393,7 +439,6 @@ dismissed on GitHub with the reason written there.
   claim using gap words to pass), matching, glued text, the work span and
   the measured block.
 
-
 ## Fixed — 2026-10-24 — Nothing could be copied in the desktop app
 
 - **No text in the app window could be selected**, on macOS or Windows:
@@ -405,7 +450,6 @@ dismissed on GitHub with the reason written there.
   The browser dashboard (`jobdork serve`) was never affected.
 - tests/test_app.py checks the window is made with it. Not yet tried in a
   built app.
-
 
 ## Added — 2026-10-24 — Groq as an AI provider
 
@@ -433,7 +477,6 @@ dismissed on GitHub with the reason written there.
 - Guide, README, CONFIG, the run guides and privacy notes name Groq; the
   AI page and setup pictures are retaken. tests/test_ai.py checks the
   calls and the model list with the network stubbed.
-
 
 ## Fixed — 2026-10-24 — A job post could send the app into your network
 
@@ -496,7 +539,6 @@ dismissed on GitHub with the reason written there.
 - SECURITY.md says so, records CodeQL default setup (turned on 2026-10-23,
   not yet a required check) and the owner's passkeys on GitHub and Docker
   Hub, and drops those two from the owner's to-do list.
-
 
 ## Changed — 2026-10-24 — A release page opens with its downloads
 
@@ -5928,12 +5970,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
 
 ## Still outstanding
 
-- **CodeQL as a required check.** Its first findings are sorted (no open
-  alerts since 2026-10-25); what is left is adding its check to the rules
-  for `main`, a repository setting a person has to change. Or a different
-  scanner, if it proves weak.
-- **`hdiutil` says its `create` and `attach` options are deprecated** on
-  this macOS (the macOS build uses both; they still work).
 - **Europe outside Germany, the Gulf, and New Zealand** stay thin (measured
   2026-10-23): their large employers mostly name no board, and their job
   sites are closed to scripts or need a key (Reed, France Travail). What is
@@ -5957,12 +5993,15 @@ open; a digest arrives, and what arrived with it is what was not there before.
   large Asian and Mexican employers), regional job sites are the lever.
   SuccessFactors behind its older portal only (Edison, NRG, Wipro) is still
   unread.
+
+### Waiting on a decision or money
+
 - **A key proxy, deferred** until the Discover test list shows whether
   keyless sources leave real gaps: zero-setup access to keyed sources
   (Adzuna, USAJOBS, Google Jobs resellers) through a server the project runs.
   The reasoning, its costs, and the conditions for revisiting it are in
   [DECISIONS.md](DECISIONS.md#deferred-a-key-proxy).
-- **JSearch (RapidAPI) as an optional keyed source**: Google for Jobs data,
+- **JSearch (RapidAPI) or SerpApi as an optional keyed source**: Google for Jobs data,
   which reaches Philippine posts on JobStreet and LinkedIn by legitimate
   means, with full adverts, apply links and dates. Waits on three things:
   a RapidAPI key to verify the live answer against (Adzuna's documentation
@@ -5971,11 +6010,12 @@ open; a digest arrives, and what arrived with it is what was not there before.
   spend most of it; and its current terms and free tier, read on RapidAPI.
   `python-jobspy` was considered and refused: it scrapes LinkedIn and Indeed
   against their terms and robots.txt.
-- **An Adzuna post that is not on the employer's own careers board** should
-  be flagged as a likely ghost. Adzuna's pages cannot be read (enrich.py), so
-  the check is whether the same job (grouping.py) is on the employer's own
-  board, which `discover` has to have found first. Left out of the freshness
-  change of 2026-09-30.
+- **Code signing.** The installers are unsigned, so macOS and Windows warn
+  before the first open (the README's "Unsigned installers" says how past
+  it). macOS: Apple's developer programme, $99 a year, then notarising in
+  CI. Windows: SignPath Foundation's free certificate was refused
+  (2026-10-24); a paid one costs more every year. When to revisit is in
+  [DECISIONS.md](DECISIONS.md#a-desktop-app-a-pywebview-window-unsigned-at-first--2026-10-21).
 
 ### Operational notes, not work
 
