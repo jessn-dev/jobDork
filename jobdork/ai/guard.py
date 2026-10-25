@@ -236,13 +236,19 @@ def extract_claims(settings: Settings, text: str) -> list[str]:
                         purpose="guard_extract")
     claims = raw.get("claims") if isinstance(raw.get("claims"), list) else []
     # Small models keep "X is applying for Y" however they are told; it is
-    # the letter describing itself, which no source can support.
+    # the letter describing itself, which no source can support. So is a
+    # resume summary's "seeking a Software Engineer role" (2026-10-24).
     return [re.sub(r"\s+", " ", str(c)).strip() for c in claims
-            if str(c).strip() and not _SELF.search(str(c))][:MAX_CLAIMS]
+            if str(c).strip() and not _SELF.search(str(c)[:300])][:MAX_CLAIMS]
 
 
 _SELF = re.compile(r"\b(?:is|am|are) (?:applying|writing to apply|excited|eager|"
-                   r"interested)\b", re.IGNORECASE)
+                   r"interested)\b"
+                   # The role the person wants, not a company seeking someone
+                   # "for the role": nothing between names a person.
+                   r"|\b(?:seek(?:s|ing)?|looking for|wants?|pursuing|targeting)\s"
+                   r"(?:(?!\b(?:for|candidate|someone|person|applicant|who)\b)[^.]){0,60}?"
+                   r"\b(?:role|position|job|opportunity)\b", re.IGNORECASE)
 
 
 def verify(settings: Settings, claims: list[str],

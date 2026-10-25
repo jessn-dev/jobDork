@@ -58,7 +58,7 @@ paid by the word with Claude, Gemini, ChatGPT or Groq.
 |---|---|
 | **Ask AI** / **Ask AI again** | The AI's verdict on this post: a [score](scores.md#ai-the-models-opinion), a summary, and the reasons for and against |
 | **Write cover letter (AI)** | A cover letter from your resume and this advert. It opens in a new **Cover letter** tab, and is listed on the [Resume](resume.md#cover-letters) page |
-| **Write tailored resume (AI)** | Your resume rewritten for this advert, in a plain layout that applicant tracking systems read well, as a PDF named `FirstName_LastName_JobTitle_Resume.pdf`. It opens in a **Tailored resume** tab. Your contact line is copied from your resume, never written by the AI, and any employer, school or certification your resume does not name is left out and listed |
+| **Write tailored resume (AI)** | Your resume rewritten for this advert, in a plain layout that applicant tracking systems read well, as a PDF named `FirstName_LastName_JobTitle_Resume.pdf`. It opens in a **Tailored resume** tab. Your contact line is copied from your resume, never written by the AI, and any employer, school, skill or certification your resume does not name is left out and listed |
 | **Review resume for this post** | What to change in your resume for this post, each point quoting the line it is about, and what the advert asks for that your resume does not show. Opens in a **Resume review** tab |
 
 ### Editing help

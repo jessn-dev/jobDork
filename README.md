@@ -469,8 +469,8 @@ jobdork tailor <uid>          # your resume rewritten for one post, as a PDF
   "Company | City, State | Month YYYY - Month YYYY", then bullets. The model
   gives the content only; jobdork lays it out and writes the PDF, so every
   provider gives the same document. The contact line is copied from your
-  resume, never written by a model. An employer, school or certification your
-  resume does not name is left out and listed. It is saved as
+  resume, never written by a model. An employer, school, skill or
+  certification your resume does not name is left out and listed. It is saved as
   `FirstName_LastName_JobTitle_Resume.pdf`, with its Markdown beside it.
 - **Projects adapt to the person.** The model judges the career stage from
   the resume and the post: a student's projects go right below Education
@@ -540,8 +540,12 @@ jobdork tailor <uid>          # your resume rewritten for one post, as a PDF
 - **Gaps are checked by script.** "The resume does not mention Django" is
   only kept if Django really is nowhere in the resume.
 - **Years of experience are counted, not guessed.** jobdork reads the dated
-  roles in the resume (overlaps once, study left out) and gives the model
-  that figure, so it never adds up dates itself.
+  roles in the resume (overlaps once, study left out) and gives that figure
+  to the model judging, writing a letter or tailoring the resume, and to the
+  check, so no model adds up dates itself.
+- **What a text says about itself is not checked.** "I am applying for…"
+  in a letter, or "seeking a Software Engineer role" in a resume summary,
+  is left out of the claims: no source can support it.
 - **A resume review** quotes the line each point is about, and drops any
   point quoting something not in your resume. Against a post it also lists
   what the advert asks for that the resume does not show.

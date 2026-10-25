@@ -98,8 +98,13 @@ So every verdict, letter, review and tailored resume is checked:
    listed on a letter, marked **READ** on a document.
 
 Your years of experience are counted by jobdork from the dates in your
-resume (roles that overlap counted once, study left out), and the AI is
-given that figure rather than adding up dates itself.
+resume (roles that overlap counted once, study left out). The AI is given
+that figure for verdicts, letters and tailored resumes rather than adding up
+dates itself, and the check accepts it.
+
+What a text says about itself, such as a letter's "I am applying for…" or
+a resume summary's "seeking a Software Engineer role", is not counted as a
+fact: no source could support it.
 
 The [Dashboard](dashboard.md#the-numbers) shows the share of unsupported
 facts over time (the *hallucination rate*), by kind of writing and by
