@@ -1626,6 +1626,31 @@ def test_scan_summary_has_one_line_per_kind_of_board():
     # Summed over the boards, not the last board's count.
     assert report.counts_by_source() == {"greenhouse": 3, "adzuna": 0}
 
+
+def test_the_dork_key_file_is_created_owner_only():
+    """`jobdork dork` writes its API key to .env: owner-only from the first
+    byte, and tightened when the file was already there wider."""
+    import os
+    import stat
+    import tempfile
+
+    from jobdork.dork import generator
+
+    if os.name == "nt":                     # no POSIX permissions to check
+        return
+    saved = generator._ENV_FILE
+    with tempfile.TemporaryDirectory() as tmp:
+        generator._ENV_FILE = Path(tmp) / ".env"
+        try:
+            generator._write_private_env(["GOOGLE_API_KEY=test"])
+            assert stat.S_IMODE(generator._ENV_FILE.stat().st_mode) == 0o600
+            generator._ENV_FILE.chmod(0o644)
+            generator._write_private_env(["GOOGLE_API_KEY=again"])
+            assert stat.S_IMODE(generator._ENV_FILE.stat().st_mode) == 0o600
+            assert generator._ENV_FILE.read_text() == "GOOGLE_API_KEY=again\n"
+        finally:
+            generator._ENV_FILE = saved
+
 if __name__ == "__main__":
     failures = 0
     tests = [(name, fn) for name, fn in sorted(globals().items())

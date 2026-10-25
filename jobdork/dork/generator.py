@@ -129,8 +129,14 @@ def _load_dotenv() -> None:
 
 
 def _write_private_env(lines: list[str]) -> None:
-    """Write .env with owner-only permissions where the OS supports it."""
-    with open(_ENV_FILE, "w", encoding="utf-8") as f:
+    """Write .env with owner-only permissions where the OS supports it.
+
+    Created owner-only rather than chmod-ed after writing, which left the key
+    readable to others for a moment. The chmod still covers a file that
+    already existed with wider permissions.
+    """
+    fd = os.open(_ENV_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with open(fd, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     try:
         os.chmod(_ENV_FILE, 0o600)

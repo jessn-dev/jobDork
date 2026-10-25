@@ -413,6 +413,95 @@ def test_gemini_gets_room_to_think_and_a_cut_off_answer_says_so():
                        "-token limit, 4030 of them thinking")
     assert llm.error_kind(message) == "cut_off"
 
+
+# ── Retries ───────────────────────────────────────────────────────────────────
+
+_BUSY = ('{"error": {"code": 503, "message": "This model is currently experiencing '
+         'high demand. Spikes in demand are usually temporary. Please try again later.", '
+         '"status": "UNAVAILABLE"}}')
+
+
+class _Answer:
+    def __init__(self, status, text='{"ok": true}', headers=None):
+        self.status_code, self.text, self.headers = status, text, headers or {}
+        self.ok = status < 400
+
+    def json(self):
+        import json
+        return json.loads(self.text)
+
+
+def _posting(answers):
+    """Stub requests.post with `answers` in turn and _sleep with a record.
+    (posts made, seconds slept, undo); call undo when done."""
+    posts, slept = [], []
+    saved = llm.requests.post, llm._sleep
+
+    def post(url, **_):
+        posts.append(url)
+        return answers.pop(0)
+
+    def undo():
+        llm.requests.post, llm._sleep = saved
+
+    llm.requests.post, llm._sleep = post, slept.append
+    return posts, slept, undo
+
+
+def _post_error() -> str:
+    try:
+        llm._post("https://api.example.com/v1/x", {}, {}, 5)
+    except llm.LLMError as exc:
+        return str(exc)
+    raise AssertionError("expected an LLMError")
+
+
+def test_a_busy_provider_is_asked_again_after_a_pause():
+    """Gemini, 2026-10-25: 503 "high demand", gone a few seconds later."""
+    posts, slept, undo = _posting([_Answer(503, _BUSY), _Answer(502, "bad gateway"),
+                                   _Answer(200)])
+    try:
+        assert llm._post("https://api.example.com/v1/x", {}, {}, 5) == {"ok": True}
+    finally:
+        undo()
+    assert len(posts) == 3 and slept == list(llm.RETRY_WAITS)
+
+
+def test_still_busy_after_three_tries_says_so_in_the_providers_words():
+    posts, slept, undo = _posting([_Answer(503, _BUSY) for _ in range(3)])
+    try:
+        message = _post_error()
+    finally:
+        undo()
+    assert len(posts) == 3 and len(slept) == 2
+    assert message == ("HTTP 503, asked 3 times: This model is currently experiencing "
+                       "high demand. Spikes in demand are usually temporary. Please try "
+                       "again later.")
+    assert llm.error_kind(message) == "server_error"
+
+
+def test_the_providers_retry_after_is_waited_when_short():
+    posts, slept, undo = _posting([_Answer(503, _BUSY, {"Retry-After": "1"}),
+                                   _Answer(503, _BUSY, {"Retry-After": "600"}), _Answer(200)])
+    try:
+        llm._post("https://api.example.com/v1/x", {}, {}, 5)
+    finally:
+        undo()
+    assert len(posts) == 3
+    assert slept == [1.0, llm.RETRY_WAITS[1]]       # ten minutes is not waited out
+
+
+def test_out_of_memory_rate_limits_and_refusals_are_asked_once():
+    """Ollama's 500 is out of memory; a 429 goes to the next reader."""
+    for status, said in ((500, "model requires more system memory"),
+                         (429, "rate limited"), (401, "refused"), (404, "not found")):
+        posts, slept, undo = _posting([_Answer(status, said)])
+        try:
+            _post_error()
+        finally:
+            undo()
+        assert (len(posts), slept) == (1, []), status
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

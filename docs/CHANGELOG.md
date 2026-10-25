@@ -6,6 +6,56 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-25 — Code scanning: the alerts CodeQL raised on main
+
+CodeQL (default setup, on since 2026-10-23) had 20 open alerts. Seven are
+fixed in code, one hardened; ten are its guesses from names, and are
+dismissed on GitHub with the reason written there.
+
+- **Slow regex on text from a job post** (#7, `geo.py`): `\s*[-–—]\s*`
+  tried every space of a long run with no dash after it: 1.4 s on 20,000
+  spaces. A split on the dash, each side stripped, gives the same result
+  in no measurable time.
+- **Resume upload** (#3, #4, `api.py`): the file was already written as
+  `resume` plus an extension from a fixed list; the extension written is
+  now the list's own string, not the browser's that matched it.
+- **The guide's screenshot script** (#1, #2, `guide_shots.mjs`): a role's
+  uid read from the page went into the script run there unescaped; every
+  value now goes in as JSON with `<`, `>`, `/` and the line separators
+  escaped. Answers from Chrome find their callback in a Map, not by a
+  property name taken from the message. Run end to end on the demo data.
+- **Tests that checked an address with `in`** (#18-#20): by host instead.
+- **The dork tool's `.env`** (#9): created owner-only (0600), where it was
+  written first and narrowed after, readable to others for a moment.
+  Tested for the permissions it ends with.
+- **Dismissed as false positives:** "sensitive data" logged or stored
+  (#8, #10-#17) is a board's token (its public name on Greenhouse, Workday
+  and the rest), a job's uid, an employer's name or a report; the paths
+  (#5, #6) are the resume file you named yourself, read by the app you run.
+
+## Fixed — 2026-10-25 — A busy AI provider is asked again before the call fails
+
+- **Gemini answered 503 on a real check of #38** (`gemini-3.5-flash`,
+  "This model is currently experiencing high demand ... Please try again
+  later") and the call failed at once, with the provider's raw JSON as the
+  message. Only Claude retried, through Anthropic's own client
+  (`max_retries=2`); Gemini, ChatGPT, Groq and Ollama go through `_post`,
+  which asked once.
+- `_post` now asks again on **502, 503 and 504**, twice, after 2 and then
+  5 seconds, or after the provider's own `Retry-After` when it is 30
+  seconds or less. Still busy after three tries: "HTTP 503, asked 3 times:
+  This model is currently experiencing high demand ...", still a
+  **Provider error** on the Dashboard.
+- **Not retried:** 500 (Ollama's out of memory, which seconds do not fix),
+  429 (the next reader in `llm.readers` takes it; out of quota stays out
+  of quota), a refused key, a model not found, a timeout.
+- A failure now reads in the provider's own words: Gemini, OpenAI and Groq
+  all answer `{"error": {"message": ...}}`, and that message is shown
+  instead of the first 200 characters of the JSON around it.
+- Guide: the Dashboard page says so under AI errors. Tests: a 503 then a
+  502 then an answer, three 503s, a short and a long Retry-After, and
+  500/429/401/404 asked once; nothing waits or goes online.
+
 ## Fixed — 2026-10-25 — DuPont, TJX and Disney back, through their Workday boards
 
 - The re-verify of 2026-10-25 (#41) dropped six careers-site boards unread

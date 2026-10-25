@@ -97,7 +97,7 @@ def test_discover_counts_the_board_and_does_not_also_call_it_unread():
 
     class _Costco(_Board):
         def get(self, url, **kw):
-            if "taleo.net" in url:
+            if urllib.parse.urlsplit(url).hostname == HOST:
                 return super().get(url, **kw)
             return Response(url=url, status=200, body=page)
 

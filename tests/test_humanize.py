@@ -19,7 +19,7 @@ from jobdork.ai import llm  # noqa: E402
 from jobdork.writing import gates, humanize  # noqa: E402
 
 # Dashes that are data, not prose: counted, or matched in addresses.
-DATA = {("gates.py", "—"), ("geo.py", r"\s*[-–—]\s*")}
+DATA = {("gates.py", "—"), ("geo.py", "[-–—]")}
 
 
 def rules(text: str) -> set[int]:

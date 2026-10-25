@@ -822,7 +822,10 @@ def resolve(location: str, prefer: tuple[str, ...] = ()) -> Resolved:
         " ", raw, flags=re.IGNORECASE,
     )
     cleaned = re.sub(r"[()\[\]|/]+", ",", cleaned)
-    cleaned = re.sub(r"\s*[-–—]\s*", ",", cleaned)
+    # Split on the dash and strip each side: `\s*[-–—]\s*` did the same, but
+    # tried every space of a long run with no dash after it (polynomial time
+    # on text from a job post).
+    cleaned = ",".join(part.strip() for part in re.split(r"[-–—]", cleaned))
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" ,")
 
     country_hint = ""
