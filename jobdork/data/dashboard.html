@@ -91,7 +91,12 @@ nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
 .switch.on i{background:var(--logo)}
 /* The rail: icons only, labels on hover through the title attribute. */
 .shell.rail nav{padding:1.25rem .6rem}
-.shell.rail .brand{flex-direction:column;gap:.6rem;padding:0}
+/* One row, as when open: the arrow lies over the logo and shows on hover or
+   focus, so folding does not push the menu down by the arrow's height. */
+.shell.rail .brand{position:relative;justify-content:center;padding:0}
+.shell.rail .brand .fold{position:absolute;inset:0;margin:auto;width:38px;height:38px;
+  border-radius:9px;background:var(--nav-bg);opacity:0;transition:opacity .15s}
+.shell.rail .brand:hover .fold,.shell.rail .brand .fold:focus-visible{opacity:1}
 .shell.rail .brand .name,.shell.rail nav .label,.shell.rail nav .count,
 .shell.rail nav .sec,.shell.rail nav .info,.shell.rail nav .switch,.shell.rail nav #net-text{display:none}
 .shell.rail nav .status{justify-content:center;padding:.5rem 0}

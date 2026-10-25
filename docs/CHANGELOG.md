@@ -6,6 +6,14 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-25 — Folding the menu no longer pushes it down
+
+- Folded to its icons, the menu put the arrow under the logo: the top grew
+  from 38 to 74 pixels and every item below moved down by the difference.
+  The top now stays one row: the arrow lies over the logo, shows on hover or
+  keyboard focus, and a click on the logo opens the menu again. Measured in
+  Chrome: the first item stays at the same height open and folded.
+
 ## Changed — 2026-10-25 — A new icon and logo, one design everywhere
 
 - **The mark:** a briefcase with a loupe and a `>_` prompt, cyan and green
