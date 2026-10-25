@@ -53,8 +53,17 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install
-        run: pip install -e '.[pdf,ai,app,package]'
+      # Every package at the exact version and SHA-256 in the lock: one that
+      # changed on PyPI, or is not listed, stops the build rather than going
+      # into an installer GitHub then attests. jobdork itself goes in last,
+      # with nothing more fetched.
+      - name: Install, pinned and hash-checked
+        # bash on Windows too: PowerShell would run the second line after the
+        # first failed, and the step would pass.
+        shell: bash
+        run: |
+          pip install --require-hashes -r requirements-desktop.lock
+          pip install --no-deps --no-build-isolation -e .
 
       - name: Build, self-test and package
         run: python packaging/build.py

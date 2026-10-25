@@ -6,6 +6,29 @@ it and into an entry when the work is done.
 
 ---
 
+## Security — 2026-10-25 — The desktop installers are built from hash-pinned packages
+
+- **The hole:** the Docker image installed every package by exact version
+  and SHA-256, but `desktop.yml` ran `pip install -e '.[pdf,ai,app,package]'`:
+  whatever PyPI served that day went into installers GitHub then attests as
+  this project's, and `pip-audit` never looked at them.
+- **`requirements-desktop.lock`:** all 65 packages for macOS and Windows at
+  once (Python 3.13), with hashes, made by `uv pip compile --universal`
+  (the command is at its top; `packaging/desktop-build.in` adds setuptools,
+  so installing jobdork itself fetches nothing). `desktop.yml` installs it
+  with `--require-hashes`, then jobdork with `--no-deps --no-build-isolation`,
+  in bash on Windows too, where PowerShell would carry on past a failed
+  first line.
+- **Audited:** CI's security job runs `pip-audit` on it with the platform
+  markers dropped first, since pip-audit skips packages for other systems
+  and CI is Linux: all 65 checked, none with a known vulnerability.
+- **Built only after the checks pass:** the desktop job now waits for the
+  tests and the security scans, as the image already did. On a tag the
+  installers are attested as they are built, and an attestation should
+  never vouch for code that failed a scan.
+- Tried: a fresh Python 3.13 installs it with every hash checked, and the
+  macOS app builds from it and passes its self-test.
+
 ## Security — 2026-10-25 — Update opens an installer only once its build attestation verifies
 
 - **The hole:** Update downloaded the installer and `SHA256SUMS.txt` from

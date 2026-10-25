@@ -20,12 +20,13 @@ only after the owner approves it in the `release` environment. A push to
 |---|---|
 | Tests and lint, Python 3.10 and 3.14 | Broken behaviour, including the dashboard's Host, token and CSRF guards |
 | `pip-audit` on `requirements.lock` | A dependency with a published vulnerability |
+| `pip-audit` on `requirements-desktop.lock`, every platform's packages | The same, for what the desktop installers are built from (pyobjc on macOS, pythonnet on Windows included) |
 | `bandit` over the code | Injection, unsafe calls and similar in jobdork's own code. A finding judged safe is marked in the code with its reason |
 | `gitleaks` over **the whole git history** | A key, token or password ever committed, even if deleted since |
 | `hadolint` | Dockerfile mistakes |
 | Trivy on the built image | High and critical vulnerabilities in every package in the image, fixed or not, plus secrets and misconfiguration |
 | `scripts/check_image.sh` | That the image runs as user 1000, has no pip, contains no `.env`, config or database, cannot rewrite its own code, and that the dashboard starts and refuses a missing token and an address not named |
-| Desktop app build (`desktop.yml`), macOS and Windows | That both installers still build, and that the built app carries every module and data file it needs (its `--self-test`) |
+| Desktop app build (`desktop.yml`), macOS and Windows, after the tests and scans pass | That both installers still build from the hash-pinned `requirements-desktop.lock`, and that the built app carries every module and data file it needs and can verify a build attestation (its `--self-test`) |
 
 **How the image is built to be hard to tamper with:**
 

@@ -1,0 +1,3 @@
+# What installing jobdork itself needs (pyproject [build-system]), pinned with
+# the desktop dependencies so the build fetches nothing unchecked.
+setuptools>=77
