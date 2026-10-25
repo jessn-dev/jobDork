@@ -304,8 +304,9 @@ def _deal_suggestions() -> list[dict]:
     return dealbreakers.suggestions()
 
 
-def make_handler(cfg_holder: dict, session: Session, runner: Runner):
-    """`cfg_holder` is a one-key dict so a config edit can swap it in place."""
+def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
+    """`cfg_holder` is a one-key dict so a config edit can swap it in place.
+    `desk` is the desktop app's Bridge (web/app.py), or None in a browser."""
     # The file as loaded counts as seen: only a later change reloads it, so
     # the overrides given to `serve` on the command line hold until then.
     with contextlib.suppress(OSError, TypeError):
@@ -548,6 +549,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             path = urlsplit(self.path).path
             if path == "/api/action":
                 return self._action()
+            if path == "/api/desk":
+                return self._desk()
             if path == "/api/page-problem":
                 form = self._body(limit=4 * 1024)
                 if form is None:
@@ -726,6 +729,23 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
             return self._reject(404, "no such path")
 
         # ── handlers ───────────────────────────────────────────────────────────
+
+        def _desk(self) -> None:
+            """A link or file for the desktop app to handle (web/app.py
+            Bridge): the page in its window has no tabs or downloads."""
+            if desk is None:
+                return self._reject(404, "only the desktop app opens files")
+            form = self._body(limit=desk.BODY_LIMIT)
+            if form is None:
+                return self._reject(400, "bad request body")
+            try:
+                value = desk.call(form.get("call"), form.get("args"))
+            except ValueError as exc:
+                return self._reject(400, str(exc))
+            except Exception as exc:
+                log.exception("the app could not %s", form.get("call"))
+                return self._reject(500, f"the app could not do that: {exc}")
+            return self._json(200, {"value": value})
 
         def _wrap(self, fn, *args) -> None:
             """Run an api function and turn its refusal into a status code."""
@@ -1166,13 +1186,14 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner):
 
 
 def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
-          token: str = "", on_ready=None) -> int:
+          token: str = "", on_ready=None, desk=None) -> int:
     """Run until Ctrl-C. Returns an exit code.
 
     `on_ready(url, stop, busy)` is for the desktop app, which runs this on a
     thread of its own: it is called once the server is listening, with the
     address to show, a function that ends the run as Ctrl-C would, and one
-    that names the job running ("scan"), or returns "" when none is.
+    that names the job running ("scan"), or returns "" when none is. `desk`
+    is its Bridge, answering `POST /api/desk` (links and files).
     """
     # The session keeps HOST either way: it is the address in the printed URL
     # and the one the Host check accepts, and in a container the browser
@@ -1199,7 +1220,7 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
     try:
         server = Server(
             (bind, session.port),
-            make_handler(cfg_holder, session, runner))
+            make_handler(cfg_holder, session, runner, desk))
     except OSError as exc:
         print(f"cannot listen on {bind}:{session.port}: {exc}")
         return 1

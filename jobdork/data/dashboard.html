@@ -1443,14 +1443,24 @@ window.addEventListener('error', e => pageProblem('error',
 window.addEventListener('unhandledrejection', e => pageProblem('error',
   `unhandled: ${(e.reason && (e.reason.message || e.reason)) || 'a promise failed'}`));
 // In the desktop app (`jobdork app`) the page is in a window with no tabs and
-// no downloads of its own, so links and files go through the app instead.
-const desk = () => (window.pywebview && window.pywebview.api) || null;
+// no downloads of its own, so links and files go through the app instead, by
+// way of the server it runs (web/app.py Bridge). Not pywebview's own bridge:
+// it builds its functions with eval, which this page's policy refuses.
+const deskCall = (call, ...args) => api('/api/desk', {method: 'POST',
+  headers: {'Content-Type': 'application/json'}, body: JSON.stringify({call, args})})
+  .then(async r => { if (!r.ok) throw new Error(await r.text()); return (await r.json()).value; });
+const DESK = {
+  open_url: url => deskCall('open_url', url),
+  save_file: (name, data) => deskCall('save_file', name, data),
+  open_file: (name, data) => deskCall('open_file', name, data),
+};
+const desk = () => (window.pywebview ? DESK : null);
 // A job post's address comes from whoever posted it. Only a web address
 // leaves; `javascript:` or `data:` in an href would run in this page.
 const webHref = url => /^https?:\/\//i.test(url || '') ? url : '#';
 function openOut(url) {
   if (webHref(url) === '#') return;
-  if (desk()) desk().open_url(url);
+  if (desk()) desk().open_url(url).catch(e => toast('Not opened: ' + (e.message || e), 'err'));
   else window.open(url, '_blank', 'noopener,noreferrer');
 }
 const base64Of = blob => new Promise((ok, no) => {

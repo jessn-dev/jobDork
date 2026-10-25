@@ -1043,6 +1043,41 @@ def test_your_credentials_are_saved_and_an_advert_is_checked_against_them():
     _with_server(check)
 
 
+# ── the desktop app's links and files ─────────────────────────────────────────
+
+def test_the_desktop_apps_calls_go_through_the_server_with_the_token():
+    """The app's window asks for links and files by POST /api/desk, not
+    pywebview's js_api (built with eval, which the page's policy refuses).
+    Only the app has a desk; a browser gets 404."""
+    class Desk:
+        BODY_LIMIT = 4096
+        calls = []
+
+        def call(self, name, args):
+            if name != "open_url":
+                raise ValueError("not something the app does")
+            self.calls.append((name, args))
+            return True
+
+    def check(run):
+        code, _ = _post_json(run, "/api/desk", {"call": "open_url", "args": ["https://a.example/"]})
+        assert code == 404, "a browser has no desk"
+        desk = Desk()
+        run.server.RequestHandlerClass = serve_mod.make_handler(
+            run.holder, run.session, run.runner, desk)
+        code, body = _post_json(run, "/api/desk", {"call": "open_url", "args": ["https://a.example/"]})
+        assert (code, body) == (200, {"value": True}) and desk.calls == [
+            ("open_url", ["https://a.example/"])]
+        code, body = _post_json(run, "/api/desk", {"call": "forget", "args": []})
+        assert code == 400 and "not something" in body
+        code, _ = _post_json(run, "/api/desk", {"call": "open_url", "args": ["x" * 5000]})
+        assert code == 400, "over the desk's size limit"
+        code, _ = run.post("/api/desk", {"call": "open_url"}, token=None)
+        assert code == 401
+        assert len(desk.calls) == 1
+    _with_server(check)
+
+
 # ── keep this block LAST ───────────────────────────────────────────────────────
 
 if __name__ == "__main__":

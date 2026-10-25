@@ -100,18 +100,37 @@ def open_with_system(path: Path) -> None:
 
 
 class Bridge:
-    """What the page may ask of the app. Every public method is callable from
-    the page as `window.pywebview.api.<name>`, so there are only three, and
-    each checks what it is given.
+    """What the page may ask of the app: the three calls in CALLS, each
+    checking what it is given. The page asks through the local server
+    (`POST /api/desk`, with its token), which runs in this process.
+
+    Not through pywebview's `js_api`: pywebview builds that in the page with
+    `new Function`, and returns answers with `eval`, both of which the
+    page's Content-Security-Policy refuses (and should: no 'unsafe-eval'),
+    so the calls never existed in the app.
 
     The window only ever shows this app's own page: links leave through
     `open_url`, so no other site's script can reach these.
     """
 
+    CALLS = ("open_url", "save_file", "open_file")
+    # A request carrying the largest file, base64 encoded, and its name.
+    BODY_LIMIT = MAX_FILE_BYTES * 4 // 3 + 64 * 1024
+
     def __init__(self, downloads: Path | None = None) -> None:
         self._window = None                  # set once the window exists
         self._downloads = downloads or Path.home() / "Downloads"
         self._temp = None
+
+    def call(self, name, args) -> object:
+        """One of CALLS by name, as the page sent it. ValueError for anything
+        else, which the server answers with 400."""
+        if name not in self.CALLS or not isinstance(args, list):
+            raise ValueError("not something the app does")
+        try:
+            return getattr(self, name)(*args)
+        except TypeError:
+            raise ValueError(f"{name} was not given what it needs") from None
 
     def open_url(self, url: str) -> bool:
         """Open a web address in the user's own browser."""
@@ -136,12 +155,16 @@ class Bridge:
         return str(path)
 
     def open_file(self, name: str, data: str) -> str:
-        """Show a file (a PDF) in the system's viewer, from a temporary copy
-        that is deleted when the app closes."""
+        """Show a PDF in the system's viewer, from a temporary copy that is
+        deleted when the app closes. Only a PDF: the system opens a file by
+        its kind, and a `.command` or `.app` would run."""
         body = _decode(data)
+        if not body.startswith(b"%PDF-"):
+            raise ValueError("only a PDF opens this way")
+        name = Path(safe_name(name, "document")).stem + ".pdf"
         if self._temp is None:
             self._temp = Path(tempfile.mkdtemp(prefix="jobdork-"))
-        path = self._temp / safe_name(name)
+        path = self._temp / name
         path.write_bytes(body)
         open_with_system(path)
         return str(path)
@@ -309,8 +332,11 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
         running.update(url=url, stop=stop, busy=busy)
         ready.set()
 
+    bridge = Bridge()
+
     def server():
-        running["code"] = serve(cfg, port=port, open_browser=False, on_ready=on_ready)
+        running["code"] = serve(cfg, port=port, open_browser=False, on_ready=on_ready,
+                                desk=bridge)
         ready.set()                          # a server that never started
 
     thread = threading.Thread(target=server, name="jobdork-server", daemon=True)
@@ -319,13 +345,13 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
         print("the dashboard did not start; see the lines above")
         return running.get("code") or 1
 
-    bridge = Bridge()
     webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
     webview.settings["ALLOW_DOWNLOADS"] = True
     # text_select: pywebview makes a page unselectable unless asked, so no
-    # log line, error or letter could be copied out of the app.
+    # log line, error or letter could be copied out of the app. No js_api:
+    # the page reaches the Bridge through the server (see Bridge).
     bridge._window = webview.create_window(
-        "jobdork", running["url"], js_api=bridge, width=WINDOW_SIZE[0],
+        "jobdork", running["url"], width=WINDOW_SIZE[0],
         height=WINDOW_SIZE[1], min_size=MIN_SIZE, text_select=True)
     bridge._window.events.closing += ask_before_closing(running["busy"])
     # Not private: the page keeps small conveniences (a remembered tab) in
