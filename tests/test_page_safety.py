@@ -45,6 +45,18 @@ def test_every_built_link_is_a_web_address():
     assert "const webHref = url => /^https?:\\/\\//i.test(url || '') ? url : '#';" in page
 
 
+def test_the_google_jobs_link_carries_your_words_encoded_to_google_only():
+    """A title like "Charge Nurse & RN" or a place with commas must stay one
+    search, not end the query or the address; and it opens outside the app."""
+    page = _page()
+    builder = re.search(r"function googleJobsUrl\(title\) \{.*?\n\}", page, re.S).group(0)
+    assert "return 'https://www.google.com/search?udm=8&q=' + encodeURIComponent(words);" in builder
+    line = re.search(r"function googleJobsLine\(lead\) \{.*?\n\}", page, re.S).group(0)
+    assert "openOut(this.dataset.url)" in line and "esc(t)" in line
+    # Under the list, and in its place when nothing matches.
+    assert "googleJobsLine('Not here? ')" in page and "'<p class=\"empty\">Nothing matches.</p>' + googleJobsLine('')" in page
+
+
 # ── keep this block LAST ───────────────────────────────────────────────────────
 
 if __name__ == "__main__":

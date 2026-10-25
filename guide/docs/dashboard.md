@@ -30,9 +30,24 @@ After a scan, jobdork may offer to remove posts that are old (*risky*,
 *stale* or *ghost*, see [age tags](statuses.md#how-old-a-post-is)) that you
 have not acted on. **Not now** keeps them.
 
+## A run in detail
+
+Under the buttons, a card for the last run of each kind (**Last scan**,
+**Last check**, **Last AI judging**); pick one to show it below. Then that
+run in full:
+
+- **Progress**, **Rate**, **Time left** (or **Took**, once it ends),
+  **Requests** and **AI calls**, as tiles.
+- **Outcomes**: what the run counted: posts kept and dropped, verdicts given.
+- **Network, by host**: each website read, how many requests, and how many
+  were refused or slow.
+- **AI calls**: each model, how many calls and how long they took.
+- **Postings, by listing state**: how many posts are still up, gone or
+  unknown.
+
 ## The numbers
 
-Pick **7 days**, **30 days** or **90 days** to see that period.
+Below the run, the weeks behind it. Pick **7 days**, **30 days** or **90 days** to see that period.
 
 | Tile | Means |
 |---|---|
@@ -77,16 +92,10 @@ Tokens are as each provider counted them, so they are what a paid key is
 billed by. Calls made before jobdork counted tokens show requests but no
 tokens.
 
-## A run in detail
+## Log and history
 
-Further down, the latest run in full:
+At the bottom:
 
-- **Outcomes**: what the run counted: posts kept and dropped, verdicts given.
-- **Network, by host**: each website read, how many requests, and how many
-  were refused or slow.
-- **AI calls**: each model, how many calls and how long they took.
-- **Postings, by listing state**: how many posts are still up, gone or
-  unknown.
 - **Log**: what the run printed, line by line.
 - **Warnings and errors**: the last 7 days' problems, from every run and
   from the app itself. Pick a line to show that run. These are also what the

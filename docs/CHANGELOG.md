@@ -6,6 +6,68 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-25 — Folding the menu no longer pushes it down
+
+- Folded to its icons, the menu put the arrow under the logo: the top grew
+  from 38 to 74 pixels and every item below moved down by the difference.
+  The top now stays one row: the arrow lies over the logo, shows on hover or
+  keyboard focus, and a click on the logo opens the menu again. Measured in
+  Chrome: the first item stays at the same height open and folded.
+
+## Changed — 2026-10-25 — A new icon and logo, one design everywhere
+
+- **The mark:** a briefcase with a loupe and a `>_` prompt, cyan and green
+  on a near-black tile, in place of the white briefcase on blue. The same
+  drawing is the app's icon (macOS and Windows), the logo at the top of the
+  menu and on setup's welcome, and the browser tab's icon.
+- `packaging/icon.svg` is the master, on the macOS icon grid (an 824-pixel
+  rounded square in 1024); `packaging/icon.png` is rendered from it, so
+  the two cannot drift apart. The build turns the PNG into the `.icns` and
+  `.ico` files as before.
+- **The tab icon** is a `data:` URI inside the page. The page's
+  Content-Security-Policy gains `img-src data:` for it: images still come
+  from nowhere on the network (tested, with remote images still refused).
+- Guide: every full-page picture retaken with the new logo.
+
+## Changed — 2026-10-25 — The Dashboard shows the run before the AI charts
+
+- The run in progress (or the last one) came after every chart: the
+  period tiles, runs over time, hallucination, feedback, and the whole of
+  AI usage, so a first scan's progress was a long scroll down. Now, under
+  the buttons: the last run of each kind, then the run in full (progress,
+  rate, time left, requests, AI calls, outcomes, network by host, AI calls
+  by model, postings by listing state), then the charts. The log, warnings
+  and errors, and all runs stay at the bottom.
+- A last-run card says it shows its run **below** now. Guide: the
+  Dashboard page follows the same order (a run in detail, the numbers, log
+  and history), with the picture retaken.
+
+## Added — 2026-10-25 — Search Google Jobs from the job posts list
+
+- **"Not here? Search Google Jobs for …"** under the job posts list, and in
+  its place when nothing matches, names up to six of your job titles. Each
+  opens Google's job results (`udm=8`) in your browser for that title near
+  your location, or "remote jobs" when remote is the only arrangement you
+  want. In the desktop app it opens in your browser, like any outside link.
+- It is the way on for posts jobdork cannot read (LinkedIn, JobStreet,
+  employers on systems with no reader yet). The results stay in Google;
+  **Add a Job Post** on the Sources page keeps one in jobdork.
+- jobdork sends Google nothing: it is a link, and your browser makes the
+  request when you click (PRIVACY.md says so, under scanning). Reading
+  Google's results itself would break Google's terms; JSearch or SerpApi,
+  which sell them as data, stay deferred with the key proxy.
+- The title and place are encoded into the search (a "Charge Nurse & RN"
+  stays one search), and the link goes through `webHref` like every built
+  link. Guide: Job posts, with a picture. Test: the page builds it that way.
+
+## Changed — 2026-10-25 — Setup's welcome no longer says answers are saved as you go
+
+- The line under **Get started** ("Each answer is saved as you go, so you
+  can stop any time and carry on later") is gone from the page: it is said
+  in the guide (Getting started), the README and the run guides, and the
+  welcome was long enough. `jobdork setup` in a terminal still says it,
+  where there is no page to come back to.
+
 ## Changed — 2026-10-25 — Ruff pinned, so CI lints with the version you have
 
 - **#43 failed CI on a rule the local ruff did not have.** `pyproject.toml`
