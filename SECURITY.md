@@ -200,7 +200,8 @@ links. The app treats them as hostile.
 - **For a draft by Claude Code** (`claude -p`, `jobdork/writing/generate.py`)
   the agent works in that one job's folder with file tools only: no shell,
   no web, none of your MCP servers, whatever your own Claude Code settings
-  allow. A posting that persuades it can spoil that one draft, not reach
+  allow; and it reads none of those settings (`--setting-sources project`),
+  so your own permission rules, hooks and plugins do not apply to it. A posting that persuades it can spoil that one draft, not reach
   the rest of your machine.
 - **As an address to fetch** (an apply link, a careers page) it reaches
   public addresses only. One that names this machine or its network

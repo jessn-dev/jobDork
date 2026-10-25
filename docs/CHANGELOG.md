@@ -6,6 +6,17 @@ it and into an entry when the work is done.
 
 ---
 
+## Security — 2026-10-25 — Drafts by Claude Code ignore your own Claude Code settings
+
+- `claude -p`, which writes CVs and letters from a job post anyone could
+  have written, already ran in the job's folder with file tools only and
+  none of your MCP servers. It still read your `~/.claude` settings: your
+  permission rules (which could let it read or write beyond the folder),
+  your hooks and your plugins.
+- It now runs with `--setting-sources project`: settings from the job's
+  folder only, which has none. Signing in is not a setting and still works
+  (tried with a real run). Test: the command carries it.
+
 ## Security — 2026-10-25 — The desktop installers are built from hash-pinned packages
 
 - **The hole:** the Docker image installed every package by exact version
