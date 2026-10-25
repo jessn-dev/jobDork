@@ -78,6 +78,16 @@ resets them.
 The line under the filters counts what is shown, how many settled posts are
 hidden, and how many older posts are hidden (with *show them*).
 
+![Search Google Jobs](images/job-posts-google.png)
+
+**Not here? Search Google Jobs for …**, under the list (or in its place when
+nothing matches), names your job titles. Each opens Google's job results in
+your browser for that title near your location, or remote if you only want
+remote work. It finds posts on sites jobdork cannot read, such as LinkedIn
+or JobStreet. Those results stay in Google: to keep one in jobdork, use
+**Add a Job Post** on the [Sources page](sources.md). jobdork itself sends
+Google nothing; your browser does, when you click.
+
 ## Dropped by your filters
 
 ![Dropped by your filters](images/job-posts-dropped.png)

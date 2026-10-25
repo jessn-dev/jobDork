@@ -471,6 +471,7 @@ dialog{overflow:visible}
 .projform textarea{min-height:3.5rem;font-family:inherit}
 .projform input:not([type=hidden]){width:100%;box-sizing:border-box}
 .hint.warn{color:var(--warn)}
+.gjobs{margin:1rem 0 .5rem}
 .proj{border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem;margin-bottom:.5rem}
 .proj .bar{margin:.4rem 0 0}
 .proj .tag{font-size:.72rem;color:var(--accent);border:1px solid var(--accent);
@@ -1513,6 +1514,25 @@ function openOut(url) {
   if (desk()) desk().open_url(url).catch(e => toast('Not opened: ' + (e.message || e), 'err'));
   else window.open(url, '_blank', 'noopener,noreferrer');
 }
+// Google's jobs results in your own browser, with a title of yours and your
+// place filled in: the way on when the list comes up short, or the job is on
+// a site jobdork cannot read. jobdork sends Google nothing; your browser
+// does, when you click.
+function googleJobsUrl(title) {
+  const modes = (cfg && cfg.work_modes) || [];
+  const words = modes.length === 1 && modes[0] === 'remote' ? `${title} remote jobs`
+    : cfg && cfg.anchor ? `${title} jobs near ${cfg.anchor}` : `${title} jobs`;
+  return 'https://www.google.com/search?udm=8&q=' + encodeURIComponent(words);
+}
+function googleJobsLine(lead) {
+  const titles = ((cfg && cfg.titles_include) || []).slice(0, 6);
+  if (!titles.length) return '';
+  return `<p class="hint gjobs">${lead}Search Google Jobs for ${titles.map(t => {
+    const url = googleJobsUrl(t);
+    return `<a href="${esc(webHref(url))}" data-url="${esc(url)}"
+      onclick="event.preventDefault(); openOut(this.dataset.url)">${esc(t)}</a>`;
+  }).join(', ')}.</p>`;
+}
 const base64Of = blob => new Promise((ok, no) => {
   const r = new FileReader();
   r.onload = () => ok(String(r.result).split(',')[1] || '');
@@ -1831,8 +1851,9 @@ function drawRoles(d = rolesMeta) {
   const fresh = roles.filter(r => r.status === 'new').length;
   $('nav-new').hidden = !fresh;
   $('nav-new').textContent = fresh > 999 ? '999+' : fresh;
-  $('list').innerHTML = shown.length ? shown.map(card).join('')
-    : '<p class="empty">Nothing matches.</p>';
+  $('list').innerHTML = shown.length
+    ? shown.map(card).join('') + googleJobsLine('Not here? ')
+    : '<p class="empty">Nothing matches.</p>' + googleJobsLine('');
 }
 
 // How old the post is today (search/freshness.py): the application's place

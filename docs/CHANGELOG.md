@@ -6,6 +6,24 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-25 — Search Google Jobs from the job posts list
+
+- **"Not here? Search Google Jobs for …"** under the job posts list, and in
+  its place when nothing matches, names up to six of your job titles. Each
+  opens Google's job results (`udm=8`) in your browser for that title near
+  your location, or "remote jobs" when remote is the only arrangement you
+  want. In the desktop app it opens in your browser, like any outside link.
+- It is the way on for posts jobdork cannot read (LinkedIn, JobStreet,
+  employers on systems with no reader yet). The results stay in Google;
+  **Add a Job Post** on the Sources page keeps one in jobdork.
+- jobdork sends Google nothing: it is a link, and your browser makes the
+  request when you click (PRIVACY.md says so, under scanning). Reading
+  Google's results itself would break Google's terms; JSearch or SerpApi,
+  which sell them as data, stay deferred with the key proxy.
+- The title and place are encoded into the search (a "Charge Nurse & RN"
+  stays one search), and the link goes through `webHref` like every built
+  link. Guide: Job posts, with a picture. Test: the page builds it that way.
+
 ## Changed — 2026-10-25 — Setup's welcome no longer says answers are saved as you go
 
 - The line under **Get started** ("Each answer is saved as you go, so you

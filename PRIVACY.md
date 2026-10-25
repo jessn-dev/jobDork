@@ -63,6 +63,10 @@ described below, which you can turn off.
   ask the job's own page or board.
 - **Discover** (adding an employer's board) reads the employer website you
   type in.
+- **Search Google Jobs**, under the job posts list, is a link: clicking it
+  opens Google in your browser with a job title of yours and your location
+  (or "remote") as the search. jobdork itself sends Google nothing, and
+  nothing goes until you click.
 
 A scan runs when you start one, when a change to your search needs one, or
 at the times you choose under **Settings → Schedule a run**.

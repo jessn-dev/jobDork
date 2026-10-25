@@ -135,6 +135,7 @@ try {
   await shoot('job-posts');
   await shoot('job-posts-filters', {clip: '#view-roles'});
   await shoot('job-card', {clip: '#list .role'});
+  await shoot('job-posts-google', {clip: '#list .gjobs'});
   await tip('badge-match', '#list .role .badge.match');
   await tip('badge-fit', '#list .role .badge.fit');
   await tip('badge-ai', '#list .role .badge.ai');
