@@ -397,15 +397,53 @@ def _parse_object(text: str) -> dict:
     return value
 
 
+# A provider busy for a moment: Gemini answered 503 "This model is currently
+# experiencing high demand" on 2026-10-25. Asked again after a pause, twice,
+# as Anthropic's own client does (max_retries=2). Not 500: Ollama's is out of
+# memory, which a few seconds do not fix. Not 429: the next reader takes it,
+# and out of quota stays out of quota.
+RETRY_STATUS = (502, 503, 504)
+RETRY_WAITS = (2, 5)            # seconds before the second and the third try
+RETRY_AFTER_MAX = 30            # a longer Retry-After is not waited out
+_sleep = time.sleep
+
+
+def _retry_after(resp) -> float:
+    """The provider's own Retry-After in seconds, 0 when absent or too long."""
+    try:
+        seconds = float(resp.headers.get("Retry-After", ""))
+    except ValueError:
+        return 0
+    return seconds if 0 < seconds <= RETRY_AFTER_MAX else 0
+
+
+def _said(resp) -> str:
+    """The provider's own words for a failure: Gemini, OpenAI and Groq all
+    answer {"error": {"message": ...}}; anything else as it came."""
+    try:
+        message = resp.json()["error"]["message"]
+    except (ValueError, KeyError, TypeError):
+        message = ""
+    return (message if isinstance(message, str) and message else resp.text)[:200]
+
+
 def _post(url: str, body: dict, headers: dict, timeout: int) -> dict:
     """POST JSON. Errors name the status, never the headers carrying a key."""
-    try:
-        resp = requests.post(url, json=body, headers=headers, timeout=timeout)
-    except requests.Timeout:
-        raise LLMError(f"no answer within {timeout}s") from None
-    except requests.RequestException as exc:
-        raise LLMError(f"could not reach {url.split('/')[2]}: "
-                       f"{type(exc).__name__}") from None
+    tries = 0
+    for wait in (*RETRY_WAITS, None):
+        tries += 1
+        try:
+            resp = requests.post(url, json=body, headers=headers, timeout=timeout)
+        except requests.Timeout:
+            raise LLMError(f"no answer within {timeout}s") from None
+        except requests.RequestException as exc:
+            raise LLMError(f"could not reach {url.split('/')[2]}: "
+                           f"{type(exc).__name__}") from None
+        if resp.status_code not in RETRY_STATUS or wait is None:
+            break
+        _sleep(_retry_after(resp) or wait)
+    if resp.status_code in RETRY_STATUS:
+        raise LLMError(f"HTTP {resp.status_code}, asked {tries} times: {_said(resp)}")
     if resp.status_code in (401, 403):
         raise LLMError("the key was refused")
     if resp.status_code == 404:
@@ -413,7 +451,7 @@ def _post(url: str, body: dict, headers: dict, timeout: int) -> dict:
     if resp.status_code == 429:
         raise LLMError("rate limited or out of quota")
     if not resp.ok:
-        raise LLMError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+        raise LLMError(f"HTTP {resp.status_code}: {_said(resp)}")
     try:
         return resp.json()
     except ValueError:

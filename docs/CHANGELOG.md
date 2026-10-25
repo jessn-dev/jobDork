@@ -6,6 +6,29 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-25 — A busy AI provider is asked again before the call fails
+
+- **Gemini answered 503 on a real check of #38** (`gemini-3.5-flash`,
+  "This model is currently experiencing high demand ... Please try again
+  later") and the call failed at once, with the provider's raw JSON as the
+  message. Only Claude retried, through Anthropic's own client
+  (`max_retries=2`); Gemini, ChatGPT, Groq and Ollama go through `_post`,
+  which asked once.
+- `_post` now asks again on **502, 503 and 504**, twice, after 2 and then
+  5 seconds, or after the provider's own `Retry-After` when it is 30
+  seconds or less. Still busy after three tries: "HTTP 503, asked 3 times:
+  This model is currently experiencing high demand ...", still a
+  **Provider error** on the Dashboard.
+- **Not retried:** 500 (Ollama's out of memory, which seconds do not fix),
+  429 (the next reader in `llm.readers` takes it; out of quota stays out
+  of quota), a refused key, a model not found, a timeout.
+- A failure now reads in the provider's own words: Gemini, OpenAI and Groq
+  all answer `{"error": {"message": ...}}`, and that message is shown
+  instead of the first 200 characters of the JSON around it.
+- Guide: the Dashboard page says so under AI errors. Tests: a 503 then a
+  502 then an answer, three 503s, a short and a long Retry-After, and
+  500/429/401/404 asked once; nothing waits or goes online.
+
 ## Fixed — 2026-10-25 — DuPont, TJX and Disney back, through their Workday boards
 
 - The re-verify of 2026-10-25 (#41) dropped six careers-site boards unread
