@@ -177,6 +177,11 @@ links. The app treats them as hostile.
   (`localhost`, `192.168.x.x`, `169.254.169.254`), or redirects there, is
   refused (`jobdork/fetch/http.py`), so a posting cannot use the app to
   reach your router, printer or NAS.
+- **In the desktop app** the page can ask the app for three things only:
+  open a web address in your browser, save a file where you choose, and
+  show a PDF. A file is shown only if it really is a PDF, and always as
+  `.pdf`, so nothing handed to the app can run (`jobdork/web/app.py`).
+  The page's policy still refuses `eval`, in the app as in a browser.
 
 ---
 

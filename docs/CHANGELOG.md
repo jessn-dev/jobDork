@@ -6,6 +6,35 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-24 — The desktop app could not open a PDF, save a file or open a link
+
+- **"Could not open the PDF: desk().open_file is not a function"**, for a
+  cover letter and a resume alike, and the same for saving a file or
+  opening a job's link: none of the app's calls existed in its window.
+  pywebview builds `window.pywebview.api` in the page with `new Function`,
+  and the dashboard's Content-Security-Policy has no `'unsafe-eval'`, so
+  the first one threw (the `EvalError` in `logs/app.log` at every start)
+  and the page was left with an empty api it took for the app's. Answers
+  come back from Python through `eval` too, so even calls built another
+  way would never have resolved.
+- **The page now asks the app through its own server**, which runs in the
+  app: `POST /api/desk` with the page's token, answered by the same Bridge
+  (`open_url`, `save_file`, `open_file`; `jobdork/web/app.py`,
+  `jobdork/web/serve.py`). The window gets no `js_api`, so pywebview builds
+  nothing and the EvalError is gone. `'unsafe-eval'` was not added: it
+  would let script injected through a job post build code from strings,
+  in the one window that can write and open files.
+- **`open_file` shows PDFs only.** It opened whatever it was named with the
+  system's handler, where a `.command` file runs. It now refuses anything
+  that does not start as a PDF does, and always saves its copy as `.pdf`.
+- Tried in the real app in a WebKit window (a throwaway home): opening a
+  PDF and a link reached the Bridge and their answers reached the page,
+  with no error from the page. tests/test_serve.py covers the route (404
+  in a browser, the token, the size limit, unknown calls);
+  tests/test_app.py the Bridge's calls, PDF-only, and that the page names
+  exactly the Bridge's calls without eval. SECURITY.md says what the page
+  can ask of the app.
+
 ## Changed — 2026-10-24 — SignPath signing dropped: the installers stay unsigned
 
 - **SignPath Foundation did not grant free code signing**, so everything

@@ -176,6 +176,64 @@ def test_a_damaged_or_huge_file_is_refused():
         raise AssertionError(f"accepted {str(data)[:20]!r}")
 
 
+def test_only_a_pdf_is_opened_and_always_as_a_pdf():
+    """The system opens a file by its kind: a `.command` would run."""
+    shown = []
+    saved = app.open_with_system
+    app.open_with_system = shown.append
+    try:
+        bridge = app.Bridge()
+        for name, data in (("run.command", b"#!/bin/sh\nrm -rf ~"), ("x.pdf", b"<html>")):
+            try:
+                bridge.open_file(name, _b64(data))
+            except ValueError:
+                continue
+            raise AssertionError(f"opened {name}")
+        path = Path(bridge.open_file("run.command", _b64(b"%PDF-1.7")))
+        assert path.name == "run.pdf" and shown == [path]
+        bridge.forget()
+    finally:
+        app.open_with_system = saved
+
+
+def test_the_page_calls_the_bridge_by_name_and_nothing_else():
+    opened = []
+    saved = app.webbrowser.open
+    # lambda: stands in for the browser, recording instead of opening.
+    app.webbrowser.open = lambda url: opened.append(url)
+    try:
+        bridge = app.Bridge()
+        assert bridge.call("open_url", ["https://example.com/"]) is True
+        assert opened == ["https://example.com/"]
+        for name, args in (("forget", []), ("_decode", ["x"]), ("__init__", []),
+                           ("open_url", "https://example.com/"), ("open_url", [])):
+            try:
+                bridge.call(name, args)
+            except ValueError:
+                continue
+            raise AssertionError(f"called {name}({args!r})")
+    finally:
+        app.webbrowser.open = saved
+
+
+def test_the_page_asks_for_every_call_it_makes_without_eval():
+    """The page's DESK lists what it may ask the app; it must cover every
+    desk() call and name only Bridge.CALLS. The page's policy refuses eval,
+    so neither the page nor the fix may need it."""
+    import re
+
+    from jobdork.web import serve
+    page = (Path(app.__file__).resolve().parent.parent / "data" / "dashboard.html").read_text()
+    desk = re.search(r"const DESK = \{(.*?)\n\};", page, re.S)
+    assert desk, "DESK is gone from dashboard.html"
+    names = set(re.findall(r"^\s*(\w+):", desk.group(1), re.M))
+    used = set(re.findall(r"desk\(\)\.(\w+)\(", page))
+    assert names == set(app.Bridge.CALLS), names
+    assert used <= names, used - names
+    assert not re.search(r"new Function\(|\beval\(", page)
+    assert "unsafe-eval" not in Path(serve.__file__).read_text()
+
+
 def test_a_pdf_opens_from_a_copy_that_is_deleted_afterwards():
     shown = []
     saved = app.open_with_system
@@ -220,7 +278,7 @@ def test_a_whole_run_opens_setup_from_the_apps_folder_and_stops():
             VAULT.wipe()
         made = webview.made
         assert made["title"] == "jobdork" and "?t=" in made["url"], made
-        assert isinstance(made["js_api"], app.Bridge)
+        assert "js_api" not in made, "the page reaches the Bridge through the server"
         assert made["text_select"] is True        # logs and letters can be copied
         assert len(made["closing"]) == 1          # asks before closing mid-scan
         assert made["start"] == {"private_mode": False,
