@@ -272,9 +272,17 @@ def _runs(store, now: float) -> None:
                  "{}", "done",
                  "workday: 41 roles from 6 boards · greenhouse: 37 roles from 4 boards · "
                  "fetched 120, kept 8, stored 8" if job == "scan" else "checked 8 postings"))
-        store.conn.execute(
-            "INSERT INTO llm_calls(at, model, purpose, seconds, ok) VALUES(?,?,?,?,?)",
-            (stamp(at), "Ollama (local) · gemma4:26b", "judge", 38.0 + day, 1))
+        # A reader, a local checker and a hosted one that is sometimes rate
+        # limited, for the AI usage charts.
+        calls = [("Ollama (local) · gemma4:26b", "judge", 38.0 + day, 1, 4200, 380, "")] * (3 + day % 3)
+        calls += [("Ollama (local) · qwen3.8:27b", "guard_verify", 30.0, 1, 5100, 900, "")] * (2 + day % 2)
+        calls += [("Gemini · gemini-3.1-flash-lite", "judge", 4.0, 1, 3900, 420, "")] * (day % 4)
+        calls += [("Gemini · gemini-3.1-flash-lite", "judge", 0.4, 0, 0, 0, "rate_limited")] * (day == 3)
+        calls += [("Ollama (local) · qwen3.8:27b", "guard_verify", 600.0, 0, 0, 0, "timed_out")] * (day == 5)
+        store.conn.executemany(
+            "INSERT INTO llm_calls(at, model, purpose, seconds, ok, input_tokens, "
+            "output_tokens, error) VALUES(?,?,?,?,?,?,?,?)",
+            [(stamp(at), *call) for call in calls])
     store.conn.commit()
 
 

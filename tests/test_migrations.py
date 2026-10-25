@@ -78,11 +78,13 @@ def test_an_old_database_is_upgraded_without_losing_anything():
         _v1_database(path)
 
         with Store(path) as store:
-            assert store.applied_migrations == [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], store.applied_migrations
-            assert migrations.current_version(store.conn) == 11
+            assert store.applied_migrations == [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], store.applied_migrations
+            assert migrations.current_version(store.conn) == 12
             assert {"fit", "score_parts", "llm_score", "listing_state"} \
                 <= migrations._columns(store.conn, "roles")
             assert {"kind", "role"} <= migrations._columns(store.conn, "projects")
+            assert {"input_tokens", "output_tokens", "error"} \
+                <= migrations._columns(store.conn, "llm_calls")
 
             row = store.get(OLD_UID)
             assert row["company"] == "Acme"
@@ -96,7 +98,7 @@ def test_migrating_twice_does_nothing_the_second_time():
         path = Path(tmp) / "old.db"
         _v1_database(path)
         with Store(path) as store:
-            assert store.applied_migrations == [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+            assert store.applied_migrations == [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
         with Store(path) as store:
             assert store.applied_migrations == [], "already at the version"
 

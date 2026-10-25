@@ -53,6 +53,28 @@ The charts below them:
 
 **Show as table** turns any chart into the numbers.
 
+### AI usage
+
+![AI usage](images/dashboard-usage.png)
+
+Every call jobdork made to an AI model, local or on your keys, in the
+period chosen above. **Provider** narrows all of it to one provider.
+
+- **Total AI requests**: calls per day, and the share answered as a line.
+- **AI errors, by kind**: the calls that failed, per day: rate limited
+  (429), key refused, provider error (5xx), timed out, could not reach,
+  an answer that was not JSON, and so on.
+- **Usage per model**, one line per model; **Model** shows one:
+  - **Input tokens per model**: what was sent: the prompt, the advert,
+    your resume.
+  - **Output tokens per model**: what the model wrote, its thinking
+    included.
+  - **Requests per model**: how many times each was asked.
+
+Tokens are as each provider counted them, so they are what a paid key is
+billed by. Calls made before jobdork counted tokens show requests but no
+tokens.
+
 ## A run in detail
 
 Further down, the latest run in full:

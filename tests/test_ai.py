@@ -301,6 +301,77 @@ def test_gpt_oss_on_ollama_reasons_at_medium_with_room_for_it():
     assert gemma["think"] is False and gemma["options"]["num_predict"] == 500
 
 
+
+# ── usage ─────────────────────────────────────────────────────────────────────
+
+def _counted(provider: str, reply) -> list[dict]:
+    """One call with the network stubbed; what telemetry was told about it.
+    `reply` is the provider's JSON, or an LLMError for _post to raise."""
+    from jobdork.core import telemetry
+    told = []
+
+    def fake(url, body, headers, timeout):
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    saved = llm._post, telemetry.llm
+    llm._post = fake
+    # lambda: stands in for telemetry.llm, keeping what it was given.
+    telemetry.llm = lambda model, seconds, ok, **k: told.append({"ok": ok, **k})
+    try:
+        if provider in llm.KEYED:
+            llm.VAULT.put(provider, "test-key-1234567890abcdef")
+        llm._call_one(llm.Settings(provider=provider, model="m"), "sys", "user",
+                      {"type": "object"}, 500, "test", None)
+    except llm.LLMError:
+        pass
+    finally:
+        llm._post, telemetry.llm = saved
+        if provider in llm.KEYED:
+            llm.VAULT.forget(provider)
+    return told
+
+
+def test_each_call_records_the_tokens_its_provider_counted():
+    answer = '{"ok": true}'
+    gemini = {"candidates": [{"content": {"parts": [{"text": answer}]}}],
+              # Thinking is output too: Gemini bills it, and counts it apart.
+              "usageMetadata": {"promptTokenCount": 120, "candidatesTokenCount": 30,
+                                "thoughtsTokenCount": 50}}
+    groq = {"choices": [{"message": {"content": answer}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5}}
+    ollama = {"message": {"content": answer}, "prompt_eval_count": 300, "eval_count": 7}
+    assert _counted("gemini", gemini) == [{"ok": True, "purpose": "test",
+                                           "tokens": (120, 80)}]
+    assert _counted("groq", groq)[0]["tokens"] == (10, 5)
+    assert _counted("openai", groq)[0]["tokens"] == (10, 5)
+    assert _counted("ollama", ollama)[0]["tokens"] == (300, 7)
+
+
+def test_a_failed_call_records_what_kind_of_failure_and_any_tokens_spent():
+    cut = {"candidates": [{"content": {"parts": [{"text": '{"ok": tr'}]}}],
+           "usageMetadata": {"promptTokenCount": 40, "thoughtsTokenCount": 50}}
+    got = _counted("gemini", cut)[0]
+    assert (got["ok"], got["error"], got["tokens"]) == (False, "not_json", (40, 50))
+    got = _counted("gemini", llm.LLMError("rate limited or out of quota"))[0]
+    assert (got["error"], got["tokens"]) == ("rate_limited", (0, 0))
+
+
+def test_failures_are_sorted_into_kinds_by_their_message():
+    for message, kind in (("rate limited or out of credit", "rate_limited"),
+                          ("HTTP 429: slow down", "rate_limited"),
+                          ("the key was refused", "key_refused"),
+                          ("model not found. Pick one from the list", "not_found"),
+                          ("HTTP 503: overloaded", "server_error"),
+                          ("Claude API error 529", "server_error"),
+                          ("no answer within 60s", "timed_out"),
+                          ("could not reach localhost:11434: ConnectionError", "unreachable"),
+                          ("the model did not answer in JSON", "not_json"),
+                          ("Claude declined to answer this one", "declined"),
+                          ("HTTP 400: bad request", "other")):
+        assert llm.error_kind(message) == kind, message
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

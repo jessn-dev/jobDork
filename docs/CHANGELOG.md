@@ -6,6 +6,43 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-24 — AI usage on the Dashboard: requests, errors, tokens per model
+
+- **What every AI call costs, on the Dashboard.** Below the hallucination
+  chart, for the period chosen (7, 30, 90 days):
+  - **Total AI requests**: calls per day as columns, and the share
+    answered as a line on its own 0-100% scale (`columns()` takes a `line`).
+  - **AI errors, by kind**: failed calls per day, stacked by kind: rate
+    limited (429), key refused (401/403), model not found (404), provider
+    error (5xx), timed out, could not reach, answer not JSON, declined,
+    other. The five most frequent get colours; the rest fold into Other.
+  - **Usage per model**: input tokens, output tokens and requests per day,
+    one line per model, in the colour order the hallucination chart uses
+    (first called, first colour; past six, "other models").
+  - **Provider** narrows all of it (one key each, so it is "all API keys"
+    or one); **Model** narrows the per-model charts. Every chart has its
+    table.
+- **Tokens as the provider counted them**, from each reply: Ollama's
+  `prompt_eval_count`/`eval_count` (streamed calls included), OpenAI's and
+  Groq's `usage`, Gemini's `usageMetadata` (thinking counted as output, as
+  it is billed), Claude's `usage` (cached input included). A call that
+  failed after the model answered, such as an answer that was not JSON,
+  keeps the tokens it spent.
+- **Schema 12**: `llm_calls` gains `input_tokens`, `output_tokens` and
+  `error` (`llm.error_kind`, from the failure's message). Calls before it
+  have 0 tokens and their failures show as "Kind not recorded"; the
+  per-model charts say from which day tokens were counted. A database at
+  12 is refused by an older jobdork, as every schema step is.
+- `/api/metrics` returns `usage` (models with provider and colour slot,
+  error kinds by frequency, the day tokens start) and each day's usage
+  per model.
+- Guide: Dashboard has an **AI usage** section and picture
+  (`dashboard-usage.png`, demo data with a reader, a local checker and a
+  rate-limited hosted model); README's Dashboard paragraph names it.
+- Tests: tokens read from each provider's reply, a failure's kind and its
+  spent tokens kept, failure messages sorted into kinds, usage per day
+  and model with kinds and the period respected, the schema step.
+
 ## Fixed — 2026-10-24 — Letters and tailored resumes flagged true years, and a tailored resume could list a skill you do not have
 
 - **A tailored resume listed Django on a resume that says Flask.** The
@@ -35,6 +72,7 @@ it and into an entry when the work is done.
   resume are sent the measured block and checked with it; a skill not in
   the resume is dropped and listed; self-description is left out while a
   company seeking someone is kept.
+
 
 ## Fixed — 2026-10-24 — The desktop app could not open a PDF, save a file or open a link
 

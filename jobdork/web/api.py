@@ -1173,6 +1173,17 @@ def metrics(cfg, days: int = 30) -> dict:
             "FROM ai_outputs WHERE checked = 1 GROUP BY 1 ORDER BY 2")]
         first_output = conn.execute(
             "SELECT MIN(created_at) FROM ai_outputs").fetchone()[0] or ""
+        # Usage: every call in the period, by day and model, all providers.
+        usage_rows = conn.execute(
+            "SELECT substr(at, 1, 10) AS day, COALESCE(NULLIF(model, ''), "
+            "'unknown model') AS model, ok, input_tokens, output_tokens, error "
+            "FROM llm_calls WHERE at >= ?", (since,)).fetchall()
+        callers = [r[0] for r in conn.execute(
+            "SELECT COALESCE(NULLIF(model, ''), 'unknown model'), MIN(at) "
+            "FROM llm_calls GROUP BY 1 ORDER BY 2, 1")]
+        first_tokens = conn.execute(
+            "SELECT MIN(at) FROM llm_calls WHERE input_tokens + output_tokens > 0"
+        ).fetchone()[0] or ""
 
     errored = [r for r in runs if r["state"] in ("failed", "died", "stopped")]
     by_day = {d: dict.fromkeys(TOOLS, 0) for d in dates}
@@ -1213,6 +1224,9 @@ def metrics(cfg, days: int = 30) -> dict:
                 k["claims"] += o["claims"]
                 k["unsupported"] += o["unsupported"]
 
+    usage = _usage(usage_rows, callers, dates)
+    usage["tokens_since"] = first_tokens[:10]
+
     feedback = {d: {"up": 0, "down": 0} for d in dates}
     for o in outputs:
         if o["feedback"] and o["day"] in feedback:
@@ -1239,10 +1253,52 @@ def metrics(cfg, days: int = 30) -> dict:
         "feedback": {"up": ups, "down": downs,
                      "approval": ups / (ups + downs) if ups + downs else None},
         "kinds": [{"kind": k, "label": v} for k, v in OUTPUT_KINDS.items()],
+        "usage": {k: v for k, v in usage.items() if k != "per_day"},
         "models": [{"kind": m, "label": m} for m in shown]
         + ([{"kind": "other models", "label": "other models"}] if len(shown) < len(models) else []),
         "per_day": [{"date": d, "runs": by_day[d], "claims": claims_by_day[d],
-                     "claims_by_model": claims_by_model[d], **feedback[d]} for d in dates],
+                     "claims_by_model": claims_by_model[d], "usage": usage["per_day"][d],
+                     **feedback[d]} for d in dates],
+    }
+
+
+def _usage(rows, callers: list[str], dates: list[str]) -> dict:
+    """Model calls per day and model: requests, failures by kind, tokens.
+
+    `callers` is every model ever called, in the order first used: that is
+    the colour order, so a model keeps its colour. Past MAX_MODELS the rest
+    fold into "other models", as on the hallucination chart. A failure from
+    before kinds were recorded is "unrecorded".
+    """
+    shown = (callers if len(callers) <= MAX_MODELS else callers[:MAX_MODELS - 1])
+    per_day = {d: {} for d in dates}
+    kinds: dict[str, int] = {}
+    for r in rows:
+        if r["day"] not in per_day:
+            continue
+        model = r["model"] if r["model"] in shown else "other models"
+        m = per_day[r["day"]].setdefault(model, {"requests": 0, "failed": 0, "input": 0,
+                                                 "output": 0, "errors": {}})
+        m["requests"] += 1
+        m["input"] += r["input_tokens"] or 0
+        m["output"] += r["output_tokens"] or 0
+        if not r["ok"]:
+            kind = r["error"] or "unrecorded"
+            m["failed"] += 1
+            m["errors"][kind] = m["errors"].get(kind, 0) + 1
+            kinds[kind] = kinds.get(kind, 0) + 1
+    used = {model for day in per_day.values() for model in day}
+    models = [m for m in shown if m in used] + (["other models"] if "other models" in used else [])
+    return {
+        "models": [{"kind": m, "label": m,
+                    # The colour slot: its place among every model ever called.
+                    "ink": shown.index(m) if m in shown else len(shown),
+                    "provider": m.split(" · ")[0] if " · " in m else ""} for m in models],
+        # Most frequent first: the chart colours the first few and folds the rest.
+        # lambda: sort key, a kind's count in the period, highest first, then
+        # by name so equal counts keep one order.
+        "error_kinds": sorted(kinds, key=lambda k: (-kinds[k], k)),
+        "per_day": per_day,
     }
 
 
