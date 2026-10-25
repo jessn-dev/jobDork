@@ -98,10 +98,15 @@ def dmg(ver: str) -> Path:
 
 
 def _diskutil_image() -> bool:
-    """`diskutil image create from` is there (macOS 27; not on CI's macOS 15,
-    where `image` is an unknown verb and the help exits 1)."""
-    return subprocess.run(["diskutil", "image", "create", "from", "--help"],
-                          capture_output=True).returncode == 0
+    """`diskutil image create from` is there and names the volume (macOS 27).
+
+    Asked by its help, not by whether it runs: CI's macOS 15 has the command
+    but no `--volumeName`, and refused it (exit 64); there `hdiutil` is used,
+    and does not warn.
+    """
+    help_ = subprocess.run(["diskutil", "image", "create", "from", "--help"],
+                           capture_output=True, text=True)
+    return help_.returncode == 0 and "--volumeName" in help_.stdout + help_.stderr
 
 
 def windows_installer(ver: str) -> Path:

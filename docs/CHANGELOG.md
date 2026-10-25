@@ -46,10 +46,13 @@ it and into an entry when the work is done.
   favour of `diskutil image create from`. The build now uses that where it
   exists, giving the same compressed (UDZO) image, as APFS: it takes no
   filesystem, and every macOS the app runs on (12 and later) reads APFS.
-- Where it does not exist (CI's macOS 15: `diskutil image` is an unknown
-  verb there), `hdiutil` is used as before. Tried on macOS 27.0.1 with the
-  build's own `dmg()` on a stand-in app: no warning, the Applications link
-  kept. The CI build checks the other path.
+- Where it cannot name the volume, `hdiutil` is used as before: CI's
+  macOS 15 has `diskutil image create from` but no `--volumeName`, and
+  refused it (the first CI build of this change failed there), so the
+  build asks the command's help for `--volumeName` rather than whether it
+  runs. Tried on macOS 27.0.1 with the build's own `dmg()` on a stand-in
+  app: no warning, the Applications link kept; the CI build checks the
+  `hdiutil` path.
 
 ## Fixed — 2026-10-25 — Folding the menu no longer pushes it down
 
