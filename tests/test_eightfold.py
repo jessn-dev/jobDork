@@ -111,6 +111,16 @@ def test_discover_settles_the_domain_the_board_answers_for():
     assert found.note == "" and found.addable
 
 
+def test_a_board_rechecked_from_the_list_asks_with_the_domain_it_carries():
+    """Applied Materials' host is its own, so neither its first label nor
+    its tenant names the domain; the token does."""
+    token = "careers.appliedmaterials.com/appliedmaterials.com"
+    item = discover.Found(platform="eightfold", token=token,
+                          board_url="https://careers.appliedmaterials.com/careers")
+    item = discover._verify(_Board([], domain="appliedmaterials.com"), item)
+    assert (item.token, item.status, item.jobs) == (token, "verified", 21842)
+
+
 def test_discover_tries_the_domain_the_page_names_first():
     page = ('<a href="https://starbucks.eightfold.ai/careers?domain=starbucks.com">Jobs</a>'
             '<script src="https://app.eightfold.ai/x.js"></script>')

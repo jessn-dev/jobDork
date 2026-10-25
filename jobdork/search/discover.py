@@ -396,7 +396,15 @@ def _verify(fetcher: Fetcher, item: Found) -> Found:
     if item.platform == "taleo":
         return _verify_taleo(fetcher, item)
     if item.platform == "site":
-        # Read off the sitemap and one marked-up posting by _site_board.
+        # Read off the sitemap and one marked-up posting by _site_board. A
+        # board re-checked from the list comes with nothing read yet.
+        if not item.source_url:
+            again = _site_board(fetcher, _Robots(fetcher), item.token)
+            if again is None:
+                item.note = "the sitemap lists no posting marked up as a job"
+            else:
+                item.jobs, item.countries = again.jobs, again.countries
+                item.source_url = again.source_url
         item.status = "verified" if item.jobs else "empty"
         return item
     adapter = fetch_pkg.get(item.platform)
@@ -515,14 +523,16 @@ def _verify_eightfold(fetcher: Fetcher, item: Found) -> Found:
 
     The API answers 404 for a domain that is not the board's, so a guess is
     checked rather than trusted: the page's own `domain=` first, then the
-    site the token was read on, then the tenant's name with .com.
+    domain a board re-checked from the list already carries, then the site
+    the token was read on, then the tenant's name with .com.
     """
     from ..fetch import eightfold
 
     host = _eightfold_host(item.token)
     tenant = host.split(".")[0]
+    stored = item.token.split("/", 1)[1] if "/" in item.token else ""
     source = _site(urllib.parse.urlsplit(item.source_url).hostname or "")
-    guesses = [*item.hints, source, f"{tenant}.com"]
+    guesses = [*item.hints, stored, source, f"{tenant}.com"]
     for domain in dict.fromkeys(g for g in guesses if g and "eightfold" not in g):
         resp = eightfold.search(fetcher, host, domain)
         if resp.status == 404 or resp.status == 422:

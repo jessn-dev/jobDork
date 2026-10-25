@@ -6,6 +6,29 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-25 — The weekly board re-verify dropped working careers sites
+
+- **The first weekly re-verify that could open its pull request** (#39,
+  once `BOARDS_PR_TOKEN` was added) would have removed 93 boards and
+  listed 42 more as failing, all of them careers sites or Eightfold
+  boards. They were not failing; re-verify never asked them.
+- **Careers sites** (`site`): `_verify` counted a site board from what
+  discovery's `_site_board` had already read off its sitemap. A board
+  re-checked from `boards.csv` starts from its address alone, so every one
+  came back "empty" without a request. A board with nothing read yet is
+  now read again; one whose sitemap lists no marked-up posting says so.
+- **Eightfold on the employer's own host** (Applied Materials, Dexcom,
+  Ericsson, Vodafone) and **outside .com** (National Australia Bank,
+  nab.com.au): the domain the token already carries was not among the
+  guesses, so only the host's first label with .com was tried ("careers.com").
+  It is now tried first after the page's own.
+- Both since the boards came in (2026-10-02); the hand runs used
+  `--add`, which reads through discovery. Checked live: AMD, Applied
+  Materials, Duke University, National Australia Bank, Chevron and Vodafone
+  re-verified with jobs. Tests: a site board and an Eightfold board on its
+  own host re-checked from a bare token, offline. PR #39 should be closed
+  unmerged and the workflow run again.
+
 ## Fixed — 2026-10-25 — Gemini "did not answer in JSON" on Save and test
 
 - **Save and test failed three times on `gemini-3.5-flash`** (2026-10-23)
