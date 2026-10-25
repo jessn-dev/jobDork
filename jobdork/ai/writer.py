@@ -69,6 +69,9 @@ state.
 A script checks every figure.
 - A number of years belongs to what the resume attaches it to. "10 years \
 building web applications" is not 10 years of each language listed.
+- A total of years worked comes only from <<MEASURED>>, which the tool \
+counted from the resume's dates: never add up dates yourself, and leave the \
+total out when it is not given.
 - Say about the company only what the advert says. No flattery it does not \
 support.
 - At most four short paragraphs. No greeting line, no sign-off, no \
@@ -189,9 +192,10 @@ bullets only where the resume says it was done in that job. Each project's \
 "bullets" follow STAR: the situation, what was done, and the result, in one \
 to three bullets, from the resume or the PROJECTS notes only.
 
-"summary": two or three plain sentences: their role, years of experience as the \
-resume states them, one or two strengths the resume shows, and the kind of role \
-they want (this one). "skills": the resume's skills as short plain terms, the \
+"summary": two or three plain sentences: their role, years of experience as \
+<<MEASURED>> gives them (none when it is not given; never add up dates \
+yourself), one or two strengths the resume shows, and the kind of role they \
+want (this one). "skills": the resume's skills as short plain terms, the \
 ones this advert asks for first, no ratings. "experience": every job in the \
 resume, newest first, with "title" and "company" exactly as the resume writes \
 them, "location" and "start"/"end" as the resume gives them ("" when it does \
@@ -293,9 +297,20 @@ def _advert(row) -> str:
     return advert
 
 
-def _role_header(row) -> str:
+def _role_header(row, work: str = "") -> str:
     return (f"Role: {row['title'] or ''}\nEmployer: {row['company'] or ''}\n"
-            f"Location: {row['location_raw'] or ''}\n\n")
+            f"Location: {row['location_raw'] or ''}\n\n"
+            + (f"<<MEASURED>>\n{work}\n<</MEASURED>>\n\n" if work else ""))
+
+
+def _measured(resume_text: str) -> str:
+    """The work history counted from the resume's dates, as the judge is given
+    it (judging.run): a model adding up dates gets the years wrong, and the
+    check cannot confirm a total the resume itself never states."""
+    from ..search import resume as resume_mod
+
+    span = resume_mod.work_span(resume_text)
+    return span.line() if span else ""
 
 
 def guard_gate(report: guard.GuardReport) -> gates_mod.Gate:
@@ -322,8 +337,11 @@ def cover_letter(settings: Settings, row, resume_text: str,
     if not resume_text:
         raise LLMError("no resume loaded. Upload one on the Resume page")
     advert = _advert(row)
-    user = (_role_header(row) + _fenced("ADVERT", advert, MAX_ADVERT) + "\n\n"
+    work = _measured(resume_text)
+    user = (_role_header(row, work) + _fenced("ADVERT", advert, MAX_ADVERT) + "\n\n"
             + _fenced("RESUME", resume_text, MAX_RESUME))
+    # Checked against what the model was given: the resume and its measured total.
+    record = resume_text + (f"\n\n{work}" if work else "")
     raw = complete_json(settings, LETTER_SYSTEM, user, LETTER_SCHEMA,
                         max_tokens=1500, purpose="cover_letter")
     paragraphs = [humanize.clean(_one_line(p, 1500), keep_quotes=True)
@@ -333,11 +351,11 @@ def cover_letter(settings: Settings, row, resume_text: str,
         raise LLMError("the model returned an empty letter")
     telemetry.tick(done=1)
 
-    report = (guard.check(settings, text, {"resume": resume_text,
+    report = (guard.check(settings, text, {"resume": record,
                                            "advert": guard.advert_source(row)})
               if check else guard.GuardReport(error=OFF))
     telemetry.tick(done=2)
-    checks = gates_mod.run_all(text, "cover_letter", resume_text=resume_text,
+    checks = gates_mod.run_all(text, "cover_letter", resume_text=record,
                                sibling=sibling)
     return Draft(text=text, gates=[*checks, guard_gate(report)], guard=report)
 
@@ -455,12 +473,15 @@ def tailored_resume(settings: Settings, row, resume_text: str,
     if not resume_text:
         raise LLMError("no resume loaded. Upload one on the Resume page")
     advert = _advert(row)
-    user = (_role_header(row) + _fenced("ADVERT", advert, MAX_ADVERT) + "\n\n"
+    work = _measured(resume_text)
+    user = (_role_header(row, work) + _fenced("ADVERT", advert, MAX_ADVERT) + "\n\n"
             + _fenced("RESUME", resume_text, MAX_RESUME))
     if notes:
         user += "\n\n" + _fenced("PROJECTS", notes, MAX_RESUME)
-    # What the person said about themselves: the resume, and their project notes.
-    record = resume_text + ("\n\n" + notes if notes else "")
+    # What the person said about themselves: the resume, their project notes,
+    # and the total measured from the resume's dates.
+    record = (resume_text + ("\n\n" + notes if notes else "")
+              + (f"\n\n{work}" if work else ""))
     raw = complete_json(settings, TAILOR_SYSTEM, user, TAILOR_SCHEMA,
                         max_tokens=4000, purpose="tailored_resume")
     telemetry.tick(done=1)
@@ -472,9 +493,17 @@ def tailored_resume(settings: Settings, row, resume_text: str,
     seen = set()
     for skill in raw.get("skills") or []:
         skill = _plain(skill, 60)
-        if skill and skill.lower() not in seen:
-            seen.add(skill.lower())
+        if not skill or skill.lower() in seen:
+            continue
+        seen.add(skill.lower())
+        # A skill the advert asks for is easy to copy across: one not in the
+        # resume or notes, as written or word by word ("Python (Flask)"), is
+        # dropped like an employer. Django on a resume listing Flask, 2026-10-24.
+        if _found(skill, record) or all(
+                _found(w, record) for w in re.findall(r"[^\W_]+", skill)):
             doc["skills"].append(skill)
+        else:
+            dropped.append(f"skill: {skill}")
     for job in (raw.get("experience") or [])[:15]:
         if not isinstance(job, dict):
             continue
@@ -565,7 +594,7 @@ def tailored_resume(settings: Settings, row, resume_text: str,
     facts = gates_mod.Gate(
         FACTS_GATE, passed=not dropped,
         detail=(f"{len(dropped)} left out: not named in your resume or projects" if dropped
-                else "every employer, school and certification is in your resume")
+                else "every employer, school, skill and certification is in your resume")
         + (f"; {len(unmatched)} worded differently from your resume, check them"
            if unmatched else ""),
         items=dropped + unmatched)

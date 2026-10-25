@@ -420,6 +420,25 @@ def test_reading_a_gap_takes_no_time_on_a_hostile_claim():
     assert time.monotonic() - started < 1
 
 
+
+def test_what_the_text_says_about_itself_is_not_a_claim_to_check():
+    """A letter applying, or a resume summary naming the role wanted, is the
+    text describing itself: no source can support it. A company seeking
+    someone is a claim about the advert, and is checked."""
+    kept = ["The company is seeking a candidate for the role.",
+            "The advert seeks someone with five years of Go for this job.",
+            "Jane led a team of four at Acme."]
+    said = ["The candidate is seeking a Software Engineer role to build software.",
+            "Jane wants a senior backend position.",
+            "Jane is applying for the Platform Engineer job."]
+    original = guard.complete_json
+    guard.complete_json = _fake([{"claims": said + kept}])
+    try:
+        got = guard.extract_claims(_Ready("ollama", "m"), "text")
+    finally:
+        guard.complete_json = original
+    assert got == kept, got
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

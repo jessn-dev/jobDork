@@ -245,6 +245,51 @@ def test_a_tailored_resume_keeps_to_the_resume_and_is_named_for_the_role():
         assert name == result.pdf_path.name and body.startswith(b"%PDF-")
 
 
+DATED = RESUME + "Platform engineer, Acme, March 2016 - April 2017\n"
+
+
+def test_letters_and_resumes_get_the_measured_years_and_are_checked_with_them():
+    """A model adding up dates gets the years wrong, and a check cannot
+    confirm a total the resume never states: both are given the one the
+    tool counted, as the judge is."""
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, uid = _setup(tmp)
+        with Store(cfg.db_path) as store:
+            row = store.get(uid)
+    seen = []
+
+    def script(answers):
+        def answer(settings, system, user, schema, purpose="", **_):
+            seen.append((purpose, user))
+            return answers.pop(0)
+        return answer
+
+    tailored = {**BASE, "stage": "experienced", "industry": "tech", "stage_reason": "",
+                "projects": []}
+    for write, first in ((writer.cover_letter, {"paragraphs": ["I ran it."]}),
+                         (writer.tailored_resume, tailored)):
+        saved = (writer.complete_json, guard.complete_json)
+        writer.complete_json = guard.complete_json = script([first, *GUARD_OK])
+        try:
+            write(SETTINGS, row, DATED)
+        finally:
+            writer.complete_json, guard.complete_json = saved
+    measured = "Work history in the resume: March 2016 to April 2017, 1 year 2 months"
+    for purpose in ("cover_letter", "tailored_resume"):
+        assert "<<MEASURED>>\n" + measured in dict(seen)[purpose], purpose
+    checked = [user for purpose, user in seen if purpose == "guard_verify"]
+    assert len(checked) == 2 and all(measured in user for user in checked)
+
+
+def test_a_skill_the_resume_does_not_have_is_left_off_and_said_so():
+    result = _tailor_with({**BASE, "stage": "experienced", "industry": "tech",
+                           "stage_reason": "", "projects": [],
+                           "skills": ["Kubernetes", "Django", "Python (Go)"]})
+    assert "## SKILLS\nKubernetes, Python (Go)\n" in result.markdown
+    facts = next(g for g in result.gates if g.name == writer.FACTS_GATE)
+    assert not facts.passed and facts.items == ["skill: Django"]
+
+
 def _tailor_with(answer, notes_rows=()):
     with tempfile.TemporaryDirectory() as tmp:
         cfg, uid = _setup(tmp)

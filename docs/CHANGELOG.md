@@ -6,6 +6,36 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-24 — Letters and tailored resumes flagged true years, and a tailored resume could list a skill you do not have
+
+- **A tailored resume listed Django on a resume that says Flask.** The
+  check caught it (one of 4 flagged claims of 25), but the PDF already had
+  it. Skills now get the script check employers, schools and
+  certifications have: one not in the resume or the Resume page's notes,
+  as written or word by word ("Python (Flask)"), is left out and listed in
+  the "employers and schools from your resume" gate.
+- **"Over seven years of experience" was flagged on a resume with 7 years
+  8 months of dated roles.** Only the judge was given the work history
+  counted from the resume's dates; the letter and the tailored resume added
+  up dates themselves, and the check had no total to quote. Both now get
+  the same `<<MEASURED>>` block, their prompts say to use only it (the
+  tailored summary's years "as the resume states them" became "as
+  <<MEASURED>> gives them"), and the check and the figures gate read the
+  resume with that line beside it.
+- **"The candidate is seeking a Software Engineer role" was counted as made
+  up.** It is the resume summary saying what role is wanted, which the
+  prompt asks for and no source can support, like a letter's "I am applying
+  for". The check's self-description filter (`guard._SELF`) now drops it:
+  seeking, looking for, wanting, pursuing or targeting a role, position,
+  job or opportunity, unless a person is named between ("seeking a
+  candidate for the role" is the advert, and still checked).
+- Of the 4 flagged on that resume, the fourth ("full-stack development")
+  stays flagged: the resume does not say it.
+- README, guide (AI, Job window) updated. Tests: the letter and the tailored
+  resume are sent the measured block and checked with it; a skill not in
+  the resume is dropped and listed; self-description is left out while a
+  company seeking someone is kept.
+
 ## Fixed — 2026-10-24 — The desktop app could not open a PDF, save a file or open a link
 
 - **"Could not open the PDF: desk().open_file is not a function"**, for a
@@ -34,6 +64,7 @@ it and into an entry when the work is done.
   tests/test_app.py the Bridge's calls, PDF-only, and that the page names
   exactly the Bridge's calls without eval. SECURITY.md says what the page
   can ask of the app.
+
 
 ## Changed — 2026-10-24 — SignPath signing dropped: the installers stay unsigned
 
