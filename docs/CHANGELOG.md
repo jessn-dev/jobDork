@@ -6,6 +6,14 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-25 — Setup's welcome no longer says answers are saved as you go
+
+- The line under **Get started** ("Each answer is saved as you go, so you
+  can stop any time and carry on later") is gone from the page: it is said
+  in the guide (Getting started), the README and the run guides, and the
+  welcome was long enough. `jobdork setup` in a terminal still says it,
+  where there is no page to come back to.
+
 ## Changed — 2026-10-25 — Ruff pinned, so CI lints with the version you have
 
 - **#43 failed CI on a rule the local ruff did not have.** `pyproject.toml`

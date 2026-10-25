@@ -661,7 +661,6 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   background:#1d4ed8;box-shadow:0 6px 18px color-mix(in srgb, #2563eb 40%, transparent)}
 #view-setup .wel .go button.start:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 #view-setup .wel .go button.start svg{width:18px;height:18px;fill:currentColor}
-.wel .go .hint{margin:0}
 #view-setup .setup-text{max-height:18rem;overflow:auto;white-space:pre-wrap;
   background:var(--card);border:1px solid var(--line);border-radius:6px;
   padding:.7rem .8rem;font-size:.8rem;margin:.4rem 0 1rem}
@@ -3087,8 +3086,6 @@ function drawSetupWelcome(st) {
     <div class="go">
       <p class="need">Have your resume ready: PDF, Word, Markdown or plain text.</p>
       <button type="button" class="act start" id="setup-start">Get started ${svg(WEL_ICON.arrow)}</button>
-      <p class="hint">Each answer is saved as you go, so you can stop any time and
-      carry on later: open this page again.</p>
     </div></div>`;
   $('setup-start').onclick = () => setupGo(st.steps[1].name);
   $('setup-start').focus({preventScroll: true});
