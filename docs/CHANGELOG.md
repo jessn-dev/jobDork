@@ -6,6 +6,29 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-25 — version 0.15.0
+
+0.15.0 carries the 33 entries below, everything since 0.14.4 (24 October).
+The ones a user notices most:
+
+- **Safer updates and builds.** Update opens an installer only once its
+  build attestation verifies, and the installers are built from
+  hash-pinned packages after the tests and scans pass. A job post's link
+  can no longer run script in the dashboard or send the app into your
+  network.
+- **New:** a Search Google Jobs link, a flag for Adzuna posts missing from
+  the employer's own board, Groq as an AI provider, and AI usage on the
+  Dashboard.
+- **Fixed:** the desktop app opens PDFs, saves files, opens links and lets
+  you copy; DuPont, TJX and Disney are back; a busy AI provider is asked
+  again before the call fails.
+- **A new icon and logo**, a website that opens on a landing page, and
+  documentation checked against the code.
+
+Updating from 0.14.4 with its own Update button uses 0.14.4's check, the
+release's checksums; from 0.15.0 on, every update is checked for its
+build attestation as well.
+
 ## Added — 2026-10-25 — A landing page; the README's title with the logo
 
 The website opened straight onto the user guide, which explains how to use
