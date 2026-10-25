@@ -58,12 +58,13 @@ first release (the window needs WebKitGTK on the user's system; Docker and
 `pip install` already serve Linux users); an Intel macOS build.
 
 **Revisit when** users report the unsigned warnings stop them installing
-(sign macOS first: $99 a year, then notarise in CI); Linux users ask for
+(sign macOS first, then notarise in CI); Linux users ask for
 an app; or updates need to reach people without them downloading again.
 
 **2026-10-24:** free Windows signing from SignPath Foundation was applied
-for and not granted. The installers stay unsigned; a paid certificate is
-the next option when the warnings are reported to stop people.
+for and not granted. The installers stay unsigned; a certificate
+authority's certificate is the next option when the warnings are reported
+to stop people.
 
 ---
 

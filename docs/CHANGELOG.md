@@ -6145,7 +6145,7 @@ open; a digest arrives, and what arrived with it is what was not there before.
   SuccessFactors behind its older portal only (Edison, NRG, Wipro) is still
   unread.
 
-### Waiting on a decision or money
+### Waiting on a decision
 
 - **A key proxy, deferred** until the Discover test list shows whether
   keyless sources leave real gaps: zero-setup access to keyed sources
@@ -6156,18 +6156,18 @@ open; a digest arrives, and what arrived with it is what was not there before.
   which reaches Philippine posts on JobStreet and LinkedIn by legitimate
   means, with full adverts, apply links and dates. Waits on three things:
   a RapidAPI key to verify the live answer against (Adzuna's documentation
-  was wrong on three fields until the first live run); a monthly budget, as
-  the free tier is 200 requests a month and one scan of 16 titles would
+  was wrong on three fields until the first live run); how many requests
+  to allow, as the free tier is 200 a month and one scan of 16 titles would
   spend most of it; and its current terms and free tier, read on RapidAPI.
   `python-jobspy` was considered and refused: it scrapes LinkedIn and Indeed
   against their terms and robots.txt.
 - **Code signing.** The installers are unsigned, so macOS and Windows warn
-  before the first open (the README's "Unsigned installers" says how past
-  it). macOS: Apple's developer programme, $99 a year, then notarising in
-  CI. Windows: SignPath Foundation's free certificate was refused
-  (2026-10-24); a paid one costs more every year, or Azure Trusted Signing
-  (no certificate file to keep; check its cost and whether it signs for an
-  individual). Sign with a trusted timestamp (RFC 3161): `codesign
+  before the first open ([how past
+  it](run/desktop.md#the-first-open-warning)). macOS: Apple's developer programme, then notarising in CI.
+  Windows: SignPath Foundation's free certificate was refused (2026-10-24);
+  the options left are a certificate authority's certificate or Azure
+  Trusted Signing (no certificate file to keep; check whether it signs for
+  an individual). Sign with a trusted timestamp (RFC 3161): `codesign
   --timestamp` on macOS (notarising requires it), signtool `/tr` or Azure
   Trusted Signing on Windows; without one, installers stop being trusted the
   day the certificate expires. When to revisit is in
