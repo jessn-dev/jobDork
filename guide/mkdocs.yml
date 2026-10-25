@@ -1,7 +1,9 @@
 # The user guide, published to GitHub Pages by .github/workflows/guide.yml.
 # How to keep it in step with the app: guide/README.md.
-site_name: jobdork user guide
-site_description: How to use jobdork, page by page
+site_name: jobdork
+site_description: >-
+  A free, open-source job search app for your own computer: employers' own
+  job boards, screened with your rules and ranked against your resume
 site_url: https://jessn-dev.github.io/jobDork/
 repo_url: https://github.com/jessn-dev/jobDork
 repo_name: jessn-dev/jobDork
@@ -18,6 +20,10 @@ validation:
 
 theme:
   name: material
+  # home.html: the landing page's hero (docs/index.md).
+  custom_dir: overrides
+  logo: images/logo.svg
+  favicon: images/logo.svg
   features:
     - navigation.sections
     - navigation.footer
@@ -33,16 +39,25 @@ theme:
       primary: blue
       toggle: {icon: material/weather-sunny, name: Light mode}
 
+extra_css:
+  - stylesheets/home.css
+
 markdown_extensions:
   - admonition
   - attr_list
+  - md_in_html
+  # The landing page's card icons, drawn inline from Material's own set.
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - def_list
   - tables
   - toc:
       permalink: true
 
 nav:
-  - Welcome: index.md
+  - Home: index.md
+  - The user guide: overview.md
   - Getting started: getting-started.md
   - Using it:
       - Dashboard: dashboard.md

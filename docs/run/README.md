@@ -25,7 +25,7 @@ them from a terminal; its flags are in [../DORK.md](../DORK.md).
 ## What is the same everywhere
 
 Once it is open, the app is the same whichever way you run it: the
-[user guide](https://jessn-dev.github.io/jobDork/) shows every page.
+[user guide](https://jessn-dev.github.io/jobDork/overview/) shows every page.
 
 - **The first start opens setup**, one question per screen: your resume, an
   AI model (or skip it), the job titles, where you are, pay, and what will
