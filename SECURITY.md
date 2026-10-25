@@ -91,6 +91,35 @@ only after the owner approves it in the `release` environment. A push to
 
 ---
 
+## How the app checks an update before opening it
+
+**Settings → Updates → Update** in the desktop app downloads the installer
+for this computer and opens it (the Windows installer replaces the app). It
+opens nothing unless all of these hold (`jobdork/core/updates.py`):
+
+1. **The file was uploaded by the release workflow.** Release files uploaded
+   by anyone else (`uploader` other than `github-actions[bot]`) are not
+   offered at all. A stolen login or token can add a file to a release, but
+   it shows as uploaded by that person.
+2. **It matches `SHA256SUMS.txt`** from the same release. This only proves
+   the download arrived whole.
+3. **Its build attestation verifies.** GitHub's attestation for the file's
+   SHA-256 is checked with Sigstore: the signing certificate must be issued
+   by GitHub Actions to this repository's `desktop.yml`, run for exactly
+   that version's tag (`refs/tags/v<version>`), with a valid transparency
+   log entry, and the signed statement must name this file and digest. A
+   build from another workflow, branch, fork or tag fails, and so does any
+   file whose bytes differ.
+
+A file that fails is deleted. GitHub unreachable while checking is a
+failure too, never a pass. Sigstore's trust root is refreshed online, or
+taken from the copy inside the app; the app's self-test verifies an
+earlier release's real attestation offline, so a build that cannot check
+is caught before release. Releases are immutable (see below), so a published file cannot be
+swapped later.
+
+---
+
 ## Verifying an image before you run it
 
 Check that it was built by this repository's workflow and not altered since:

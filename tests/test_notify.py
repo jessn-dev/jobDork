@@ -165,38 +165,137 @@ def _opener(files):
     return open_
 
 
-def _release_cache(folder: Path, sums: bytes):
-    name = "jobdork-9.0.0-windows-x64-setup.exe"
-    (folder / updates.CACHE_FILE).write_text(json.dumps({"checked_at": 1, "release": {
-        "version": "9.0.0", "url": "https://github.com/x",
-        "assets": {name: BASE + name, updates.SUMS_FILE: BASE + updates.SUMS_FILE}}}))
-    return name, {BASE + name: INSTALLER, BASE + updates.SUMS_FILE: sums}
+NAME = "jobdork-9.0.0-windows-x64-setup.exe"
+BOT = {"login": updates.CI_UPLOADER}
+
+
+def _github(sums: bytes, uploader=BOT, attestations=None):
+    """GitHub's stand-in: the release (files uploaded by `uploader`) and,
+    for any installer digest, `attestations` (one bundle by default).
+    (fetch, files for _opener)."""
+    asked = []
+
+    def fetch(url):
+        asked.append(url)
+        if url == updates.LATEST_URL:
+            return {"tag_name": "v9.0.0", "html_url": "https://github.com/x", "assets": [
+                {"name": n, "browser_download_url": BASE + n, "uploader": uploader}
+                for n in (NAME, updates.SUMS_FILE)]}
+        assert url.startswith(updates.ATTEST_URL.split("{")[0]), url
+        return {"attestations": [{"bundle": {"pretend": "bundle"}}]
+                if attestations is None else attestations}
+    fetch.asked = asked
+    return fetch, {BASE + NAME: INSTALLER, BASE + updates.SUMS_FILE: sums}
+
+
+def _vouches(name=NAME, digest=None, version="9.0.0"):
+    """Sigstore's stand-in: verifies only the identity of `version`'s
+    workflow, and returns a statement naming `name` with `digest`."""
+    def verify(bundle, identity):
+        if identity != updates.build_identity(version):
+            raise ValueError("certificate identity does not match")
+        return {"subject": [{"name": name, "digest": {
+            "sha256": digest or hashlib.sha256(INSTALLER).hexdigest()}}]}
+    return verify
+
+
+GOOD_SUMS = f"{hashlib.sha256(INSTALLER).hexdigest()}  {NAME}\n".encode()
+
+
+def _refused(folder, why, **kw):
+    try:
+        updates.download_installer(folder / "Downloads", **kw)
+    except updates.UpdateError as exc:
+        assert why in str(exc), str(exc)
+    else:
+        raise AssertionError("an installer was let through")
+    assert not (folder / "Downloads" / NAME).exists()
 
 
 def test_the_installer_is_downloaded_and_checked_against_the_release():
     with tempfile.TemporaryDirectory() as tmp, _platform("win32", frozen=True):
         folder = Path(tmp)
-        good = f"{hashlib.sha256(INSTALLER).hexdigest()}  jobdork-9.0.0-windows-x64-setup.exe\n"
-        name, files = _release_cache(folder, good.encode())
+        fetch, files = _github(GOOD_SUMS)
         said = []
-        path = updates.download_installer(folder, folder / "Downloads", progress=said.append,
-                                          opener=_opener(files))
-        assert path.name == name and path.read_bytes() == INSTALLER
+        path = updates.download_installer(folder / "Downloads", progress=said.append,
+                                          opener=_opener(files), fetch=fetch, verify=_vouches())
+        assert path.name == NAME and path.read_bytes() == INSTALLER
         assert any("checksum matches" in s for s in said)
+        assert any("built by this project's release workflow" in s for s in said)
         assert not list((folder / "Downloads").glob(".jobdork-*"))   # the sums file went
+        digest = hashlib.sha256(INSTALLER).hexdigest()
+        assert fetch.asked == [updates.LATEST_URL, updates.ATTEST_URL.format(digest=digest)]
 
 
 def test_an_installer_that_does_not_match_is_deleted():
     with tempfile.TemporaryDirectory() as tmp, _platform("win32", frozen=True):
         folder = Path(tmp)
-        name, files = _release_cache(folder, f"{'0' * 64}  jobdork-9.0.0-windows-x64-setup.exe\n".encode())
+        fetch, files = _github(f"{'0' * 64}  {NAME}\n".encode())
+        _refused(folder, "does not match", opener=_opener(files), fetch=fetch, verify=_vouches())
+
+
+def test_a_file_uploaded_by_hand_is_not_offered():
+    """A stolen login or token can put a file on a release, but it is
+    uploaded by that person, not by the release workflow."""
+    with tempfile.TemporaryDirectory() as tmp, _platform("win32", frozen=True):
+        folder = Path(tmp)
+        fetch, files = _github(GOOD_SUMS, uploader={"login": "jessn-dev"})
+        _refused(folder, "no installer for this computer", opener=_opener(files),
+                 fetch=fetch, verify=_vouches())
+
+
+def test_an_installer_with_a_matching_checksum_but_no_valid_attestation_is_deleted():
+    """Whoever could replace the installer could replace SHA256SUMS.txt."""
+    with tempfile.TemporaryDirectory() as tmp, _platform("win32", frozen=True):
+        folder = Path(tmp)
+        cases = [
+            ([], _vouches()),                          # no attestation at all
+            (None, _vouches(version="8.0.0")),         # another tag's build
+            (None, _vouches(name="other.exe")),        # another file
+            (None, _vouches(digest="f" * 64)),         # other contents
+        ]
+        for attestations, verify in cases:
+            fetch, files = _github(GOOD_SUMS, attestations=attestations)
+            _refused(folder, "could not be shown to come from this project's release workflow",
+                     opener=_opener(files), fetch=fetch, verify=verify)
+
+
+def test_an_installer_is_not_opened_when_github_cannot_be_asked_who_built_it():
+    def offline(url):
+        if url == updates.LATEST_URL:
+            return fetch(url)
+        raise OSError("no network")
+    with tempfile.TemporaryDirectory() as tmp, _platform("win32", frozen=True):
+        folder = Path(tmp)
+        fetch, files = _github(GOOD_SUMS)
+        _refused(folder, "could not ask GitHub who built", opener=_opener(files),
+                 fetch=offline, verify=_vouches())
+
+
+def test_the_real_attestation_of_0_14_4_verifies_offline_and_only_for_its_tag_and_file():
+    """The bundle GitHub published for 0.14.4's macOS installer, checked with
+    Sigstore against the trust root that ships with it: no network."""
+    import functools
+    from importlib import resources
+
+    kept = json.loads(resources.files("jobdork").joinpath(
+        "data/attestation-check.json").read_text(encoding="utf-8"))
+    offline = functools.partial(updates.signed_statement, offline=True)
+
+    def fetch(url):
+        return {"attestations": [{"bundle": kept["bundle"]}]}
+
+    updates.verify_attestation(kept["name"], kept["sha256"], "0.14.4", fetch=fetch, verify=offline)
+    for name, digest, version in ((kept["name"], kept["sha256"], "0.15.0"),     # another tag
+                                  ("jobdork-0.14.4-windows-x64-setup.exe", kept["sha256"], "0.14.4"),
+                                  (kept["name"], "0" * 64, "0.14.4")):
         try:
-            updates.download_installer(folder, folder / "Downloads", opener=_opener(files))
-        except updates.UpdateError as exc:
-            assert "does not match" in str(exc)
+            updates.verify_attestation(name, digest, version, fetch=fetch, verify=offline)
+        except updates.UpdateError:
+            pass
         else:
-            raise AssertionError("kept an installer that does not match")
-        assert not (folder / "Downloads" / name).exists()
+            raise AssertionError(f"verified {name} {digest[:8]} for {version}")
+    assert updates.check_bundled_attestation() == ""
 
 
 def test_only_the_desktop_app_on_a_known_system_gets_an_installer():
@@ -226,8 +325,10 @@ def test_check_now_asks_even_within_the_day():
     def fetch(url):
         calls.append(url)
         return {"tag_name": "v9.0.0", "html_url": "https://github.com/x", "assets": [
-            {"name": "SHA256SUMS.txt", "browser_download_url": BASE + "SHA256SUMS.txt"},
-            {"name": "bad", "browser_download_url": "https://elsewhere.example/bad"}]}
+            {"name": "SHA256SUMS.txt", "browser_download_url": BASE + "SHA256SUMS.txt",
+             "uploader": BOT},
+            {"name": "bad", "browser_download_url": "https://elsewhere.example/bad",
+             "uploader": BOT}]}
 
     def clock():
         return 1000.0

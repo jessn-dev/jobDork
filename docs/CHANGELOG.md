@@ -6,6 +6,35 @@ it and into an entry when the work is done.
 
 ---
 
+## Security — 2026-10-25 — Update opens an installer only once its build attestation verifies
+
+- **The hole:** Update downloaded the installer and `SHA256SUMS.txt` from
+  the same release, compared them, and opened the installer (on Windows,
+  ran it). Anyone with the owner's GitHub login or a token could have
+  uploaded another installer with a matching checksum file, skipping CI,
+  and every Windows user pressing Update would have run it.
+- **Only files the release workflow uploaded** are offered now: one uploaded
+  by a person (a stolen login shows as that person) is not listed. The
+  release is asked for again when Update is pressed, not read from the
+  day-old cache.
+- **The build attestation must verify.** After the checksum, GitHub's
+  attestation for the file's SHA-256 is checked with Sigstore
+  (`sigstore-python`, in the desktop app only): signed by GitHub Actions for
+  this repository's `desktop.yml` at exactly that version's tag, logged in
+  the public transparency log, and naming this file and digest. Another
+  workflow, branch, fork or tag, other bytes, no attestation, or GitHub not
+  answering: the file is deleted and nothing opens.
+- The trust root is refreshed online, or taken from the copy inside the app.
+  The app's `--self-test` verifies 0.14.4's real macOS attestation offline
+  (`jobdork/data/attestation-check.json`), so a build that could not check
+  fails before release; a local macOS build from the new lock passed it.
+  The `.dmg` grows from about 30 MB to 36 MB.
+- Tests (no network): a hand-uploaded file is not offered; a matching
+  checksum with no attestation, another tag's, another file's or other
+  bytes' is deleted; GitHub unreachable is a refusal; the real 0.14.4 bundle
+  verifies offline for its tag and file only. SECURITY.md: "How the app
+  checks an update before opening it".
+
 ## Changed — 2026-10-25 — CodeQL results are required on main
 
 - The rules for `main` now include "Require code scanning results": a pull

@@ -30,6 +30,8 @@ pdf = ["pypdf>=6.21.2"]
 ai = ["anthropic>=1.8"]
 # `jobdork app`: the dashboard in a window of its own rather than a browser tab.
 app = ["pywebview>=6.2",
+       # Checks an update's build attestation before opening it (core/updates.py).
+       "sigstore>=4.5.1",
        # macOS Notification Center under the app's own name (core/notify.py).
        "pyobjc-framework-UserNotifications>=12; sys_platform == 'darwin'"]
 # Building the installers (packaging/build.py): PyInstaller, and Pillow to
@@ -41,6 +43,8 @@ dev = [
     # 0.17.2 and fail on RUF059 that a 0.16 install here passed (#43).
     # Dependabot proposes the next one as a pull request.
     "ruff==0.17.2",
+    # The update check's attestation tests verify a real bundle offline.
+    "sigstore>=4.5.1",
 ]
 
 [project.scripts]
@@ -55,7 +59,7 @@ packages = ["jobdork", "jobdork.ai", "jobdork.core", "jobdork.db", "jobdork.dork
             "jobdork.writing"]
 
 [tool.setuptools.package-data]
-jobdork = ["data/*.csv", "data/*.html", "data/humanizer/*"]
+jobdork = ["data/*.csv", "data/*.html", "data/*.json", "data/humanizer/*"]
 
 # ── tests ─────────────────────────────────────────────────────────────────────
 # The suite is plain functions with asserts, so it runs under pytest without

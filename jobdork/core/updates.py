@@ -68,7 +68,7 @@ def _fetch(url: str) -> dict:
         "Accept": "application/vnd.github+json",
         "User-Agent": f"jobdork/{__version__} (update check)",
     })
-    # Safe: always LATEST_URL, a fixed https address.
+    # Safe: LATEST_URL or ATTEST_URL, fixed https addresses on api.github.com.
     with urllib.request.urlopen(request, timeout=TIMEOUT) as answer:  # nosec B310
         return json.loads(answer.read(256 * 1024).decode("utf-8"))
 
@@ -77,6 +77,28 @@ def _fetch(url: str) -> dict:
 DOWNLOAD_PREFIX = f"https://github.com/{REPO}/releases/download/"
 SUMS_FILE = "SHA256SUMS.txt"
 MAX_INSTALLER_BYTES = 600 * 1024 * 1024
+
+# Who may have put a file on a release: the release workflow, and nobody
+# else. A file uploaded by hand, with a stolen login or token, names that
+# person instead, and is not offered.
+CI_UPLOADER = "github-actions[bot]"
+
+# Proof of where an installer came from. The release workflow attests each
+# installer (desktop.yml, actions/attest-build-provenance): a statement naming
+# the file and its SHA-256, signed through Sigstore with a certificate GitHub
+# issues to that workflow run. A checksum from the same release page only
+# proves the download arrived whole; whoever could replace the installer
+# could replace SHA256SUMS.txt too. The attestation cannot be made outside
+# this repository's workflow, at that version's tag.
+ATTEST_URL = f"https://api.github.com/repos/{REPO}/attestations/sha256:{{digest}}"
+OIDC_ISSUER = "https://token.actions.githubusercontent.com"
+IN_TOTO = "application/vnd.in-toto+json"
+
+
+def build_identity(version: str) -> str:
+    """The signing certificate's identity for an installer of `version`:
+    this repository's desktop workflow, run for that version's tag."""
+    return f"https://github.com/{REPO}/.github/workflows/desktop.yml@refs/tags/v{version}"
 
 
 def _read_cache(path: Path) -> dict:
@@ -111,17 +133,30 @@ def latest(cache_dir: str | Path, fetch=_fetch, now=time.time,
         answer = fetch(LATEST_URL)
     except Exception:                        # offline, rate-limited, GitHub down
         return None
+    release = _release_from(answer)
+    _write_cache(path, {**kept, "checked_at": now(), "release": release})
+    return release
+
+
+def _release_from(answer: dict) -> dict | None:
+    """The release in GitHub's answer, with only the files the release
+    workflow uploaded to this repository's downloads; None for a
+    pre-release or a tag that is not a version."""
     version = str(answer.get("tag_name") or "").lstrip("v")
     url = str(answer.get("html_url") or "")
     assets = {str(a.get("name") or ""): str(a.get("browser_download_url") or "")
-              for a in answer.get("assets") or [] if isinstance(a, dict)}
-    release = ({"version": version,
-                "url": url if url.startswith("https://github.com/") else RELEASES_PAGE,
-                "assets": {n: u for n, u in assets.items()
-                           if n and u.startswith(DOWNLOAD_PREFIX)}}
-               if parse(version) and not answer.get("prerelease") else None)
-    _write_cache(path, {**kept, "checked_at": now(), "release": release})
-    return release
+              for a in answer.get("assets") or []
+              if isinstance(a, dict) and _uploader(a) == CI_UPLOADER}
+    if not parse(version) or answer.get("prerelease"):
+        return None
+    return {"version": version,
+            "url": url if url.startswith("https://github.com/") else RELEASES_PAGE,
+            "assets": {n: u for n, u in assets.items() if n and u.startswith(DOWNLOAD_PREFIX)}}
+
+
+def _uploader(asset: dict) -> str:
+    uploader = asset.get("uploader")
+    return str(uploader.get("login") or "") if isinstance(uploader, dict) else ""
 
 
 def installer_name(version: str) -> str:
@@ -189,15 +224,23 @@ def _download(url: str, dest: Path, progress=None, opener=urllib.request.urlopen
     part.replace(dest)
 
 
-def download_installer(cache_dir: str | Path, folder: Path, progress=None,
-                       opener=urllib.request.urlopen) -> Path:
+def download_installer(folder: Path, progress=None, opener=urllib.request.urlopen,
+                       fetch=_fetch, verify=None) -> Path:
     """Download this computer's installer from the latest release into
-    `folder`, check it against the release's SHA256SUMS.txt, and return its
-    path. Raises UpdateError; a file that does not match is deleted."""
+    `folder`, check it against the release's SHA256SUMS.txt and its build
+    attestation, and return its path. Raises UpdateError; a file that fails
+    either check is deleted, and nothing is opened.
+
+    The release is asked for again, not read from the day-old cache: the
+    files offered are the ones the release workflow uploaded now.
+    """
     import hashlib
 
-    kept = _read_cache(Path(cache_dir) / CACHE_FILE)
-    release = kept.get("release") or {}
+    try:
+        release = _release_from(fetch(LATEST_URL)) or {}
+    except Exception as exc:                # offline, rate-limited, GitHub down
+        raise UpdateError(f"could not ask GitHub for the release ({type(exc).__name__}); "
+                          "try again, or download it from the release page") from None
     name = installer_name(str(release.get("version") or ""))
     assets = release.get("assets") or {}
     if not name or name not in assets:
@@ -225,5 +268,87 @@ def download_installer(cache_dir: str | Path, folder: Path, progress=None,
                           "checksum, so it was deleted; try again, or download it "
                           "from the release page")
     if progress:
-        progress("checksum matches the release's SHA256SUMS.txt")
+        progress("checksum matches the release's SHA256SUMS.txt; checking who built it")
+    try:
+        verify_attestation(name, digest, str(release["version"]), fetch=fetch, verify=verify)
+    except UpdateError:
+        dest.unlink(missing_ok=True)
+        raise
+    if progress:
+        progress("built by this project's release workflow, at its version tag")
     return dest
+
+
+def verify_attestation(name: str, digest: str, version: str, fetch=_fetch,
+                       verify=None) -> None:
+    """Raise UpdateError unless GitHub holds an attestation, signed for this
+    repository's desktop workflow at tag v`version`, that names `name` with
+    this SHA-256. `verify` (bundle, identity) -> statement replaces the
+    Sigstore check in tests."""
+    try:
+        answer = fetch(ATTEST_URL.format(digest=digest))
+    except Exception as exc:                # offline, rate-limited: cannot vouch
+        raise UpdateError("could not ask GitHub who built this installer "
+                          f"({type(exc).__name__}), so it was deleted; try again, "
+                          "or download it from the release page") from None
+    bundles = [a.get("bundle") for a in (answer.get("attestations") or [])
+               if isinstance(a, dict) and isinstance(a.get("bundle"), dict)]
+    check = verify or signed_statement
+    for bundle in bundles:
+        try:
+            statement = check(bundle, build_identity(version))
+        except Exception:                   # a bundle that does not verify vouches for nothing
+            continue
+        if any(isinstance(s, dict) and s.get("name") == name
+               and (s.get("digest") or {}).get("sha256") == digest
+               for s in statement.get("subject") or []):
+            return
+    raise UpdateError("this installer could not be shown to come from this "
+                      "project's release workflow, so it was deleted and not "
+                      "opened; download it from the release page and report it")
+
+
+def signed_statement(bundle: dict, identity: str, offline: bool = False) -> dict:
+    """The in-toto statement in a Sigstore bundle, once its signature, its
+    certificate (issued to `identity` by GitHub Actions) and its transparency
+    log entry all check out. Raises otherwise.
+
+    Sigstore's trust root is refreshed online; offline, or when that fails,
+    the one bundled with the app is used. Both came with this signed copy.
+    """
+    from sigstore.models import Bundle
+    from sigstore.verify import Verifier
+    from sigstore.verify.policy import Identity
+
+    parsed = Bundle.from_json(json.dumps(bundle))
+    policy = Identity(identity=identity, issuer=OIDC_ISSUER)
+    try:
+        verifier = Verifier.production(offline=offline)
+    except Exception:
+        if offline:
+            raise
+        verifier = Verifier.production(offline=True)
+    payload_type, payload = verifier.verify_dsse(parsed, policy)
+    if payload_type != IN_TOTO:
+        raise UpdateError(f"not an in-toto statement ({payload_type})")
+    statement = json.loads(payload)
+    if not isinstance(statement, dict):
+        raise UpdateError("not an in-toto statement")
+    return statement
+
+
+def check_bundled_attestation() -> str:
+    """For the app's self-test: verify, offline, the attestation of 0.14.4's
+    macOS installer kept in the package. "" when it verifies, else why not."""
+    from importlib import resources
+
+    try:
+        kept = json.loads(resources.files("jobdork").joinpath(
+            "data/attestation-check.json").read_text(encoding="utf-8"))
+        statement = signed_statement(kept["bundle"], build_identity(kept["version"]),
+                                     offline=True)
+    except Exception as exc:
+        return f"{type(exc).__name__}: {exc}"
+    named = [(s.get("name"), (s.get("digest") or {}).get("sha256"))
+             for s in statement.get("subject") or []]
+    return "" if (kept["name"], kept["sha256"]) in named else "the statement names another file"
