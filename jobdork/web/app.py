@@ -256,6 +256,12 @@ def self_test() -> list[str]:
     bundle = getattr(sys, "_MEIPASS", "")
     if bundle and not (Path(bundle) / "LICENSE").exists():
         problems.append("missing LICENSE: the GPL's text must ship with the app")
+    # Updates are opened only once their build attestation verifies
+    # (core/updates.py): prove the whole Sigstore check works in this build.
+    from ..core import updates
+    why = updates.check_bundled_attestation()
+    if why:
+        problems.append(f"cannot verify a build attestation: {why}")
     return problems
 
 

@@ -20,12 +20,13 @@ only after the owner approves it in the `release` environment. A push to
 |---|---|
 | Tests and lint, Python 3.10 and 3.14 | Broken behaviour, including the dashboard's Host, token and CSRF guards |
 | `pip-audit` on `requirements.lock` | A dependency with a published vulnerability |
+| `pip-audit` on `requirements-desktop.lock`, every platform's packages | The same, for what the desktop installers are built from (pyobjc on macOS, pythonnet on Windows included) |
 | `bandit` over the code | Injection, unsafe calls and similar in jobdork's own code. A finding judged safe is marked in the code with its reason |
 | `gitleaks` over **the whole git history** | A key, token or password ever committed, even if deleted since |
 | `hadolint` | Dockerfile mistakes |
 | Trivy on the built image | High and critical vulnerabilities in every package in the image, fixed or not, plus secrets and misconfiguration |
 | `scripts/check_image.sh` | That the image runs as user 1000, has no pip, contains no `.env`, config or database, cannot rewrite its own code, and that the dashboard starts and refuses a missing token and an address not named |
-| Desktop app build (`desktop.yml`), macOS and Windows | That both installers still build, and that the built app carries every module and data file it needs (its `--self-test`) |
+| Desktop app build (`desktop.yml`), macOS and Windows, after the tests and scans pass | That both installers still build from the hash-pinned `requirements-desktop.lock`, and that the built app carries every module and data file it needs and can verify a build attestation (its `--self-test`) |
 
 **How the image is built to be hard to tamper with:**
 
@@ -91,6 +92,35 @@ only after the owner approves it in the `release` environment. A push to
 
 ---
 
+## How the app checks an update before opening it
+
+**Settings → Updates → Update** in the desktop app downloads the installer
+for this computer and opens it (the Windows installer replaces the app). It
+opens nothing unless all of these hold (`jobdork/core/updates.py`):
+
+1. **The file was uploaded by the release workflow.** Release files uploaded
+   by anyone else (`uploader` other than `github-actions[bot]`) are not
+   offered at all. A stolen login or token can add a file to a release, but
+   it shows as uploaded by that person.
+2. **It matches `SHA256SUMS.txt`** from the same release. This only proves
+   the download arrived whole.
+3. **Its build attestation verifies.** GitHub's attestation for the file's
+   SHA-256 is checked with Sigstore: the signing certificate must be issued
+   by GitHub Actions to this repository's `desktop.yml`, run for exactly
+   that version's tag (`refs/tags/v<version>`), with a valid transparency
+   log entry, and the signed statement must name this file and digest. A
+   build from another workflow, branch, fork or tag fails, and so does any
+   file whose bytes differ.
+
+A file that fails is deleted. GitHub unreachable while checking is a
+failure too, never a pass. Sigstore's trust root is refreshed online, or
+taken from the copy inside the app; the app's self-test verifies an
+earlier release's real attestation offline, so a build that cannot check
+is caught before release. Releases are immutable (see below), so a published file cannot be
+swapped later.
+
+---
+
 ## Verifying an image before you run it
 
 Check that it was built by this repository's workflow and not altered since:
@@ -134,7 +164,6 @@ got into the GitHub or Docker Hub account could get around everything above.
 **Set on 2026-10-23:**
 - [x] Code scanning: CodeQL default setup (Python, JavaScript and the
       workflows), on every pull request and push to `main`, and weekly.
-      Not yet a required check: its first findings are being sorted first.
 - [x] Passkeys on the owner's GitHub and Docker Hub accounts.
 
 **Set, confirmed 2026-10-02:**
@@ -145,12 +174,23 @@ got into the GitHub or Docker Hub account could get around everything above.
 - [x] The variable `DOCKERHUB_USERNAME`, the Docker Hub account, in the
       `release` environment (not at repository level).
 
-**Still to do by the owner:**
-- [ ] If offered under Actions → General, require actions to be pinned to a
-      full commit SHA.
-- [ ] `BOARDS_PR_TOKEN`, for the weekly boards re-check: a fine-grained
+**Set on 2026-10-25:**
+- [x] Ruleset for `main`: CodeQL results required; a pull request that adds
+      a high or critical security alert, or an error, cannot be merged.
+- [x] **Immutable releases**: a published release's files can never be
+      changed or replaced.
+- [x] Actions: only GitHub's own and the six named in the workflows
+      (`docker/*` five, `sigstore/cosign-installer`), each pinned to a full
+      commit SHA, which is now required.
+- [x] Workflows from every outside contributor wait for approval.
+- [x] Wiki and Projects off; merged branches deleted.
+- [x] `BOARDS_PR_TOKEN`, for the weekly boards re-check: a fine-grained
       personal access token for this repository only, with Contents and Pull
       requests set to Read and write and nothing else. Rotate it yearly.
+
+**Not available on this account:** secret scanning's generic patterns and
+validity checks need GitHub's paid Secret Protection; provider patterns and
+push protection are on.
 
 ---
 
@@ -170,7 +210,8 @@ links. The app treats them as hostile.
 - **For a draft by Claude Code** (`claude -p`, `jobdork/writing/generate.py`)
   the agent works in that one job's folder with file tools only: no shell,
   no web, none of your MCP servers, whatever your own Claude Code settings
-  allow. A posting that persuades it can spoil that one draft, not reach
+  allow; and it reads none of those settings (`--setting-sources project`),
+  so your own permission rules, hooks and plugins do not apply to it. A posting that persuades it can spoil that one draft, not reach
   the rest of your machine.
 - **As an address to fetch** (an apply link, a careers page) it reaches
   public addresses only. One that names this machine or its network

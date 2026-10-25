@@ -37,6 +37,12 @@ files. So:
   the agent round could run commands on your machine, or send your resume
   somewhere, through a tool you had allowed for your own work.
 
+  Your own Claude Code settings stay out. `--setting-sources project` reads
+  settings from the job's folder only, which has none: not the permission
+  rules, hooks and plugins in your ~/.claude, which could otherwise let the
+  agent read or write beyond the folder, or run a hook of yours on its
+  behalf. Signing in is not a setting, so it still works.
+
   Links are scheme-checked. Apply URLs are employer-supplied on several
   platforms, so `javascript:` and `data:` never reach a file.
 
@@ -312,13 +318,15 @@ def cli_available() -> str:
 
 def build_command(folder: Path) -> list[str]:
     """The subprocess is scoped to this one folder and nothing else, with
-    file tools only (AGENT_TOOLS) and none of your MCP servers."""
+    file tools only (AGENT_TOOLS), none of your MCP servers and none of your
+    own Claude Code settings."""
     return [
         "claude", "-p",
         "--add-dir", str(folder),
         "--permission-mode", "acceptEdits",
         "--tools", AGENT_TOOLS,
         "--strict-mcp-config",
+        "--setting-sources", "project",
     ]
 
 

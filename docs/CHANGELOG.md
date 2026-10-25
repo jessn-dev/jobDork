@@ -6,6 +6,86 @@ it and into an entry when the work is done.
 
 ---
 
+## Security — 2026-10-25 — Repository settings locked down before distribution
+
+- **Immutable releases:** a published release's files can never be changed
+  or replaced, so an installer cannot be swapped after people have it.
+- **Actions:** only GitHub's own and the six the workflows name (five
+  `docker/*`, `sigstore/cosign-installer`) may run, each pinned to a full
+  commit SHA, which GitHub now enforces rather than leaving to habit.
+- **Outside contributors:** every workflow from one waits for approval, not
+  only a first-time contributor's.
+- Wiki and Projects off (unused, and each is something to watch); merged
+  branches are deleted.
+- **Not available here:** secret scanning's generic patterns and validity
+  checks need GitHub's paid Secret Protection; provider patterns and push
+  protection stay on. SECURITY.md's owner checklist records all of it, with
+  the two items it listed as still to do (SHA pinning, `BOARDS_PR_TOKEN`)
+  done.
+
+## Security — 2026-10-25 — Drafts by Claude Code ignore your own Claude Code settings
+
+- `claude -p`, which writes CVs and letters from a job post anyone could
+  have written, already ran in the job's folder with file tools only and
+  none of your MCP servers. It still read your `~/.claude` settings: your
+  permission rules (which could let it read or write beyond the folder),
+  your hooks and your plugins.
+- It now runs with `--setting-sources project`: settings from the job's
+  folder only, which has none. Signing in is not a setting and still works
+  (tried with a real run). Test: the command carries it.
+
+## Security — 2026-10-25 — The desktop installers are built from hash-pinned packages
+
+- **The hole:** the Docker image installed every package by exact version
+  and SHA-256, but `desktop.yml` ran `pip install -e '.[pdf,ai,app,package]'`:
+  whatever PyPI served that day went into installers GitHub then attests as
+  this project's, and `pip-audit` never looked at them.
+- **`requirements-desktop.lock`:** all 65 packages for macOS and Windows at
+  once (Python 3.13), with hashes, made by `uv pip compile --universal`
+  (the command is at its top; `packaging/desktop-build.in` adds setuptools,
+  so installing jobdork itself fetches nothing). `desktop.yml` installs it
+  with `--require-hashes`, then jobdork with `--no-deps --no-build-isolation`,
+  in bash on Windows too, where PowerShell would carry on past a failed
+  first line.
+- **Audited:** CI's security job runs `pip-audit` on it with the platform
+  markers dropped first, since pip-audit skips packages for other systems
+  and CI is Linux: all 65 checked, none with a known vulnerability.
+- **Built only after the checks pass:** the desktop job now waits for the
+  tests and the security scans, as the image already did. On a tag the
+  installers are attested as they are built, and an attestation should
+  never vouch for code that failed a scan.
+- Tried: a fresh Python 3.13 installs it with every hash checked, and the
+  macOS app builds from it and passes its self-test.
+
+## Security — 2026-10-25 — Update opens an installer only once its build attestation verifies
+
+- **The hole:** Update downloaded the installer and `SHA256SUMS.txt` from
+  the same release, compared them, and opened the installer (on Windows,
+  ran it). Anyone with the owner's GitHub login or a token could have
+  uploaded another installer with a matching checksum file, skipping CI,
+  and every Windows user pressing Update would have run it.
+- **Only files the release workflow uploaded** are offered now: one uploaded
+  by a person (a stolen login shows as that person) is not listed. The
+  release is asked for again when Update is pressed, not read from the
+  day-old cache.
+- **The build attestation must verify.** After the checksum, GitHub's
+  attestation for the file's SHA-256 is checked with Sigstore
+  (`sigstore-python`, in the desktop app only): signed by GitHub Actions for
+  this repository's `desktop.yml` at exactly that version's tag, logged in
+  the public transparency log, and naming this file and digest. Another
+  workflow, branch, fork or tag, other bytes, no attestation, or GitHub not
+  answering: the file is deleted and nothing opens.
+- The trust root is refreshed online, or taken from the copy inside the app.
+  The app's `--self-test` verifies 0.14.4's real macOS attestation offline
+  (`jobdork/data/attestation-check.json`), so a build that could not check
+  fails before release; a local macOS build from the new lock passed it.
+  The `.dmg` grows from about 30 MB to 36 MB.
+- Tests (no network): a hand-uploaded file is not offered; a matching
+  checksum with no attestation, another tag's, another file's or other
+  bytes' is deleted; GitHub unreachable is a refusal; the real 0.14.4 bundle
+  verifies offline for its tag and file only. SECURITY.md: "How the app
+  checks an update before opening it".
+
 ## Changed — 2026-10-25 — CodeQL results are required on main
 
 - The rules for `main` now include "Require code scanning results": a pull
@@ -6014,7 +6094,12 @@ open; a digest arrives, and what arrived with it is what was not there before.
   before the first open (the README's "Unsigned installers" says how past
   it). macOS: Apple's developer programme, $99 a year, then notarising in
   CI. Windows: SignPath Foundation's free certificate was refused
-  (2026-10-24); a paid one costs more every year. When to revisit is in
+  (2026-10-24); a paid one costs more every year, or Azure Trusted Signing
+  (no certificate file to keep; check its cost and whether it signs for an
+  individual). Sign with a trusted timestamp (RFC 3161): `codesign
+  --timestamp` on macOS (notarising requires it), signtool `/tr` or Azure
+  Trusted Signing on Windows; without one, installers stop being trusted the
+  day the certificate expires. When to revisit is in
   [DECISIONS.md](DECISIONS.md#a-desktop-app-a-pywebview-window-unsigned-at-first--2026-10-21).
 
 ### Operational notes, not work

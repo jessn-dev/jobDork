@@ -87,6 +87,15 @@ jobs:
       - name: Dependencies have no known vulnerabilities
         run: pip-audit -r requirements.lock --require-hashes --disable-pip --strict
 
+      # And every one the desktop installers are built from. Platform markers
+      # are dropped first: pip-audit skips a package whose marker does not
+      # match the machine it runs on, and this one is Linux, while pyobjc is
+      # macOS-only and pythonnet Windows-only.
+      - name: Desktop dependencies have no known vulnerabilities
+        run: |
+          sed -E 's/ ; [^\\]*\\$/ \\/' requirements-desktop.lock > "$RUNNER_TEMP/desktop-all.lock"
+          pip-audit -r "$RUNNER_TEMP/desktop-all.lock" --require-hashes --disable-pip --strict
+
       # Medium severity and up, medium confidence and up. A finding judged
       # safe is marked in the code with its reason (`# nosec` and a comment).
       - name: Code scan
@@ -156,8 +165,11 @@ jobs:
         run: scripts/check_image.sh jobdork:check
 
   # The macOS and Windows installers, built and self-tested on every run so a
-  # broken build shows on the pull request, not on release day.
+  # broken build shows on the pull request, not on release day. Only after
+  # the tests and the security scans pass: on a tag the build is attested,
+  # and an attestation should never vouch for code that failed a scan.
   desktop:
+    needs: [test, security]
     uses: ./.github/workflows/desktop.yml
     permissions:
       contents: read

@@ -109,6 +109,14 @@ def test_the_subprocess_has_file_tools_only_and_no_mcp_servers():
     assert "--dangerously-skip-permissions" not in command
 
 
+def test_the_subprocess_ignores_your_own_claude_code_settings():
+    """Allow rules, hooks and plugins in ~/.claude would apply to the agent
+    reading a posting; only the job folder's settings (none) are read."""
+    command = generate.build_command(Path("/tmp/onejob"))
+    assert command[command.index("--setting-sources") + 1] == "project"
+    assert "--settings" not in command
+
+
 # ── ordering and preconditions ─────────────────────────────────────────────────
 
 def test_a_cover_letter_will_not_go_before_the_cv():

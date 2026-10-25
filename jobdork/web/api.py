@@ -2529,8 +2529,7 @@ def update_job(cfg):
     def work(progress):
         folder = Path.home() / "Downloads"
         try:
-            path = updates.download_installer(Path(cfg.db_path).parent, folder,
-                                              progress=progress)
+            path = updates.download_installer(folder, progress=progress)
         except updates.UpdateError as exc:
             raise RuntimeError(str(exc)) from None
         open_with_system(path)
