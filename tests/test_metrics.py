@@ -128,6 +128,41 @@ def test_an_empty_database_gives_empty_numbers_not_errors():
     assert len(m["per_day"]) == 30
 
 
+
+def test_usage_is_counted_per_day_and_model_with_failures_by_kind():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _seed(tmp)
+        with Store(cfg.db_path) as store:
+            for model, ok, tin, tout, error, ago in (
+                    ("Gemini · flash", 1, 100, 20, "", 0),
+                    ("Gemini · flash", 0, 0, 0, "rate_limited", 0),
+                    ("Gemini · flash", 0, 0, 0, "rate_limited", 1),
+                    ("Ollama · gemma", 1, 900, 50, "", 1),
+                    ("Ollama · gemma", 0, 0, 0, "unreachable", 1),
+                    ("Ollama · gemma", 1, 5, 5, "", 40)):
+                store.conn.execute(
+                    "INSERT INTO llm_calls(at, model, purpose, seconds, ok, input_tokens, "
+                    "output_tokens, error) VALUES(?,?,'judge',1,?,?,?,?)",
+                    (_day(ago, "11:00:00"), model, ok, tin, tout, error))
+            store.conn.commit()
+        m = api.metrics(cfg, 7)
+    u = m["usage"]
+    # In the order first called, over all time: 'm' from _seed, then the
+    # Ollama call 40 days ago, so each keeps its colour whatever the period.
+    assert [(x["label"], x["provider"], x["ink"]) for x in u["models"]] == [
+        ("m", "", 0), ("Ollama · gemma", "Ollama", 1), ("Gemini · flash", "Gemini", 2)]
+    # The seeded calls' one failure has no kind: it was made before kinds were.
+    assert u["error_kinds"] == ["rate_limited", "unreachable", "unrecorded"]
+    today, yesterday = m["per_day"][-1]["usage"], m["per_day"][-2]["usage"]
+    assert today["Gemini · flash"] == {"requests": 2, "failed": 1, "input": 100,
+                                       "output": 20, "errors": {"rate_limited": 1}}
+    assert yesterday["Ollama · gemma"]["errors"] == {"unreachable": 1}
+    assert yesterday["Ollama · gemma"]["input"] == 900
+    # 40 days ago is outside the period.
+    assert sum(d["usage"].get("Ollama · gemma", {}).get("requests", 0)
+               for d in m["per_day"]) == 2
+    assert u["tokens_since"] == _day(40)[:10]
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

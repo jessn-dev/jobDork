@@ -213,16 +213,20 @@ CREATE TABLE IF NOT EXISTS ai_outputs (
 CREATE INDEX IF NOT EXISTS idx_ai_outputs_created ON ai_outputs(created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_outputs_uid     ON ai_outputs(uid);
 
--- One row per model call inside a recorded job, for latency percentiles.
+-- One row per model call, for latency percentiles and usage: tokens as
+-- the provider counted them, and what kind of failure a failed call was.
 -- Written by telemetry.py; no prompt or answer text.
 CREATE TABLE IF NOT EXISTS llm_calls (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    at           TEXT NOT NULL,
-    activity_id  INTEGER,
-    model        TEXT,
-    purpose      TEXT,
-    seconds      REAL NOT NULL,
-    ok           INTEGER NOT NULL
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    at             TEXT NOT NULL,
+    activity_id    INTEGER,
+    model          TEXT,
+    purpose        TEXT,
+    seconds        REAL NOT NULL,
+    ok             INTEGER NOT NULL,
+    input_tokens   INTEGER NOT NULL DEFAULT 0,
+    output_tokens  INTEGER NOT NULL DEFAULT 0,
+    error          TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_llm_calls_at ON llm_calls(at);
 

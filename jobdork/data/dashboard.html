@@ -518,6 +518,12 @@ dialog{overflow:visible}
 .chart-tip .r b{min-width:1.6rem;text-align:right;font-variant-numeric:tabular-nums}
 .chart-tip .r span{color:var(--muted)}
 .chart .none{color:var(--muted);font-size:.82rem;padding:2.2rem 0;text-align:center}
+.chart polyline.rate{stroke-width:2;fill:none;stroke-linejoin:round;stroke-linecap:round}
+.chart .rate{pointer-events:none}   /* the day's column under it takes the pointer */
+.u-head{margin-top:1.2rem;align-items:center}
+.u-pick{margin-left:auto;display:flex;gap:.4rem;align-items:center;font-size:.8rem;color:var(--muted)}
+.u-pick select{max-width:16rem}
+.u-three{grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr))}
 .cleanup{border:1px solid var(--line);border-radius:8px;padding:.75rem .9rem;background:var(--card)}
 .cleanup .row{display:flex;flex-wrap:wrap;gap:.5rem .7rem;align-items:center;padding:.35rem 0}
 .aged{margin:.5rem 0}
@@ -840,6 +846,51 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
           <div class="legend" id="m-fb-legend" style="margin-top:.35rem"></div>
           <div class="chart" id="m-fb"></div>
         </div>
+      </div>
+
+      <div id="m-usage">
+      <div class="panel-head u-head"><h3>AI usage</h3>
+        <span class="sub">Every call to every provider, from this machine</span>
+        <label class="u-pick">Provider <select id="u-provider"></select></label></div>
+      <div class="m-grid">
+        <div class="panel">
+          <div class="panel-head"><h3>Total AI requests</h3>
+            <span class="sub" id="u-req-sub"></span>
+            <button data-icon="table-2" class="linkbtn" data-table="u-req">Show as table</button></div>
+          <div class="legend" id="u-req-legend" style="margin-top:.35rem"></div>
+          <div class="chart" id="u-req"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>AI errors, by kind</h3>
+            <span class="sub" id="u-err-sub"></span>
+            <button data-icon="table-2" class="linkbtn" data-table="u-err">Show as table</button></div>
+          <div class="legend" id="u-err-legend" style="margin-top:.35rem"></div>
+          <div class="chart" id="u-err"></div>
+        </div>
+      </div>
+      <div class="panel-head u-head"><h3>Usage per model</h3>
+        <span class="sub" id="u-tok-sub"></span>
+        <label class="u-pick">Model <select id="u-model"></select></label></div>
+      <div class="m-grid u-three">
+        <div class="panel">
+          <div class="panel-head"><h3>Input tokens per model</h3>
+            <button data-icon="table-2" class="linkbtn" data-table="u-in">Show as table</button></div>
+          <div class="legend lines" id="u-in-legend" style="margin-top:.35rem"></div>
+          <div class="chart" id="u-in"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Output tokens per model</h3>
+            <button data-icon="table-2" class="linkbtn" data-table="u-out">Show as table</button></div>
+          <div class="legend lines" id="u-out-legend" style="margin-top:.35rem"></div>
+          <div class="chart" id="u-out"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Requests per model</h3>
+            <button data-icon="table-2" class="linkbtn" data-table="u-calls">Show as table</button></div>
+          <div class="legend lines" id="u-calls-legend" style="margin-top:.35rem"></div>
+          <div class="chart" id="u-calls"></div>
+        </div>
+      </div>
       </div>
     </div>
     <div class="lastruns" id="last-runs"></div>
@@ -3553,6 +3604,125 @@ function drawMetrics() {
                                        {ink: 'var(--fb-down)', v: x.down, label: 'Thumbs down'}],
                   foot: x.up + x.down ? `${pct(x.up / (x.up + x.down))} approval` : 'no ratings'})});
   }
+  drawUsage(d);
+}
+
+// ── AI usage ─────────────────────────────────────────────────────────────────
+// Every model call, by day: requests and their success rate, failures by
+// kind, and tokens in and out per model, as each provider counted them.
+// Provider narrows everything here; Model narrows the per-model charts.
+let uProvider = '', uModel = '';
+const ERROR_LABELS = {
+  rate_limited: 'Rate limited (429)', key_refused: 'Key refused (401/403)',
+  not_found: 'Model not found (404)', server_error: 'Provider error (5xx)',
+  timed_out: 'Timed out', unreachable: 'Could not reach', not_json: 'Answer not JSON',
+  declined: 'Declined', other: 'Other', unrecorded: 'Kind not recorded'};
+const ERROR_COLOURS = 5;                 // the most frequent kinds; the rest are "Other"
+const compact = v => Number(v || 0).toLocaleString('en', {notation: 'compact', maximumFractionDigits: 1});
+
+function fillPick(id, options, current, all) {
+  const el = $(id), want = options.includes(current) ? current : '';
+  el.replaceChildren(new Option(all, ''), ...options.map(o => new Option(o, o)));
+  el.value = want;
+  return want;
+}
+$('u-provider').onchange = e => { uProvider = e.target.value; drawUsage(mData); };
+$('u-model').onchange = e => { uModel = e.target.value; drawUsage(mData); };
+
+function drawUsage(d) {
+  const u = d.usage;
+  uProvider = fillPick('u-provider', [...new Set(u.models.map(m => m.provider).filter(Boolean))],
+                   uProvider, 'All providers');
+  const models = u.models.filter(m => !uProvider || m.provider === uProvider);
+  uModel = fillPick('u-model', models.map(m => m.label), uModel, 'All models');
+  const inScope = new Set(models.map(m => m.kind));
+  const days = d.per_day.map(x => {
+    const t = {date: x.date, requests: 0, failed: 0, errors: {}};
+    Object.entries(x.usage).filter(([m]) => inScope.has(m)).forEach(([, v]) => {
+      t.requests += v.requests; t.failed += v.failed;
+      Object.entries(v.errors).forEach(([k, c]) => { t.errors[k] = (t.errors[k] || 0) + c; });
+    });
+    t.rate = t.requests ? 100 * (t.requests - t.failed) / t.requests : null;
+    return {...x, u: t};
+  });
+  const sum = f => days.reduce((s, x) => s + f(x), 0);
+  const total = sum(x => x.u.requests), failed = sum(x => x.u.failed);
+  const rateText = total ? `${pct((total - failed) / total)} answered` : '';
+
+  // Requests, and the share answered as a line on its own 0-100% scale.
+  $('u-req-sub').textContent = rateText;
+  $('u-req-legend').innerHTML = `<span><i style="background:var(--s1)"></i>Requests <b>${n(total)}</b></span>
+    <span><i style="background:var(--ok);height:2px;vertical-align:.22rem"></i>Success rate <b>${total ? pct((total - failed) / total) : '-'}</b></span>`;
+  if (mTable['u-req']) {
+    const rows = days.filter(x => x.u.requests).reverse();
+    $('u-req').innerHTML = table([{label: 'Day', get: x => esc(x.date)},
+      {label: 'Requests', num: 1, get: x => n(x.u.requests)}, {label: 'Failed', num: 1, get: x => n(x.u.failed)},
+      {label: 'Success rate', num: 1, get: x => `${+x.u.rate.toFixed(1)}%`}], rows, 'No AI requests in this period.');
+  } else if (!total) {
+    $('u-req').innerHTML = '<div class="none">No AI requests in this period.</div>';
+  } else {
+    columns($('u-req'), days, {
+      up: x => [{v: x.u.requests, ink: 'var(--s1)', label: 'Requests'}],
+      line: {value: x => x.u.rate, ink: 'var(--ok)'},
+      tip: x => ({head: x.date, rows: [{ink: 'var(--s1)', v: x.u.requests, label: 'requests'},
+                                       {ink: 'var(--bad)', v: x.u.failed, label: 'failed'}],
+                  foot: x.u.requests ? `${+x.u.rate.toFixed(1)}% answered` : 'no requests'})});
+  }
+
+  // Errors: the most frequent kinds coloured, the rest folded into Other.
+  const counts = {};
+  days.forEach(x => Object.entries(x.u.errors).forEach(([k, c]) => { counts[k] = (counts[k] || 0) + c; }));
+  // By count, then name, as the server sorts them.
+  const kinds = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+  const named = kinds.length > ERROR_COLOURS + 1 ? kinds.slice(0, ERROR_COLOURS) : kinds;
+  const groups = named.map((k, i) => ({label: ERROR_LABELS[k] || k, ink: toolInk(i), of: x => x.u.errors[k] || 0}));
+  if (named.length < kinds.length) {
+    const rest = kinds.slice(named.length);
+    groups.push({label: 'Other', ink: 'var(--muted)', of: x => rest.reduce((s, k) => s + (x.u.errors[k] || 0), 0)});
+  }
+  $('u-err-sub').textContent = failed ? `${pct(failed / total)} of requests` : '';
+  $('u-err-legend').innerHTML = groups.map(g =>
+    `<span><i style="background:${g.ink}"></i>${esc(g.label)} <b>${n(sum(g.of))}</b></span>`).join('');
+  if (mTable['u-err']) {
+    const rows = days.filter(x => x.u.failed).reverse();
+    $('u-err').innerHTML = table([{label: 'Day', get: x => esc(x.date)},
+      ...groups.map(g => ({label: esc(g.label), num: 1, get: x => n(g.of(x))})),
+      {label: 'All', num: 1, get: x => n(x.u.failed)}], rows, 'No failed AI requests in this period.');
+  } else if (!failed) {
+    $('u-err').innerHTML = `<div class="none">${total ? 'Every AI request in this period was answered.'
+                                                      : 'No AI requests in this period.'}</div>`;
+  } else {
+    columns($('u-err'), days, {
+      up: x => groups.map(g => ({v: g.of(x), ink: g.ink, label: g.label})),
+      tip: x => ({head: x.date, rows: groups.filter(g => g.of(x)).map(g => ({ink: g.ink, v: g.of(x), label: g.label})),
+                  foot: x.u.failed ? `${x.u.failed} of ${x.u.requests} requests failed` : 'none failed'})});
+  }
+
+  // Per model: tokens in, tokens out, requests.
+  const shown = models.filter(m => !uModel || m.label === uModel)
+    .map(m => ({...m, ink: toolInk(m.ink)}));
+  const since = u.tokens_since;
+  $('u-tok-sub').textContent = !since ? 'Tokens are counted from the next AI call'
+    : since > d.since ? `Tokens counted from ${since}` : 'Tokens as each provider counted them';
+  [['u-in', 'input', compact, 'input tokens'], ['u-out', 'output', compact, 'output tokens'],
+   ['u-calls', 'requests', v => n(v), 'requests']].forEach(([id, field, fmt, unit]) => {
+    const of = (x, m) => (x.usage[m.kind] || {})[field] || 0;
+    const totals = shown.map(m => d.per_day.reduce((s, x) => s + of(x, m), 0));
+    $(id + '-legend').innerHTML = shown.map((m, i) =>
+      `<span><i style="background:${m.ink}"></i>${esc(m.label)} <b>${fmt(totals[i])}</b></span>`).join('');
+    if (mTable[id]) {
+      const rows = d.per_day.filter(x => shown.some(m => of(x, m))).reverse();
+      $(id).innerHTML = table([{label: 'Day', get: x => esc(x.date)},
+        ...shown.map(m => ({label: esc(m.label), num: 1, get: x => n(of(x, m))}))], rows,
+        `No ${unit} in this period.`);
+    } else if (!totals.some(Boolean)) {
+      $(id).innerHTML = `<div class="none">No ${unit} in this period.</div>`;
+    } else {
+      lines($(id), d.per_day, shown.map(m => ({label: m.label, ink: m.ink, value: x => of(x, m)})),
+        x => `${n(shown.reduce((s, m) => s + of(x, m), 0))} ${unit} that day`,
+        {fmt, label: `${cap(unit)} per day and model`});
+    }
+  });
 }
 
 const niceMax = v => { if (v <= 0) return 1;
@@ -3671,9 +3841,12 @@ function lines(el, days, series, foot, opts = {}) {
 // A column per day: stacked segments up from the baseline, and optionally a
 // second stack down from it (diverging). 2px surface gaps between segments,
 // a 4px round on the end away from the baseline, square at the baseline.
+//
+// `spec.line`, when given, is a percentage per day ({value: x => 0-100 or
+// null, ink}) drawn over the columns on its own 0-100% scale, on the right.
 function columns(el, days, spec) {
   const W = Math.max(280, el.clientWidth || 600), H = 170;
-  const L = 30, R = 6, T = 8, B = 20, pw = W - L - R, ph = H - T - B;
+  const L = 30, R = spec.line ? 36 : 6, T = 8, B = 20, pw = W - L - R, ph = H - T - B;
   const sum = xs => xs.reduce((s, x) => s + x.v, 0);
   const maxUp = Math.max(...days.map(x => sum(spec.up(x))));
   const maxDown = spec.down ? Math.max(...days.map(x => sum(spec.down(x)))) : 0;
@@ -3714,6 +3887,24 @@ function columns(el, days, spec) {
     svg += `<g class="col" data-i="${i}">${stack(spec.up(x), cx, true)}${spec.down ? stack(spec.down(x), cx, false) : ''}
       <rect class="hit" x="${L + i * band}" y="${T}" width="${band}" height="${ph}"/></g>`;
   });
+  if (spec.line) {
+    const ly = v => T + ph - v / 100 * ph, mid = i => (L + (i + .5) * band).toFixed(1);
+    [0, 50, 100].forEach(t => svg += `<text class="tick" x="${W - R + 5}" y="${ly(t) + 3}">${t}%</text>`);
+    // A day with no requests has no rate: the line breaks there.
+    let run = [], dots = '';
+    const flush = () => {
+      if (run.length > 1) svg += `<polyline class="rate" points="${run.join(' ')}" stroke="${spec.line.ink}"/>`;
+      run = [];
+    };
+    days.forEach((x, i) => {
+      const v = spec.line.value(x);
+      if (v === null || v === undefined) { flush(); return; }
+      run.push(`${mid(i)},${ly(v).toFixed(1)}`);
+      dots += `<circle class="rate" cx="${mid(i)}" cy="${ly(v).toFixed(1)}" r="2.5" fill="${spec.line.ink}"/>`;
+    });
+    flush();
+    svg += dots;
+  }
   const labelAt = [0, Math.floor((days.length - 1) / 2), days.length - 1];
   [...new Set(labelAt)].forEach(i => svg += `<text class="tick" x="${L + i * band + band / 2}" y="${H - 5}"
     text-anchor="${i === 0 ? 'start' : i === days.length - 1 ? 'end' : 'middle'}">${shortDate(days[i].date)}</text>`);

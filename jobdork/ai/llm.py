@@ -313,6 +313,36 @@ def complete_json(settings: Settings, system: str, user: str,
     raise LLMError("no AI reader could answer. " + "; ".join(failed))
 
 
+# The tokens the provider counted for the call in flight on this thread,
+# (input, output): set by each provider function from its reply, read by
+# _call_one for the Dashboard's usage charts. A call that failed before a
+# reply counts 0.
+_usage = threading.local()
+
+
+def _used(prompt, answer) -> None:
+    _usage.tokens = (int(prompt or 0), int(answer or 0))
+
+
+# What kind of failure a call was, from its message, for the Dashboard's
+# errors chart. First match wins: "HTTP 429" is rate limited, not a 4xx.
+ERROR_KINDS = (
+    ("rate_limited", re.compile(r"rate limited|out of (?:quota|credit)|\b429\b")),
+    ("key_refused", re.compile(r"key was refused|\b40[13]\b")),
+    ("not_found", re.compile(r"model not found|\b404\b")),
+    ("server_error", re.compile(r"\b5\d\d\b")),
+    ("timed_out", re.compile(r"no answer within")),
+    ("unreachable", re.compile(r"could not reach|not answering")),
+    ("not_json", re.compile(r"in JSON|answered JSON|answer JSON")),
+    ("declined", re.compile(r"declined")),
+)
+
+
+def error_kind(message: str) -> str:
+    return next((kind for kind, pattern in ERROR_KINDS
+                 if pattern.search(message or "")), "other")
+
+
 def _call_one(settings: Settings, system: str, user: str, schema: dict,
               max_tokens: int, purpose: str, on_text) -> dict:
     """One reader, one call. Raises LLMError."""
@@ -323,6 +353,7 @@ def _call_one(settings: Settings, system: str, user: str, schema: dict,
     from ..core import telemetry
 
     started = time.time()
+    _usage.tokens = (0, 0)
     try:
         if settings.provider == "ollama" and on_text:
             text = _ollama(settings, system, user, schema, max_tokens, on_text)
@@ -330,8 +361,10 @@ def _call_one(settings: Settings, system: str, user: str, schema: dict,
             text = call(settings, system, user, schema, max_tokens)
         answer = _parse_object(text)
     except LLMError as exc:
+        # An answer that was not JSON still spent its tokens.
         telemetry.llm(settings.label, time.time() - started, ok=False,
-                      purpose=purpose)
+                      purpose=purpose, tokens=_usage.tokens,
+                      error=error_kind(str(exc)))
         # Logged, so the failed call the AI tiles count also has its reason
         # under Activity's warnings and errors. The messages name a host at
         # most, never a key.
@@ -339,7 +372,7 @@ def _call_one(settings: Settings, system: str, user: str, schema: dict,
                     purpose or "unnamed", exc)
         raise
     telemetry.llm(settings.label, time.time() - started, ok=True,
-                  purpose=purpose)
+                  purpose=purpose, tokens=_usage.tokens)
     log.debug("%s answered in %.1fs", settings.label, time.time() - started)
     return answer
 
@@ -422,6 +455,7 @@ def _ollama(s: Settings, system: str, user: str, schema: dict,
     if on_text:
         return _ollama_stream(url, body, on_text)
     data = _post(url, body, {}, LOCAL_TIMEOUT)
+    _used(data.get("prompt_eval_count"), data.get("eval_count"))
     return (data.get("message") or {}).get("content", "")
 
 
@@ -446,6 +480,7 @@ def _ollama_stream(url: str, body: dict, on_text) -> str:
                 text += (chunk.get("message") or {}).get("content", "")
                 on_text(text)
                 if chunk.get("done"):
+                    _used(chunk.get("prompt_eval_count"), chunk.get("eval_count"))
                     break
     except requests.Timeout:
         raise LLMError(f"no answer within {LOCAL_TIMEOUT}s") from None
@@ -469,8 +504,16 @@ def _openai(s: Settings, system: str, user: str, schema: dict,
             "max_completion_tokens": max_tokens,
         },
         {"Authorization": f"Bearer {key}"}, CLOUD_TIMEOUT)
+    _openai_usage(data)
     choices = data.get("choices") or [{}]
     return ((choices[0] or {}).get("message") or {}).get("content", "")
+
+
+def _openai_usage(data: dict) -> None:
+    """OpenAI's usage block, which Groq answers with too. Reasoning tokens
+    are inside completion_tokens."""
+    usage = data.get("usage") or {}
+    _used(usage.get("prompt_tokens"), usage.get("completion_tokens"))
 
 
 def _gemini(s: Settings, system: str, user: str, schema: dict,
@@ -492,6 +535,11 @@ def _gemini(s: Settings, system: str, user: str, schema: dict,
                                  "maxOutputTokens": max_tokens},
         },
         {"x-goog-api-key": key}, CLOUD_TIMEOUT)
+    # Thinking is billed as output, and counted apart from the answer.
+    usage = data.get("usageMetadata") or {}
+    _used(usage.get("promptTokenCount"),
+          int(usage.get("candidatesTokenCount") or 0)
+          + int(usage.get("thoughtsTokenCount") or 0))
     candidates = data.get("candidates") or [{}]
     parts = ((candidates[0] or {}).get("content") or {}).get("parts") or []
     return "".join(p.get("text", "") for p in parts if isinstance(p, dict))
@@ -528,6 +576,7 @@ def _groq(s: Settings, system: str, user: str, schema: dict,
         body["response_format"] = {"type": "json_object"}
     data = _post(GROQ_API + "/chat/completions", body,
                  {"Authorization": f"Bearer {key}"}, CLOUD_TIMEOUT)
+    _openai_usage(data)
     choices = data.get("choices") or [{}]
     return ((choices[0] or {}).get("message") or {}).get("content", "")
 
@@ -569,6 +618,13 @@ def _anthropic(s: Settings, system: str, user: str, schema: dict,
     except anthropic.APIConnectionError:
         raise LLMError("could not reach the Claude API") from None
 
+    usage = getattr(response, "usage", None)
+    if usage is not None:
+        # Cached prompt tokens are input too, billed at their own rate.
+        _used(sum(int(getattr(usage, f, 0) or 0) for f in (
+                  "input_tokens", "cache_creation_input_tokens",
+                  "cache_read_input_tokens")),
+              getattr(usage, "output_tokens", 0))
     if response.stop_reason == "refusal":
         raise LLMError("Claude declined to answer this one")
     return next((b.text for b in response.content if b.type == "text"), "")

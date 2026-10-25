@@ -560,7 +560,9 @@ jobdork serve        # http://127.0.0.1:8765
 The page opens on the **Dashboard**: runs, errored runs, AI calls, AI latency
 (P50 and P95) and the hallucination rate with its coverage, for the last 7, 30
 or 90 days; runs by tool and the hallucination rate by kind of output over
-time, and feedback per day; and a card for the last scan,
+time, and feedback per day; AI usage (requests and their success rate,
+errors by kind such as rate limited, and input tokens, output tokens and
+requests per model, filtered by provider or model); and a card for the last scan,
 check and AI judging that says in amber what went wrong (a source that
 returned nothing, a scan that never finished, a scan over 15 days old).
 

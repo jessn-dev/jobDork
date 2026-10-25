@@ -81,7 +81,7 @@ class Recorder:
         self.ai: dict[str, dict] = {}
         self.last_line = ""
         self._events: list[tuple[str, str, str]] = []
-        self._calls: list[tuple[str, str, str, float, int]] = []
+        self._calls: list[tuple[str, str, str, float, int, int, int, str]] = []
         self._last_flush = 0.0
         self._stop = threading.Event()
         with self.conn:
@@ -150,10 +150,11 @@ class Recorder:
                 h["blocked"] = True
         self.flush()
 
-    def llm(self, model: str, seconds: float, ok: bool, purpose: str = "") -> None:
+    def llm(self, model: str, seconds: float, ok: bool, purpose: str = "",
+            tokens: tuple[int, int] = (0, 0), error: str = "") -> None:
         with self.lock:
             self._calls.append((_now(), model, purpose, round(seconds, 3),
-                                1 if ok else 0))
+                                1 if ok else 0, *tokens, error))
             m = self.ai.setdefault(model, {"calls": 0, "failed": 0,
                                            "seconds": 0.0, "slowest": 0.0})
             m["calls"] += 1
@@ -210,7 +211,8 @@ class Recorder:
                 if calls:
                     self.conn.executemany(
                         "INSERT INTO llm_calls(at, activity_id, model, purpose, "
-                        "seconds, ok) VALUES(?,?,?,?,?,?)",
+                        "seconds, ok, input_tokens, output_tokens, error) "
+                        "VALUES(?,?,?,?,?,?,?,?,?)",
                         [(at, self.id, *rest) for at, *rest in calls])
                 if state:
                     self.conn.execute(
@@ -327,19 +329,23 @@ def record_calls_to(db_path) -> None:
     _calls_db = lambda: fixed  # noqa: E731
 
 
-def llm(model: str, seconds: float, ok: bool, purpose: str = "") -> None:
+def llm(model: str, seconds: float, ok: bool, purpose: str = "",
+        tokens: tuple[int, int] = (0, 0), error: str = "") -> None:
+    """One model call: `tokens` (input, output) as the provider counted them,
+    `error` the kind of failure (llm.error_kind) when it failed."""
     rec = _current
     if rec is not None:
-        rec.llm(model, seconds, ok, purpose)
+        rec.llm(model, seconds, ok, purpose, tokens, error)
         return
     if _calls_db is None:
         return
     try:
         with contextlib.closing(sqlite3.connect(_calls_db(), timeout=2)) as conn, conn:
             conn.execute(
-                "INSERT INTO llm_calls(at, activity_id, model, purpose, seconds, ok) "
-                "VALUES(?, NULL, ?, ?, ?, ?)",
-                (_now(), model, purpose, round(seconds, 3), 1 if ok else 0))
+                "INSERT INTO llm_calls(at, activity_id, model, purpose, seconds, ok, "
+                "input_tokens, output_tokens, error) VALUES(?, NULL, ?, ?, ?, ?, ?, ?, ?)",
+                (_now(), model, purpose, round(seconds, 3), 1 if ok else 0,
+                 *tokens, error))
     except (sqlite3.Error, OSError):
         pass                 # telemetry never breaks the call it describes
 

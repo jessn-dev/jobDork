@@ -42,7 +42,7 @@ log = logging.getLogger("jobdork.db.migrations")
 
 # The version a fresh database is created at, and the version this code
 # understands. Bumped by adding a step below.
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 
 class MigrationError(Exception):
@@ -289,6 +289,15 @@ def _v10_to_v11(conn: sqlite3.Connection) -> None:
 )''')
 
 
+def _v11_to_v12(conn: sqlite3.Connection) -> None:
+    """Usage per model call: the tokens the provider counted each way, and
+    the kind of failure (rate limited, key refused…) for the Dashboard's
+    usage charts. Calls made before this have 0 tokens and no kind."""
+    for column in ("input_tokens", "output_tokens"):
+        _add_column(conn, "llm_calls", column, "INTEGER NOT NULL DEFAULT 0")
+    _add_column(conn, "llm_calls", "error", "TEXT NOT NULL DEFAULT ''")
+
+
 # Numbered, ordered, append-only. The key is the version a step produces.
 STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     2: _v1_to_v2,
@@ -301,6 +310,7 @@ STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     9: _v8_to_v9,
     10: _v9_to_v10,
     11: _v10_to_v11,
+    12: _v11_to_v12,
 }
 
 
