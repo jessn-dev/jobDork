@@ -6,6 +6,16 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-25 — CodeQL results are required on main
+
+- The rules for `main` now include "Require code scanning results": a pull
+  request that brings a new CodeQL security alert of high severity or
+  above, or a new error, cannot be merged until it is fixed or dismissed.
+  Alerts already on `main` do not count; there were none open (20 sorted
+  the same day: 8 fixed, 12 dismissed with their reasons).
+- Off the Still outstanding list. A different scanner stays an option if
+  CodeQL proves weak.
+
 ## Added — 2026-10-25 — An Adzuna post missing from the employer's own board is flagged
 
 - **A yellow tag**, "Not on Northbridge Health's own board, which jobdork
@@ -5957,10 +5967,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
 
 ## Still outstanding
 
-- **CodeQL as a required check.** Its first findings are sorted (no open
-  alerts since 2026-10-25); what is left is adding its check to the rules
-  for `main`, a repository setting a person has to change. Or a different
-  scanner, if it proves weak.
 - **Europe outside Germany, the Gulf, and New Zealand** stay thin (measured
   2026-10-23): their large employers mostly name no board, and their job
   sites are closed to scripts or need a key (Reed, France Travail). What is
@@ -5984,12 +5990,15 @@ open; a digest arrives, and what arrived with it is what was not there before.
   large Asian and Mexican employers), regional job sites are the lever.
   SuccessFactors behind its older portal only (Edison, NRG, Wipro) is still
   unread.
+
+### Waiting on a decision or money
+
 - **A key proxy, deferred** until the Discover test list shows whether
   keyless sources leave real gaps: zero-setup access to keyed sources
   (Adzuna, USAJOBS, Google Jobs resellers) through a server the project runs.
   The reasoning, its costs, and the conditions for revisiting it are in
   [DECISIONS.md](DECISIONS.md#deferred-a-key-proxy).
-- **JSearch (RapidAPI) as an optional keyed source**: Google for Jobs data,
+- **JSearch (RapidAPI) or SerpApi as an optional keyed source**: Google for Jobs data,
   which reaches Philippine posts on JobStreet and LinkedIn by legitimate
   means, with full adverts, apply links and dates. Waits on three things:
   a RapidAPI key to verify the live answer against (Adzuna's documentation
@@ -5998,6 +6007,12 @@ open; a digest arrives, and what arrived with it is what was not there before.
   spend most of it; and its current terms and free tier, read on RapidAPI.
   `python-jobspy` was considered and refused: it scrapes LinkedIn and Indeed
   against their terms and robots.txt.
+- **Code signing.** The installers are unsigned, so macOS and Windows warn
+  before the first open (the README's "Unsigned installers" says how past
+  it). macOS: Apple's developer programme, $99 a year, then notarising in
+  CI. Windows: SignPath Foundation's free certificate was refused
+  (2026-10-24); a paid one costs more every year. When to revisit is in
+  [DECISIONS.md](DECISIONS.md#a-desktop-app-a-pywebview-window-unsigned-at-first--2026-10-21).
 
 ### Operational notes, not work
 
