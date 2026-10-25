@@ -64,7 +64,7 @@ from ..core.config import (
 )
 from ..db.store import Store
 from ..output.render import STATUS_COLOURS
-from ..search import freshness, geo
+from ..search import freshness, geo, ownboard
 from ..search.resume import SKILL_NAMES
 from . import api as api_mod
 from .live import Runner
@@ -957,6 +957,10 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 posted_by = api_mod.recruiters(store, rows)
                 payload = [{**_row_to_dict(row, units, cfg.freshness), **posted_by[row["uid"]]}
                            for row in rows]
+                unlisted = api_mod.not_on_own_board(store, rows)
+                for post in payload:
+                    if post["uid"] in unlisted:
+                        post["flags"] = [*post["flags"], ownboard.flag_text(post["company"])]
 
             # Past freshness.ghost_days a post is dropped at screening, but one
             # stored before it aged stays in the database until a rescreen

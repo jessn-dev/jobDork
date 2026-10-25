@@ -6,6 +6,30 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-25 — An Adzuna post missing from the employer's own board is flagged
+
+- **A yellow tag**, "Not on Northbridge Health's own board, which jobdork
+  read: may be filled, or not a real opening", on an Adzuna post whose job
+  the employer's own board does not list. Adzuna keeps showing some posts
+  after the job is filled or withdrawn, and some were never real; its pages
+  cannot be read to ask (enrich.py), so the employer's board is asked.
+- **Only when jobdork read that board** in the same scan: one of its jobs,
+  kept or dropped by your filters, was seen within a day of the Adzuna post.
+  An employer whose board jobdork does not read is never flagged; absence
+  there proves nothing.
+- **Compared loosely**, to keep real jobs unflagged: the employer name
+  without case, punctuation, "The" or company suffixes ("The Home Depot,
+  Inc." is "The Home Depot"); the title anywhere on the board, one inside
+  the other counting ("Registered Nurse" in "Registered Nurse - ICU"),
+  places not compared, as the two write them differently. A board copy
+  dropped by your filters still vouches for the job.
+- Worked out when the list or a post is shown (`search/ownboard.py`), so it
+  follows the latest scan with nothing stored. The post stays listed: a
+  reason to check the employer's site, not proof. "Ghost" on its own stays
+  the age tag. Guide: Tags. Tests: the matching rules, a dropped copy, the
+  list and the post's window, and that every board platform discover reads
+  counts as an employer's own.
+
 ## Fixed — 2026-10-25 — The macOS build makes its disk image without hdiutil's deprecation warning
 
 - macOS 27 warns that `hdiutil create -volname -format` is deprecated in
@@ -5974,11 +5998,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   spend most of it; and its current terms and free tier, read on RapidAPI.
   `python-jobspy` was considered and refused: it scrapes LinkedIn and Indeed
   against their terms and robots.txt.
-- **An Adzuna post that is not on the employer's own careers board** should
-  be flagged as a likely ghost. Adzuna's pages cannot be read (enrich.py), so
-  the check is whether the same job (grouping.py) is on the employer's own
-  board, which `discover` has to have found first. Left out of the freshness
-  change of 2026-09-30.
 
 ### Operational notes, not work
 
