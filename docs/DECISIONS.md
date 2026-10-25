@@ -156,12 +156,16 @@ ship with the app, so nobody has to?
    no longer blocks a scan, see the onboarding decision above.)
 
 3. **A user who wants a keyed source pastes their own key into the app**
-   (planned): a card per source on the Sources page with what it adds, a
-   "Get a free key" link and a Test button. The key is kept in a file in
-   `data/`, readable only by jobdork's user: not the config, not the
-   database, never a log, never the image. It is the user's key on the
+   (built: a card per source on the Sources page and in setup's job-sources
+   step, with what it adds, a "Get one free" link, and the key tried against
+   the source when it is saved). The key is kept in a file in `data/`
+   (`source-keys.env`), readable only by jobdork's user: not the config, not
+   the database, never a log, never the image. It is the user's key on the
    user's machine. Environment variables keep working for those who prefer
-   them.
+   them. **An OS keychain was considered on 2026-10-25 and not adopted:** these
+   keys are free and cannot spend money, scheduled scans (run by the
+   system's scheduler while jobdork is closed) need them, and a keychain is
+   missing in Docker and on a NAS and often locked to a Linux cron job.
 
 4. **AI keys follow the burn rules.** Keys for hosted models (Claude,
    Gemini, ChatGPT) are held in memory only and wiped when the server stops;
@@ -211,7 +215,8 @@ security surface. That is why it waits.
 - **Keys inside the image** (see 1 above).
 - **`python-jobspy`** and any scraper of LinkedIn, Indeed or Google's job
   results: against their terms and robots.txt, and it gets users' home IPs
-  blocked. Google Jobs is reached instead by a button that opens the user's
-  own browser (planned), and later perhaps through a licensed reseller
+  blocked. Google Jobs is reached instead by a link that opens the user's
+  own browser (built: **Search Google Jobs** under the job posts list), and
+  later perhaps through a licensed reseller
   (JSearch, SerpApi) as a keyed source, which would go through this same
   decision.

@@ -57,7 +57,7 @@ jobdork scan --anchor "Berlin, Germany" --country DE
 jobdork list --title "penetration tester" --work-mode remote --salary-floor 150000
 ```
 
-What each part of a scan does, and why: the [README](../../README.md#what-a-scan-gives-you).
+What each part of a scan does, and why: [ARCHITECTURE.md](../ARCHITECTURE.md#the-pipeline).
 
 ## Scheduling scans yourself
 

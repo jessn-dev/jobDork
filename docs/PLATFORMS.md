@@ -27,6 +27,8 @@ the documentation is not.
 | [Eightfold](#eightfold) | `{host}/api/pcsx/search` | none | detail endpoint | — | stated | verified |
 | [Taleo Business Edition](#taleo-business-edition) | `{host}/{path}/ats/careers/v2/searchResults` | none | on the job's page | when stated | when stated | verified |
 | [Employer site](#employer-site) | its sitemap, then each posting page | none | full, on the page | when stated | when stated | verified |
+| Germany's employment agency (`arbeitsagentur`) | `rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs` | none (the public client id as `X-API-Key`) | detail endpoint | a euro range, when stated | — | verified (2026-10-23) |
+| Arbeitnow | `www.arbeitnow.com/api/job-board-api` | none | full, inline | **none — no field** | remote flagged | verified (2026-10-23) |
 
 ---
 
@@ -430,6 +432,12 @@ off the employer's careers page by `discover`.
 - **Still open:** the detail answers 404 for a removed posting and
   `posted: false` for one taken down; the page itself is a script and says
   nothing.
+- **Two addresses for one board.** Apply links may use
+  `wd1.myworkdaysite.com/recruiting/{tenant}/{site}` (TJX) instead of
+  `{tenant}.wd1.myworkdayjobs.com/{site}`; `discover` reads either into the
+  same token (`tjx/wd1/TJX_EXTERNAL`).
+- **A site may be named `Jobs`** (DuPont's `dupont/wd5/Jobs`); `discover`
+  tells it from a posting path by the `/job/` that follows it.
 - Paced at one request a second for every `*.myworkdayjobs.com` host.
 
 ---
@@ -563,10 +571,15 @@ For employers whose applicant tracking system has no reader here. Their
 careers site lists every posting in its sitemap and marks each posting page
 up for Google as a schema.org `JobPosting`: title, places, posting date,
 closing date, the full advert, and pay when stated. Kaiser Permanente,
-UnitedHealth Group, Mayo Clinic, Wells Fargo, State Farm, UPS and General
-Motors all do. The token is the careers site's address
-(`https://jobs.mayoclinic.org`); `discover` offers it when it finds no board
+UnitedHealth Group, Wells Fargo, State Farm, UPS, General Motors and
+Walgreens all do. The token is the careers site's address
+(`https://jobs.walgreens.com`); `discover` offers it when it finds no board
 it can read and a posting on the site is marked up.
+
+- **A posting with no markup may still name its board.** Some careers sites
+  (Phenom's, as DuPont's and TJX's) carry the job in the page's own data
+  with an apply link to a board jobdork reads, usually Workday; `discover`
+  takes that board from the two postings it reads, instead of the site.
 
 - **A posting address has a jobs word and an id** (`/job/irvine/nursing-
   attendant/641/10035`, `/jobs/R-1075582`); category and blog pages in the

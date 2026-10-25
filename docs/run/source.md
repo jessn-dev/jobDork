@@ -19,7 +19,6 @@ git clone https://github.com/jessn-dev/jobDork.git
 cd jobDork
 python3 -m venv .venv
 .venv/bin/pip install -e '.[pdf]'
-.venv/bin/python scripts/build_gazetteer.py
 ```
 
 On Windows the venv's programs are in `.venv\Scripts\` rather than
@@ -35,11 +34,11 @@ On Windows the venv's programs are in `.venv\Scripts\` rather than
 | `package` | PyInstaller, Pillow | Building the installers ([desktop.md](desktop.md#building-the-installers-yourself)) |
 | `dev` | pytest, ruff | Running the tests ([Development](../../README.md#development)) |
 
-**`build_gazetteer.py`** downloads the place list (GeoNames) the distance
-filter measures against. With no arguments it builds for the countries in
-your config; `all` builds every country. Run it again after adding a
-country. Without it jobdork falls back to about 125 bundled metros and still
-works in the places most postings name.
+**The place list ships with jobdork** (`jobdork/data/cities.csv`: 70,026
+places with 5,000 people or more, in 245 countries, from GeoNames), so
+distances work in every country from the first run. `scripts/build_gazetteer.py all`
+refreshes it from GeoNames; run with no country it rebuilds the list for
+your config's countries only, replacing the full one.
 
 ## Start the dashboard
 

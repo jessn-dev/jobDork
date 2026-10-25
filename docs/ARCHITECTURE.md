@@ -49,19 +49,19 @@ freely; `search/`, `ai/` and `writing/` import each other only where one
 genuinely uses the other (judging reads the resume, drafts are guarded), and
 nothing below imports from `web/`.
 
-| Package | Lines | Modules |
-|---|---|---|
-| `cli.py` | ~1,060 | Argument parsing and every command |
-| `core/` | ~1,450 | `config` (YAML, secrets from the environment), `storage` (where the resume and documents are kept), `telemetry` (what a running job is doing, readable from any process), `schedule` (scans from the system's own scheduler), `updates` (is a newer release out), `textutil` (HTML → text) |
-| `db/` | ~1,270 | `store` (schema, upsert, status, AI outputs), `migrations` (numbered, forwards-only), `grouping` (copies of one job) |
-| `fetch/` | ~3,150 | `http` (pacing, retries, circuit breaker — the only networking), `robots` (robots.txt, RFC 9309), one adapter per source (keyword searches, among them Germany's employment agency and Arbeitnow; employer boards on Greenhouse, Ashby, Lever, SmartRecruiters, Breezy, Workday, Oracle, Eightfold and Taleo; and an employer's own site, SuccessFactors career sites included), shared board helpers |
-| `search/` | ~4,660 | `scan` (orchestration, rescreen), `screen` (every filter and the score), `dealbreakers` (plain words into patterns), `directory` (the built-in employer boards), `freshness` (how old a post is), `enrich` (full adverts), `discover` (an employer's board), `listing` (is it still open), `geo` (gazetteer, distance), `resume` (skills, fit) |
-| `ai/` | ~2,220 | `llm` (providers, keys in memory), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, resume review) |
-| `writing/` | ~1,200 | `generate` (`claude -p` drafts), `gates` (scripted checks), `humanize` (signs of AI writing) |
-| `web/` | ~2,940 | `serve` (HTTP), `api` (every command for the page, metrics), `live` (runs and events), `session` (token, port) |
-| `output/` | ~900 | `render` (static HTML and JSON), `digest` (email) |
-| `dork/` | ~1,200 | The original Google query generator, moved not rewritten |
-| `data/` | | `boards.csv` (the built-in employer boards), `cities.csv` (places, with each one's region), `regions.csv` (region and country names), `dashboard.html`, the humanizer rules |
+| Package | Modules |
+|---|---|
+| `cli.py` | Argument parsing and every command |
+| `core/` | `config` (YAML, secrets from the environment), `setup` (first-run steps), `storage` (where the resume and documents are kept), `telemetry` (what a running job is doing, readable from any process), `schedule` (scans from the system's own scheduler), `notify` (the system's notifications), `updates` (is a newer release out, and checking an installer before it opens), `feedback` (a report to the maintainers), `textutil` (HTML → text) |
+| `db/` | `store` (schema, upsert, status, AI outputs), `migrations` (numbered, forwards-only), `grouping` (copies of one job) |
+| `fetch/` | `http` (pacing, retries, circuit breaker — the only networking), `robots` (robots.txt, RFC 9309), one adapter per source (keyword searches: Workable, Himalayas, Kalibrr, Germany's employment agency, Arbeitnow, and with keys Adzuna and USAJOBS; employer boards on Greenhouse, Ashby, Lever, SmartRecruiters, Breezy, Workday, Oracle, Eightfold and Taleo; and an employer's own careers site, SuccessFactors career sites included), shared board helpers |
+| `search/` | `scan` (orchestration, rescreen), `screen` (every filter and the score), `dealbreakers` (plain words into patterns), `directory` (the built-in employer boards), `freshness` (how old a post is), `enrich` (full adverts), `discover` (an employer's board), `listing` (is it still open), `ownboard` (an Adzuna post the employer's board does not carry), `agency` (employer or recruiter), `credentials` (certifications a post asks for), `geo` (gazetteer, distance), `resume` (skills, fit) |
+| `ai/` | `llm` (providers, keys in memory), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, resume review), `tools` (the model as an editor for resume and letter), `suggest` (job titles from the resume, in setup) |
+| `writing/` | `generate` (`claude -p` drafts), `resume_doc` (the tailored resume's template), `gates` (scripted checks), `humanize` (signs of AI writing) |
+| `web/` | `serve` (HTTP), `api` (every command for the page, metrics), `live` (runs and events), `session` (token, port), `app` (the desktop window and its bridge) |
+| `output/` | `render` (static HTML and JSON), `pdf` (a resume as a PDF), `digest` (email) |
+| `dork/` | The original Google query generator, moved not rewritten |
+| `data/` | `boards.csv` (the built-in employer boards), `cities.csv` (places, with each one's region), `regions.csv` (region and country names), `dashboard.html`, the humanizer rules, `attestation-check.json` (a real build attestation, for the desktop app's self-test) |
 
 ---
 

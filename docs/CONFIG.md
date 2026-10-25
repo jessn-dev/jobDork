@@ -384,6 +384,25 @@ Python flavour, which is what a scan uses.
 
 ---
 
+## screening
+
+Advanced. The judgements built into title matching and arrangement
+detection, open to change because they are judgements about a job market,
+not facts. Leave the section out and the defaults apply.
+
+```yaml
+screening:
+  blockers: [product, business, program, programme, project, sales, account]
+  loose_gap: 2
+  remote_patterns: ["home[- ]based"]
+```
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `screening.blockers` | list | `product`, `business`, `program`, `programme`, `project`, `sales`, `account` | Words that change the job rather than reword it, so they stop a loose title match: "Engineering Program Manager" is not an engineering manager. Your list replaces the default |
+| `screening.loose_gap` | int | `2` | How many unrelated words may sit between the words of a title in the loose pass before it stops counting as the same title ([how a title is matched](#how-a-title-is-matched)) |
+| `screening.remote_patterns`, `screening.hybrid_patterns`, `screening.office_patterns` | lists of regular expressions | empty | Extra ways to read the arrangement off an advert, added to the built-in ones rather than replacing them |
+
 ## sources
 
 ```yaml
@@ -541,11 +560,12 @@ it off a resume you use with a hosted model if that matters to you.
 | `llm.provider` | string | empty (off) | The first reader's provider: `ollama`, `anthropic` (Claude), `gemini`, `openai` (ChatGPT) or `groq`. A config with no `readers` has this one reader |
 | `llm.model` | string | empty | The first reader's model, e.g. `gemma4:26b`; the AI page lists what is available |
 | `llm.ollama_url` | URL | `http://localhost:11434` | Where Ollama answers. Must be `http(s)://host:port` |
+| `llm.context` | int | `16384` | Ollama's context window in tokens, 4,096 to 131,072. A prompt that may not fit is said so in the log, since Ollama would drop the start of it without a word |
 | `llm.judge_on_scan` | bool | `false` | After each scan, judge the best job posts not yet judged |
 | `llm.judge_top` | int | `25` | How many a judging run reads, 1 to 500. Bounds what a scan can spend on a paid API |
 | `llm.read_pages` | bool | `false` | When checking postings, ask the model about pages that do not say whether the job is open |
 | `llm.guard` | bool | `true` | Check each verdict and draft for claims the resume and the advert do not support. Two more model calls per output |
-| `llm.checkers` | list | empty (none) | Second models that check the readers' work, in the order they are tried, up to 6, written like `readers`. They run the `guard` checks on everything a reader judges or writes, and score each judged job post themselves; scores 20 or more points apart are marked "models disagree". When one cannot answer, the next is asked. Of eight local models measured in October 2026, `qwen3.8:27b` checked best ([guide](../guide/docs/ai.md#checkers)). A checker that is the model that wrote an output is passed over for that output. With none chosen or none ready, the claim checks go to another reader, and to the writer itself only when no other is ready. Never blocks or hides anything. A key, if one is needed, is held in memory like a reader's |
+| `llm.checkers` | list | empty (none) | Second models that check the readers' work, in the order they are tried, up to 6, written like `readers`. They run the `guard` checks on everything a reader judges or writes, and score each judged job post themselves; scores 20 or more points apart are marked "models disagree". When one cannot answer, the next is asked. Of eight local models measured in October 2026, `qwen3.8:27b` checked best ([guide](https://jessn-dev.github.io/jobDork/ai/#checkers)). A checker that is the model that wrote an output is passed over for that output. With none chosen or none ready, the claim checks go to another reader, and to the writer itself only when no other is ready. Never blocks or hides anything. A key, if one is needed, is held in memory like a reader's |
 | `llm.checker_provider`, `llm.checker_model` | string | empty | The first checker's provider and model. A config with no `checkers` list has this one checker, as configs did before the list |
 
 ```yaml
@@ -666,7 +686,10 @@ interviewing and offer are kept whatever their age.
 ## Environment
 
 Read from `.env` in the project root, which is gitignored. The environment
-always wins over the YAML.
+always wins over the YAML. Keys for Adzuna and USAJOBS typed in the app are
+kept in `source-keys.env` beside the database (readable by your user only);
+the environment and `.env` win over it. A key written into `config.yaml` is
+accepted, with a warning.
 
 | Variable | For |
 |---|---|

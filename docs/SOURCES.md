@@ -236,22 +236,24 @@ measured locally.
 **No geocoding API, no key, no rate limit, no per-role network call.** The
 lookup is a dictionary and a haversine.
 
-### Building it
+### Refreshing it
+
+It ships complete; nothing needs building to use it. To refresh it from
+GeoNames:
 
 ```bash
-python scripts/build_gazetteer.py
+python scripts/build_gazetteer.py all
 ```
 
-Downloads GeoNames `cities5000` (CC BY 4.0) and writes the CSV most-populous
-first — so a name collision resolves to the city people actually mean. Every
-place of 5,000 or more, which is every place a job is advertised in and few
-that are not.
+That downloads GeoNames `cities5000` (CC BY 4.0) and writes the CSV
+most-populous first — so a name collision resolves to the city people
+actually mean. Every place of 5,000 or more, which is every place a job is
+advertised in and few that are not.
 
-With no arguments it builds for the countries in your config. Pass codes to
-override (`PH SG`), or `all` for every country.
-
-Without it the tool falls back to about 125 bundled major metros, and the
-radius still works in the places most postings name.
+Country codes (`PH SG`) build those countries only, and with none at all it
+builds the countries in your config: either replaces the full list with a
+smaller one. If the file is missing, places fall back to about 125 bundled
+major metros.
 
 GeoNames numbers Canadian and Australian regions rather than lettering them,
 so `08` becomes `ON` and `NSW` at build time. Elsewhere the region column is

@@ -136,11 +136,18 @@ it.
 
 **Updating the desktop app.** When a newer version is out, **Update** under
 **Settings → Updates** downloads that release's installer for your computer
-from this project's GitHub releases into your Downloads folder, checks it
-against the release's published SHA-256 checksums (deleting it if they do
-not match), and opens it. Nothing is downloaded until you press it.
-The Windows installer shows this before installing. See
-[GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
+from this project's GitHub releases into your Downloads folder and checks it
+before opening it: against the release's published SHA-256 checksums, and
+against its build attestation, which it asks GitHub for by the installer's
+SHA-256 (`api.github.com`). To check the attestation's signature it may
+also fetch Sigstore's public signing keys from `tuf-repo-cdn.sigstore.dev`.
+Neither request carries anything about you beyond what any connection
+carries. An installer that fails a check is deleted, not opened. Nothing is
+downloaded until you press it. The Windows installer shows this before
+installing. See
+[GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement);
+Sigstore's public service is run by the Open Source Security Foundation
+(OpenSSF).
 
 ### Email digests
 

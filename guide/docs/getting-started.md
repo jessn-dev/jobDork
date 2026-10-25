@@ -4,7 +4,7 @@
 
 | Your computer | How |
 |---|---|
-| Mac with Apple Silicon (M1 or later), Windows 10 or 11 | Download the installer from the [Releases page](https://github.com/jessn-dev/jobDork/releases/latest) and open it. Step by step, including the one-time security warning: [desktop app guide](https://github.com/jessn-dev/jobDork/blob/main/docs/run/desktop.md) |
+| Mac with Apple Silicon (M1 or later) and macOS 12 or newer, Windows 10 or 11 | Download the installer from the [Releases page](https://github.com/jessn-dev/jobDork/releases/latest) and open it. Step by step, including the one-time security warning: [desktop app guide](https://github.com/jessn-dev/jobDork/blob/main/docs/run/desktop.md) |
 | Linux, an Intel Mac, or if you prefer Python | [Run it from source](https://github.com/jessn-dev/jobDork/blob/main/docs/run/source.md) |
 | A NAS or home server, always on | [Docker](https://github.com/jessn-dev/jobDork/blob/main/docs/run/docker.md) or the [NAS guide](https://github.com/jessn-dev/jobDork/blob/main/docs/run/nas.md) |
 

@@ -30,10 +30,10 @@ Every region goes through the same steps, in this order:
 
 | Region | What reaches it | Measured |
 |---|---|---|
-| **United States** | 340 built-in employer boards based there across 27 industries, Workable, Himalayas (remote); with keys, Adzuna and USAJOBS | Discover's test list: 30 of 46 employers readable (US 26 of 37) |
-| **Canada** | 19 Canadian employers' boards (RBC, BMO, CIBC, Loblaw, Air Canada…) and multinationals hiring there; Workable; with a key, Adzuna | Not yet |
+| **United States** | 338 built-in employer boards based there across 27 industries, Workable, Himalayas (remote); with keys, Adzuna and USAJOBS | Discover's test list: 30 of 46 employers readable (US 26 of 37) |
+| **Canada** | 22 Canadian employers' boards (RBC, BMO, CIBC, Loblaw, Air Canada…) and multinationals hiring there; Workable; with a key, Adzuna | Not yet |
 | **Mexico** | Mercado Libre and multinationals hiring there; Workable; with a key, Adzuna | Not yet. Most large Mexican employers refuse scripts or name no board |
-| **Asia** | 26 Asian employers' boards (DBS, UOB, AIA, Samsung, TSMC, Coupang…) and multinationals; Kalibrr (Philippines, Indonesia); Workable; Himalayas; with a key, Adzuna (India) | 11 cities, 2026-10-02 (below) |
+| **Asia** | 30 Asian employers' boards (DBS, UOB, AIA, Samsung, TSMC, Coupang…) and multinationals; Kalibrr (Philippines, Indonesia); Workable; Himalayas; with a key, Adzuna (India) | 11 cities, 2026-10-02 (below) |
 | **Europe** | Germany's employment agency (Bundesagentur für Arbeit); Arbeitnow (Germany, UK, France, Netherlands, Switzerland…); ING, Santander, Airbus, ASML, Vodafone, Ericsson, Lloyds and other boards; multinationals hiring there; Workable; Himalayas; with a key, Adzuna (gb de fr nl at be ch es it pl) | 11 cities, 2026-10-23 (below) |
 | **Middle East** | Emaar, First Abu Dhabi Bank and DP World's boards; multinationals hiring there; Workable; Himalayas | 4 cities, 2026-10-23 (below): thin, and mostly remote. Adzuna has no index there |
 | **Australia and Oceania** | Telstra, Commonwealth Bank, Westpac and NAB's boards; multinationals hiring there; Workable; Himalayas | 4 cities, 2026-10-23 (below). Adzuna's `au` and `nz` answered 503 when last tried, and SEEK refuses scripts |

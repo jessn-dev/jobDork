@@ -13,7 +13,7 @@ folder (see [Moving between them](#moving-between-them)).
 | **Docker, on a NAS or home server** | jobdork always on, opened from your laptop or phone anywhere, the AI on another computer | A NAS with Docker; Tailscale | [nas.md](nas.md) |
 
 **Not sure?** Take the desktop app on a Mac or a Windows PC. On Linux or an
-Intel Mac there is no installer yet: run it [from source](source.md), which
+Intel Mac there is no installer: run it [from source](source.md), which
 also gives you the desktop window (`jobdork app`). Use the NAS guide only if
 you want it running while your computer is off.
 

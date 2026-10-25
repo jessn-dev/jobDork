@@ -38,6 +38,10 @@ The pull request template has the checklist. In short:
   `docs/run/`.
 - **No real data in a test or a picture.** Tests use their own database and
   never go online; screenshots come from the made-up demo.
+- **A dependency change updates both lock files.** `requirements.lock` (the
+  Docker image) and `requirements-desktop.lock` (the installers) pin every
+  package by hash; the command that regenerates each is at its top. A build
+  with a package missing from its lock stops.
 
 ## House style
 

@@ -81,8 +81,6 @@ dealbreakers:
 resume:
   path: {resume}
 db: {db}
-update_check: false
-notifications: {enabled: false}
 sources:
   directory: false
 llm:
@@ -233,7 +231,21 @@ def build(folder: Path) -> Path:
                               "location": "Chicago, IL", "start": "Aug 2025",
                               "end": "Expected May 2027"})
         _runs(store, now)
+    _checked_for_updates(Path(cfg.db_path).parent, now)
     return config
+
+
+def _checked_for_updates(folder: Path, now: float) -> None:
+    """A version check from a minute ago that found nothing newer, so
+    Settings shows the daily check on, as people see it, without asking
+    GitHub during the screenshots."""
+    from jobdork import __version__
+    from jobdork.core import updates
+
+    (folder / updates.CACHE_FILE).write_text(json.dumps({
+        "checked_at": now,
+        "release": {"version": __version__, "url": updates.RELEASES_PAGE, "assets": {}}}),
+        encoding="utf-8")
 
 
 def _pay(role, pay: str) -> None:
