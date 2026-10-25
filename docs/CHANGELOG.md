@@ -6,6 +6,18 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-25 — Ruff pinned, so CI lints with the version you have
+
+- **#43 failed CI on a rule the local ruff did not have.** `pyproject.toml`
+  asked for `ruff>=0.6`, so CI installed the newest (0.17.2) and flagged
+  RUF059 that 0.16.5 here passed. Ruff adds rules in its releases, so an
+  open range means `main` can go red with no change to the code.
+- The `dev` extra now pins `ruff==0.17.2`. Dependabot's weekly pip update
+  reads `pyproject.toml` and proposes the next ruff as a pull request,
+  after its week of cooldown, where CI shows whether new rules fire.
+- CONTRIBUTING.md says so: after a Dependabot update, `pip install -e
+  '.[dev]'` again.
+
 ## Fixed — 2026-10-25 — Code scanning: the alerts CodeQL raised on main
 
 CodeQL (default setup, on since 2026-10-23) had 20 open alerts. Seven are

@@ -23,7 +23,9 @@ How it fits together: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 The pull request template has the checklist. In short:
 
 - **Tests pass and ruff is clean.** CI runs both, on Python 3.10 and 3.14,
-  with the security scans; `main` takes nothing that fails.
+  with the security scans; `main` takes nothing that fails. Ruff is pinned
+  in `pyproject.toml`, so the same version passes here and in CI; after a
+  Dependabot update, `pip install -e '.[dev]'` again.
 - **An entry in [docs/CHANGELOG.md](docs/CHANGELOG.md)**, at the top: what
   was wrong or missing, and what changed. Release pages are built from these
   entries, so write for the person reading the release.
