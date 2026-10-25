@@ -6,6 +6,19 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-25 — The Dashboard shows the run before the AI charts
+
+- The run in progress (or the last one) came after every chart: the
+  period tiles, runs over time, hallucination, feedback, and the whole of
+  AI usage, so a first scan's progress was a long scroll down. Now, under
+  the buttons: the last run of each kind, then the run in full (progress,
+  rate, time left, requests, AI calls, outcomes, network by host, AI calls
+  by model, postings by listing state), then the charts. The log, warnings
+  and errors, and all runs stay at the bottom.
+- A last-run card says it shows its run **below** now. Guide: the
+  Dashboard page follows the same order (a run in detail, the numbers, log
+  and history), with the picture retaken.
+
 ## Added — 2026-10-25 — Search Google Jobs from the job posts list
 
 - **"Not here? Search Google Jobs for …"** under the job posts list, and in

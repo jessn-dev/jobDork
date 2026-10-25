@@ -815,6 +815,20 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <div id="fresh-confirm"></div>
     <div id="start-over-confirm"></div>
 
+    <div class="lastruns" id="last-runs"></div>
+
+    <div id="act-head"></div>
+    <div class="tiles" id="act-tiles"></div>
+    <div id="act-progress"></div>
+    <div id="act-counts"></div>
+
+    <div class="act-grid">
+      <div><h3>Network, by host</h3><div id="act-hosts"></div></div>
+      <div><h3>AI calls</h3><div id="act-ai"></div>
+        <h3 style="margin-top:1.2rem">Postings, by listing state</h3>
+        <div id="act-listing"></div></div>
+    </div>
+
     <div class="metrics" id="metrics">
       <div class="bar" style="margin:.2rem 0 0">
         <div class="seg" id="m-days" role="group" aria-label="Period">
@@ -893,20 +907,6 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       </div>
       </div>
     </div>
-    <div class="lastruns" id="last-runs"></div>
-
-    <div id="act-head"></div>
-    <div class="tiles" id="act-tiles"></div>
-    <div id="act-progress"></div>
-    <div id="act-counts"></div>
-
-    <div class="act-grid">
-      <div><h3>Network, by host</h3><div id="act-hosts"></div></div>
-      <div><h3>AI calls</h3><div id="act-ai"></div>
-        <h3 style="margin-top:1.2rem">Postings, by listing state</h3>
-        <div id="act-listing"></div></div>
-    </div>
-
     <h3>Log</h3>
     <div class="log" id="act-log" style="height:16rem"></div>
 
@@ -3423,7 +3423,7 @@ function drawActivity(d) {
   const label = {scan: 'Last scan', check: 'Last check', judge: 'Last AI judging'};
   $('last-runs').innerHTML = (d.last_runs || []).map(r => `
     <div class="lastrun ${r.warnings.length ? 'warn' : ''} ${r.id ? 'pick' : ''}"
-      ${r.id ? `onclick="actPick=${r.id};pollActivity()" title="Show this run above"` : ''}>
+      ${r.id ? `onclick="actPick=${r.id};pollActivity()" title="Show this run below"` : ''}>
       <div class="top"><b>${label[r.kind]}</b><span class="ago" title="${esc(r.when.replace('T', ' '))}">${esc(r.ago || 'never')}</span></div>
       <div class="sum">${esc(cap(r.summary))}</div>
       ${r.warnings.length ? `<ul>${r.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
