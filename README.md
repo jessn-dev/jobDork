@@ -156,7 +156,7 @@ Alongside them, **employer boards** read one company each, with the full
 advert: Greenhouse, Ashby, Lever, Breezy, SmartRecruiters, Workday, Oracle
 Recruiting Cloud, Eightfold, Taleo Business Edition, and an employer's own
 careers site when it marks its postings up for search engines (SAP
-SuccessFactors' career sites among them). **423 of them ship built in**, 340
+SuccessFactors' career sites among them). **420 of them ship built in**, 338
 of them US employers across 27 industries (hospitals,
 banks, retailers, insurers, airlines, government contractors and more); a
 scan reads the ones hiring in your countries, and you can narrow them to

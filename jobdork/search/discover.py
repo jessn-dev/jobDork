@@ -114,6 +114,13 @@ BOARD_PATTERNS: tuple[tuple[str, str], ...] = (
                    r"[^\s\"'<>]{0,80}?(?<![A-Za-z])org=([A-Za-z0-9_]{1,40})"),
     ("workday",    HOST + r"\.(wd\d+)\.myworkdayjobs\.com/"
                    r"(?:[a-z]{2}-[A-Z]{2}/)?([A-Za-z][A-Za-z0-9_-]+)"),
+    # The same board under its other address, data centre first:
+    # wd1.myworkdaysite.com/recruiting/tjx/TJX_EXTERNAL (TJX's apply links).
+    # The lookahead captures the tenant first, so the token comes out in the
+    # usual order, tjx/wd1/TJX_EXTERNAL.
+    ("workday",    r"(?<![A-Za-z0-9.-])(?=wd\d+\.myworkdaysite\.com/(?:[a-z]{2}-[A-Z]{2}/)?"
+                   r"recruiting/([A-Za-z0-9-]+)/)(wd\d+)\.myworkdaysite\.com/"
+                   r"(?:[a-z]{2}-[A-Z]{2}/)?recruiting/[A-Za-z0-9-]+/([A-Za-z][A-Za-z0-9_-]+)"),
 )
 
 # Platforms with no adapter here. Naming them is more useful than "nothing
@@ -319,9 +326,13 @@ def _extract(html: str, source_url: str) -> tuple[list[Found], list[Found]]:
             # Workday site may well be named Careers (razer/wd3/Careers).
             if match.group(1).lower() in NOT_TOKENS:
                 continue
+            # An API or posting path, not a site; but a site may be named
+            # Jobs, which a posting path after it settles (dupont/wd5/Jobs/job/...).
             if platform == "workday" and match.group(3).lower() in {
-                    "wday", "job", "jobs", "login", "auth", "sso"}:
-                continue                 # an API or posting path, not a site
+                    "wday", "job", "jobs", "login", "auth", "sso"} and not (
+                    match.group(3).lower() == "jobs"
+                    and html[match.end():match.end() + 5].lower() == "/job/"):
+                continue
             # A vendor's test copy of an employer's board answers with jobs
             # too: HP's page named hp-sandbox.eightfold.ai.
             if re.search(r"sandbox|staging|(?:^|[-_.])(?:test|demo|uat|dev)(?:$|[-_.])",
@@ -468,12 +479,15 @@ def _countries_of(roles) -> list[str]:
     return sorted(found)
 
 
-def _site_board(fetcher: Fetcher, robots, root: str) -> Found | None:
+def _site_board(fetcher: Fetcher, robots, root: str,
+                behind: list[Found] | None = None) -> Found | None:
     """The careers site as a board, when its sitemap postings carry JobPosting.
 
     Two postings at most are read: the first one marked up is the proof. A
     sitemap that is a feed of whole jobs (SuccessFactors' Career Site
-    Builder) is its own proof, with no posting page read.
+    Builder) is its own proof, with no posting page read. A posting with no
+    JobPosting may still name the board it is applied through (DuPont's and
+    TJX's Phenom pages carry a Workday applyUrl); those go into `behind`.
     """
     from ..fetch import site
 
@@ -500,6 +514,8 @@ def _site_board(fetcher: Fetcher, robots, root: str) -> Found | None:
             item.countries = _countries_of([role]) if role else []
             item.company_claim = role.company if role and role.company else ""
             return item
+        if behind is not None and resp.ok:
+            behind.extend(_extract(resp.body, url)[0])
     return None
 
 
@@ -855,9 +871,14 @@ def discover(employer: str, fetcher: Fetcher, max_pages: int = MAX_PAGES) -> Rep
         for root in dict.fromkeys(r for r in (live_base, *bases) if r):
             if urllib.parse.urlsplit(root).netloc in dead:
                 continue
-            item = _site_board(fetcher, robots, root)
+            behind: list[Found] = []
+            item = _site_board(fetcher, robots, root, behind)
             if item:
                 seen_supported[("site", item.token.lower())] = item
+                break
+            for found in behind:
+                seen_supported.setdefault((found.platform, found.token.lower()), found)
+            if seen_supported:
                 break
 
     report.found = [_verify(fetcher, item) for item in seen_supported.values()]

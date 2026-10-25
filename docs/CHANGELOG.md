@@ -6,6 +6,33 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-25 — DuPont, TJX and Disney back, through their Workday boards
+
+- The re-verify of 2026-10-25 (#41) dropped six careers-site boards unread
+  since 2026-10-01. Looked at one by one:
+  - **DuPont and TJX** moved to Phenom: their sitemaps still list every
+    posting (203 and 2,599), but the pages carry no JobPosting markup. The
+    job is in Phenom's own page data, and its `applyUrl` is a Workday
+    board, which jobdork reads through its API.
+  - **Disney**: its address in `scripts/candidates.csv`
+    (jobs.disneycareers.com) now leads to its Workday board.
+  - **Deloitte** (apply.deloitte.com does not connect), **Progressive** and
+    **Telus Digital** (403 to robots.txt, to a browser's user agent too)
+    stay out.
+- **A posting page with no markup is read for the board it applies
+  through.** Discover already reads two postings to prove a careers site;
+  when neither is marked up, the board links on those pages are taken
+  instead (no extra requests).
+- **Workday's other address** is read: `wd1.myworkdaysite.com/recruiting/tjx/TJX_EXTERNAL`
+  gives the usual token, `tjx/wd1/TJX_EXTERNAL`.
+- **A Workday site named Jobs** (DuPont's `dupont/wd5/Jobs`) is no longer
+  skipped as a posting path when a posting path follows it.
+- Added with `build_boards.py --add`: DuPont `dupont/wd5/Jobs` (203 jobs),
+  TJX `tjx/wd1/TJX_EXTERNAL` (11,160), Disney `disney/wd5/disneycareer`
+  (377). 420 built in, 338 of them US (README). Tests: both addresses and
+  the Jobs site read off a page; discover finds the Workday board on an
+  unmarked Phenom posting, offline.
+
 ## Fixed — 2026-10-25 — The weekly board re-verify dropped working careers sites
 
 - **The first weekly re-verify that could open its pull request** (#39,
@@ -5793,7 +5820,7 @@ open; a digest arrives, and what arrived with it is what was not there before.
   robots.txt (`/opportunities/jobs/explore?…`); its job pages are open, so
   a sitemap reader like the careers-site one is the way in, not yet tried.
   Mexico has the same gap.
-- **More built-in boards.** 423, 340 of them US; 996 candidates. More
+- **More built-in boards.** 420, 338 of them US; 996 candidates. More
   candidates help where employers name their boards; where they do not (most
   large Asian and Mexican employers), regional job sites are the lever.
   SuccessFactors behind its older portal only (Edison, NRG, Wipro) is still

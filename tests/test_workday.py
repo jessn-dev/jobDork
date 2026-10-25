@@ -118,6 +118,20 @@ def test_discover_reads_the_three_part_token_and_ignores_service_hosts():
     assert unsupported == []
 
 
+def test_a_board_under_its_other_address_or_named_jobs_is_read():
+    """TJX's apply links use myworkdaysite.com, data centre first; DuPont's
+    site is named Jobs, which only the posting path after it tells apart
+    from a posting path itself."""
+    page = ('"applyUrl":"https://wd1.myworkdaysite.com/recruiting/tjx/TJX_EXTERNAL/job/'
+            'Simi-Valley-CA-93065/Maintenance-Associate_REQ171020/apply" '
+            '"applyUrl":"https://dupont.wd5.myworkdayjobs.com/Jobs/job/Valley-View-Ohio/'
+            'Facilities-and-Maintenance-Manager_250678W/apply" '
+            '<a href="https://acme.wd5.myworkdayjobs.com/jobs">')
+    supported, _ = discover._extract(page, "https://jobs.tjx.com/us/en/job/REQ171020")
+    assert [f.token for f in supported] == ["dupont/wd5/Jobs", "tjx/wd1/TJX_EXTERNAL"]
+    assert supported[1].board_url == "https://tjx.wd1.myworkdayjobs.com/TJX_EXTERNAL"
+
+
 def test_workday_hosts_are_paced_at_one_a_second():
     assert http.rate_for("nvidia.wd5.myworkdayjobs.com") == 1.0
     assert http.rate_for("jobs.workable.com") == http.HOST_RATES["jobs.workable.com"]

@@ -231,6 +231,27 @@ def test_discover_offers_a_successfactors_career_site_as_a_site_board():
     assert report.unsupported == []                  # not also "successfactors, no adapter"
 
 
+def test_a_posting_with_no_markup_still_names_the_board_it_is_applied_through():
+    """DuPont: a Phenom site, no JobPosting on its pages, a Workday applyUrl
+    in the page's own data. Discover adds the Workday board, not the site."""
+    posting = SITE + "/us/en/job/250678W/Facilities-and-Maintenance-Manager"
+    phenom = ('<script>phApp.ddo = {"jobDetail":{"data":{"job":{"title":"Facilities Manager",'
+              '"applyUrl":"https://acme.wd5.myworkdayjobs.com/Jobs/job/Valley-View-Ohio/'
+              'Facilities-Manager_250678W/apply"}}}};</script>')
+
+    class _Phenom(_Site):
+        def post(self, url, json_body=None, **_):
+            self.asked.append(url)
+            return Response(url=url, status=200, json={"total": 203, "jobPostings": [],
+                                                       "facets": []})
+
+    fetcher = _Phenom({SITE + "/sitemap.xml": _sitemap(posting), posting: phenom})
+    report = discover.discover(SITE, fetcher)
+    assert [(f.platform, f.token, f.status, f.jobs) for f in report.found] == [
+        ("workday", "acme/wd5/Jobs", "verified", 203)]
+    assert report.found[0].source_url == posting
+
+
 def test_a_site_board_rechecked_from_the_list_is_read_again():
     """The weekly re-verify starts from the token alone, with nothing read."""
     posting = SITE + "/job/Durham-Registered-Nurse-NC-27710/1441005600/"
