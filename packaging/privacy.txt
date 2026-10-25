@@ -24,6 +24,11 @@ And one thing by itself:
     sent). To turn this off, press "Turn off the daily check" under
     Settings, Updates.
 
+When you press Update, it downloads the new installer from GitHub and,
+before opening it, asks GitHub (api.github.com) and Sigstore
+(tuf-repo-cdn.sigstore.dev) for what it needs to check that jobdork's own
+release workflow built it. Nothing about you is sent.
+
 When a scan finds new job posts, or a newer jobdork is out, Windows shows
 a notification from jobdork, with its sound. Settings, Notifications turns
 them off.

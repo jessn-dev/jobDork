@@ -44,8 +44,9 @@ Which version you have and whether a newer one is out.
 
 - **Check now** asks at once.
 - **Update** (in the desktop app) downloads the new installer, checks it
-  is the real one, and opens it. Elsewhere it says how to update your copy,
-  with **Release page**.
+  was built by jobdork's own release workflow (its checksum and its build
+  attestation), and opens it; one that fails the check is deleted, not
+  opened. Elsewhere it says how to update your copy, with **Release page**.
 - **Turn off the daily check** stops jobdork asking GitHub once a day. That
   check is one request for the number of the latest release; nothing about
   you is sent ([privacy policy](https://github.com/jessn-dev/jobDork/blob/main/PRIVACY.md)).

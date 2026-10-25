@@ -6,6 +6,55 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-25 — The documentation checked against the code; a shorter README
+
+Every page was read against the code that it describes; what was wrong or
+out of date was corrected, and what could not be backed up was removed.
+
+- **README:** from 849 lines to 252: what jobdork is and where to start,
+  with the documentation named in its introduction by what each page is
+  for; then what it does, how it differs from a job board, install, privacy
+  and security, limits, development. The detail it carried (sources, regions,
+  the salary rule, drafting, the AI page, the scanner's internals) already
+  had a home in `docs/` and the user guide, and is linked. Its pictures were
+  five from September with the old layout and logo (`docs/images/`,
+  removed); it uses the user guide's current ones.
+- **Install from source no longer says to run `build_gazetteer.py`.** The
+  full place list (70,026 places, 245 countries) ships in the package, and
+  that script run with no country rebuilds it for your config's countries
+  only, replacing the full list (README, docs/run/source.md, SOURCES.md).
+- **Counts:** US boards 338, not 340; Canada 22, not 19; Asia 30, not 26
+  (REGIONS.md). Out-of-date line counts per package removed from
+  ARCHITECTURE.md, whose module table now names every module.
+- **Update** is described as it works now, with its attestation check, in
+  docs/run/desktop.md, the guide's Settings page and PRIVACY.md, which also
+  lists the two addresses it asks (GitHub's attestations and Sigstore's
+  signing keys); so does the Windows installer's privacy page.
+- **CONFIG.md** gains `llm.context`, the `screening` section (title
+  blockers, the loose match's gap, extra arrangement patterns) and where
+  keys typed in the app are kept, `source-keys.env`.
+- **PLATFORMS.md** gains Germany's employment agency and Arbeitnow, Workday's
+  second address and a site named Jobs, and how a careers-site posting with
+  no markup yields its board; Mayo Clinic, now read through Oracle, is no
+  longer the careers-site example.
+- **DECISIONS.md:** the job-source key cards and the Google Jobs link are
+  built, not planned; the OS keychain for those keys was considered and
+  not adopted, with why.
+- macOS 12 or newer named as the desktop app's requirement; "no installer
+  yet" for Intel Macs and Linux is "no installer"; the build instructions
+  install from the hash-pinned lock; CONTRIBUTING.md says a dependency
+  change updates both lock files.
+- Every link and section anchor in the repository's Markdown resolves, and
+  the user guide builds with `--strict`. Every picture in the guide was
+  taken again from the demo.
+- **The Settings picture shows what people see:** notifications on and the
+  daily update check on. It said "off, because JOBDORK_UPDATE_CHECK=off is
+  set", the switch the screenshots used to stay offline; the demo now
+  starts with its version check already answered, so nothing goes online.
+- The package description and keywords (`pyproject.toml`) say what jobdork
+  is now: a local-first scanner of employers' job boards with a screening
+  filter and resume matching, not a Google dork search.
+
 ## Security — 2026-10-25 — Repository settings locked down before distribution
 
 - **Immutable releases:** a published release's files can never be changed

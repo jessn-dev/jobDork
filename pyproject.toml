@@ -5,12 +5,27 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "jobdork"
 version = "0.14.4"
-description = "Google dork job search plus direct ATS scanning, anywhere in the world"
+description = "Local-first ATS job scanner, transparent screening filter, and resume matcher running on your own computer"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
 authors = [{ name = "jessn-dev" }]
-keywords = ["jobs", "job-search", "ats", "scraper", "cli"]
+keywords = [
+    "jobs",
+    "job-search",
+    "ats",
+    "ats-scraper",
+    "greenhouse",
+    "workday",
+    "ashby",
+    "lever",
+    "resume-matcher",
+    "local-first",
+    "privacy",
+    "desktop-app",
+    "google-dorks",
+    "cli",
+]
 
 # The single source of truth for what this needs to run. requirements.txt
 # defers to this file rather than repeating it: two lists of dependencies

@@ -41,8 +41,14 @@ def _free_port() -> int:
 
 
 def _serve(folder: Path, port: int, config: Path | None) -> subprocess.Popen:
-    env = {**os.environ, "JOBDORK_NOTIFY": "off", "JOBDORK_UPDATE_CHECK": "off",
+    env = {**os.environ,
            "JOBDORK_FEEDBACK_URL": "https://feedback.invalid/", "JOBDORK_HOME": str(folder)}
+    # Settings in the demo shows both as people see them: its version check
+    # is already answered (guide_demo.py), so nothing asks GitHub, and the
+    # pictures start no scan, so nothing notifies. The empty folder has no
+    # answered check, so both are switched off there.
+    if config is None:
+        env |= {"JOBDORK_NOTIFY": "off", "JOBDORK_UPDATE_CHECK": "off"}
     cmd = [sys.executable, "-m", "jobdork", *(["-c", str(config)] if config else []),
            "serve", "--port", str(port), "--no-open", "--token", TOKEN]
     proc = subprocess.Popen(cmd, cwd=folder, env=env, stdout=subprocess.DEVNULL,
