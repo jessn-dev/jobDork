@@ -63,7 +63,8 @@ period chosen above. **Provider** narrows all of it to one provider.
 - **Total AI requests**: calls per day, and the share answered as a line.
 - **AI errors, by kind**: the calls that failed, per day: rate limited
   (429), key refused, provider error (5xx), timed out, could not reach,
-  an answer that was not JSON, and so on.
+  an answer cut off at its length limit, an answer that was not JSON, and
+  so on.
 - **Usage per model**, one line per model; **Model** shows one:
   - **Input tokens per model**: what was sent: the prompt, the advert,
     your resume.

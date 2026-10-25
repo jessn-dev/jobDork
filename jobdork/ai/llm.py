@@ -327,6 +327,8 @@ def _used(prompt, answer) -> None:
 # What kind of failure a call was, from its message, for the Dashboard's
 # errors chart. First match wins: "HTTP 429" is rate limited, not a 4xx.
 ERROR_KINDS = (
+    # First: its message carries token counts, which could read as a status.
+    ("cut_off", re.compile(r"answer was cut off")),
     ("rate_limited", re.compile(r"rate limited|out of (?:quota|credit)|\b429\b")),
     ("key_refused", re.compile(r"key was refused|\b40[13]\b")),
     ("not_found", re.compile(r"model not found|\b404\b")),
@@ -530,9 +532,14 @@ def _gemini(s: Settings, system: str, user: str, schema: dict,
             "contents": [{"role": "user", "parts": [{"text": user + (
                 "\n\nAnswer with one JSON object matching this schema:\n"
                 + json.dumps(schema))}]}],
+            # Gemini's thinking models (2.5 and 3.x) think by default, and
+            # the thinking counts against maxOutputTokens: Save and test's
+            # 50 tokens went on thinking and the answer was cut off. So the
+            # answer keeps its own budget and thinking gets room on top,
+            # as GPT-OSS does on Ollama.
             "generationConfig": {"responseMimeType": "application/json",
                                  "temperature": 0,
-                                 "maxOutputTokens": max_tokens},
+                                 "maxOutputTokens": max_tokens + REASONING_TOKENS},
         },
         {"x-goog-api-key": key}, CLOUD_TIMEOUT)
     # Thinking is billed as output, and counted apart from the answer.
@@ -542,7 +549,14 @@ def _gemini(s: Settings, system: str, user: str, schema: dict,
           + int(usage.get("thoughtsTokenCount") or 0))
     candidates = data.get("candidates") or [{}]
     parts = ((candidates[0] or {}).get("content") or {}).get("parts") or []
-    return "".join(p.get("text", "") for p in parts if isinstance(p, dict))
+    text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
+    if (candidates[0] or {}).get("finishReason") == "MAX_TOKENS":
+        # Said as what it is: a JSON object cut short read as "did not
+        # answer in JSON" (Save and test, gemini-3.5-flash, 2026-10-23).
+        raise LLMError(f"the answer was cut off at the {max_tokens + REASONING_TOKENS}"
+                       f"-token limit, {int(usage.get('thoughtsTokenCount') or 0)} "
+                       "of them thinking")
+    return text
 
 
 GROQ_API = "https://api.groq.com/openai/v1"
