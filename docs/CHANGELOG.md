@@ -6,6 +6,36 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-25 — Ruff pinned, so CI lints with the version you have
+
+- **#43 failed CI on a rule the local ruff did not have.** `pyproject.toml`
+  asked for `ruff>=0.6`, so CI installed the newest (0.17.2) and flagged
+  RUF059 that 0.16.5 here passed. Ruff adds rules in its releases, so an
+  open range means `main` can go red with no change to the code.
+- The `dev` extra now pins `ruff==0.17.2`. Dependabot's weekly pip update
+  reads `pyproject.toml` and proposes the next ruff as a pull request,
+  after its week of cooldown, where CI shows whether new rules fire.
+- CONTRIBUTING.md says so: after a Dependabot update, `pip install -e
+  '.[dev]'` again.
+
+## Checked — 2026-10-25 — Desktop installers, the crontab line, Feedback Send, the weekly board PR
+
+Off the Still outstanding list, tried by hand:
+
+- **The Windows installer** on a Windows machine: install, the scan
+  schedule's Task Scheduler entry, the close-mid-scan question, toasts.
+  (The Windows build had already passed in CI: v0.14.4 shipped
+  `setup.exe`.)
+- **The release notes' steps past the unsigned warnings** on a downloaded,
+  quarantined `.dmg` (macOS "Open Anyway").
+- **The scan schedule's crontab line** on Linux.
+- **The Feedback page's Send** in a browser against the live relay.
+- **The weekly board re-verify** opens its pull request: the
+  `BOARDS_PR_TOKEN` secret is set, and its first run found the re-verify
+  bugs fixed in #40 (#39 closed, #41 merged).
+
+Still outstanding from that bullet: only `hdiutil`'s deprecation notice.
+
 ## Fixed — 2026-10-25 — Code scanning: the alerts CodeQL raised on main
 
 CodeQL (default setup, on since 2026-10-23) had 20 open alerts. Seven are
@@ -5836,22 +5866,12 @@ open; a digest arrives, and what arrived with it is what was not there before.
 
 ## Still outstanding
 
-- **CodeQL as a required check**, once its first findings are sorted
-  (turned on 2026-10-23); or a different scanner, if it proves weak.
-- **The desktop app, the rest of it** (`jobdork app`, the macOS build and
-  the CI workflow are done): the first Windows build passing in CI (the
-  Inno Setup script and WebView2 are untried until it does), then the
-  installer tried on a Windows machine; the release notes' steps past the
-  unsigned warnings tried on a downloaded (quarantined) copy; `hdiutil` says its `create` and
-  `attach` options are deprecated on this macOS (still work); the scan
-  schedule's Task Scheduler entry and the close-mid-scan question tried on
-  Windows, and the crontab line on Linux; the Feedback page's Send tried in a
-  browser against the live relay.
-- **The weekly board re-verify cannot open its pull request** until the
-  repository has the `BOARDS_PR_TOKEN` secret (see the top of
-  `.github/workflows/boards.yml`); a person has to add it. Until then the
-  built-in list goes stale between hand runs: Alorica still said 53 jobs on
-  2026-10-23, three weeks after its count was taken.
+- **CodeQL as a required check.** Its first findings are sorted (no open
+  alerts since 2026-10-25); what is left is adding its check to the rules
+  for `main`, a repository setting a person has to change. Or a different
+  scanner, if it proves weak.
+- **`hdiutil` says its `create` and `attach` options are deprecated** on
+  this macOS (the macOS build uses both; they still work).
 - **Europe outside Germany, the Gulf, and New Zealand** stay thin (measured
   2026-10-23): their large employers mostly name no board, and their job
   sites are closed to scripts or need a key (Reed, France Travail). What is
