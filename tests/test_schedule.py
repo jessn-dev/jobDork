@@ -415,7 +415,7 @@ def test_the_windows_installer_shows_the_privacy_page_first():
     script = (root / "jobdork.iss").read_text(encoding="utf-8")
     assert "InfoBeforeFile=privacy.txt" in script
     text = (root / "privacy.txt").read_text(encoding="utf-8")
-    assert "api.github.com" in text and "Turn off the daily check" in text
+    assert "one request to api.github.com" in text and "Turn off the daily check" in text
     assert "PRIVACY.md" in text
 
 

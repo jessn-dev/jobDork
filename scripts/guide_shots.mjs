@@ -41,11 +41,19 @@ for (let i = 0; i < 60 && !tabs; i++) {
 const ws = new WebSocket(tabs.find(t => t.type === 'page').webSocketDebuggerUrl);
 await new Promise(r => { ws.onopen = r; });
 let id = 0;
-const waiting = {};
-ws.onmessage = m => { const d = JSON.parse(m.data); if (waiting[d.id]) { waiting[d.id](d); delete waiting[d.id]; } };
+const waiting = new Map();
+ws.onmessage = m => {
+  const d = JSON.parse(m.data);
+  const done = waiting.get(d.id);
+  if (typeof done === 'function') { waiting.delete(d.id); done(d); }
+};
 const send = (method, params = {}) => new Promise(r => {
-  const i = ++id; waiting[i] = r; ws.send(JSON.stringify({id: i, method, params}));
+  const i = ++id; waiting.set(i, r); ws.send(JSON.stringify({id: i, method, params}));
 });
+// A value written into the page's script: JSON, with the characters that
+// could end a <script> or a line escaped (a role's uid comes from the page).
+const lit = v => JSON.stringify(v).replace(/[<>/\u2028\u2029]/g,
+  c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
 const run = async js => {
   const d = await send('Runtime.evaluate', {expression: `(async () => { ${js} })()`,
                                             awaitPromise: true, returnByValue: true});
@@ -70,12 +78,12 @@ async function shoot(name, {clip, full, pad = 8, height} = {}) {
   await sleep(700);
   let params = {format: 'png'};
   if (clip) {
-    const box = await run(`const el = document.querySelector(${JSON.stringify(clip)});
+    const box = await run(`const el = document.querySelector(${lit(clip)});
       if (!el) return null; el.scrollIntoView({block: 'start'});
       const r = el.getBoundingClientRect(); return {x: r.x, y: r.y, w: r.width, h: r.height};`);
     if (!box) throw new Error(`${name}: nothing matches ${clip}`);
     await sleep(300);
-    const again = await run(`const r = document.querySelector(${JSON.stringify(clip)}).getBoundingClientRect();
+    const again = await run(`const r = document.querySelector(${lit(clip)}).getBoundingClientRect();
       return {x: r.x + scrollX, y: r.y + scrollY, w: r.width, h: r.height};`);
     params.captureBeyondViewport = true;
     params.clip = {x: Math.max(0, again.x - pad), y: Math.max(0, again.y - pad),
@@ -93,14 +101,14 @@ async function shoot(name, {clip, full, pad = 8, height} = {}) {
 // Hover over a badge so its explanation opens, as a mouse would, and
 // photograph the badge with it.
 async function tip(name, selector) {
-  await run(`document.querySelector(${JSON.stringify(selector)}).closest('.role').scrollIntoView({block: 'start'});
+  await run(`document.querySelector(${lit(selector)}).closest('.role').scrollIntoView({block: 'start'});
     scrollBy(0, -20);`);
   await sleep(300);
-  const at = await run(`const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
+  const at = await run(`const r = document.querySelector(${lit(selector)}).getBoundingClientRect();
     return {x: r.x + r.width / 2, y: r.y + r.height / 2};`);
   await send('Input.dispatchMouseEvent', {type: 'mouseMoved', x: at.x, y: at.y});
   await sleep(400);
-  const box = await run(`const b = document.querySelector(${JSON.stringify(selector)});
+  const box = await run(`const b = document.querySelector(${lit(selector)});
     const t = b.querySelector('.tip'); const a = b.getBoundingClientRect(), c = t.getBoundingClientRect();
     const x = Math.min(a.x, c.x), y = Math.min(a.y, c.y);
     return {x: x + scrollX, y: y + scrollY, w: Math.max(a.right, c.right) - x, h: Math.max(a.bottom, c.bottom) - y};`);
@@ -134,7 +142,7 @@ try {
   // The job post's window: the advert, then the AI tools tab.
   const uid = await run(`const r = await api('/api/roles?scope=open'); const d = await r.json();
     const roles = d.roles || d; const withAi = roles.find(x => x.ai); return (withAi || roles[0]).uid;`);
-  await run(`await openRole('${uid}');`);
+  await run(`await openRole(${lit(uid)});`);
   await sleep(1200);
   await shoot('job-window');
   await shoot('job-window-statuses', {clip: '#dlg-head .statusbar'});

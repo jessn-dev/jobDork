@@ -10,6 +10,7 @@ network.
 from __future__ import annotations
 
 import sys
+import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -108,7 +109,7 @@ def test_a_dead_host_is_not_asked_again():
     site = _Site({"https://acme.com/robots.txt": 0, "https://acme.com/": 0,
                   "https://www.acme.com/": "<p>hi</p>"})
     report = discover.discover("acme.com", site)
-    assert [u for u in site.asked if u.startswith("https://acme.com")] == [
+    assert [u for u in site.asked if urllib.parse.urlsplit(u).hostname == "acme.com"] == [
         "https://acme.com/robots.txt", "https://acme.com/"]
     assert report.unreachable == ["acme.com"]
 

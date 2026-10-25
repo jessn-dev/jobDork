@@ -714,10 +714,12 @@ def save_resume(cfg, filename: str, payload: bytes) -> dict:
         raise ApiError(
             f"{len(payload) / 1e6:.1f}MB is over the {MAX_RESUME_BYTES // 1_000_000}MB limit")
 
-    suffix = Path(filename or "").suffix.lower()
-    if suffix not in RESUME_SUFFIXES:
+    given = Path(filename or "").suffix.lower()
+    # The suffix written is one of ours, not the browser's string that matched it.
+    suffix = next((s for s in RESUME_SUFFIXES if s == given), None)
+    if suffix is None:
         raise ApiError(
-            f"{suffix or 'that'} is not a format the resume reader "
+            f"{given or 'that'} is not a format the resume reader "
             f"understands. Use {', '.join(RESUME_SUFFIXES)}.")
 
     from ..core import storage

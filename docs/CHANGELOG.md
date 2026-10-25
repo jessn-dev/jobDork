@@ -6,6 +6,33 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-25 — Code scanning: the alerts CodeQL raised on main
+
+CodeQL (default setup, on since 2026-10-23) had 20 open alerts. Seven are
+fixed in code, one hardened; ten are its guesses from names, and are
+dismissed on GitHub with the reason written there.
+
+- **Slow regex on text from a job post** (#7, `geo.py`): `\s*[-–—]\s*`
+  tried every space of a long run with no dash after it: 1.4 s on 20,000
+  spaces. A split on the dash, each side stripped, gives the same result
+  in no measurable time.
+- **Resume upload** (#3, #4, `api.py`): the file was already written as
+  `resume` plus an extension from a fixed list; the extension written is
+  now the list's own string, not the browser's that matched it.
+- **The guide's screenshot script** (#1, #2, `guide_shots.mjs`): a role's
+  uid read from the page went into the script run there unescaped; every
+  value now goes in as JSON with `<`, `>`, `/` and the line separators
+  escaped. Answers from Chrome find their callback in a Map, not by a
+  property name taken from the message. Run end to end on the demo data.
+- **Tests that checked an address with `in`** (#18-#20): by host instead.
+- **The dork tool's `.env`** (#9): created owner-only (0600), where it was
+  written first and narrowed after, readable to others for a moment.
+  Tested for the permissions it ends with.
+- **Dismissed as false positives:** "sensitive data" logged or stored
+  (#8, #10-#17) is a board's token (its public name on Greenhouse, Workday
+  and the rest), a job's uid, an employer's name or a report; the paths
+  (#5, #6) are the resume file you named yourself, read by the app you run.
+
 ## Fixed — 2026-10-25 — A busy AI provider is asked again before the call fails
 
 - **Gemini answered 503 on a real check of #38** (`gemini-3.5-flash`,
