@@ -334,8 +334,10 @@ def test_the_page_refuses_to_be_framed():
         request = urllib.request.Request(f"{run.base}/?t={run.token}")
         with urllib.request.urlopen(request, timeout=5) as response:
             assert response.headers["X-Frame-Options"] == "DENY"
-            assert "frame-ancestors 'none'" in response.headers[
-                "Content-Security-Policy"]
+            policy = response.headers["Content-Security-Policy"]
+            assert "frame-ancestors 'none'" in policy
+            # The tab icon is inline (data:); no image comes from the network.
+            assert "img-src data:;" in policy and "http" not in policy
     _with_server(check)
 
 def test_tokens_differ_between_runs_and_are_compared_in_constant_time():

@@ -6,6 +6,21 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-25 — A new icon and logo, one design everywhere
+
+- **The mark:** a briefcase with a loupe and a `>_` prompt, cyan and green
+  on a near-black tile, in place of the white briefcase on blue. The same
+  drawing is the app's icon (macOS and Windows), the logo at the top of the
+  menu and on setup's welcome, and the browser tab's icon.
+- `packaging/icon.svg` is the master, on the macOS icon grid (an 824-pixel
+  rounded square in 1024); `packaging/icon.png` is rendered from it, so
+  the two cannot drift apart. The build turns the PNG into the `.icns` and
+  `.ico` files as before.
+- **The tab icon** is a `data:` URI inside the page. The page's
+  Content-Security-Policy gains `img-src data:` for it: images still come
+  from nowhere on the network (tested, with remote images still refused).
+- Guide: every full-page picture retaken with the new logo.
+
 ## Changed — 2026-10-25 — The Dashboard shows the run before the AI charts
 
 - The run in progress (or the last one) came after every chart: the

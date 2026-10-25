@@ -378,6 +378,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 "Content-Security-Policy",
                 "default-src 'none'; style-src 'unsafe-inline'; "
                 "script-src 'unsafe-inline'; connect-src 'self'; "
+                # The tab's icon is a data: URI inside the page itself, so
+                # images still come from nowhere on the network.
+                "img-src data:; "
                 # A PDF shown in the page is a blob the page made itself from
                 # a document fetched with the token; nothing else may frame.
                 "frame-src blob:; "
