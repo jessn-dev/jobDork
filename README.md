@@ -26,9 +26,23 @@ resume and searches stay on your machine.
 
 ![Job posts in jobdork](guide/docs/images/job-posts.png)
 
-**[User guide](https://jessn-dev.github.io/jobDork/)** (every page of the
-app, with pictures) · **[Download](https://github.com/jessn-dev/jobDork/releases/latest)**
-· **[Ways to run it](docs/run/README.md)** · **[Documentation](#documentation)**
+**Start with the [download](https://github.com/jessn-dev/jobDork/releases/latest)**
+for macOS or Windows, or [another way to run it](docs/run/README.md): from
+source, in a terminal, in Docker or on a home server. The
+**[user guide](https://jessn-dev.github.io/jobDork/)** then walks through
+every page of the app with pictures. [CONFIG.md](docs/CONFIG.md) has every
+setting, [PRIVACY.md](PRIVACY.md) what jobdork keeps and every address it
+contacts, and [SECURITY.md](SECURITY.md) how releases are checked and how to
+verify a download.
+
+For how it works underneath: where its coverage comes from
+([SOURCES.md](docs/SOURCES.md)), what each source answers and where it falls
+short ([PLATFORMS.md](docs/PLATFORMS.md)), what a scan reaches region by
+region ([REGIONS.md](docs/REGIONS.md)), how the pipeline and the AI reader
+fit together ([ARCHITECTURE.md](docs/ARCHITECTURE.md)), the choices behind
+it ([DECISIONS.md](docs/DECISIONS.md)) and how it got here
+([HISTORY.md](docs/HISTORY.md)). Every change, and what is
+still outstanding, is in the [changelog](docs/CHANGELOG.md).
 
 ---
 
@@ -161,26 +175,6 @@ verifies ([SECURITY.md](SECURITY.md#how-the-app-checks-an-update-before-opening-
 - **Jobs never posted online** in a system it can read, common for small
   local employers, cannot be found.
 
----
-
-## Documentation
-
-| | |
-|---|---|
-| [User guide](https://jessn-dev.github.io/jobDork/) | Using the app, page by page, with pictures; source in [guide/](guide/README.md) |
-| [docs/run/](docs/run/README.md) | The ways to run it: [desktop](docs/run/desktop.md), [from source](docs/run/source.md), [terminal](docs/run/cli.md), [Docker](docs/run/docker.md), [NAS or home server](docs/run/nas.md) |
-| [docs/CONFIG.md](docs/CONFIG.md) | Every setting, what it accepts, and what happens when it is wrong |
-| [docs/SOURCES.md](docs/SOURCES.md) | Where coverage comes from, the built-in boards, board tokens, the place list |
-| [docs/PLATFORMS.md](docs/PLATFORMS.md) | Each source's endpoint, quirks, rate limits and verification status |
-| [docs/REGIONS.md](docs/REGIONS.md) | What a scan reaches, region by region |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pipeline fits together, and the AI reader and its checks |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | Choices that shape jobdork, what was ruled out, and when to revisit |
-| [docs/DORK.md](docs/DORK.md) | `jobdork dork`, the Google search builder |
-| [docs/HISTORY.md](docs/HISTORY.md) | How jobdork got here |
-| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Every change, and what is still outstanding |
-| [SECURITY.md](SECURITY.md) | How releases are checked, signed and approved; verifying a download |
-| [PRIVACY.md](PRIVACY.md) | What jobdork keeps, where, and every place it goes on the network |
-
 **Why was a post dropped?** `jobdork list --flags`, then
 [how a title is matched](docs/CONFIG.md#how-a-title-is-matched) and
 [the salary rule](docs/CONFIG.md#the-rule).
@@ -228,7 +222,9 @@ image) and `requirements-desktop.lock` (the installers).
 └── .github/workflows/     # checks and releases (docker.yml, desktop.yml), the user guide, the weekly board re-check
 ```
 
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains each part.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains each part;
+[guide/README.md](guide/README.md) how the user guide is built and its
+pictures taken.
 
 ---
 

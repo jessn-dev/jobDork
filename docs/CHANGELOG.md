@@ -11,9 +11,10 @@ it and into an entry when the work is done.
 Every page was read against the code that it describes; what was wrong or
 out of date was corrected, and what could not be backed up was removed.
 
-- **README:** from 849 lines to 256: what jobdork is, what it does, how it
-  differs from a job board, install, privacy and security, limits, the
-  documentation map, development. The detail it carried (sources, regions,
+- **README:** from 849 lines to 252: what jobdork is and where to start,
+  with the documentation named in its introduction by what each page is
+  for; then what it does, how it differs from a job board, install, privacy
+  and security, limits, development. The detail it carried (sources, regions,
   the salary rule, drafting, the AI page, the scanner's internals) already
   had a home in `docs/` and the user guide, and is linked. Its pictures were
   five from September with the old layout and logo (`docs/images/`,
