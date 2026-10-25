@@ -231,6 +231,19 @@ def test_discover_offers_a_successfactors_career_site_as_a_site_board():
     assert report.unsupported == []                  # not also "successfactors, no adapter"
 
 
+def test_a_site_board_rechecked_from_the_list_is_read_again():
+    """The weekly re-verify starts from the token alone, with nothing read."""
+    posting = SITE + "/job/Durham-Registered-Nurse-NC-27710/1441005600/"
+    fetcher = _Site({SITE + "/sitemap.xml": _sitemap(posting), posting: _MICRODATA})
+    item = discover._verify(fetcher, discover.Found(platform="site", token=SITE, board_url=SITE))
+    assert (item.status, item.jobs, item.countries) == ("verified", 1, ["US"])
+    assert posting in fetcher.asked
+
+    item = discover._verify(_Site({}), discover.Found(platform="site", token=SITE, board_url=SITE))
+    assert (item.status, item.jobs) == ("empty", 0)
+    assert item.note == "the sitemap lists no posting marked up as a job"
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]
