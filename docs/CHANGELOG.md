@@ -6,6 +6,17 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-25 — The macOS build makes its disk image without hdiutil's deprecation warning
+
+- macOS 27 warns that `hdiutil create -volname -format` is deprecated in
+  favour of `diskutil image create from`. The build now uses that where it
+  exists, giving the same compressed (UDZO) image, as APFS: it takes no
+  filesystem, and every macOS the app runs on (12 and later) reads APFS.
+- Where it does not exist (CI's macOS 15: `diskutil image` is an unknown
+  verb there), `hdiutil` is used as before. Tried on macOS 27.0.1 with the
+  build's own `dmg()` on a stand-in app: no warning, the Applications link
+  kept. The CI build checks the other path.
+
 ## Fixed — 2026-10-25 — Folding the menu no longer pushes it down
 
 - Folded to its icons, the menu put the arrow under the logo: the top grew
@@ -285,7 +296,6 @@ dismissed on GitHub with the reason written there.
   the resume is dropped and listed; self-description is left out while a
   company seeking someone is kept.
 
-
 ## Fixed — 2026-10-24 — The desktop app could not open a PDF, save a file or open a link
 
 - **"Could not open the PDF: desk().open_file is not a function"**, for a
@@ -314,7 +324,6 @@ dismissed on GitHub with the reason written there.
   tests/test_app.py the Bridge's calls, PDF-only, and that the page names
   exactly the Bridge's calls without eval. SECURITY.md says what the page
   can ask of the app.
-
 
 ## Changed — 2026-10-24 — SignPath signing dropped: the installers stay unsigned
 
@@ -393,7 +402,6 @@ dismissed on GitHub with the reason written there.
   claim using gap words to pass), matching, glued text, the work span and
   the measured block.
 
-
 ## Fixed — 2026-10-24 — Nothing could be copied in the desktop app
 
 - **No text in the app window could be selected**, on macOS or Windows:
@@ -405,7 +413,6 @@ dismissed on GitHub with the reason written there.
   The browser dashboard (`jobdork serve`) was never affected.
 - tests/test_app.py checks the window is made with it. Not yet tried in a
   built app.
-
 
 ## Added — 2026-10-24 — Groq as an AI provider
 
@@ -433,7 +440,6 @@ dismissed on GitHub with the reason written there.
 - Guide, README, CONFIG, the run guides and privacy notes name Groq; the
   AI page and setup pictures are retaken. tests/test_ai.py checks the
   calls and the model list with the network stubbed.
-
 
 ## Fixed — 2026-10-24 — A job post could send the app into your network
 
@@ -496,7 +502,6 @@ dismissed on GitHub with the reason written there.
 - SECURITY.md says so, records CodeQL default setup (turned on 2026-10-23,
   not yet a required check) and the owner's passkeys on GitHub and Docker
   Hub, and drops those two from the owner's to-do list.
-
 
 ## Changed — 2026-10-24 — A release page opens with its downloads
 
@@ -5932,8 +5937,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   alerts since 2026-10-25); what is left is adding its check to the rules
   for `main`, a repository setting a person has to change. Or a different
   scanner, if it proves weak.
-- **`hdiutil` says its `create` and `attach` options are deprecated** on
-  this macOS (the macOS build uses both; they still work).
 - **Europe outside Germany, the Gulf, and New Zealand** stay thin (measured
   2026-10-23): their large employers mostly name no board, and their job
   sites are closed to scripts or need a key (Reed, France Travail). What is

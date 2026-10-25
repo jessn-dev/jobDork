@@ -85,9 +85,23 @@ def dmg(ver: str) -> Path:
     arch = "arm64" if platform.machine() == "arm64" else "x86_64"
     out = DIST / f"jobdork-{ver}-macos-{arch}.dmg"
     out.unlink(missing_ok=True)
-    run("hdiutil", "create", "-volname", "jobdork", "-srcfolder", stage,
-        "-fs", "HFS+", "-format", "UDZO", "-ov", out)
+    if _diskutil_image():
+        # macOS 27 warns that `hdiutil create -volname -format` is deprecated
+        # for this. The image is APFS (it takes no filesystem), which every
+        # macOS the app runs on (12 and later) reads.
+        run("diskutil", "image", "create", "from", "--format", "UDZO",
+            "--volumeName", "jobdork", stage, out)
+    else:
+        run("hdiutil", "create", "-volname", "jobdork", "-srcfolder", stage,
+            "-fs", "HFS+", "-format", "UDZO", "-ov", out)
     return out
+
+
+def _diskutil_image() -> bool:
+    """`diskutil image create from` is there (macOS 27; not on CI's macOS 15,
+    where `image` is an unknown verb and the help exits 1)."""
+    return subprocess.run(["diskutil", "image", "create", "from", "--help"],
+                          capture_output=True).returncode == 0
 
 
 def windows_installer(ver: str) -> Path:
