@@ -6,6 +6,23 @@ it and into an entry when the work is done.
 
 ---
 
+## Security — 2026-10-25 — Repository settings locked down before distribution
+
+- **Immutable releases:** a published release's files can never be changed
+  or replaced, so an installer cannot be swapped after people have it.
+- **Actions:** only GitHub's own and the six the workflows name (five
+  `docker/*`, `sigstore/cosign-installer`) may run, each pinned to a full
+  commit SHA, which GitHub now enforces rather than leaving to habit.
+- **Outside contributors:** every workflow from one waits for approval, not
+  only a first-time contributor's.
+- Wiki and Projects off (unused, and each is something to watch); merged
+  branches are deleted.
+- **Not available here:** secret scanning's generic patterns and validity
+  checks need GitHub's paid Secret Protection; provider patterns and push
+  protection stay on. SECURITY.md's owner checklist records all of it, with
+  the two items it listed as still to do (SHA pinning, `BOARDS_PR_TOKEN`)
+  done.
+
 ## Security — 2026-10-25 — Drafts by Claude Code ignore your own Claude Code settings
 
 - `claude -p`, which writes CVs and letters from a job post anyone could
@@ -6077,7 +6094,12 @@ open; a digest arrives, and what arrived with it is what was not there before.
   before the first open (the README's "Unsigned installers" says how past
   it). macOS: Apple's developer programme, $99 a year, then notarising in
   CI. Windows: SignPath Foundation's free certificate was refused
-  (2026-10-24); a paid one costs more every year. When to revisit is in
+  (2026-10-24); a paid one costs more every year, or Azure Trusted Signing
+  (no certificate file to keep; check its cost and whether it signs for an
+  individual). Sign with a trusted timestamp (RFC 3161): `codesign
+  --timestamp` on macOS (notarising requires it), signtool `/tr` or Azure
+  Trusted Signing on Windows; without one, installers stop being trusted the
+  day the certificate expires. When to revisit is in
   [DECISIONS.md](DECISIONS.md#a-desktop-app-a-pywebview-window-unsigned-at-first--2026-10-21).
 
 ### Operational notes, not work

@@ -164,7 +164,6 @@ got into the GitHub or Docker Hub account could get around everything above.
 **Set on 2026-10-23:**
 - [x] Code scanning: CodeQL default setup (Python, JavaScript and the
       workflows), on every pull request and push to `main`, and weekly.
-      Not yet a required check: its first findings are being sorted first.
 - [x] Passkeys on the owner's GitHub and Docker Hub accounts.
 
 **Set, confirmed 2026-10-02:**
@@ -175,12 +174,23 @@ got into the GitHub or Docker Hub account could get around everything above.
 - [x] The variable `DOCKERHUB_USERNAME`, the Docker Hub account, in the
       `release` environment (not at repository level).
 
-**Still to do by the owner:**
-- [ ] If offered under Actions → General, require actions to be pinned to a
-      full commit SHA.
-- [ ] `BOARDS_PR_TOKEN`, for the weekly boards re-check: a fine-grained
+**Set on 2026-10-25:**
+- [x] Ruleset for `main`: CodeQL results required; a pull request that adds
+      a high or critical security alert, or an error, cannot be merged.
+- [x] **Immutable releases**: a published release's files can never be
+      changed or replaced.
+- [x] Actions: only GitHub's own and the six named in the workflows
+      (`docker/*` five, `sigstore/cosign-installer`), each pinned to a full
+      commit SHA, which is now required.
+- [x] Workflows from every outside contributor wait for approval.
+- [x] Wiki and Projects off; merged branches deleted.
+- [x] `BOARDS_PR_TOKEN`, for the weekly boards re-check: a fine-grained
       personal access token for this repository only, with Contents and Pull
       requests set to Read and write and nothing else. Rotate it yearly.
+
+**Not available on this account:** secret scanning's generic patterns and
+validity checks need GitHub's paid Secret Protection; provider patterns and
+push protection are on.
 
 ---
 
