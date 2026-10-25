@@ -369,8 +369,49 @@ def test_failures_are_sorted_into_kinds_by_their_message():
                           ("could not reach localhost:11434: ConnectionError", "unreachable"),
                           ("the model did not answer in JSON", "not_json"),
                           ("Claude declined to answer this one", "declined"),
-                          ("HTTP 400: bad request", "other")):
+                          ("HTTP 400: bad request", "other"),
+                          # Its token counts must not read as a status.
+                          ("the answer was cut off at the 4050-token limit, 429 of them "
+                           "thinking", "cut_off")):
         assert llm.error_kind(message) == kind, message
+
+
+def test_gemini_gets_room_to_think_and_a_cut_off_answer_says_so():
+    """Gemini thinks by default and the thinking counts against
+    maxOutputTokens: Save and test's 50 tokens went on thinking, and the
+    cut-off answer was reported as "did not answer in JSON" (2026-10-23)."""
+    sent = {}
+    replies = [
+        {"candidates": [{"content": {"parts": [{"text": '{"ok": true}'}]},
+                         "finishReason": "STOP"}]},
+        {"candidates": [{"content": {"parts": [{"text": '{"ok": tr'}]},
+                         "finishReason": "MAX_TOKENS"}],
+         "usageMetadata": {"promptTokenCount": 40, "thoughtsTokenCount": 4030}},
+    ]
+
+    def fake(url, body, headers, timeout):
+        sent["limit"] = body["generationConfig"]["maxOutputTokens"]
+        return replies.pop(0)
+
+    saved = llm._post
+    llm._post = fake
+    llm.VAULT.put("gemini", "test-key-1234567890abcdef")
+    try:
+        assert llm.ping(llm.Settings(provider="gemini", model="gemini-3.5-flash"))["ok"]
+        assert sent["limit"] == 50 + llm.REASONING_TOKENS
+        try:
+            llm._call_one(llm.Settings(provider="gemini", model="gemini-3.5-flash"), "sys",
+                          "user", {"type": "object"}, 50, "test", None)
+        except llm.LLMError as exc:
+            message = str(exc)
+        else:
+            raise AssertionError("a cut-off answer is an error")
+    finally:
+        llm._post = saved
+        llm.VAULT.forget("gemini")
+    assert message == (f"the answer was cut off at the {50 + llm.REASONING_TOKENS}"
+                       "-token limit, 4030 of them thinking")
+    assert llm.error_kind(message) == "cut_off"
 
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())

@@ -6,6 +6,26 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-25 — Gemini "did not answer in JSON" on Save and test
+
+- **Save and test failed three times on `gemini-3.5-flash`** (2026-10-23)
+  with "the model did not answer in JSON". The test allows 50 tokens for
+  `{"ok": true}`, and Gemini's thinking models (2.5 and 3.x) think by
+  default with the thinking counted against `maxOutputTokens`: the
+  thinking used the budget and the answer was cut off mid-object.
+- Gemini now gets `REASONING_TOKENS` (4,000) of room on top of each
+  call's own budget, as GPT-OSS on Ollama does. No thinking setting is
+  sent: the names differ between 2.5 (`thinkingBudget`) and 3.x
+  (`thinkingLevel`), and a wrong one is refused with a 400.
+- An answer stopped at the limit (`finishReason: MAX_TOKENS`) is reported
+  as that: "the answer was cut off at the 4050-token limit, N of them
+  thinking", a new error kind **Answer cut off** on the Dashboard's AI
+  errors chart (`cut_off`, matched before the status codes, since its
+  token counts could read as one).
+- Not tried against Gemini itself: no key here, and tests do not go
+  online. Tests: Save and test sends the larger limit and passes; a
+  MAX_TOKENS answer gives the cut-off message and kind.
+
 ## Added — 2026-10-24 — AI usage on the Dashboard: requests, errors, tokens per model
 
 - **What every AI call costs, on the Dashboard.** Below the hallucination
