@@ -142,7 +142,7 @@ def page(tag: str, image: str, digest: str, previous: str = "") -> str:
         "**Windows:** run the setup; it installs for you alone, no administrator needed. "
         "Linux, an Intel Mac, or from source: "
         f"[the ways to run it]({REPO}/blob/{tag}/docs/run/README.md). "
-        "New to jobdork? The [user guide](https://jessn-dev.github.io/jobDork/) "
+        "New to jobdork? The [user guide](https://jessn-dev.github.io/jobDork/overview/) "
         "shows every page of the app.", "",
         "### The first time you open it", "",
         "The installers are not signed yet, so each system warns once:", "",

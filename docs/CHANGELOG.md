@@ -6,6 +6,28 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-25 — A landing page; the README's title with the logo
+
+The website opened straight onto the user guide, which explains how to use
+jobdork to someone who has already decided to. Someone arriving from a
+search or a shared link had nothing telling them what it is, who it is for,
+or why to try it.
+
+- **https://jessn-dev.github.io/jobDork/ is now a landing page:** what
+  jobdork does, that it covers every kind of job (27 industries among the
+  built-in boards, federal jobs through USAJOBS), the three steps, how it
+  compares with a job board, answers to the first questions (cost, applying,
+  LinkedIn, your data, the first-open warning), and Download, the guide and
+  GitHub as the next steps, with how to hear about new versions. It carries
+  a description, link previews and the app's details for search engines;
+  every figure on it is one the README and docs already state. The guide's
+  front page moved to `/overview/`; no other address changed, so the app's
+  links into the guide still land.
+- The site has the jobdork logo in its header and as its tab icon.
+- **README:** the title is centred with the logo beside it, and the badges
+  are centred beneath. Its links to the guide, those in docs/run/README.md
+  and the release notes go to the guide's front page.
+
 ## Changed — 2026-10-25 — The documentation checked against the code; a shorter README
 
 Every page was read against the code that it describes; what was wrong or

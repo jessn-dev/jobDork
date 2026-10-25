@@ -1,0 +1,90 @@
+/* The landing page (overrides/home.html, index.md). Colours come from the
+   theme's own variables, so light and dark mode both follow the palette. */
+
+.jd-hero {
+  background: linear-gradient(160deg, var(--md-primary-fg-color) 0%, #020b17 100%);
+  color: #fff;
+}
+.jd-hero__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 2.4rem;
+  align-items: center;
+  padding: 3.2rem 0.8rem 3.6rem;
+}
+.jd-hero .md-typeset h1,
+.jd-hero h1 {
+  color: inherit;
+  font-size: 2.1rem;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 1rem;
+}
+.jd-hero__eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin: 0 0 0.6rem;
+}
+.jd-hero__lead {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  opacity: 0.92;
+  margin: 0 0 1.4rem;
+}
+.jd-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.jd-hero .md-button {
+  color: #fff;
+  border-color: #fff;
+  margin: 0;
+}
+.jd-hero .md-button--primary {
+  background: #fff;
+  color: var(--md-primary-fg-color);
+}
+.jd-hero .md-button:hover,
+.jd-hero .md-button:focus {
+  background: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+  color: #fff;
+}
+.jd-hero__small {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  margin: 1rem 0 0;
+}
+.jd-hero__small a {
+  color: inherit;
+  text-decoration: underline;
+}
+.jd-hero__shot {
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.45);
+}
+
+.jd-cta p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.jd-cta .md-button {
+  margin: 0;
+}
+
+@media screen and (max-width: 59.9375em) {
+  .jd-hero__inner {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 2rem 0.8rem 2.4rem;
+  }
+  .jd-hero h1 {
+    font-size: 1.6rem;
+  }
+}

@@ -1,18 +1,22 @@
-# jobDork
+<h1 align="center">
+  <img src="packaging/icon.svg" alt="" width="64" height="64" align="center">
+  jobDork
+</h1>
 
-<!-- Health -->
-[![Build](https://github.com/jessn-dev/jobDork/actions/workflows/docker.yml/badge.svg?branch=main)](https://github.com/jessn-dev/jobDork/actions/workflows/docker.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fjessn-dev.github.io%2FjobDork%2Fbadges%2Fcoverage.json)](https://github.com/jessn-dev/jobDork/actions/workflows/guide.yml)
-[![Known vulnerabilities](https://img.shields.io/endpoint?url=https%3A%2F%2Fjessn-dev.github.io%2FjobDork%2Fbadges%2Fvulnerabilities.json)](SECURITY.md)
-<!-- Ecosystem -->
-[![Latest release](https://img.shields.io/github/v/release/jessn-dev/jobDork)](https://github.com/jessn-dev/jobDork/releases/latest)
-[![Docker image](https://img.shields.io/docker/v/jessengolab/jobdork?sort=semver&label=docker)](https://hub.docker.com/r/jessengolab/jobdork)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
-<!-- Community -->
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Code style: Ruff](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fastral-sh%2Fruff%2Fmain%2Fassets%2Fbadge%2Fv2.json)](https://github.com/astral-sh/ruff)
-[![User guide](https://img.shields.io/badge/user%20guide-read%20it-blue.svg)](https://jessn-dev.github.io/jobDork/)
+<p align="center">
+  <a href="https://github.com/jessn-dev/jobDork/actions/workflows/docker.yml"><img alt="Build" src="https://github.com/jessn-dev/jobDork/actions/workflows/docker.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/jessn-dev/jobDork/actions/workflows/guide.yml"><img alt="Coverage" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fjessn-dev.github.io%2FjobDork%2Fbadges%2Fcoverage.json"></a>
+  <a href="SECURITY.md"><img alt="Known vulnerabilities" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fjessn-dev.github.io%2FjobDork%2Fbadges%2Fvulnerabilities.json"></a>
+  <br>
+  <a href="https://github.com/jessn-dev/jobDork/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/jessn-dev/jobDork"></a>
+  <a href="https://hub.docker.com/r/jessengolab/jobdork"><img alt="Docker image" src="https://img.shields.io/docker/v/jessengolab/jobdork?sort=semver&label=docker"></a>
+  <a href="https://www.python.org/downloads/"><img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue.svg"></a>
+  <a href="LICENSE"><img alt="License: GPL v3" src="https://img.shields.io/badge/license-GPLv3-blue.svg"></a>
+  <br>
+  <a href="CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
+  <a href="https://github.com/astral-sh/ruff"><img alt="Code style: Ruff" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fastral-sh%2Fruff%2Fmain%2Fassets%2Fbadge%2Fv2.json"></a>
+  <a href="https://jessn-dev.github.io/jobDork/overview/"><img alt="User guide" src="https://img.shields.io/badge/user%20guide-read%20it-blue.svg"></a>
+</p>
 
 **jobdork finds job posts for you, on your own computer.** It reads
 employers' own hiring systems and job boards, keeps only the posts that pass
@@ -29,7 +33,7 @@ resume and searches stay on your machine.
 **Start with the [download](https://github.com/jessn-dev/jobDork/releases/latest)**
 for macOS or Windows, or [another way to run it](docs/run/README.md): from
 source, in a terminal, in Docker or on a home server. The
-**[user guide](https://jessn-dev.github.io/jobDork/)** then walks through
+**[user guide](https://jessn-dev.github.io/jobDork/overview/)** then walks through
 every page of the app with pictures. [CONFIG.md](docs/CONFIG.md) has every
 setting, [PRIVACY.md](PRIVACY.md) what jobdork keeps and every address it
 contacts, and [SECURITY.md](SECURITY.md) how releases are checked and how to

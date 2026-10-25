@@ -1,0 +1,78 @@
+{#-
+  The landing page (guide/docs/index.md uses it): a hero above the page's
+  own Markdown, plus what search engines and link previews read. Every
+  claim here is one the README and docs back; keep them in step.
+-#}
+{% extends "main.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  {% set preview = config.site_url ~ "images/job-posts.png" %}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="jobdork">
+  <meta property="og:title" content="{{ page.meta.title }}">
+  <meta property="og:description" content="{{ page.meta.description }}">
+  <meta property="og:url" content="{{ config.site_url }}">
+  <meta property="og:image" content="{{ preview }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ page.meta.title }}">
+  <meta name="twitter:description" content="{{ page.meta.description }}">
+  <meta name="twitter:image" content="{{ preview }}">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "jobdork",
+    "description": "{{ page.meta.description }}",
+    "url": "{{ config.site_url }}",
+    "image": "{{ preview }}",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "macOS 12 or newer (Apple Silicon), Windows 10 or 11, Linux (from source or Docker)",
+    "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+    "downloadUrl": "https://github.com/jessn-dev/jobDork/releases/latest",
+    "codeRepository": "https://github.com/jessn-dev/jobDork",
+    "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
+  }
+  </script>
+{% endblock %}
+
+{% block htmltitle %}
+  <title>{{ page.meta.title }}</title>
+{% endblock %}
+
+{% block tabs %}
+  {{ super() }}
+  <section class="jd-hero">
+    <div class="md-grid md-typeset jd-hero__inner">
+      <div class="jd-hero__text">
+        <p class="jd-hero__eyebrow">Free · open source · no account</p>
+        <h1>Find the jobs employers post on their own sites</h1>
+        <p class="jd-hero__lead">
+          jobdork reads 420 employers' hiring systems and job boards from your
+          own computer, keeps the posts that pass your rules, and ranks them
+          against your resume. Your resume and searches are stored on your
+          computer and nowhere else.
+        </p>
+        <div class="jd-hero__actions">
+          <a href="https://github.com/jessn-dev/jobDork/releases/latest"
+             class="md-button md-button--primary">Download jobdork</a>
+          <a href="overview/" class="md-button">Read the guide</a>
+        </div>
+        <p class="jd-hero__small">
+          macOS 12 or newer on Apple Silicon · Windows 10 or 11 ·
+          <a href="https://github.com/jessn-dev/jobDork/blob/main/docs/run/README.md">other ways to run it</a>
+          (Linux, Intel Macs, Docker, a home server)
+        </p>
+      </div>
+      <img class="jd-hero__shot" src="images/job-posts.png"
+           alt="jobdork's Job posts page: posts ranked with Match, Fit and AI scores"
+           width="1280" height="860">
+    </div>
+  </section>
+{% endblock %}
+
+{#- The page's Markdown alone: no edit button, and no second heading, since
+    the hero's is the page's. -#}
+{% block content %}
+  {{ page.content }}
+{% endblock %}

@@ -44,7 +44,8 @@ fails it, on the pull request, before anything is published.
 
 | Page | Covers |
 |---|---|
-| `index.md` | What jobdork does, the six steps, the pages |
+| `index.md` | The landing page, for someone who has never heard of jobdork: what it does, who it is for, how it compares, questions, download. Its hero and the tags search engines and link previews read are in `overrides/home.html`, its styles in `docs/stylesheets/home.css`. Every claim on it is one the README and docs back; change them together |
+| `overview.md` | The guide's front page: what jobdork does, the six steps, the pages |
 | `getting-started.md` | Installing (links to docs/run) and setup |
 | `dashboard.md` | Dashboard buttons, tiles, charts, run detail |
 | `job-posts.md` | The list, one post, filters, dropped posts |
