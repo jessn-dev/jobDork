@@ -12,17 +12,22 @@ tests turn it off for every run. `update_check: false` in config.yaml, which the
 Settings page's Updates section writes, turns it off for one install.
 
 Asked by the page, never at start: a dashboard opened offline costs one
-failed request and no wait, and a check that fails is simply not shown.
+failed request and no wait. A check that fails is not shown as news, but
+Check now says it failed and why: 0.14.4 answered "you have 0.14.4, the
+newest" when it could not reach GitHub at all, with 0.15.0 out.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import platform
 import re
+import ssl
 import sys
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -36,6 +41,8 @@ RELEASES_PAGE = f"https://github.com/{REPO}/releases"
 CACHE_FILE = "version-check.json"
 CHECK_SECONDS = 24 * 3600
 TIMEOUT = 6
+
+log = logging.getLogger(__name__)
 
 _VERSION = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
 
@@ -63,14 +70,47 @@ def how_to_update(latest: str) -> str:
             "pip install -e . again.")
 
 
+def _tls() -> ssl.SSLContext:
+    """Certificates to check GitHub's with: certifi's, the bundle requests
+    already uses for every other call. urllib alone asks the Python it runs
+    in, and the desktop app's own Python may look for them where the build
+    machine kept them, which on someone else's computer can be nowhere."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except (ImportError, OSError):
+        return ssl.create_default_context()
+
+
+def _open(request, timeout):
+    # Safe: callers pass only api.github.com or this repository's downloads.
+    return urllib.request.urlopen(request, timeout=timeout, context=_tls())  # nosec B310
+
+
 def _fetch(url: str) -> dict:
     request = urllib.request.Request(url, headers={
         "Accept": "application/vnd.github+json",
         "User-Agent": f"jobdork/{__version__} (update check)",
     })
     # Safe: LATEST_URL or ATTEST_URL, fixed https addresses on api.github.com.
-    with urllib.request.urlopen(request, timeout=TIMEOUT) as answer:  # nosec B310
+    with _open(request, timeout=TIMEOUT) as answer:
         return json.loads(answer.read(256 * 1024).decode("utf-8"))
+
+
+def why_not(exc: BaseException) -> str:
+    """Why GitHub could not be asked, in words for the Settings page."""
+    if isinstance(exc, urllib.error.HTTPError):
+        if exc.code in (403, 429):
+            return "GitHub is limiting requests from this network for now; try again in an hour"
+        return f"GitHub answered HTTP {exc.code}"
+    reason = getattr(exc, "reason", exc)
+    if isinstance(reason, ssl.SSLCertVerificationError):
+        return "this computer could not verify GitHub's certificate"
+    if isinstance(exc, (urllib.error.URLError, OSError)):
+        return "could not reach GitHub; is this computer online?"
+    if isinstance(exc, ValueError):
+        return "GitHub's answer could not be read"
+    return f"the check failed ({type(exc).__name__})"
 
 
 # Only files from this repository's own release downloads are fetched.
@@ -122,20 +162,27 @@ def latest(cache_dir: str | Path, fetch=_fetch, now=time.time,
     """The newest release, {"version", "url", "assets"}, from the cache when
     it is younger than a day (unless `force`, the Settings page's Check now).
     None when off or when GitHub cannot be asked."""
+    return _latest(cache_dir, fetch, now, force)[0]
+
+
+def _latest(cache_dir, fetch, now, force) -> tuple[dict | None, str]:
+    """latest(), and why GitHub could not be asked ("" when it was)."""
     if off():
-        return None
+        return None, ""
     path = Path(cache_dir) / CACHE_FILE
     kept = _read_cache(path)
     if (not force and "checked_at" in kept
             and now() - float(kept["checked_at"] or 0) < CHECK_SECONDS):
-        return kept.get("release")
+        return kept.get("release"), ""
     try:
         answer = fetch(LATEST_URL)
-    except Exception:                        # offline, rate-limited, GitHub down
-        return None
+    except Exception as exc:                 # offline, rate-limited, GitHub down
+        why = why_not(exc)
+        log.warning("update check: %s (%s: %s)", why, type(exc).__name__, exc)
+        return None, why
     release = _release_from(answer)
     _write_cache(path, {**kept, "checked_at": now(), "release": release})
-    return release
+    return release, ""
 
 
 def _release_from(answer: dict) -> dict | None:
@@ -173,12 +220,16 @@ def installer_name(version: str) -> str:
 
 def check(cache_dir: str | Path, current: str = __version__, fetch=_fetch,
           now=time.time, enabled: bool = True, force: bool = False) -> dict:
-    """What the page shows: {"newer": False} or the release to move to.
-    `enabled` is the config's `update_check`; False asks nothing."""
+    """What the page shows: {"newer": False} or the release to move to;
+    with "failed" saying why when GitHub could not be asked, so the page
+    does not call this copy the newest. `enabled` is the config's
+    `update_check`; False asks nothing."""
     mine = parse(current)
     if mine is None or off() or not enabled:
         return {"newer": False, "current": current}
-    release = latest(cache_dir, fetch=fetch, now=now, force=force)
+    release, why = _latest(cache_dir, fetch, now, force)
+    if why:
+        return {"newer": False, "current": current, "failed": why, "url": RELEASES_PAGE}
     if not release or (parse(release["version"]) or (0, 0, 0)) <= mine:
         return {"newer": False, "current": current}
     name = installer_name(release["version"])
@@ -202,14 +253,14 @@ class UpdateError(Exception):
     pass
 
 
-def _download(url: str, dest: Path, progress=None, opener=urllib.request.urlopen) -> None:
+def _download(url: str, dest: Path, progress=None, opener=_open) -> None:
     if not url.startswith(DOWNLOAD_PREFIX):
         raise UpdateError("not one of this project's release downloads")
     request = urllib.request.Request(url, headers={
         "User-Agent": f"jobdork/{__version__} (update)"})
     part = dest.with_name(dest.name + ".part")
     done = 0
-    with opener(request, timeout=60) as answer, open(part, "wb") as out:  # nosec B310
+    with opener(request, timeout=60) as answer, open(part, "wb") as out:
         total = int(answer.headers.get("Content-Length") or 0)
         while True:
             chunk = answer.read(1024 * 1024)
@@ -224,7 +275,7 @@ def _download(url: str, dest: Path, progress=None, opener=urllib.request.urlopen
     part.replace(dest)
 
 
-def download_installer(folder: Path, progress=None, opener=urllib.request.urlopen,
+def download_installer(folder: Path, progress=None, opener=_open,
                        fetch=_fetch, verify=None) -> Path:
     """Download this computer's installer from the latest release into
     `folder`, check it against the release's SHA256SUMS.txt and its build
@@ -239,7 +290,7 @@ def download_installer(folder: Path, progress=None, opener=urllib.request.urlope
     try:
         release = _release_from(fetch(LATEST_URL)) or {}
     except Exception as exc:                # offline, rate-limited, GitHub down
-        raise UpdateError(f"could not ask GitHub for the release ({type(exc).__name__}); "
+        raise UpdateError(f"could not ask GitHub for the release ({why_not(exc)}); "
                           "try again, or download it from the release page") from None
     name = installer_name(str(release.get("version") or ""))
     assets = release.get("assets") or {}

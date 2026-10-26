@@ -408,6 +408,21 @@ def test_a_gap_with_no_quote_is_read_from_the_claims_own_words():
     assert got == {gaps[0]: "supported", gaps[1]: "contradicted"}, got
 
 
+def test_gaps_in_the_other_words_models_use_are_settled_too():
+    """Gemini judging, Ollama checking (2026-10-25): "does not explicitly
+    list", "has not worked with" and "is not clearly documented" were not
+    read as gaps, and counted as made up."""
+    gaps = ["The resume does not explicitly list Django.", "The candidate has not worked with BGP.",
+            "The candidate's experience with Argo CD is not clearly documented.",
+            "The candidate has not held a Staff level position.",
+            "The candidate's experience with Jenkins is not explicitly confirmed."]
+    got = _verified(gaps, [{"n": i, "claim": c, "verdict": "absent", "source": "resume",
+                            "quote": ""} for i, c in enumerate(gaps, 1)], {"resume": RESUME})
+    assert got == {gaps[0]: "supported", gaps[1]: "supported", gaps[2]: "supported",
+                   gaps[3]: "supported", gaps[4]: "contradicted"}, got
+    assert guard._missing(gaps[2]) == "Argo CD"
+
+
 def test_reading_a_gap_takes_no_time_on_a_hostile_claim():
     """Claims come from models reading job posts, so a claim can be built to
     make the pattern backtrack: "no any  any  any ..." once took exponential

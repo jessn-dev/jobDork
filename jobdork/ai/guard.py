@@ -164,15 +164,23 @@ def _loose(text: str) -> str:
 
 # A claim that something is missing, in the words a gap is written in: "not"
 # alone would let "doesn't just know Python, they led teams" pass as a gap.
+# One adverb may stand before the verb ("does not explicitly list"), and
+# "has not held / worked with" is a gap too: on 2026-10-25 those wordings
+# were most of the gaps the script could not settle (0.14.4, Gemini judging,
+# Ollama checking).
+_ADVERB = r"(?:(?:explicitly|clearly|directly|specifically)\s+)?"
 _GAP = re.compile(
     r"\b(?:lacks?|lacking|missing|absent|without|unmentioned|unstated)\b"
-    r"|\b(?:does|do|did|is|are|was|were)(?:\s+not|n't)\s+(?:mention|show|list|state|"
-    r"include|name|have|cite|describe|demonstrate|indicate|specify|appear|mentioned|"
-    r"shown|listed|stated|included|named)"
+    r"|\b(?:does|do|did|is|are|was|were)(?:\s+not|n't)\s+" + _ADVERB + r"(?:mention|show|"
+    r"list|state|include|name|have|cite|describe|demonstrate|indicate|specify|appear|"
+    r"confirm|address|mentioned|shown|listed|stated|included|named|documented|"
+    r"confirmed|addressed)"
+    r"|\b(?:has|have|had)(?:\s+not|n't)\s+(?:held|worked\s+with|used|led)\b"
     r"|\bno\s+(?:[\w/+#.-]+\s+){0,3}(?:mention|evidence|sign|record|experience|"
     r"background|indication)\b"
     r"|\b(?:little|limited)\s+(?:evidence|experience|mention|sign)\b"
-    r"|\bnot\s+(?:mentioned|shown|listed|stated|included|named|evident)\b",
+    r"|\bnot\s+" + _ADVERB + r"(?:mentioned|shown|listed|stated|included|named|evident|"
+    r"documented|confirmed|addressed)\b",
     re.IGNORECASE)
 
 
@@ -208,15 +216,20 @@ def _quoted(quote: str, text: str) -> bool:
 # crawlers"; "Kubernetes is not mentioned" -> "Kubernetes".
 _MISSING_AFTER = re.compile(
     r"(?:mention|show|list|state|include|name|have|cite|describe|demonstrate|indicate|"
-    r"specify|lacks?|lacking|missing|without|no)\s+"
+    r"specify|confirm|address|held|worked\s+with|used|led|lacks?|lacking|missing|"
+    r"without|no)\s+"
     r"(?:(?:any|professional|direct|explicit|experience|evidence|sign|record|mention|"
     r"background)(?:\s+(?:in|with|of|for|on))?\s+)*(.+?)\.?$", re.IGNORECASE)
 # Each filler word owns the spaces after it: an optional "\s*" beside "\s+"
 # let a run of them split many ways, and "no any any any ..." took
 # exponential time (CodeQL py/redos).
+# "The candidate's experience with Argo CD is not clearly documented" ->
+# "Argo CD": the words around the thing are not the thing, and are never
+# in the resume, so they would settle any such gap as true.
 _MISSING_BEFORE = re.compile(
-    r"^(?:the\s+)?(.+?)\s+(?:is|are)(?:\s+not|n't)\s+(?:mentioned|shown|listed|stated|"
-    r"included|named)", re.IGNORECASE)
+    r"^(?:the\s+)?(?:candidate's\s+|candidates\s+)?(?:experience\s+(?:with|in|of)\s+)?"
+    r"(.+?)\s+(?:is|are)(?:\s+not|n't)\s+" + _ADVERB + r"(?:mentioned|shown|listed|"
+    r"stated|included|named|documented|confirmed|addressed)", re.IGNORECASE)
 
 
 def _missing(claim: str) -> str:

@@ -71,3 +71,18 @@ if __name__ == "__main__":
             print(f"FAIL {name}: {type(exc).__name__}: {exc}")
     print(f"{len(tests) - failures}/{len(tests)} passed")
     raise SystemExit(1 if failures else 0)
+
+
+def test_no_nul_character_goes_into_the_page():
+    """The parser turns NUL into U+FFFD, so a value built with "\\u0000"
+    never matches itself once it is in an option: the model picker's
+    "Other" hid its text box and filled in "\\ufffdother" instead."""
+    assert "\\u0000" not in _page() and "\x00" not in _page()
+
+
+def test_every_ai_provider_has_its_mark():
+    from jobdork.ai.llm import PROVIDERS
+
+    icons = _page().split("const PROVIDER_ICONS = {", 1)[1].split("\n};", 1)[0]
+    missing = [p for p in PROVIDERS if f'"{p}":' not in icons]
+    assert not missing, missing
