@@ -139,6 +139,9 @@ could not support. A small model makes more of those, not fewer.
 
 Download one on the AI machine with `ollama pull <model>`.
 
+A reader on one computer and a checker on another, with Windows' firewall
+instead of the Tailscale address: [ai-on-two-computers.md](ai-on-two-computers.md).
+
 ---
 
 ## 4. jobdork on the NAS
