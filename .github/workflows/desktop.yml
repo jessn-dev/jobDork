@@ -133,6 +133,37 @@ jobs:
             --url "http://127.0.0.1:8765/$name" --iss packaging/jobdork.iss --date "$(date -u +%F)"
           echo "VERSION=$version" >> "$GITHUB_ENV"
 
+      # Why a silent install stalled (2026-10-27): the installer run directly,
+      # then with the "downloaded from the internet" mark winget gives it.
+      - name: Probe the installer without and with the internet mark
+        shell: pwsh
+        run: |
+          function Show-Stuck {
+            Get-CimInstance Win32_Process | Sort-Object ProcessId |
+              Format-Table ProcessId, ParentProcessId, Name, CommandLine -AutoSize -Wrap | Out-String -Width 300
+            Get-Process | Where-Object { $_.MainWindowTitle } | Format-Table Id, ProcessName, MainWindowTitle -AutoSize
+          }
+          function Try-Install($exe, $label) {
+            $log = Join-Path $PWD "probe-$label.log"
+            $p = Start-Process $exe -PassThru -ArgumentList '/SP-', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$log`""
+            $done = $p.WaitForExit(180000)
+            Write-Output "=== $label : finished=$done exit=$(if ($done) { $p.ExitCode })"
+            if (-not $done) { Show-Stuck; Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+            if (Test-Path $log) { Get-Content $log -Tail 15 } else { Write-Output 'no installer log' }
+            $un = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{89BA0AFD-43DD-4F5C-ADC2-221D5F8E1EA6}_is1' -ErrorAction SilentlyContinue
+            if ($un) {
+              $exeUn = ($un.UninstallString -replace '"', '')
+              Start-Process $exeUn -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+              Write-Output "uninstalled after $label"
+            }
+          }
+          $exe = (Get-Item dist/jobdork-*-windows-x64-setup.exe).FullName
+          Try-Install $exe 'no-mark'
+          $marked = Join-Path $env:RUNNER_TEMP (Split-Path $exe -Leaf)
+          Copy-Item $exe $marked
+          Set-Content -Path $marked -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3"
+          Try-Install $marked 'internet-mark'
+
       - name: Install it with winget, check it, remove it
         shell: pwsh
         run: |
@@ -152,16 +183,17 @@ jobs:
             $install = Start-Process winget -PassThru -NoNewWindow -ArgumentList @(
               'install', '--manifest', $manifest, '--silent', '--disable-interactivity',
               '--accept-package-agreements', '--accept-source-agreements', '--log', $log)
-            if (-not $install.WaitForExit(600000)) {
-              Write-Output '--- still running after 10 minutes:'
-              Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'jobdork|\.tmp|setup|winget|AppInstaller' } |
-                Format-Table ProcessId, ParentProcessId, Name, CommandLine -AutoSize -Wrap | Out-String -Width 400
+            if (-not $install.WaitForExit(300000)) {
+              Write-Output '--- still running after 5 minutes:'
+              Get-CimInstance Win32_Process | Sort-Object ProcessId |
+                Format-Table ProcessId, ParentProcessId, Name, CommandLine -AutoSize -Wrap | Out-String -Width 300
+              Get-Process | Where-Object { $_.MainWindowTitle } | Format-Table Id, ProcessName, MainWindowTitle -AutoSize
               Write-Output '--- the installer log:'
               if (Test-Path $log) { Get-Content $log -Tail 60 }
               Write-Output '--- winget log:'
               $diag = "$env:LOCALAPPDATA\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\DiagOutputDir"
               Get-ChildItem $diag -Filter *.log -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1 | Get-Content -Tail 60
-              throw 'winget install did not finish in 10 minutes'
+              throw 'winget install did not finish in 5 minutes'
             }
             if ($install.ExitCode) {
               if (Test-Path $log) { Get-Content $log -Tail 60 }
