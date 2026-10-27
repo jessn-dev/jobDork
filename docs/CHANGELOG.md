@@ -6576,6 +6576,70 @@ open; a digest arrives, and what arrived with it is what was not there before.
   its claim check, a tailored letter); or a demo build of the dashboard
   itself on the website, the real page on fixed demo data with no server.
   The recording is done in the maintainer's own browser and account.
+- **AI page, an Ollama address on another computer** (found 2026-10-27, a
+  tester using the owner's Ollama over Tailscale). A line with no address of
+  its own shows the page-wide one, `http://localhost:11434` by default, in
+  its box, so someone without Ollama of their own keeps an address that
+  cannot work, and every **Load models** fails. Say when the address is
+  this computer's own and nothing answers there, and leave the box empty
+  rather than pre-filled when the page-wide address is only the default.
+- **The first scan's two parts, told apart** (asked 2026-10-27). Setup's
+  last step runs a quick scan ("first scan": the keyword job sites, your own
+  boards and 8 built-in ones) and then a "full scan" of every other
+  built-in board, in the background. The Dashboard should say which is
+  running and that it started: "Quick scan: reading job sites and 8
+  employer boards" then "Full scan started: reading the other N employer
+  boards; job posts keep arriving". When the full scan ends, tell the
+  person their job posts are ready to view: a notice on the page with a
+  **View job posts** button, and the computer's notification when
+  notifications are on, including when the window was closed meanwhile.
+- **The hallucination rate in colour** (asked 2026-10-27): the Dashboard
+  tile and the "Hallucination, over time" chart green at 5% or below (the
+  2-5% target in docs/AI-MODELS.md), amber above 5% up to 10%, red above
+  10% (where every other local model measured). Said in words too, not by
+  colour alone ("within target", "watch it", "too high: see AI-MODELS.md").
+- **A scan queue you can see and cancel** (asked 2026-10-27). A change to
+  Search, Projects, Education or Sources starts a scan or re-screen; one
+  that arrives while another runs waits (web/live.py `Runner.queue`), but
+  only one of each kind, the newest replacing the one waiting, and the page
+  never shows it. Instead: first in, first out, every request kept, with
+  what started it ("Search: added Nurse Practitioner"); the number waiting
+  on the Dashboard; a list where any waiting one can be cancelled; and
+  **Stop** for the scan running now, keeping what it found so far. Shown in
+  the Dashboard panel now titled "Feedback on AI output, per day", renamed
+  for it (where the feedback chart goes instead is decided when it is
+  built).
+- **Hosted models measured before recommending them** (asked 2026-10-27):
+  run scripts/hallucination_benchmark.py with Gemini and Groq models as
+  reader and as checker, as was done for Ollama, and count requests and
+  tokens per verdict against each free tier's daily and per-minute limits,
+  so the guide can say which free models to pick and how many job posts a
+  day a free key covers before it is capped.
+- **An Ollama address with a key** (for beta testers using someone else's
+  Ollama without Tailscale, 2026-10-27): an optional key on an Ollama line,
+  sent as `Authorization: Bearer`, kept like every other key (memory or the
+  keychain, never a file), so jobdork can use an Ollama behind a
+  gatekeeper that checks keys; and one pasted connection code that fills
+  the AI page.
+- **Add a job post from any link** (found 2026-10-27, a UnitedHealth Group
+  post on `uhg.taleo.net/careersection/10000/jobdetail.ftl?job=2389918`
+  refused with "cannot tell which platform that URL is on. Supported:
+  greenhouse, ashby, lever, breezy, smartrecruiters"). Adding by link
+  (`add_by_url`, `cli._platform_for`) knows 5 systems, fewer than a scan
+  reads, and nothing else. Recognise every system jobdork reads (Workday,
+  Oracle, Taleo Business Edition, Eightfold and the rest); for any other
+  link, read the page itself (schema.org `JobPosting`, as fetch/site.py
+  does); and a reader for **Taleo Enterprise** (`*.taleo.net/careersection/`):
+  its job page carries the title, job number, place, department, type,
+  posting date and description in the page's `initialHistory` field, with
+  no `JobPosting` data. When nothing can be read, say so and offer to paste
+  the advert's text instead.
+- **The error log names the reason, not only the status.** A model list
+  that could not be loaded is recorded as "GET /api/llm/models failed on
+  the server (HTTP 502)", although jobdork knows the reason ("Ollama is not
+  answering at …"). Record the server's own message; and treat a 502 that
+  only reports another service not answering as a warning about that
+  service, not as an error in jobdork.
 - **Linux installers: an AppImage and a .deb** (chosen 2026-10-27, both),
   built and attested by the release workflow beside the Mac and Windows
   ones, with removal (`jobdork uninstall`, Settings) and Update for each.
