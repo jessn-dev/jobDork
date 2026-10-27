@@ -37,6 +37,12 @@ Each reader card has the **Provider**, the **Ollama address** (for Ollama on
 another computer), the **API key** (for paid providers) and the **Model**
 (**Load models** lists what is available).
 
+**Two big models, one computer short of memory?** Run the reader on another
+computer you own (a PC with a graphics card, say) and the checker on this
+one: each card takes its own Ollama address. Step by step, with Tailscale so
+nothing is opened to your network:
+[the AI on two computers](https://github.com/jessn-dev/jobDork/blob/main/docs/run/ai-on-two-computers.md).
+
 ## When to use it
 
 - **After each scan, judge the top N job posts not yet judged**: the AI
