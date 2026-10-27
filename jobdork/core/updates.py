@@ -253,7 +253,7 @@ class UpdateError(Exception):
     pass
 
 
-def _download(url: str, dest: Path, progress=None, opener=_open) -> None:
+def _download(url: str, dest: Path, progress=None, opener=_open, on_bytes=None) -> None:
     if not url.startswith(DOWNLOAD_PREFIX):
         raise UpdateError("not one of this project's release downloads")
     request = urllib.request.Request(url, headers={
@@ -270,13 +270,16 @@ def _download(url: str, dest: Path, progress=None, opener=_open) -> None:
             if done > MAX_INSTALLER_BYTES:
                 raise UpdateError("the download is far larger than an installer")
             out.write(chunk)
+            if on_bytes:
+                on_bytes(done, total)
             if progress and total:
-                progress(f"downloaded {done * 100 // total}%")
+                progress(f"downloaded {done * 100 // total}% "
+                         f"({done / 1e6:.0f} of {total / 1e6:.0f} MB)")
     part.replace(dest)
 
 
 def download_installer(folder: Path, progress=None, opener=_open,
-                       fetch=_fetch, verify=None) -> Path:
+                       fetch=_fetch, verify=None, step=None) -> Path:
     """Download this computer's installer from the latest release into
     `folder`, check it against the release's SHA256SUMS.txt and its build
     attestation, and return its path. Raises UpdateError; a file that fails
@@ -284,9 +287,18 @@ def download_installer(folder: Path, progress=None, opener=_open,
 
     The release is asked for again, not read from the day-old cache: the
     files offered are the ones the release workflow uploaded now.
+
+    `step(stage, **facts)` follows it for the page's update window: "asking",
+    "downloading" (file, version), "bytes" (done, total), "checksum",
+    "attestation". `progress` gets the same as lines for the activity log.
     """
     import hashlib
 
+    def at(stage, **facts):
+        if step:
+            step(stage, **facts)
+
+    at("asking")
     try:
         release = _release_from(fetch(LATEST_URL)) or {}
     except Exception as exc:                # offline, rate-limited, GitHub down
@@ -304,8 +316,18 @@ def download_installer(folder: Path, progress=None, opener=_open,
     dest = folder / name
     if progress:
         progress(f"downloading {name}")
-    _download(assets[SUMS_FILE], sums, opener=opener)
-    _download(assets[name], dest, progress=progress, opener=opener)
+    at("downloading", file=name, version=str(release["version"]))
+    try:
+        _download(assets[SUMS_FILE], sums, opener=opener)
+        # lambda: an adapter, the byte counts to the step the page follows.
+        _download(assets[name], dest, progress=progress, opener=opener,
+                  on_bytes=lambda done, total: at("bytes", done=done, total=total))
+    except UpdateError:
+        raise
+    except Exception as exc:                 # the connection dropped part way
+        sums.unlink(missing_ok=True)
+        raise UpdateError(f"the download stopped ({why_not(exc)}); try again, "
+                          "or download it from the release page") from None
     wanted = ""
     for line in sums.read_text(encoding="utf-8", errors="replace").splitlines():
         parts = line.split()
@@ -320,6 +342,7 @@ def download_installer(folder: Path, progress=None, opener=_open,
                           "from the release page")
     if progress:
         progress("checksum matches the release's SHA256SUMS.txt; checking who built it")
+    at("checksum")
     try:
         verify_attestation(name, digest, str(release["version"]), fetch=fetch, verify=verify)
     except UpdateError:
@@ -327,6 +350,7 @@ def download_installer(folder: Path, progress=None, opener=_open,
         raise
     if progress:
         progress("built by this project's release workflow, at its version tag")
+    at("attestation")
     return dest
 
 

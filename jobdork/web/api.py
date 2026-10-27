@@ -33,6 +33,7 @@ import logging
 import os
 import re
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -2514,6 +2515,30 @@ def notify_test(cfg) -> dict:
             "why": "" if shown else "the system did not take it; see Warnings and errors"}
 
 
+# Where the update the page's window follows has got to (update_progress).
+# One update at a time: the runner runs one job at a time.
+_UPDATE: dict = {"stage": "idle"}
+_UPDATE_LOCK = threading.Lock()
+
+
+def _update_at(stage: str, **facts) -> None:
+    with _UPDATE_LOCK:
+        if stage == "bytes":
+            _UPDATE.update(facts)
+        else:
+            _UPDATE.update(stage=stage, **facts)
+
+
+def update_progress() -> dict:
+    """The update window's state: its stage ("idle", "asking", "downloading",
+    "checksum", "attestation", "opened", "failed"), the bytes so far, and
+    what to say. 0.15.0 showed "Downloading the update" while the job had
+    already failed; the window shows the failure and its reason."""
+    with _UPDATE_LOCK:
+        return {**_UPDATE, "platform": "mac" if sys.platform == "darwin"
+                else "windows" if sys.platform == "win32" else "other"}
+
+
 def update_job(cfg):
     """Download this computer's installer for the newest release, check it
     against the release's checksums, and open it: the Windows installer
@@ -2525,13 +2550,21 @@ def update_job(cfg):
     if not getattr(sys, "frozen", False):
         raise ApiError("only the desktop app installs its own updates; see how "
                        "to update this copy under Settings, Updates", 409)
+    with _UPDATE_LOCK:
+        _UPDATE.clear()
+        _UPDATE.update(stage="asking", done=0, total=0)
 
     def work(progress):
         folder = Path.home() / "Downloads"
         try:
-            path = updates.download_installer(folder, progress=progress)
+            path = updates.download_installer(folder, progress=progress, step=_update_at)
         except updates.UpdateError as exc:
+            _update_at("failed", error=str(exc))
             raise RuntimeError(str(exc)) from None
+        except Exception as exc:
+            _update_at("failed", error=f"{type(exc).__name__}: {exc}")
+            raise
         open_with_system(path)
+        _update_at("opened", path=str(path), file=path.name)
         return f"opened {path.name}; follow the installer to finish the update"
     return work

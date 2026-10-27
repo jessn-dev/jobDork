@@ -6,6 +6,29 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-27 — An update window that shows each step
+
+Updating from 0.15.0 to 0.15.1, Update showed a notice, "Downloading the
+update. The installer opens when it has been checked.", and nothing after
+it: the job had failed three times on its first request ("could not ask
+GitHub for the release (URLError)"), and that was written only to the
+activity list. Nothing said it had stopped, or that it was still going.
+
+- **Update opens a window** that follows the job: asking GitHub for the
+  release, downloading the installer with a bar and how much is done ("44% ·
+  52 of 118 MB"), checking it against the release's checksums, checking its
+  build attestation, opening it. Each step is ticked off as it passes.
+- **Then how to finish.** Mac: **Quit jobdork**, drag jobdork onto
+  Applications in the Finder window that opened and choose Replace, open it
+  again. Windows: follow the installer, which closes jobdork and offers to
+  open the new version.
+- **A failure is shown in the window**, with its reason and **Release page**
+  to download it by hand. A download that drops part way now says so ("the
+  download stopped (could not reach GitHub; is this computer online?)")
+  rather than a Python error.
+- The app can quit itself when asked (`quit_app`, the page's one new call to
+  the app); the guide's Settings page describes the window.
+
 ## Changed — 2026-10-26 — version 0.15.1
 
 0.15.1 carries the 13 entries below, everything since 0.15.0 (25 October),

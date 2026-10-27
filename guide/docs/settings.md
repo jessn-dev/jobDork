@@ -45,10 +45,21 @@ Which version you have and whether a newer one is out.
 - **Check now** asks at once. When GitHub cannot be reached it says so and
   why (offline, GitHub limiting requests from your network, a certificate
   it could not verify), and offers **Release page** to look yourself.
-- **Update** (in the desktop app) downloads the new installer, checks it
-  was built by jobdork's own release workflow (its checksum and its build
-  attestation), and opens it; one that fails the check is deleted, not
-  opened. Elsewhere it says how to update your copy, with **Release page**.
+- **Update** (in the desktop app) opens a window that follows each step:
+  asking GitHub for the release, downloading the installer (with how much
+  is done), checking it against the release's checksums, checking it was
+  built by jobdork's own release workflow (its build attestation), and
+  opening it. An installer that fails a check is deleted, not opened. Then
+  the window says how to finish:
+    - **Mac:** click **Quit jobdork**, drag jobdork onto Applications in the
+      Finder window that opened and choose Replace, then open it again.
+    - **Windows:** follow the installer; it closes jobdork and offers to open
+      the new version.
+
+  If the update cannot finish, the window says why, with **Release page** to
+  download it yourself. Your settings and job posts are kept either way.
+  Elsewhere than the desktop app, Settings says how to update your copy,
+  with **Release page**.
 - **Turn off the daily check** stops jobdork asking GitHub once a day. That
   check is one request for the number of the latest release; nothing about
   you is sent ([privacy policy](https://github.com/jessn-dev/jobDork/blob/main/PRIVACY.md)).

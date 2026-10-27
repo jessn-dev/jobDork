@@ -543,6 +543,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._wrap(api_mod.folders, cfg_holder["cfg"])
             if path == "/api/version":
                 return self._wrap(api_mod.newer_version, cfg_holder["cfg"])
+            if path == "/api/update/progress":
+                return self._wrap(api_mod.update_progress)
             return self._reject(404, "no such path")
 
         def do_POST(self) -> None:
