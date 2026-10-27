@@ -6,6 +6,29 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-27 — Remove jobdork from a computer, choosing what of yours goes
+
+Windows' uninstaller removed the program and left everything else,
+including the scheduled scan's task, which went on starting a program that
+was gone. On a Mac or Linux there was no uninstall at all: dragging the app
+to the Trash left the scheduled scan and every file behind.
+
+- **One way to remove it everywhere** (core/uninstall.py). The scheduled
+  scan and the app window's storage always go. Of the person's, each item is
+  its own choice and none is chosen: settings, job posts (with their
+  backups), the resume, letters and tailored resumes, saved job-source keys,
+  logs, and installers Update left in Downloads. Only jobdork's folder, its
+  documents folder and its own installers are ever touched; a link pointing
+  elsewhere is not followed.
+- **Windows:** the uninstaller (Settings, Apps) shows the same items as
+  tick-boxes before it removes the program; a silent uninstall keeps
+  everything.
+- **Settings, "Remove jobdork from this computer"** in the desktop app on a
+  Mac or Linux: tick, confirm, and it says what is left to do (Mac: quit and
+  drag the app to the Trash).
+- **`jobdork uninstall`** from a terminal asks about each item, or
+  `--remove jobs,logs` (or `all`).
+
 ## Added — 2026-10-27 — An update window that shows each step
 
 Updating from 0.15.0 to 0.15.1, Update showed a notice, "Downloading the

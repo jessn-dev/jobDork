@@ -1058,6 +1058,12 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       </div>
       <div id="cl-result"></div>
     </div>
+
+    <h3 class="psec">Remove jobdork from this computer</h3>
+    <p class="hint" style="margin-top:0">The scheduled scan and the app window's storage are
+      always removed. Of yours, tick what to delete as well: anything not ticked is kept, so
+      a reinstall finds it.</p>
+    <div class="cleanup" id="rm-box"><p class="hint" id="rm-msg"></p></div>
   </section>
 
   <section id="view-tools" hidden>
@@ -5412,7 +5418,7 @@ async function saveSetting(change, said) {
 
 async function drawPrefs() {
   cfg = await (await api('/api/config')).json();
-  drawSchedule(); drawFolders(); drawNotify(); drawUpdates(); drawPrefBoards();
+  drawSchedule(); drawFolders(); drawNotify(); drawUpdates(); drawPrefBoards(); drawRemove();
 }
 
 function drawNotify() {
@@ -5512,6 +5518,66 @@ $('upd-check').onclick = async () => {
   await showVersion('/api/update/check', 'POST');
 };
 $('upd-page').onclick = () => lastVersion && openOut(lastVersion.url);
+// ── remove jobdork ───────────────────────────────────────────────────────────
+// Settings' last section (api.uninstall_items / uninstall_now): each item of
+// the person's is its own choice, none ticked; then a confirmation naming
+// what goes; then what is left to do, the program itself.
+const mbOf = n => n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : n >= 1e3 ? `${Math.round(n / 1e3)} KB` : `${n} bytes`;
+
+async function drawRemove() {
+  const box = $('rm-box');
+  const r = await api('/api/uninstall');
+  if (!r.ok) { box.innerHTML = `<p class="hint">${esc(cap(await r.text()))}.</p>`; return; }
+  const d = await r.json();
+  const items = d.items.filter(i => i.present);
+  box.innerHTML = `${items.length ? items.map(i => `<div class="row">
+      <label class="check-inline"><input type="checkbox" class="rm-item" value="${esc(i.key)}">
+        <b>${esc(i.label)}</b></label>
+      <span class="hint">${esc(i.what)} · ${mbOf(i.size)}</span></div>`).join('')
+    : '<p class="hint">Nothing of yours is left on this computer.</p>'}
+    <div class="row">${d.finish === 'windows'
+      ? `<span class="hint">On Windows, uninstall from <b>Settings, Apps, jobdork,
+          Uninstall</b>: it asks the same questions, and can remove files jobdork has open.</span>`
+      : '<button data-icon="trash-2" class="act danger" id="rm-start" type="button">Remove jobdork…</button>'}
+      <span id="rm-confirm"></span></div>
+    <div id="rm-result" aria-live="polite"></div>`;
+  const start = $('rm-start');
+  if (start) start.onclick = () => askRemove(d);
+}
+
+function askRemove(d) {
+  const chosen = [...document.querySelectorAll('.rm-item:checked')].map(b => b.value);
+  const names = d.items.filter(i => chosen.includes(i.key)).map(i => i.label);
+  $('rm-confirm').innerHTML = `<span>Remove the scheduled scan${names.length
+      ? `, and delete: <b>${names.map(esc).join(', ')}</b>` : ', and keep all of yours'}?</span>
+    <button data-icon="trash-2" class="act danger" id="rm-yes" type="button">Yes, remove</button>
+    <button data-icon="x" class="act" id="rm-no" type="button">Cancel</button>`;
+  $('rm-no').onclick = () => { $('rm-confirm').innerHTML = ''; };
+  $('rm-yes').onclick = async () => {
+    $('rm-yes').disabled = true;
+    const r = await api('/api/uninstall', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({remove: chosen})});
+    if (!r.ok) { $('rm-result').innerHTML = `<p class="err">${esc(cap(await r.text()))}</p>`; return; }
+    finishRemove(await r.json());
+  };
+}
+
+function finishRemove(out) {
+  const failed = out.failed.length ? `<p class="err">Could not remove:
+    ${out.failed.map(([p, why]) => `<code>${esc(p)}</code> (${esc(why)})`).join(', ')}</p>` : '';
+  const last = {
+    mac: 'click <b>Quit jobdork</b>, then drag jobdork from <b>Applications</b> to the Trash.',
+    appimage: `click <b>Quit jobdork</b>, then delete <code>${esc(out.appimage)}</code>.`,
+    linux: 'click <b>Quit jobdork</b>, then in a terminal: <code>sudo apt remove jobdork</code>.',
+  }[out.finish] || 'quit jobdork and delete the program.';
+  $('rm-box').innerHTML = `<p class="saved"><b>Removed${out.unscheduled ? ' the scheduled scan,' : ''}
+      ${out.removed.length} item${out.removed.length === 1 ? '' : 's'}.</b>
+      ${out.left.length ? 'What you did not tick is kept.' : ''}</p>${failed}
+    <p>Last step: ${last}</p>
+    ${desk() ? '<button data-icon="power" class="act primary" id="rm-quit" type="button">Quit jobdork</button>' : ''}`;
+  if ($('rm-quit')) $('rm-quit').onclick = () => desk().quit_app();
+}
+
 // ── the update window ───────────────────────────────────────────────────────
 // Follows the update job (api.update_progress) from asking GitHub to opening
 // the installer, then says how to finish installing. 0.15.0 showed a notice

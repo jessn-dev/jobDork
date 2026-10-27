@@ -88,3 +88,31 @@ Delete old job posts you are not pursuing:
 the red button. Posts you applied to, or are interviewing or have an offer
 for, are always kept. The database is backed up to `data/backups/` before
 every delete, and a deleted post stays deleted: later scans leave it out.
+
+## Remove jobdork from this computer
+
+To take jobdork off your computer cleanly. The scheduled scan and the app
+window's storage always go. Of yours, tick what to delete as well; anything
+not ticked is kept, so a reinstall finds it:
+
+- **Settings**: what you search for, where, pay, the AI page.
+- **Job posts**, with your statuses, notes and AI verdicts, and the backups
+  of them.
+- **Your resume**.
+- **Letters and tailored resumes** jobdork wrote (in Documents, job-applications).
+- **Saved job-source keys** (Adzuna, USAJOBS).
+- **Logs**.
+- **Downloaded installers** the Update button left in Downloads.
+
+Click **Remove jobdork…**, check the list it shows, then **Yes, remove**. Last,
+remove the program itself, as the page says:
+
+- **Mac:** **Quit jobdork**, then drag jobdork from Applications to the Trash.
+- **Windows:** use **Settings, Apps, jobdork, Uninstall** instead of this
+  page: the uninstaller asks the same questions, and can remove files
+  jobdork has open while it runs.
+- **Linux:** **Quit jobdork**, then delete the AppImage, or run
+  `sudo apt remove jobdork` if you installed the .deb.
+
+From a terminal it is `jobdork uninstall`, which asks about each item, or
+`jobdork uninstall --remove jobs,logs` (or `all`).
