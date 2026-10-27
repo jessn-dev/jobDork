@@ -482,7 +482,14 @@ dialog{overflow:visible}
 .projform textarea{min-height:3.5rem;font-family:inherit}
 .projform input:not([type=hidden]){width:100%;box-sizing:border-box}
 .hint.warn{color:var(--warn)}
-.gjobs{margin:1rem 0 .5rem}
+/* Google Jobs for your titles: above the list, where it is seen, as chips. */
+.gjobs{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;margin:.1rem 0 .9rem;
+  padding:.55rem .75rem;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.gjobs .lead{font-size:.88rem;color:var(--fg);margin-right:.2rem}
+.gjobs .lead svg{width:15px;height:15px;vertical-align:-.15em;margin-right:.3rem;color:var(--muted)}
+.gjobs a{font-size:.84rem;padding:.2rem .65rem;border:1px solid var(--line);border-radius:999px;
+  background:var(--btn);color:var(--accent);text-decoration:none;cursor:pointer}
+.gjobs a:hover{border-color:var(--accent)}
 .proj{border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem;margin-bottom:.5rem}
 .proj .bar{margin:.4rem 0 0}
 .proj .tag{font-size:.72rem;color:var(--accent);border:1px solid var(--accent);
@@ -765,6 +772,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <button data-icon="x" class="act" id="f-clear" hidden>Clear filters</button>
     </div>
     <p class="count" id="count"></p>
+    <div class="gjobs" id="gjobs" hidden></div>
     <div class="cleanup aged" id="aged-roles" role="status" hidden></div>
     <div id="list"><p class="empty">Loading…</p></div>
   </section>
@@ -1536,14 +1544,18 @@ function googleJobsUrl(title) {
     : cfg && cfg.anchor ? `${title} jobs near ${cfg.anchor}` : `${title} jobs`;
   return 'https://www.google.com/search?udm=8&q=' + encodeURIComponent(words);
 }
-function googleJobsLine(lead) {
-  const titles = ((cfg && cfg.titles_include) || []).slice(0, 6);
-  if (!titles.length) return '';
-  return `<p class="hint gjobs">${lead}Search Google Jobs for ${titles.map(t => {
+// Above the list, not after its last post: it was a small grey line at the
+// bottom of a long list, seen only by someone who scrolled to the end.
+function drawGoogleJobs(empty) {
+  const box = $('gjobs'), titles = ((cfg && cfg.titles_include) || []).slice(0, 6);
+  box.hidden = !titles.length;
+  if (!titles.length) return;
+  box.innerHTML = `<span class="lead">${svgIcon('search')}${empty ? 'Nothing here.' : 'Not finding it here?'}
+      Search Google Jobs:</span>${titles.map(t => {
     const url = googleJobsUrl(t);
-    return `<a href="${esc(webHref(url))}" data-url="${esc(url)}"
+    return `<a href="${esc(webHref(url))}" data-url="${esc(url)}" title="Opens Google's job results in your browser"
       onclick="event.preventDefault(); openOut(this.dataset.url)">${esc(t)}</a>`;
-  }).join(', ')}.</p>`;
+  }).join('')}`;
 }
 const base64Of = blob => new Promise((ok, no) => {
   const r = new FileReader();
@@ -1863,9 +1875,8 @@ function drawRoles(d = rolesMeta) {
   const fresh = roles.filter(r => r.status === 'new').length;
   $('nav-new').hidden = !fresh;
   $('nav-new').textContent = fresh > 999 ? '999+' : fresh;
-  $('list').innerHTML = shown.length
-    ? shown.map(card).join('') + googleJobsLine('Not here? ')
-    : '<p class="empty">Nothing matches.</p>' + googleJobsLine('');
+  $('list').innerHTML = shown.length ? shown.map(card).join('') : '<p class="empty">Nothing matches.</p>';
+  drawGoogleJobs(!shown.length);
 }
 
 // How old the post is today (search/freshness.py): the application's place
@@ -2210,6 +2221,7 @@ function drawDetail(tab) {
     body += (d.flags || []).length
       ? `<div class="flags" style="margin-bottom:.6rem">${
           d.flags.map(f => `<span class="flag">${esc(flagLabel(f))}</span>`).join('')}</div>` : '';
+    body += ownBoardLine(d);
     // Some sources cannot be fetched whole (Adzuna refuses scripts), but the
     // person reading the posting in a browser can copy it.
     const thinAd = d.advert_chars <= THIN_ADVERT;
@@ -2407,6 +2419,47 @@ $('btn-judge').onclick = () => runJob('/api/judge');
 
 // One role, from its dialog. Output goes to the Dashboard; the dialog redraws
 // when the job finishes.
+// An aggregator's post (search/ownboard.py): what the employer's own board
+// said in the last scan, and a button to ask it now when the scan could not
+// say (read only partly, or not at all) or to look again.
+const OWN_BOARD_SAID = {
+  found: c => `Also on ${c}'s own board.`,
+  missing: c => `Not on ${c}'s own board, which jobdork read in full: may be filled, or not a real opening.`,
+  partial: c => `jobdork read only part of ${c}'s own board, so it cannot say whether this job is on it.`,
+  unread: c => `jobdork has not read ${c}'s own board since this post was seen.`,
+};
+function ownBoardLine(d) {
+  if (!d.own_board) return '';
+  const said = (OWN_BOARD_SAID[d.own_board] || (() => ''))(esc(d.company));
+  return `<div class="ownboard bar" style="margin:0 0 .6rem"><span class="hint">${said}</span>
+    <button data-icon="building-2" class="act" type="button" id="ownboard-btn"
+      onclick="checkOwnBoard('${d.uid}')">${d.own_board === 'missing' ? 'Check again'
+        : d.own_board === 'found' ? "Look on the employer's board" : "Check the employer's own board"}</button>
+    <span id="ownboard-out" class="hint" aria-live="polite"></span></div>`;
+}
+async function checkOwnBoard(uid) {
+  const out = $('ownboard-out'), btn = $('ownboard-btn');
+  btn.disabled = true; btn.classList.add('busy'); btn.dataset.icon = 'loader-circle';
+  out.className = 'hint'; out.textContent = "Asking the employer's board…";
+  try {
+    const r = await api('/api/own-board', {method: 'POST', body: form({uid})});
+    if (!r.ok) { out.className = 'err'; out.textContent = cap(await r.text()); return; }
+    const d = await r.json(), c = esc(d.company);
+    out.className = d.state === 'missing' ? 'err' : d.state === 'found' ? 'saved' : 'hint';
+    out.innerHTML = {
+      found: `On ${c}'s own board${d.title ? ` as <b>${esc(d.title)}</b>` : ''}:
+        <a href="${esc(webHref(d.url))}" target="_blank" rel="noopener noreferrer" data-out>open it there</a>.`,
+      missing: `Not on ${c}'s own board, searched for this title just now: may be filled, or not a real opening.`,
+      partial: `${c}'s board answered only partly, so it cannot say. Look on their careers site.`,
+      unknown: esc(d.why || ''),
+      failed: `Could not read ${c}'s board: ${esc(d.why || 'no answer')}.`,
+    }[d.state] || '';
+    out.querySelectorAll('[data-out]').forEach(a => a.onclick = e => { e.preventDefault(); openOut(a.href); });
+  } finally {
+    btn.disabled = false; btn.classList.remove('busy'); btn.dataset.icon = 'building-2';
+  }
+}
+
 async function roleJob(which, uid, tab) {
   $('rolejob').textContent = {judge: 'AI is reading…', check: 'checking…',
     letter: 'AI is writing the letter; it opens here when done…',

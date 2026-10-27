@@ -1,7 +1,7 @@
 """
 jobdork.search.ownboard
 =======================
-An Adzuna post that the employer's own board does not carry.
+An aggregator's post that the employer's own board does not carry.
 
 Adzuna republishes adverts it gathers from across the web, and keeps showing
 some after the employer has filled or withdrawn them; some were never real
@@ -32,6 +32,12 @@ from __future__ import annotations
 
 import re
 
+# Sources that carry many employers' jobs, gathered from elsewhere or posted
+# there: their posts are the ones checked against the employer's own board.
+# Not USAJOBS (federal agencies' own listings) nor Workable's search (each
+# post is from the employer's own Workable board).
+AGGREGATORS = frozenset({"adzuna", "himalayas", "arbeitnow", "kalibrr"})
+
 # An employer's own board, read through its own system (discover.BOARD_PATTERNS)
 # or its careers site. Not Adzuna, USAJOBS, Workable's search, Himalayas,
 # Arbeitnow, the Arbeitsagentur or Kalibrr, which carry many employers' jobs.
@@ -53,7 +59,9 @@ def title_key(title: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9]+", " ", (title or "").lower()).split())
 
 
-def _same_title(a: str, b: str) -> bool:
+def same_title(a: str, b: str) -> bool:
+    """One title key inside the other: "registered nurse" and "registered
+    nurse icu" are the same job."""
     return bool(a and b) and (a == b or a in b or b in a)
 
 
@@ -62,34 +70,67 @@ def flag_text(company: str) -> str:
             "may be filled, or not a real opening")
 
 
-def missing(adzuna: list[tuple[str, str, str, str]],
-            board: list[tuple[str, str, str]]) -> set[str]:
-    """The Adzuna posts to flag, by uid.
+def states(posts: list[tuple[str, str, str, str]],
+           board: list[tuple[str, str, str]],
+           reads: list[tuple[str, str, bool]] = ()) -> dict[str, str]:
+    """What the employer's own board says of each aggregator post, by uid:
 
-    `adzuna`: (uid, company, title, last_seen) for each Adzuna post.
-    `board`: (company, title, seen) for each job seen on an employer's own
-    board, kept or dropped. Dates are compared by day.
+    "found"    the board carries the same title
+    "missing"  the board was read in full, near when the post was seen, and
+               does not carry it: the post is flagged
+    "partial"  the board was read, but not to the end: it cannot vouch
+    "unread"   jobdork has not read that employer's board near then
+
+    `posts`: (uid, company, title, last_seen). `board`: (company, title,
+    seen) for each job seen on an employer's own board, kept or dropped.
+    `reads`: (company, read_at, complete) from board_reads, so a board that
+    answered nothing matching still counts as read. Dates by day.
     """
     titles: dict[str, set[str]] = {}
-    latest: dict[str, str] = {}
+    seen_day: dict[str, str] = {}    # employer -> latest day a board job was seen
     for company, title, seen in board:
         key = employer_key(company)
-        if not key:
-            continue
-        titles.setdefault(key, set()).add(title_key(title))
-        day = (seen or "")[:10]
-        if day > latest.get(key, ""):
-            latest[key] = day
-    flagged = set()
-    for uid, company, title, last_seen in adzuna:
+        if key:
+            titles.setdefault(key, set()).add(title_key(title))
+            _later(seen_day, key, seen)
+    # employer -> (latest day read, read in full that day)
+    read: dict[str, tuple[str, bool]] = {}
+    for company, read_at, complete in reads:
         key = employer_key(company)
-        read = latest.get(key)
-        if not key or not read or read < _day_before((last_seen or "")[:10]):
+        day = (read_at or "")[:10]
+        if key and (day, bool(complete)) > read.get(key, ("", False)):
+            read[key] = (day, bool(complete))
+    out = {}
+    for uid, company, title, last_seen in posts:
+        key = employer_key(company)
+        if key and any(same_title(title_key(title), t) for t in titles.get(key, ())):
+            out[uid] = "found"
             continue
-        wanted = title_key(title)
-        if not any(_same_title(wanted, t) for t in titles[key]):
-            flagged.add(uid)
-    return flagged
+        since = _day_before((last_seen or "")[:10])
+        day, complete = read.get(key, ("", False))
+        if key and day and day >= since:
+            out[uid] = "missing" if complete else "partial"
+        elif key and seen_day.get(key, "") >= since:
+            # No read recorded (a scan from before board_reads): one of the
+            # board's jobs seen then is the evidence it was read, as before.
+            out[uid] = "missing"
+        else:
+            out[uid] = "unread"
+    return out
+
+
+def missing(posts: list[tuple[str, str, str, str]],
+            board: list[tuple[str, str, str]],
+            reads: list[tuple[str, str, bool]] = ()) -> set[str]:
+    """The aggregator posts to flag, by uid (states(), "missing")."""
+    return {uid for uid, state in states(posts, board, reads).items() if state == "missing"}
+
+
+def _later(latest: dict[str, str], key: str, stamp: str) -> None:
+    day = (stamp or "")[:10]
+    if day > latest.get(key, ""):
+        latest[key] = day
+
 
 
 def _day_before(day: str) -> str:

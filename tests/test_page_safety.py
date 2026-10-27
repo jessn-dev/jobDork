@@ -51,10 +51,12 @@ def test_the_google_jobs_link_carries_your_words_encoded_to_google_only():
     page = _page()
     builder = re.search(r"function googleJobsUrl\(title\) \{.*?\n\}", page, re.S).group(0)
     assert "return 'https://www.google.com/search?udm=8&q=' + encodeURIComponent(words);" in builder
-    line = re.search(r"function googleJobsLine\(lead\) \{.*?\n\}", page, re.S).group(0)
+    line = re.search(r"function drawGoogleJobs\(empty\) \{.*?\n\}", page, re.S).group(0)
     assert "openOut(this.dataset.url)" in line and "esc(t)" in line
-    # Under the list, and in its place when nothing matches.
-    assert "googleJobsLine('Not here? ')" in page and "'<p class=\"empty\">Nothing matches.</p>' + googleJobsLine('')" in page
+    # Above the list, where it is seen, not after its last post; drawn with
+    # every list, empty or not.
+    assert page.index('id="gjobs"') < page.index('<div id="list">')
+    assert "drawGoogleJobs(!shown.length);" in page
 
 
 # ── keep this block LAST ───────────────────────────────────────────────────────

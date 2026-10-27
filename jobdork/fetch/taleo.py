@@ -107,6 +107,7 @@ def fetch(fetcher, cfg, token: str = "", company: str = "",
     jobs, requests_made, cut = listing(fetcher, host, path, org, cws)
     result.requests_made += requests_made
     if cut:
+        result.complete = False
         result.errors.append(f"{token}: read the first {len(jobs)} jobs; the board lists more")
 
     for card in jobs:

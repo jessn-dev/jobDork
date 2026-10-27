@@ -215,3 +215,22 @@ if __name__ == "__main__":
             print(f"FAIL {name}: {type(exc).__name__}: {exc}")
     print(f"{len(tests) - failures}/{len(tests)} passed")
     raise SystemExit(1 if failures else 0)
+
+
+def test_a_board_read_to_the_end_is_complete_and_one_cut_at_the_page_limit_is_not():
+    """Only a board read to the end can vouch that a job is not on it."""
+    small = workday.fetch(_Fetcher([_listing(1, "Software Engineer")]), _cfg(),
+                          token=TOKEN, company="Acme")
+    assert small.complete
+
+    class Endless(_Fetcher):
+        def post(self, url, json_body=None, **_):
+            self.posts.append(json_body)
+            page = [_listing(json_body["offset"] + i, f"Accountant {i}")
+                    for i in range(workday.PAGE_SIZE)] if json_body["searchText"] else []
+            return Response(url=url, status=200, json={
+                "total": 10_000 if json_body["offset"] == 0 else 0,
+                "jobPostings": page, "facets": self.facets})
+
+    big = workday.fetch(Endless([]), _cfg(), token=TOKEN, company="Acme")
+    assert not big.complete
