@@ -91,7 +91,7 @@ jobs:
   winget:
     needs: build
     runs-on: windows-2025
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -145,8 +145,28 @@ jobs:
             Write-Output $checked
             if ($LASTEXITCODE -and $checked -notmatch 'succeeded with warnings') { throw "winget validate failed ($LASTEXITCODE)" }
 
-            winget install --manifest $manifest --silent --disable-interactivity --accept-package-agreements --accept-source-agreements
-            if ($LASTEXITCODE) { throw "winget install failed ($LASTEXITCODE)" }
+            # With a time limit and the installer's own log: a silent install
+            # that waits on something shows nothing but a spinner, so on the
+            # limit say what is still running and what both logs say.
+            $log = Join-Path $PWD 'inno-install.log'
+            $install = Start-Process winget -PassThru -NoNewWindow -ArgumentList @(
+              'install', '--manifest', $manifest, '--silent', '--disable-interactivity',
+              '--accept-package-agreements', '--accept-source-agreements', '--log', $log)
+            if (-not $install.WaitForExit(600000)) {
+              Write-Output '--- still running after 10 minutes:'
+              Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'jobdork|\.tmp|setup|winget|AppInstaller' } |
+                Format-Table ProcessId, ParentProcessId, Name, CommandLine -AutoSize -Wrap | Out-String -Width 400
+              Write-Output '--- the installer log:'
+              if (Test-Path $log) { Get-Content $log -Tail 60 }
+              Write-Output '--- winget log:'
+              $diag = "$env:LOCALAPPDATA\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\DiagOutputDir"
+              Get-ChildItem $diag -Filter *.log -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1 | Get-Content -Tail 60
+              throw 'winget install did not finish in 10 minutes'
+            }
+            if ($install.ExitCode) {
+              if (Test-Path $log) { Get-Content $log -Tail 60 }
+              throw "winget install failed ($($install.ExitCode))"
+            }
             # What WinGet matches a package by: the name, version and publisher
             # Windows lists the app under (the AppId in jobdork.iss, with _is1).
             $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{89BA0AFD-43DD-4F5C-ADC2-221D5F8E1EA6}_is1'
