@@ -6,6 +6,17 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-27 — What 1.0 promises, and when it comes
+
+docs/DECISIONS.md now says what a version number promises from 1.0.0 on:
+patches fix, minor versions add, and only a major version may break your
+settings file, your data, kept keys, the commands, the environment
+variables, the installers and Docker image, or what PRIVACY.md rules out,
+said in the notes with how to move over. The pages' look, scores, sources
+and the database's tables are not promised. 1.0.0 is the public launch,
+after 0.15.2's Update is checked, the security review's work, a few people
+who do not program have installed it, and jobdork is in WinGet.
+
 ## Changed — 2026-10-27 — version 0.15.2
 
 0.15.2 carries the 6 entries below, everything since 0.15.1 (26 October).
