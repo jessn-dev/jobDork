@@ -11,7 +11,7 @@ mkdir -p jobdork/data && cd jobdork
 docker run -d --name jobdork --restart unless-stopped \
   -p 127.0.0.1:8765:8765 \
   -v "$PWD/data:/app/data" \
-  jessengolab/jobdork:0.15.2
+  jessengolab/jobdork:0.15.3
 docker logs jobdork          # the address to open, with its token
 ```
 
@@ -36,7 +36,7 @@ with its `ports` line changed to `"127.0.0.1:8765:8765"` and
 `JOBDORK_ALLOW_HOSTS` removed, then `docker compose up -d`.
 
 **Or build the image yourself** from a clone: `docker build -t jobdork .`
-and use `jobdork` in place of `jessengolab/jobdork:0.15.2`.
+and use `jobdork` in place of `jessengolab/jobdork:0.15.3`.
 
 ## What goes in the data folder
 
@@ -86,7 +86,7 @@ posts ring the dashboard's bell rather than a system notification.
 ## Updating
 
 ```bash
-docker pull jessengolab/jobdork:0.15.2     # the newest release
+docker pull jessengolab/jobdork:0.15.3     # the newest release
 docker rm -f jobdork
 # then the same docker run as above, with the new version
 ```

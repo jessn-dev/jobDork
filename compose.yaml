@@ -14,7 +14,7 @@ services:
   jobdork:
     # A version tag, so an update is your choice. `latest` is the newest release.
     # 0.14.4 or newer: 0.14.3 and older need a config.yaml mapped in by hand.
-    image: jessengolab/jobdork:0.15.2
+    image: jessengolab/jobdork:0.15.3
     container_name: jobdork
     restart: unless-stopped
     ports:

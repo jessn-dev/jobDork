@@ -128,7 +128,8 @@ Windows certificate) before anyone has asked for the app.
 (simpler, but feels like a website and still needs packaging); Electron or
 Tauri (a second front end to keep, for the same page); a Linux build in the
 first release (the window needs WebKitGTK on the user's system; Docker and
-`pip install` already serve Linux users); an Intel macOS build.
+`pip install` already serve Linux users); an Intel macOS build (added in
+0.15.3 for a user on an Intel Mac, keeping `cryptography` at 48.0.1 there).
 
 **Revisit when** users report the unsigned warnings stop them installing
 (sign macOS first, then notarise in CI); Linux users ask for
