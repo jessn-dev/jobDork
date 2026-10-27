@@ -42,7 +42,9 @@ permission; in Docker, the page rings a bell while it is open instead.)
 
 Which version you have and whether a newer one is out.
 
-- **Check now** asks at once.
+- **Check now** asks at once. When GitHub cannot be reached it says so and
+  why (offline, GitHub limiting requests from your network, a certificate
+  it could not verify), and offers **Release page** to look yourself.
 - **Update** (in the desktop app) downloads the new installer, checks it
   was built by jobdork's own release workflow (its checksum and its build
   attestation), and opens it; one that fails the check is deleted, not

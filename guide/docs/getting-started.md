@@ -32,8 +32,9 @@ the same step.
    for**, the titles to find, and any to leave out. With AI set up, it
    suggests titles from your resume. You can also pick the kinds of
    employers and add dealbreakers.
-4. **Where** (required). Your city, how far you would travel, and whether
-   you want remote, hybrid or on-site work.
+4. **Where** (required). Your country and city are required; the state
+   can stay at **Any**. Then how far you would travel, and whether you want
+   remote, hybrid or on-site work. **Continue** names the field still empty.
 5. **Pay and job sources** (optional). The lowest yearly pay you would
    take: only a post that *states* lower pay is hidden (see
    [the salary floor](search.md#location-work-arrangement-and-pay)). Two

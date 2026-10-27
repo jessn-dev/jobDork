@@ -35,6 +35,86 @@ every model have its own Ollama address; nothing said how to use that.
 - Linked from the user guide's AI page, docs/run/README.md and the NAS
   guide.
 
+## Fixed — 2026-10-26 — The hallucination check reads more ways of saying something is missing
+
+Reported from 0.14.4 with Gemini judging and Ollama (gemma4:26b) checking:
+the hallucination rate reached 36% (181 of 497 claims). 119 of the 181 were
+gaps ("the candidate lacks Kafka"), which 0.14.4 always counted as made up;
+0.15.0 settles a gap by script, against the resume, and run on the same
+claims that alone leaves about 17%. Some gaps were still not read as gaps,
+because of how they were worded:
+
+- **"does not explicitly list", "is not clearly documented", "does not
+  confirm", "has not worked with", "has not held"** now count as claims that
+  something is missing, and get the same script check: supported when the
+  thing is nowhere in the resume, contradicted when it is there.
+- "The candidate's experience with Argo CD is not clearly documented" is
+  checked for "Argo CD", not for the words around it, which are never in a
+  resume and would have settled any such gap as true.
+
+On those 497 claims the script now settles 114 of the 181 flags, which
+leaves about 13%. What remains is mostly the checker not finding what the
+resume does say (Kubernetes and Helm, which it lists) and the reader's own
+judgements ("a fragmented work history"); a stronger checker model helps
+with the first (the guide's AI page compares checkers; qwen3.8:27b did best).
+
+## Fixed — 2026-10-26 — Check now says when it could not ask GitHub
+
+Reported from 0.14.4: Settings, Updates, **Check now** answered "You have
+jobdork 0.14.4, the newest" with 0.15.0 out. A check that failed (offline,
+GitHub limiting requests, a certificate that could not be verified) looked
+the same as no newer release; the app's data folder had no
+`version-check.json`, which is written only when GitHub answers, so no check
+had ever reached it.
+
+- **Check now says it could not check, and why**, and offers **Release
+  page** to look by hand. Opening Settings stays quiet about a failed check,
+  as before; the reason also goes to Warnings and errors.
+- **The update check and Update's downloads use certifi's certificates**,
+  the bundle every other request in jobdork already uses. They went through
+  urllib with the certificates of the Python they run in, which in the
+  desktop app may be looked for where the build machine kept them. Not
+  confirmed as the cause on the reporting Mac; the message now names it if
+  it is.
+
+## Changed — 2026-10-26 — Setup's Where step says what it needs
+
+Reported from 0.14.4: with a country chosen, the state left at "Any state"
+and the city empty, **Continue** said "Choose your country and city first",
+which read as if the state were the problem, and nothing on the page said
+the city was required.
+
+- The step says up front that your country and city are required, and that
+  the state can stay at "Any" and the rest as it is.
+- **Continue** names the one field still empty ("Choose your country.", or
+  "Type your city and pick it from the list."), outlines it in red and puts
+  the cursor in it.
+
+## Changed — 2026-10-26 — Save and test shows it is working
+
+Reported from 0.14.4: after **Save and test** nothing on the page changed
+until the model answered, which for a local model can be a minute, so the
+click looked lost.
+
+- While it runs the button reads **Testing…** with a spinning circle, Save
+  and Save and test cannot be clicked again, and the message names the
+  models being asked. The result replaces it as before.
+
+## Added — 2026-10-26 — Groq's mark on its provider button
+
+Groq became a provider in 0.15.0 without the mark the other providers show
+beside their names on the AI page and in setup. It has its own now (from Lobe
+Icons, MIT), in Groq's orange.
+
+## Fixed — 2026-10-26 — "Other: type a model name" shows the box to type in
+
+Reported from 0.14.4 with Gemini, and true of every provider: choosing
+**Other** in the model list hid the text box instead of showing it, and
+filled in a garbled name, so a model the list did not have could not be
+entered. The option's value began with a NUL character, which HTML turns
+into U+FFFD, so it never matched the value the page compared it with. It is
+plain text now, and a test keeps NUL out of the page.
+
 ## Changed — 2026-10-25 — version 0.15.0
 
 0.15.0 carries the 33 entries below, everything since 0.14.4 (24 October).
