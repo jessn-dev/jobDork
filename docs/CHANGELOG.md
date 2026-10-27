@@ -6,6 +6,33 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-27 — version 0.15.2
+
+0.15.2 carries the 6 entries below, everything since 0.15.1 (26 October).
+The ones a user notices most:
+
+- **Keys, your choice:** asked for again after jobdork closes or updates, or
+  kept in your computer's own keychain (macOS Keychain, Windows Credential
+  Manager, Secret Service on Linux). Never in a file: the old plain
+  `source-keys.env` is moved to the keychain or dropped at the first start,
+  and deleted. Start over and removing jobdork always remove kept keys.
+- **An update window** that shows each step, from asking GitHub to opening
+  the installer, then how to finish installing; a failure says why.
+- **Remove jobdork from a computer**, choosing what of yours goes: the
+  Windows uninstaller asks, and Settings and `jobdork uninstall` do the same
+  on a Mac or Linux.
+- **Posts from every aggregator** (Adzuna, Himalayas, Arbeitnow, Kalibrr) are
+  checked against the employer's own board, and a post's window can ask that
+  board now. **Search Google Jobs** sits above the list.
+- **The README** opens on a banner.
+
+Updating from 0.15.1 with its own Update button uses 0.15.1's notice, not
+the new window, which shows from the next update on. At the first start of
+0.15.2, keys you entered before are gone from memory, as after any restart:
+the new **Enter your keys** window asks for them, and asks where an old
+`source-keys.env`'s keys should go. On a Mac, keeping keys in the Keychain
+means the Mac asks once after each update to let jobdork use it.
+
 ## Changed — 2026-10-27 — Keys: asked for again after a restart, or kept in the computer's keychain by choice
 
 After jobdork closed or updated, AI keys held in memory were gone and
@@ -6549,6 +6576,17 @@ open; a digest arrives, and what arrived with it is what was not there before.
   its claim check, a tailored letter); or a demo build of the dashboard
   itself on the website, the real page on fixed demo data with no server.
   The recording is done in the maintainer's own browser and account.
+- **Linux installers: an AppImage and a .deb** (chosen 2026-10-27, both),
+  built and attested by the release workflow beside the Mac and Windows
+  ones, with removal (`jobdork uninstall`, Settings) and Update for each.
+- **Guardrails, from Guardrails AI's ideas** (guardrails-ai/guardrails, used
+  as reference, not as a dependency): measure `bespoke-minicheck` (4.7 GB,
+  already in Ollama) as the checker with scripts/hallucination_benchmark.py,
+  so smaller computers can run reader and checker together; a rewrite pass
+  that asks the reader once to fix only the claims the check flagged ("reask"),
+  the biggest lever for smaller models (10% to 18% in docs/AI-MODELS.md); and
+  matching claims to the resume by meaning (an Ollama embedding model), for
+  true claims worded differently from the resume.
 - **Sources: say why no employer boards are read.** With `sources.keyless`
   narrowed to sources that are not employer-board platforms (no workday,
   greenhouse…), `jobdork sources` says "0 built-in employer boards" without
