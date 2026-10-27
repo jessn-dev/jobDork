@@ -9,6 +9,13 @@ installs that release from its GitHub Release page.
     python scripts/winget_manifest.py 0.15.2
     python scripts/winget_manifest.py 0.15.2 --out /tmp/winget
 
+CI tries it before a release does: on every pull request the desktop
+workflow writes one for the installer it just built, with the address of a
+server on the runner, and installs and uninstalls it with winget:
+
+    python scripts/winget_manifest.py 0.15.2 --installer dist/jobdork-0.15.2-windows-x64-setup.exe \
+        --url http://127.0.0.1:8765/jobdork-0.15.2-windows-x64-setup.exe --iss packaging/jobdork.iss
+
 It writes them under `<out>/manifests/j/jessn-dev/jobdork/<version>/`, the
 same path they take in winget-pkgs, so that folder can be checked on Windows
 (`winget validate --manifest <folder>`, `winget install --manifest <folder>`)
@@ -37,6 +44,7 @@ Standard library only, Python 3.10 and newer.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -122,7 +130,8 @@ def _quote(text: str) -> str:
     return "'" + text.replace("'", "''") + "'"
 
 
-def manifests(version: str, sha256: str, date: str, shown_as: str) -> dict[str, str]:
+def manifests(version: str, sha256: str, date: str, shown_as: str,
+              url: str | None = None) -> dict[str, str]:
     """The three files, by file name."""
     tag = f"v{version}"
     common = f"PackageIdentifier: {IDENTIFIER}\nPackageVersion: {version}\n"
@@ -138,7 +147,7 @@ def manifests(version: str, sha256: str, date: str, shown_as: str) -> dict[str, 
                       + "InstallerType: inno\nScope: user\nUpgradeBehavior: install\n"
                       + f"ProductCode: {_quote(PRODUCT_CODE)}\nReleaseDate: {date}\n" + apps
                       + "Installers:\n- Architecture: x64\n"
-                      + f"  InstallerUrl: {download_url(version, installer_name(version))}\n"
+                      + f"  InstallerUrl: {url or download_url(version, installer_name(version))}\n"
                       + f"  InstallerSha256: {sha256}\n"
                       + f"ManifestType: installer\nManifestVersion: {SCHEMA}\n")
 
@@ -180,16 +189,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default="winget", help="folder to write under (default: ./winget)")
     parser.add_argument("--sums", help="a local SHA256SUMS.txt instead of the release's")
     parser.add_argument("--date", help="the release date, YYYY-MM-DD, instead of GitHub's")
+    parser.add_argument("--installer", help="hash this installer file instead (a build, not a release)")
+    parser.add_argument("--url", help="the installer's address, instead of the release's")
+    parser.add_argument("--iss", help="read the installer's name from this script, not the tag's")
     args = parser.parse_args(argv)
 
     version = args.version.removeprefix("v")
     if not _VERSION.match(version):
         parser.error(f"{args.version!r} is not a version like 0.15.2")
     name = installer_name(version)
-    sums = (Path(args.sums).read_text(encoding="utf-8") if args.sums
-            else _get(download_url(version, "SHA256SUMS.txt")).decode("utf-8"))
-    files = manifests(version, sha256_from_sums(sums, name),
-                      args.date or release_date(version), display_name(version))
+    if args.installer:
+        sha256 = hashlib.sha256(Path(args.installer).read_bytes()).hexdigest().upper()
+    else:
+        sums = (Path(args.sums).read_text(encoding="utf-8") if args.sums
+                else _get(download_url(version, "SHA256SUMS.txt")).decode("utf-8"))
+        sha256 = sha256_from_sums(sums, name)
+    shown_as = (display_name(version, Path(args.iss).read_text(encoding="utf-8"))
+                if args.iss else display_name(version))
+    files = manifests(version, sha256, args.date or release_date(version), shown_as, args.url)
     where = folder(Path(args.out), version)
     where.mkdir(parents=True, exist_ok=True)
     for file_name, text in files.items():

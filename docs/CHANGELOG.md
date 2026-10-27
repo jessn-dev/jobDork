@@ -33,6 +33,12 @@ it and into an entry when the work is done.
   step runs the script on the release's own checksums and keeps the three
   files with the run (`winget-manifest-vX.Y.Z`, 90 days), after the release
   page, so a manifest problem never holds up a release.
+- **The manifest is tried for real on every pull request:** a `winget` job
+  on Windows writes one for the installer just built, serves the installer
+  from the runner, runs `winget validate`, `winget install --manifest`
+  (silent, as WinGet's own checks install a submission), checks the name,
+  version and publisher Windows lists it under and that `jobdork.exe` is
+  there, then `winget uninstall` and checks both are gone.
 - **The Windows installer names the app "jobdork"** under Installed apps
   (`UninstallDisplayName`), instead of Inno Setup's "jobdork version
   0.15.2": WinGet matches an installed app to its package by that name.

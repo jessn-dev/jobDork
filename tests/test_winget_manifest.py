@@ -102,6 +102,22 @@ def test_writes_the_folder_from_a_local_checksum_file():
             raise AssertionError("a release missing from SHA256SUMS.txt must stop it")
 
 
+def test_a_build_on_this_computer_is_written_with_its_own_address():
+    """What CI installs with winget on every pull request."""
+    with tempfile.TemporaryDirectory() as tmp:
+        exe = Path(tmp) / "jobdork-1.2.3-windows-x64-setup.exe"
+        exe.write_bytes(b"setup")
+        url = "http://127.0.0.1:8765/" + exe.name
+        assert wm.main(["1.2.3", "--out", tmp, "--installer", str(exe), "--url", url,
+                        "--iss", str(ROOT / "packaging" / "jobdork.iss"),
+                        "--date", "2026-10-27"]) == 0
+        inst = yaml.safe_load((wm.folder(Path(tmp), "1.2.3")
+                               / "jessn-dev.jobdork.installer.yaml").read_text())
+        (one,) = inst["Installers"]
+        assert one["InstallerUrl"] == url and one["InstallerSha256"] == DIGEST.upper()
+        assert "AppsAndFeaturesEntries" not in inst              # this script says "jobdork"
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]
