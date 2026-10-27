@@ -163,6 +163,14 @@ def key_for(provider: str) -> tuple[str, str]:
     for name in ENV_KEYS[provider]:
         if os.environ.get(name):
             return os.environ[name], "environment"
+    # A key you chose to keep, taken out of memory by a restart or the idle
+    # wipe: back from the keychain, into memory, for this call and the next.
+    from ..core import keystore
+    if keystore.remembering:
+        kept = keystore.load(keystore.AI_PREFIX + provider)
+        if kept:
+            VAULT.put(provider, kept)
+            return kept, "keychain"
     return "", ""
 
 
@@ -239,7 +247,7 @@ class Settings:
             return f"no model chosen for {PROVIDERS[self.provider]}"
         if self.provider in KEYED and not key_for(self.provider)[0]:
             return (f"no {PROVIDERS[self.provider]} key held. Enter it on the "
-                    "AI page (kept in memory until the app stops)")
+                    "AI page")
         return ""
 
     @property

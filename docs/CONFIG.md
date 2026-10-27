@@ -686,10 +686,15 @@ interviewing and offer are kept whatever their age.
 ## Environment
 
 Read from `.env` in the project root, which is gitignored. The environment
-always wins over the YAML. Keys for Adzuna and USAJOBS typed in the app are
-kept in `source-keys.env` beside the database (readable by your user only);
-the environment and `.env` win over it. A key written into `config.yaml` is
-accepted, with a warning.
+always wins over the YAML. Keys typed in the app (AI and Adzuna/USAJOBS) are
+held in memory, or kept in the computer's keychain when `remember_keys` is
+true; the environment and `.env` win over both. A key written into
+`config.yaml` is accepted, with a warning.
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `remember_keys` | bool | `false` | Keep keys typed in the app in this computer's keychain (macOS Keychain, Windows Credential Manager, Secret Service on Linux) instead of memory only. Set on setup's first page or in Settings, Your keys |
+| `key_sources` | list | empty | The keyed job sources you gave keys for (`adzuna`, `usajobs`): names only, so jobdork can ask for those keys again after a restart |
 
 | Variable | For |
 |---|---|

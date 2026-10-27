@@ -1244,13 +1244,14 @@ def test_jobdork_setup_pay_step_takes_a_yearly_floor():
 
 
 @_restoring_the_environment
-def test_source_keys_typed_into_the_app_are_kept_beside_the_database():
+def test_source_keys_typed_into_the_app_are_held_in_memory_or_the_keychain():
+    """Never a file (2026-10-27): memory only, unless you chose to keep keys,
+    and then the computer's keychain (a pretend one here, tests/conftest.py)."""
     import os
-    import stat
     import tempfile
     from pathlib import Path
 
-    from jobdork.core import config
+    from jobdork.core import config, keystore
     from jobdork.web import api
     names = config.SOURCE_KEY_NAMES
     saved = {n: os.environ.pop(n, None) for n in names}
@@ -1270,21 +1271,33 @@ def test_source_keys_typed_into_the_app_are_kept_beside_the_database():
                 assert "both" in str(exc)
             else:
                 raise AssertionError("half a key pair is refused")
-            api.setup_keys(cfg, {"ADZUNA_APP_ID": "abc", "ADZUNA_APP_KEY": "k3y"})
-            held = Path("data") / config.SOURCE_KEYS_FILE
-            assert stat.S_IMODE(held.stat().st_mode) == 0o600
-            assert "k3y" not in Path("config.yaml").read_text()
 
-            for n in ("ADZUNA_APP_ID", "ADZUNA_APP_KEY"):
-                os.environ.pop(n)
-            cfg = config.load()                  # a restart reads them back
-            assert cfg.sources.adzuna_ready()
-            report = api.setup_sources(cfg)
+            # Not kept: held until jobdork closes, and nowhere on disk.
+            note = api.setup_keys(cfg, {"ADZUNA_APP_ID": "abc", "ADZUNA_APP_KEY": "k3y"})
+            assert "Held until jobdork closes" in note
+            assert not (Path("data") / config.SOURCE_KEYS_FILE).exists()
+            assert "k3y" not in Path("config.yaml").read_text()
+            assert config.load().key_sources == ["adzuna"]     # the name, to ask again
+            report = api.setup_sources(config.load())
             adzuna = next(k for k in report["keyed"] if k["name"] == "adzuna")
             assert adzuna["held"] == "app" and "k3y" not in str(report)
+            for n in ("ADZUNA_APP_ID", "ADZUNA_APP_KEY"):
+                os.environ.pop(n)
+            cfg = config.load()                   # a restart: gone, and asked for
+            assert not cfg.sources.adzuna_ready()
+            assert [m["name"] for m in api.keys_state(cfg)["missing"]] == ["adzuna"]
 
-            api.setup_keys(cfg, {"remove": True, "ADZUNA_APP_ID": "", "ADZUNA_APP_KEY": ""})
-            assert not config.load().sources.adzuna_ready()
+            # Kept: in the keychain, and back after a restart.
+            Path("config.yaml").write_text(Path("config.yaml").read_text()
+                                           + "remember_keys: true\n")
+            cfg = config.load()
+            note = api.setup_keys(cfg, {"ADZUNA_APP_ID": "abc", "ADZUNA_APP_KEY": "k3y"})
+            assert "keychain" in note and keystore.load("ADZUNA_APP_KEY") == "k3y"
+            for n in ("ADZUNA_APP_ID", "ADZUNA_APP_KEY"):
+                os.environ.pop(n)
+            assert config.load().sources.adzuna_ready()
+            assert api.keys_state(config.load())["missing"] == []
+
             # A USAJOBS key is base64, "=" padding and all, and comes back
             # exactly as typed after a restart.
             usajobs = "Ab3+/xYz0123456789qrstuvWXYZabcdefghijklmn=="
@@ -1302,6 +1315,8 @@ def test_source_keys_typed_into_the_app_are_kept_beside_the_database():
             else:
                 raise AssertionError("a line break is refused")
             api.setup_keys(cfg, {"remove": True, "USAJOBS_API_KEY": "", "USAJOBS_EMAIL": ""})
+            assert keystore.load("USAJOBS_API_KEY") == ""
+            api.setup_keys(cfg, {"remove": True, "ADZUNA_APP_ID": "", "ADZUNA_APP_KEY": ""})
             try:
                 config.write_source_keys(cfg, {"OPENAI_API_KEY": "x"})
             except config.ConfigError:
@@ -1342,7 +1357,9 @@ def test_a_key_is_checked_and_tried_before_it_is_saved():
             Path("config.yaml").write_text("titles: {include: [nurse]}\n"
                                            "locations: {countries: [US]}\n")
             cfg = config.load()
-            held = Path("data") / config.SOURCE_KEYS_FILE
+
+            def held():
+                return bool(os.environ.get("USAJOBS_API_KEY"))
 
             def refused(form, words):
                 try:
@@ -1359,26 +1376,26 @@ def test_a_key_is_checked_and_tried_before_it_is_saved():
                     "a space")
             refused({"USAJOBS_API_KEY": "abc=", "USAJOBS_EMAIL": "me.example.com"},
                     "not an email address")
-            assert not tried and not held.exists()
+            assert not tried and not held()
 
             # A key USAJOBS refuses is not saved.
             refused({"USAJOBS_API_KEY": "abc=", "USAJOBS_EMAIL": "me@example.com"},
                     "refused")
-            assert len(tried) == 1 and not held.exists()
+            assert len(tried) == 1 and not held()
 
             # One it cannot be asked about is not saved either: only a key
             # the source accepted is kept (2026-10-23).
             answer["verdict"] = ("unknown", "USAJOBS could not be asked (timed out)")
             refused({"USAJOBS_API_KEY": "abc=", "USAJOBS_EMAIL": "me@example.com"},
                     "could not be tested")
-            assert not held.exists()
+            assert not held()
 
             # One it accepts is saved.
             answer["verdict"] = ("ok", "")
             assert api.setup_keys(cfg, {"USAJOBS_API_KEY": "abc=",
-                                        "USAJOBS_EMAIL": "me@example.com"}) == \
-                "Tested: USAJOBS accepted the key, and it is saved."
-            assert "USAJOBS_API_KEY=abc=" in held.read_text()
+                                        "USAJOBS_EMAIL": "me@example.com"}).startswith(
+                "Tested: USAJOBS accepted the key.")
+            assert os.environ["USAJOBS_API_KEY"] == "abc="
 
             # Removing asks nothing of anyone.
             assert api.setup_keys(cfg, {"remove": True, "USAJOBS_API_KEY": "",

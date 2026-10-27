@@ -28,6 +28,7 @@ Two things are handled carefully because they take input from a browser:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -1717,6 +1718,14 @@ def start_over(cfg, words: str, backup: bool = True) -> dict:
         except FileNotFoundError:
             pass
     llm.VAULT.wipe()
+    # And the keys you chose to keep: a fresh start keeps nothing.
+    from ..core import keystore
+    from ..core.config import APP_KEYS, SOURCE_KEY_NAMES
+    keystore.forget_all()
+    for name in SOURCE_KEY_NAMES:
+        if name in APP_KEYS:
+            os.environ.pop(name, None)
+            APP_KEYS.discard(name)
     return {"removed": removed, "backup": kept}
 
 
@@ -1859,23 +1868,130 @@ def llm_models(cfg, provider: str, ollama_url: str = "") -> dict:
 
 
 def llm_key(provider: str, key: str) -> dict:
-    """Hold a key in memory. It is never echoed back, logged or written."""
+    """Hold a key in memory, and keep it in the keychain when you chose to
+    (core/keystore.py). It is never echoed back, logged or written to a file."""
     from ..ai import llm
+    from ..core import keystore
 
     try:
         llm.VAULT.put(provider, key)
     except llm.LLMError as exc:
         raise ApiError(str(exc)) from exc
-    return {"held": llm.VAULT.held()}
+    note = ""
+    if keystore.remembering:
+        try:
+            keystore.save(keystore.AI_PREFIX + provider, key.strip())
+            note = "kept in this computer's keychain"
+        except keystore.KeystoreError as exc:
+            note = f"held until jobdork closes: {exc}"
+    return {"held": llm.VAULT.held(), "note": note}
+
+
+def _note_key_source(cfg, source: str, given: bool) -> None:
+    """Remember that you gave this source keys (its name, never the keys),
+    so a restart can ask for them again."""
+    from ..core import setup
+
+    have = set(cfg.key_sources)
+    want = have | {source} if given else have - {source}
+    if want != have and cfg.path:
+        cfg.key_sources = sorted(want)
+        with contextlib.suppress(Exception):    # a note, not worth failing the save
+            setup.write(cfg.path, {"key_sources": cfg.key_sources})
+
+
+def keys_state(cfg) -> dict:
+    """For the page on every start: whether keys are kept, where, and which
+    keys jobdork needs and does not hold (after a restart or an update, with
+    keys held in memory only). Never a key."""
+    from ..ai import llm
+    from ..core import keystore
+
+    store = {"darwin": "macOS Keychain", "win32": "Windows Credential Manager"}.get(
+        sys.platform, "your Secret Service (GNOME Keyring or KWallet)")
+    missing = []
+    wanted = [r.provider for r in [*cfg.llm.readers, *cfg.llm.checkers]] or [cfg.llm.provider]
+    for provider in dict.fromkeys(p for p in wanted if p in llm.KEYED):
+        # Memory or the environment only: asking the keychain on every poll
+        # could prompt on a Mac; keys kept there were loaded at start.
+        if not llm.VAULT.get(provider) and not any(
+                os.environ.get(n) for n in llm.ENV_KEYS[provider]):
+            missing.append({"kind": "ai", "name": provider, "label": llm.PROVIDERS[provider]})
+    ready = {"adzuna": cfg.sources.adzuna_ready(), "usajobs": cfg.sources.usajobs_ready()}
+    for source in cfg.key_sources:
+        if not ready.get(source, True):
+            missing.append({"kind": "source", "name": source,
+                            "label": "Adzuna" if source == "adzuna" else "USAJOBS"})
+    return {"remember": cfg.remember_keys, "store": store,
+            "unavailable": keystore.unavailable(), "legacy": bool(cfg.legacy_keys_file),
+            "missing": missing}
+
+
+def legacy_keys(cfg, keep: bool) -> dict:
+    """An old source-keys.env (0.15.1 and before): its keys into the keychain
+    (`keep`, which turns Remember keys on), or for this run only. The plain
+    file is deleted either way."""
+    from ..core import keystore, setup
+    from ..core.config import settle_legacy_keys
+
+    if keep and keystore.unavailable():
+        raise ApiError(f"keys cannot be kept here: {keystore.unavailable()}", 409)
+    try:
+        moved = settle_legacy_keys(cfg, keep)
+    except keystore.KeystoreError as exc:
+        raise ApiError(str(exc)) from exc
+    if keep and not cfg.remember_keys and cfg.path:
+        setup.write(cfg.path, {"remember_keys": True})
+        cfg.remember_keys = keystore.remembering = True
+    return {"moved": moved}
+
+
+def forget_saved_keys() -> dict:
+    """Settings: remove every key kept in the keychain. Those held now stay
+    in memory until jobdork closes."""
+    from ..core import keystore
+
+    keystore.forget_all()
+    return {"forgotten": True}
+
+
+def remember_keys_changed(on: bool) -> str:
+    """Remember keys turned on: the keys held now go into the keychain.
+    Turned off: the kept copies are removed; memory keeps them for this run.
+    Returns what to tell the person."""
+    from ..ai import llm
+    from ..core import keystore
+    from ..core.config import APP_KEYS
+
+    if not on:
+        keystore.forget_all()
+        return "Keys are no longer kept: removed from the keychain, held until jobdork closes."
+    why = keystore.unavailable()
+    if why:
+        return f"Keys cannot be kept here: {why}."
+    kept = 0
+    try:
+        for provider in llm.VAULT.held():
+            keystore.save(keystore.AI_PREFIX + provider, llm.VAULT.get(provider))
+            kept += 1
+        for name in sorted(APP_KEYS):
+            if os.environ.get(name):
+                keystore.save(name, os.environ[name])
+                kept += 1
+    except keystore.KeystoreError as exc:
+        return f"Some keys were not kept: {exc}."
+    return (f"Kept {kept} key{'s' * (kept != 1)} in this computer's keychain." if kept
+            else "Keys you enter from now on are kept in this computer's keychain.")
 
 
 def llm_forget(provider: str) -> dict:
+    """Stop holding a key, and remove any copy kept in the keychain."""
     from ..ai import llm
+    from ..core import keystore
 
-    if provider == "all":
-        llm.VAULT.wipe()
-    else:
-        llm.VAULT.forget(provider)
+    for one in (llm.KEYED if provider == "all" else (provider,)):
+        llm.VAULT.forget(one)
+        keystore.delete(keystore.AI_PREFIX + one)
     return {"held": llm.VAULT.held()}
 
 
@@ -1939,7 +2055,7 @@ def setup_choices(cfg) -> dict:
 
 def setup_sources(cfg) -> dict:
     """What a scan will read, in plain words, and the two optional keys."""
-    from ..core.config import source_keys_path
+    from ..core.config import APP_KEYS
     from ..fetch.adzuna import ISO_TO_INDEX
     from ..search import directory
 
@@ -1950,13 +2066,13 @@ def setup_sources(cfg) -> dict:
         searched.append({"name": "Kalibrr",
                          "what": "Philippine and Indonesian jobs, by your job titles"})
     d = cfg.sources.directory
-    held = source_keys_path(cfg).read_text(encoding="utf-8") if \
-        source_keys_path(cfg).is_file() else ""
 
     def where(names: tuple[str, ...]) -> str:
+        """"app" (typed here: in memory, and the keychain if you chose it),
+        "environment" (.env or the real environment), or "" (none)."""
         if not all(os.environ.get(n) for n in names):
             return ""
-        return "app" if all(f"{n}=" in held for n in names) else "environment"
+        return "app" if all(n in APP_KEYS for n in names) else "environment"
 
     adzuna_here = not countries or any(c in ISO_TO_INDEX for c in countries)
     keyed = [
@@ -2020,6 +2136,7 @@ def setup_keys(cfg, form: dict) -> str:
         check_source_key,
         write_source_keys,
     )
+    from ..core.keystore import KeystoreError
 
     values = {k: str(form.get(k) or "").strip() for k in SOURCE_KEY_NAMES if k in form}
     if not values:
@@ -2040,8 +2157,14 @@ def setup_keys(cfg, form: dict) -> str:
                 raise ApiError(f"Not saved: {why}, so the key could not be tested. "
                                "Try again when it answers", 503)
             source = "USAJOBS" if "USAJOBS_API_KEY" in values else "Adzuna"
-            note = f"Tested: {source} accepted the key, and it is saved."
+            note = (f"Tested: {source} accepted the key. Saved in this computer's keychain."
+                    if cfg.remember_keys else
+                    f"Tested: {source} accepted the key. Held until jobdork closes; "
+                    "to keep it, turn on Remember keys in Settings.")
         write_source_keys(cfg, {k: "" if remove else v for k, v in values.items()})
+        _note_key_source(cfg, "usajobs" if "USAJOBS_API_KEY" in values else "adzuna", not remove)
+    except KeystoreError as exc:
+        note = f"Held until jobdork closes: {exc}."
     except ConfigError as exc:
         raise ApiError(str(exc)) from exc
     return note
@@ -2607,7 +2730,7 @@ def uninstall_items() -> dict:
                        "in its own folder, which ./run.sh clean empties", 409)
     return {"finish": _finish_removing(), "appimage": os.environ.get("APPIMAGE", ""),
             "items": [{"key": i.key, "label": i.label, "what": i.what, "size": i.size,
-                       "present": bool(i.paths)} for i in uninstall.inventory()]}
+                       "present": i.present} for i in uninstall.inventory()]}
 
 
 def uninstall_now(form: dict) -> dict:

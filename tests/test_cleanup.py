@@ -196,7 +196,12 @@ def test_start_over_deletes_only_what_jobdork_wrote_after_the_typed_words():
             raise AssertionError("the typed words are required")
         assert resume.is_file()
 
+        # Keys kept in the computer's keychain go too (a pretend one here).
+        from jobdork.core import keystore
+        keystore.save("ai:gemini", "AIzaFakeKeyForTests0123456789")
+        keystore.save("ADZUNA_APP_KEY", "k3y")
         done = api.start_over(cfg, "Start over", backup=True)
+        assert keystore.load("ai:gemini") == "" and keystore.load("ADZUNA_APP_KEY") == ""
         for gone in (resume, letter, root / "config.yaml", root / "data" / "t.db",
                      root / "data" / "source-keys.env", root / "out" / "report.html"):
             assert not gone.exists(), gone

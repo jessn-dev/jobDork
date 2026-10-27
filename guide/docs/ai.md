@@ -26,9 +26,16 @@ included, made 10% or more. The numbers, what runs on which computer, and how
 to measure a model yourself, hosted ones included:
 [Choosing an AI model, measured](https://github.com/jessn-dev/jobDork/blob/main/docs/AI-MODELS.md).
 
-**Keys are held in memory only**: never written to a file, the database or
-a log, and forgotten when jobdork stops, when you click **Forget**, or a
-minute after the last dashboard tab closes. You paste it again next time.
+**Keys are never written to a file**, the database or a log. Where they go is
+your choice ([Settings, Your keys](settings.md#your-keys)):
+
+- **Asked each time** (the default): held in memory, and forgotten when
+  jobdork stops, when you click **Forget**, or a minute after the last
+  dashboard tab closes. After jobdork closes or updates, it asks for the key
+  again when it starts.
+- **Kept in this computer's keychain** (macOS Keychain, Windows Credential
+  Manager, or the Secret Service on Linux), encrypted with your login: you
+  enter it once. **Forget** removes the kept copy too.
 
 ## Readers
 

@@ -76,8 +76,8 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
 - **Ranks against your resume**, offline: **Match** (title, place, pay) and
   **Fit** (the advert's skills you have and lack). [Scores](https://jessn-dev.github.io/jobDork/scores/)
 - **Uses an AI model only when you set one up.** Ollama on your own computer,
-  or Claude, Gemini, ChatGPT or Groq with your key, which is held in memory
-  only. It can judge posts, write a cover letter, review your resume and
+  or Claude, Gemini, ChatGPT or Groq with your key, held in memory or, if
+  you choose, in your computer's keychain; never in a file. It can judge posts, write a cover letter, review your resume and
   write a tailored resume as a PDF. A second model checks each output, claim
   by claim, against your resume and the advert, and anything unsupported is
   flagged: 2.9% of claims with the recommended local model, measured on seven

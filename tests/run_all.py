@@ -23,6 +23,9 @@ sys.path.insert(0, str(ROOT))
 # As tests/conftest.py does for pytest: no test asks GitHub for a newer release.
 os.environ["JOBDORK_UPDATE_CHECK"] = "off"
 os.environ["JOBDORK_NOTIFY"] = "off"
+# And the pretend keychain conftest.py installs: no test reaches a real one.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import conftest  # noqa: E402,F401
 
 
 def main() -> int:

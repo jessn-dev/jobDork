@@ -271,6 +271,7 @@ def _config_payload(cfg) -> dict:
                          for d in cfg.dealbreakers],
         "dealbreaker_suggestions": _deal_suggestions(),
         "update_check": cfg.update_check,
+        "remember_keys": cfg.remember_keys,
         "notifications": {"enabled": cfg.notifications.enabled,
                           "sound": cfg.notifications.sound,
                           # Whether this system can show one (not Docker).
@@ -468,6 +469,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                         "sound": cfg_holder["cfg"].notifications.sound,
                         "native": notify_mod.native()},
                     "setup": _setup_state(cfg_holder["cfg"]),
+                    "keys": api_mod.keys_state(cfg_holder["cfg"]),
                 })
             if path == "/api/events":
                 return self._events()
@@ -628,6 +630,13 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 if form is None:
                     return self._reject(400, "bad request body")
                 return self._wrap(api_mod.uninstall_now, form)
+            if path == "/api/keys/legacy":
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.legacy_keys, cfg_holder["cfg"], bool(form.get("keep")))
+            if path == "/api/keys/forget":
+                return self._wrap(api_mod.forget_saved_keys)
             if path == "/api/update/check":
                 return self._wrap(api_mod.newer_version, cfg_holder["cfg"], True)
             if path == "/api/update/install":
@@ -1136,7 +1145,10 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 fresh = self._write_config(payload)
             except Exception as exc:
                 return self._reject(400, f"not saved: {exc}")
-            self._json(200, {**_config_payload(fresh), "rescan": self._rescan(old, fresh)})
+            keys = (api_mod.remember_keys_changed(fresh.remember_keys)
+                    if fresh.remember_keys != old.remember_keys else "")
+            self._json(200, {**_config_payload(fresh), "rescan": self._rescan(old, fresh),
+                             "keys": keys})
 
         def _rescan(self, old, fresh) -> str:
             """After a change to the search, the job posts follow it by

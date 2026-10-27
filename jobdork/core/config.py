@@ -152,9 +152,11 @@ def load_dotenv(path: str | Path = ".env") -> None:
             os.environ[key] = value
 
 
-# Job-source keys typed into the app (setup, the Sources page) are kept here,
-# beside the database, so they survive a restart and, in a container, live
-# in the kept volume. Never in config.yaml. The environment and .env win.
+# Job-source keys typed into the app (setup, the Sources page) are held in
+# this process's memory, and kept in the computer's keychain when you chose
+# remember_keys (core/keystore.py). Never in a file: 0.15.1 and before kept
+# them in this one, plain text beside the database, which is now read only to
+# move its keys out (legacy_keys_file). The environment and .env win.
 SOURCE_KEYS_FILE = "source-keys.env"
 SOURCE_KEY_NAMES = ("ADZUNA_APP_ID", "ADZUNA_APP_KEY", "USAJOBS_API_KEY", "USAJOBS_EMAIL")
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
@@ -162,6 +164,12 @@ _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 def source_keys_path(cfg: Config) -> Path:
     return Path(cfg.db_path).parent / SOURCE_KEYS_FILE
+
+
+# The job-source keys this run holds because they were typed into the app or
+# loaded from the keychain or an old keys file, as opposed to the real
+# environment or .env, which the app does not change.
+APP_KEYS: set[str] = set()
 
 
 def check_source_key(name: str, value: str) -> None:
@@ -183,32 +191,70 @@ def check_source_key(name: str, value: str) -> None:
 
 
 def write_source_keys(cfg: Config, values: dict[str, str]) -> None:
-    """Set (or, given "", remove) job-source keys in the app's keys file.
+    """Set (or, given "", remove) job-source keys: in memory, and in the
+    keychain when remember_keys is on. Never in a file.
 
     Only the four known names, each checked before any is kept, so one bad
-    value leaves the others as they were. The file is readable by its owner
-    alone, and this process sees the change at once.
+    value leaves the others as they were. Raises keystore.KeystoreError when
+    the keychain will not keep one; memory has it either way.
     """
+    from . import keystore
+
     for name, value in values.items():
         check_source_key(name, value)
-    path = source_keys_path(cfg)
-    held: dict[str, str] = {}
-    if path.is_file():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            key, sep, value = line.partition("=")
-            if sep and key.strip() in SOURCE_KEY_NAMES:
-                held[key.strip()] = value.strip()
+    refused = ""
     for name, value in values.items():
         value = str(value or "").strip()
         if value:
-            held[name] = value
             os.environ[name] = value
-        elif held.pop(name, None) is not None:
+            APP_KEYS.add(name)
+            if cfg.remember_keys:
+                try:
+                    keystore.save(name, value)
+                except keystore.KeystoreError as exc:
+                    refused = str(exc)
+        else:
             os.environ.pop(name, None)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.touch(mode=0o600, exist_ok=True)
-    path.chmod(0o600)
-    path.write_text("".join(f"{k}={v}\n" for k, v in held.items()), encoding="utf-8")
+            APP_KEYS.discard(name)
+            keystore.delete(name)
+    if refused:
+        raise keystore.KeystoreError(refused)
+
+
+def _keys_into_memory(cfg: Config) -> None:
+    """At start: the keys kept in the keychain (when chosen), and an old
+    source-keys.env's, into memory. The environment wins over both."""
+    from . import keystore
+
+    keystore.remembering = cfg.remember_keys
+    old = source_keys_path(cfg)
+    if old.is_file():
+        before = {n for n in SOURCE_KEY_NAMES if os.environ.get(n)}
+        load_dotenv(old)                     # this run only; moved or dropped later
+        APP_KEYS.update(n for n in SOURCE_KEY_NAMES if os.environ.get(n) and n not in before)
+        cfg.legacy_keys_file = str(old)
+    if cfg.remember_keys:
+        APP_KEYS.update(n for n in keystore.load_into_memory() if n in SOURCE_KEY_NAMES)
+
+
+def settle_legacy_keys(cfg: Config, keep: bool) -> list[str]:
+    """Where an old source-keys.env's keys go: into the keychain (`keep`,
+    which also turns remember_keys on for them), or nowhere. Either way the
+    plain file is deleted. Returns the names moved."""
+    from . import keystore
+
+    path = source_keys_path(cfg)
+    moved = []
+    if path.is_file():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            key, sep, value = line.partition("=")
+            key, value = key.strip(), value.strip().strip("\"'")
+            if sep and key in SOURCE_KEY_NAMES and value and keep:
+                keystore.save(key, value)
+                moved.append(key)
+        path.unlink()
+    cfg.legacy_keys_file = ""
+    return moved
 
 
 # ── Dataclasses ────────────────────────────────────────────────────────────────
@@ -457,6 +503,15 @@ class Config:
     # Ask GitHub once a day whether a newer jobdork is out (core/updates.py).
     # Settings → Updates switches it; JOBDORK_UPDATE_CHECK=off wins.
     update_check: bool = True
+    # Keys you chose to keep in this computer's keychain (core/keystore.py);
+    # off, every key is held in memory only and asked for after a restart.
+    remember_keys: bool = False
+    # The keyed job sources you gave keys for (adzuna, usajobs): names only,
+    # so the page can ask for those keys again after a restart.
+    key_sources: list[str] = field(default_factory=list)
+    # An old source-keys.env (0.15.1 and before kept job-source keys in a
+    # plain file): read for this run, until you say where its keys go.
+    legacy_keys_file: str = ""
     notifications: Notifications = field(default_factory=Notifications)
     path: str = ""          # where this config was read from, or will be written
     # The first-run step still to do; empty once set up. See core.setup.
@@ -559,7 +614,7 @@ def load(explicit: str = "", require: bool = True) -> Config:
         cfg = _build({})
         cfg.path = new_config_path()
         cfg.setup_step = "welcome"
-        load_dotenv(source_keys_path(cfg))
+        _keys_into_memory(cfg)
         _apply_env_secrets(cfg)
         _validate(cfg)
         return cfg
@@ -579,7 +634,7 @@ def load(explicit: str = "", require: bool = True) -> Config:
 
     cfg = _build(raw)
     cfg.path = str(path)
-    load_dotenv(source_keys_path(cfg))
+    _keys_into_memory(cfg)
     _apply_env_secrets(cfg)
     _validate(cfg)
     return cfg
@@ -787,6 +842,14 @@ def _build(raw: dict[str, Any]) -> Config:
     if not isinstance(check, bool):
         raise ConfigError("update_check must be true or false")
     cfg.update_check = check
+    remember = raw.get("remember_keys", False)
+    if not isinstance(remember, bool):
+        raise ConfigError("remember_keys must be true or false")
+    cfg.remember_keys = remember
+    asked = raw.get("key_sources") or []
+    if not isinstance(asked, list) or not set(map(str, asked)) <= {"adzuna", "usajobs"}:
+        raise ConfigError("key_sources lists adzuna and usajobs only")
+    cfg.key_sources = [str(s) for s in asked]
     note = raw.get("notifications") or {}
     if isinstance(note, bool):
         note = {"enabled": note}

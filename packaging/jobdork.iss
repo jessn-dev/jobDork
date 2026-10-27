@@ -4,8 +4,9 @@
 ; Installs for the current user only, so no administrator prompt. Settings,
 ; job posts and the resume live in %LOCALAPPDATA%\jobdork, not here. An
 ; uninstall always removes the scheduled scan (a Task Scheduler task that
-; would otherwise go on starting a program that is gone) and the window's
-; storage, and asks, item by item, what of the person's to delete as well:
+; would otherwise go on starting a program that is gone), the window's
+; storage and any keys kept in Credential Manager, and asks, item by item,
+; what of the person's to delete as well:
 ; nothing is ticked, so a reinstall finds whatever they kept. The removing is
 ; jobdork's own (jobdork.exe --uninstall, core/uninstall.py), the same as on
 ; the Settings page and `jobdork uninstall`.
@@ -76,9 +77,9 @@ function InitializeUninstall(): Boolean;
 var
   Form: TSetupForm;
   Intro: TNewStaticText;
-  Boxes: array[0..6] of TNewCheckBox;
-  Keys: array[0..6] of String;
-  Labels: array[0..6] of String;
+  Boxes: array[0..5] of TNewCheckBox;
+  Keys: array[0..5] of String;
+  Labels: array[0..5] of String;
   OkButton, CancelButton: TNewButton;
   I, Top: Integer;
 begin
@@ -90,11 +91,10 @@ begin
   Keys[1] := 'jobs';      Labels[1] := 'Job posts, with your statuses, notes, AI verdicts and backups';
   Keys[2] := 'resume';    Labels[2] := 'Your resume';
   Keys[3] := 'documents'; Labels[3] := 'Letters and tailored resumes jobdork wrote';
-  Keys[4] := 'keys';      Labels[4] := 'Saved job-source keys (Adzuna, USAJOBS)';
-  Keys[5] := 'logs';      Labels[5] := 'Logs';
-  Keys[6] := 'downloads'; Labels[6] := 'Installers the Update button left in Downloads';
+  Keys[4] := 'logs';      Labels[4] := 'Logs';
+  Keys[5] := 'downloads'; Labels[5] := 'Installers the Update button left in Downloads';
   { Inno Setup 6 takes the size here: ClientWidth, ClientHeight, KeepSizeX, KeepSizeY. }
-  Form := CreateCustomForm(ScaleX(480), ScaleY(340), False, False);
+  Form := CreateCustomForm(ScaleX(480), ScaleY(320), False, False);
   try
     Form.Caption := 'Uninstall jobdork';
     Intro := TNewStaticText.Create(Form);
@@ -103,12 +103,13 @@ begin
     Intro.Top := ScaleY(14);
     Intro.Width := Form.ClientWidth - ScaleX(32);
     Intro.AutoSize := False;
-    Intro.Height := ScaleY(48);
+    Intro.Height := ScaleY(56);
     Intro.WordWrap := True;
-    Intro.Caption := 'jobdork and its scheduled scan will be removed. Tick what of yours to ' +
-      'delete as well. Anything not ticked is kept, so a reinstall finds it.';
-    Top := ScaleY(70);
-    for I := 0 to 6 do
+    Intro.Caption := 'jobdork, its scheduled scan and any keys it kept in Credential Manager ' +
+      'will be removed. Tick what of yours to delete as well. Anything not ticked is kept, ' +
+      'so a reinstall finds it.';
+    Top := ScaleY(78);
+    for I := 0 to 5 do
     begin
       Boxes[I] := TNewCheckBox.Create(Form);
       Boxes[I].Parent := Form;
@@ -137,7 +138,7 @@ begin
     CancelButton.Cancel := True;
     if Form.ShowModal() = mrOk then
     begin
-      for I := 0 to 6 do
+      for I := 0 to 5 do
         if Boxes[I].Checked then
         begin
           if Choices <> '' then

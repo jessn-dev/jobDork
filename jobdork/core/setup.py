@@ -244,6 +244,13 @@ def rewrite(original: str, payload: dict) -> str:
             if key in given:
                 section[key] = str(given[key]).lower() in ("1", "true", "yes", "on")
 
+    if "key_sources" in payload:
+        data["key_sources"] = sorted({str(s) for s in payload["key_sources"] or []})
+
+    if "remember_keys" in payload:
+        data["remember_keys"] = str(payload["remember_keys"]).lower() in (
+            "1", "true", "yes", "on")
+
     if "update_check" in payload:
         data["update_check"] = str(payload["update_check"]).lower() in (
             "1", "true", "yes", "on")
