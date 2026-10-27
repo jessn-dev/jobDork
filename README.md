@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="packaging/icon.svg" alt="" width="64" height="64" align="center">
+  <img src="packaging/icon.svg" alt="" width="64" height="64" align="absmiddle">
   jobDork
 </h1>
 
