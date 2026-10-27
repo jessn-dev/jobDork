@@ -30,7 +30,7 @@ from ..db import grouping
 from ..db.store import Role, Store
 from ..fetch.http import Fetcher
 from ..writing import resume_doc
-from . import directory, geo, screen
+from . import directory, geo, ownboard, screen
 from . import resume as resume_mod
 
 log = logging.getLogger("jobdork.search.scan")
@@ -256,6 +256,7 @@ def _run(cfg: Config, store: Store, limit: int, progress, part: str) -> ScanRepo
 
     telemetry.tick(total=len(jobs))
     sources_done = 0
+    reads: list[tuple[str, str, str, bool]] = []     # employer boards, for ownboard
 
     with ThreadPoolExecutor(max_workers=cfg.fetch.concurrency) as pool:
         futures = {}
@@ -263,16 +264,22 @@ def _run(cfg: Config, store: Store, limit: int, progress, part: str) -> ScanRepo
             adapter = fetch.get(name)
             if adapter is None:
                 continue
-            futures[pool.submit(adapter, fetcher, cfg, **kwargs)] = name
+            futures[pool.submit(adapter, fetcher, cfg, **kwargs)] = (name, kwargs)
 
         for future in as_completed(futures):
-            name = futures[future]
+            name, kwargs = futures[future]
             try:
                 result = future.result()
             except Exception as exc:                       # one board, not the run
                 log.exception("%s raised", name)
                 result = fetch.SourceResult(source=name, errors=[str(exc)])
             report.per_source.append(result)
+            if name in ownboard.OWN_BOARDS and kwargs.get("token") and not result.skipped:
+                # Complete only when read to the end, with no error, and not
+                # an empty answer that may be a throttle: then a job missing
+                # from it is missing from the employer's board.
+                reads.append((name, kwargs["token"], kwargs.get("company") or "",
+                              result.complete and not result.errors and not result.suspect))
             if result.skipped.startswith("no key"):
                 # A keyed source you chose, with no key to run on. Other skips
                 # (a country it does not serve) are by design, not a warning.
@@ -326,6 +333,7 @@ def _run(cfg: Config, store: Store, limit: int, progress, part: str) -> ScanRepo
     # this time is no longer a dropped one.
     store.forget_dropped(r.uid for r in keepers)
     store.save_dropped(left_out)
+    store.record_board_reads(reads)
     report.blocked_hosts = sorted(fetcher.blocked_hosts)
 
     store.finish_run(run_id, {

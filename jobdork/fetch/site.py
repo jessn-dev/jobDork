@@ -492,5 +492,6 @@ def fetch(fetcher, cfg, token: str = "", company: str = "",
         if role:
             result.roles.append(role)
     if len(chosen) > limit:
+        result.complete = False
         log.info("%s: read the newest %d of %d matching postings", site, limit, len(chosen))
     return result

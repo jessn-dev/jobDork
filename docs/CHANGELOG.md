@@ -6,6 +6,44 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-27 — Search Google Jobs sits above the list
+
+"Not here? Search Google Jobs for devops engineer, site reliability
+engineer, …" was a small grey line after the last job post: seen only by
+someone who scrolled to the end of a long list.
+
+- **A bar above the list**, under the count: "Not finding it here? Search
+  Google Jobs:" and a button for each of your titles (the first six). With
+  nothing matching it says "Nothing here." The same links as before: each
+  opens Google's job results in your browser, for that title near you, or
+  remote; jobdork sends Google nothing.
+- Guide: Job posts, and its picture.
+
+## Changed — 2026-10-27 — Posts from every aggregator are checked against the employer's own board, and the window can ask it now
+
+The flag for a post missing from the employer's own board covered Adzuna
+alone, and could almost never fire: of 604 Adzuna posts in one person's
+jobs, 2 could be checked. jobdork counted a board as read only when one of
+its jobs was stored, so a board that answered with nothing matching (the
+very case of a job it does not list) left no trace.
+
+- **Every aggregator:** Adzuna, Himalayas, Arbeitnow and Kalibrr, which
+  carry many employers' jobs. Not USAJOBS (federal agencies' own listings)
+  nor Workable's search (each post is from the employer's own Workable).
+- **Each scan records the employer boards it read** (`board_reads`, schema
+  13): the employer, the board, when, and whether to the end. No job data.
+  A board read to the end vouches even when nothing on it matched.
+- **Only a whole read vouches.** Workday, SmartRecruiters, Eightfold, Oracle
+  and Taleo stop at a page limit, and careers sites read the newest few; a
+  board cut short, failed, or answering empty (possibly throttled) is not
+  read to the end, and a missing job there says nothing.
+- **The job post's window says what the board said** (on it, not on it,
+  read only partly, not read) and has **Check the employer's own board**:
+  it searches that board for the post's own title now and says whether it
+  is there, with a link, or why it cannot tell. For a board the scan read
+  only partly or not at all, or to look again before applying.
+- Guide: Tags and the job post's window.
+
 ## Changed — 2026-10-27 — The README opens on a banner
 
 The README's title was the small icon beside "jobDork" in heading type. It

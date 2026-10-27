@@ -163,4 +163,6 @@ def fetch(fetcher, cfg, token: str = "", company: str = "", **_) -> SourceResult
                     result.roles.append(_to_role(position, info, host, domain, company))
                 if not kept or len(positions) < PAGE_SIZE:
                     break
+            else:                            # stopped at the page limit, not the end
+                result.complete = False
     return result

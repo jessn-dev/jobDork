@@ -56,6 +56,9 @@ class SourceResult:
     skipped: str = ""            # why it did not run at all
     errors: list[str] = field(default_factory=list)
     suspect: bool = False        # answered, but the answer is not trustworthy
+    # Read to the end, not stopped at a page limit: only then does a job's
+    # absence from an employer's board say anything (search/ownboard.py).
+    complete: bool = True
 
     @property
     def ran(self) -> bool:

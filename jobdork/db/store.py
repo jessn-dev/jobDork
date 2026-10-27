@@ -266,6 +266,20 @@ CREATE TABLE IF NOT EXISTS education (
     updated_at  TEXT NOT NULL
 );
 
+-- One row per employer board a scan read, kept or not a job of yours:
+-- whether it was read to the end, and when. An aggregator's post the
+-- employer's board does not carry is flagged only against a complete read
+-- (search/ownboard.py); a board that answered nothing matching leaves no
+-- job behind, so without this it could not vouch either way. No job data.
+CREATE TABLE IF NOT EXISTS board_reads (
+    platform    TEXT NOT NULL,
+    token       TEXT NOT NULL,
+    company     TEXT NOT NULL,
+    complete    INTEGER NOT NULL,
+    read_at     TEXT NOT NULL,
+    PRIMARY KEY (platform, token)
+);
+
 CREATE INDEX IF NOT EXISTS idx_roles_first_seen ON roles(first_seen);
 CREATE INDEX IF NOT EXISTS idx_roles_company    ON roles(company);
 CREATE INDEX IF NOT EXISTS idx_roles_url        ON roles(url);
@@ -769,6 +783,20 @@ class Store:
                 "DELETE FROM dropped WHERE uid NOT IN (SELECT uid FROM dropped "
                 "ORDER BY seen_at DESC LIMIT ?)", (DROPPED_KEPT,))
         return len(rows)
+
+    def record_board_reads(self, reads: Iterable[tuple[str, str, str, bool]]) -> None:
+        """(platform, token, company, complete) for each employer board a
+        scan read: the latest read replaces the one before."""
+        now = _now()
+        with self.conn:
+            self.conn.executemany(
+                "INSERT OR REPLACE INTO board_reads(platform, token, company, complete, "
+                "read_at) VALUES (?,?,?,?,?)",
+                [(p, t, c, int(bool(done)), now) for p, t, c, done in reads])
+
+    def board_reads(self) -> list[sqlite3.Row]:
+        return self.conn.execute(
+            "SELECT platform, token, company, complete, read_at FROM board_reads").fetchall()
 
     def forget_dropped(self, uids: Iterable[str]) -> None:
         """A post now kept, by a scan or by you, is no longer a dropped one."""

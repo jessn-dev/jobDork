@@ -129,7 +129,8 @@ def role_detail(cfg, uid: str) -> dict:
         ]
         ai = ai_fields(row)
         posted_by = recruiters(store, [row])[uid]
-        unlisted = bool(not_on_own_board(store, [row]))
+        board_state = own_board_states(store, [row]).get(uid, "")
+        unlisted = board_state == "missing"
         # The verdict's rating, so the dialog shows which thumb is pressed.
         if ai["ai"] and ai["ai"].get("ai_output_id"):
             output = store.ai_output(int(ai["ai"]["ai_output_id"]))
@@ -160,6 +161,9 @@ def role_detail(cfg, uid: str) -> dict:
         "posted_at": row["posted_at"] or "",
         "first_seen": row["first_seen"] or "",
         "flags": flags,
+        # An aggregator's post: what the employer's own board says of it
+        # (found, missing, partial, unread), for the window's check button.
+        "own_board": board_state,
         "description": row["description"] or "",
         "advert_chars": len(row["description"] or ""),
         "credentials": _credentials(cfg, row["description"] or ""),
@@ -224,15 +228,15 @@ def recruiters(store, rows) -> dict[str, dict]:
     return out
 
 
-def not_on_own_board(store, rows) -> set[str]:
-    """The Adzuna posts among these rows that the employer's own board, read
-    in the same scan, does not carry (search/ownboard.py)."""
+def own_board_states(store, rows) -> dict[str, str]:
+    """For the aggregators' posts among these rows, what the employer's own
+    board says (search/ownboard.py states): found, missing, partial, unread."""
     from ..search import ownboard
 
-    adzuna = [(r["uid"], r["company"] or "", r["title"] or "", r["last_seen"] or "")
-              for r in rows if r["platform"] == "adzuna"]
-    if not adzuna:
-        return set()
+    posts = [(r["uid"], r["company"] or "", r["title"] or "", r["last_seen"] or "")
+             for r in rows if r["platform"] in ownboard.AGGREGATORS]
+    if not posts:
+        return {}
     marks = ",".join("?" for _ in ownboard.OWN_BOARDS)
     platforms = sorted(ownboard.OWN_BOARDS)
     board = store.conn.execute(
@@ -240,7 +244,76 @@ def not_on_own_board(store, rows) -> set[str]:
         f"SELECT company, title, last_seen FROM roles WHERE platform IN ({marks}) "  # nosec B608
         f"UNION ALL SELECT company, title, seen_at FROM dropped WHERE platform IN ({marks})",
         platforms + platforms).fetchall()
-    return ownboard.missing(adzuna, [(c or "", t or "", s or "") for c, t, s in board])
+    reads = [(r["company"], r["read_at"], bool(r["complete"])) for r in store.board_reads()]
+    return ownboard.states(posts, [(c or "", t or "", s or "") for c, t, s in board], reads)
+
+
+def check_own_board(cfg, uid: str, fetcher=None) -> dict:
+    """Ask the employer's own board now whether it carries this aggregator
+    post (the post window's button): for a board a scan read only partly or
+    not at all, or to look again. Searches the board for the post's own
+    title, records the read, and stores nothing else.
+
+    {"state": "found" (with "url") | "missing" | "partial" | "unknown" |
+    "failed", "company", "board", "why"}.
+    """
+    import dataclasses
+
+    from .. import fetch
+    from ..db.store import Store
+    from ..fetch.http import Fetcher
+    from ..search import directory, ownboard
+
+    if not UID.match(uid or ""):
+        raise ApiError("not a job post id")
+    with Store(cfg.db_path) as store:
+        row = store.get(uid)
+    if row is None:
+        raise ApiError("no such job post", 404)
+    if row["platform"] not in ownboard.AGGREGATORS:
+        raise ApiError("this post is from the employer's own board already")
+    company, title = row["company"] or "", row["title"] or ""
+    key = ownboard.employer_key(company)
+    boards = [(c.name, c.platform, c.token) for c in cfg.sources.companies] + \
+        [(b.name, b.platform, b.token) for b in directory.load()]
+    mine = [(n, p, t) for n, p, t in boards
+            if key and ownboard.employer_key(n) == key and p in ownboard.OWN_BOARDS]
+    if not mine:
+        return {"state": "unknown", "company": company, "board": "",
+                "why": f"jobdork does not know {company}'s own board. Add it on the "
+                       "Sources page (Find an employer's board), or look on their careers site."}
+    name, platform, token = mine[0]
+    adapter = fetch.get(platform)
+    fetcher = fetcher or Fetcher(user_agent=cfg.fetch.user_agent, timeout=cfg.fetch.timeout,
+                                 retries=cfg.fetch.retries)
+    # Searched for this post's own title, not your list: the question is
+    # this job, whatever your titles.
+    asked = dataclasses.replace(cfg, titles_include=[title])
+    try:
+        result = adapter(fetcher, asked, token=token, company=name)
+    except Exception as exc:                      # one board's trouble, said
+        return {"state": "failed", "company": company, "board": platform,
+                "why": f"{type(exc).__name__}: {exc}"}
+    complete = result.complete and not result.errors and not result.skipped
+    if not result.skipped:
+        with Store(cfg.db_path) as store:
+            store.record_board_reads([(platform, token, name, complete)])
+    wanted = ownboard.title_key(title)
+    for role in result.roles:
+        if ownboard.same_title(wanted, ownboard.title_key(role.title)):
+            return {"state": "found", "company": company, "board": platform,
+                    "url": role.url, "title": role.title}
+    if result.skipped or (result.errors and not result.roles):
+        return {"state": "failed", "company": company, "board": platform,
+                "why": result.skipped or "; ".join(map(str, result.errors[:2]))}
+    return {"state": "missing" if complete else "partial", "company": company,
+            "board": platform}
+
+
+def not_on_own_board(store, rows) -> set[str]:
+    """The aggregators' posts among these rows that the employer's own
+    board, read in full in the same scan, does not carry."""
+    return {uid for uid, state in own_board_states(store, rows).items() if state == "missing"}
 
 
 def _credentials(cfg, advert: str) -> list[dict]:

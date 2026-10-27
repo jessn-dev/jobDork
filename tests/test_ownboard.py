@@ -75,6 +75,124 @@ def test_the_list_and_the_post_carry_the_flag_and_a_dropped_copy_vouches():
         assert not any("own board" in f for f in api.role_detail(cfg, real.uid)["flags"])
 
 
+def test_each_post_says_what_the_employers_board_says_of_it():
+    """A board read in full that answered nothing matching still vouches:
+    that is the case a stored job alone could never show (2026-10-27)."""
+    posts = [("found", "Acme", "Nurse Manager", DAY),
+             ("full", "Northern Trust", "DevOps Engineer", DAY),       # read whole, nothing
+             ("part", "Big Health", "Charge Nurse", DAY),              # read partly
+             ("none", "Nowhere Corp", "Nurse", DAY),                   # never read
+             ("old", "Acme", "Night Nurse", DAY)]
+    board = [("Acme", "Nurse Manager - ICU", DAY), ("Acme", "Unit Clerk", DAY)]
+    reads = [("Northern Trust Corporation", DAY, True), ("Big Health", DAY, False)]
+    assert ownboard.states(posts, board, reads) == {
+        "found": "found", "full": "missing", "part": "partial", "none": "unread",
+        # No read recorded for Acme: a job of its board seen then still
+        # vouches, as before board_reads.
+        "old": "missing"}
+    # A full read days before the post was seen says nothing of it.
+    later = [("late", "Northern Trust", "DevOps Engineer", "2026-10-29T06:00:00")]
+    assert ownboard.states(later, [], reads) == {"late": "unread"}
+
+
+def test_every_aggregator_is_checked_not_only_adzuna():
+    assert {"adzuna", "himalayas", "arbeitnow", "kalibrr"} == ownboard.AGGREGATORS
+    assert not ownboard.AGGREGATORS & ownboard.OWN_BOARDS
+    assert "usajobs" not in ownboard.AGGREGATORS and "workable" not in ownboard.AGGREGATORS
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = Config(titles_include=["devops"], db_path=str(Path(tmp) / "t.db"))
+        with Store(cfg.db_path) as store:
+            post = Role(platform="himalayas", company="Northern Trust",
+                        title="DevOps Engineer", url="https://x.test/h", location_raw="Remote")
+            store.upsert(post)
+            store.record_board_reads([("workday", "ntrs/wd1/northerntrust", "Northern Trust", True)])
+            store.conn.commit()
+            assert api.not_on_own_board(store, store.list_roles()) == {post.uid}
+        assert api.role_detail(cfg, post.uid)["own_board"] == "missing"
+
+
+def test_the_window_asks_the_employers_board_now():
+    """The check button: searches the board for the post's own title, says
+    what it found, records the read, and nothing else."""
+    from jobdork import fetch
+    from jobdork.fetch import SourceResult
+    from jobdork.search import directory
+
+    asked = []
+
+    def board(fetcher, cfg, token="", company="", **_):
+        asked.append((token, list(cfg.titles_include)))
+        roles = [Role(platform="workday", company=company, title="Senior DevOps Engineer",
+                      url="https://nt.test/job/1")] if "devops" in token else []
+        return SourceResult(source="workday", roles=roles)
+
+    boards = [directory.Board("Northern Trust", "workday", "ntrs/devops", ("US",), "banking"),
+              directory.Board("Acme Bank", "workday", "acme/x", ("US",), "banking")]
+    saved = fetch.get, directory.load
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = Config(titles_include=["devops"], db_path=str(Path(tmp) / "t.db"))
+        try:
+            # lambda: our stand-in board for every platform, asking nothing real.
+            fetch.get = lambda name: board
+            # lambda: the two boards above in place of data/boards.csv.
+            directory.load = lambda *a, **k: boards
+            with Store(cfg.db_path) as store:
+                found = Role(platform="adzuna", company="Northern Trust Corp",
+                             title="DevOps Engineer", url="https://a.test/1")
+                gone = Role(platform="adzuna", company="Acme Bank",
+                            title="DevOps Engineer", url="https://a.test/2")
+                unknown = Role(platform="adzuna", company="Initech",
+                               title="DevOps Engineer", url="https://a.test/3")
+                for r in (found, gone, unknown):
+                    store.upsert(r)
+                store.conn.commit()
+            out = api.check_own_board(cfg, found.uid, fetcher=object())
+            assert out["state"] == "found" and out["url"] == "https://nt.test/job/1"
+            assert asked[0] == ("ntrs/devops", ["DevOps Engineer"])     # the post's title
+            assert api.check_own_board(cfg, gone.uid, fetcher=object())["state"] == "missing"
+            assert api.check_own_board(cfg, unknown.uid, fetcher=object())["state"] == "unknown"
+            with Store(cfg.db_path) as store:
+                assert {r["token"] for r in store.board_reads()} == {"ntrs/devops", "acme/x"}
+        finally:
+            fetch.get, directory.load = saved
+
+
+def test_a_scan_records_each_employer_board_it_read_and_whether_in_full():
+    """Read in full with nothing matching, read only partly, failed: the
+    first vouches, the second does not, the third is not a read."""
+    from jobdork import fetch
+    from jobdork.core.config import Locations
+    from jobdork.fetch import SourceResult
+    from jobdork.search import scan
+
+    answers = {
+        "nt": SourceResult(source="workday"),                                # nothing, in full
+        "big": SourceResult(source="workday", complete=False),              # cut at the limit
+        "down": SourceResult(source="workday", errors=["HTTP 503"]),
+        "gone": SourceResult(source="workday", skipped="Gone lists no jobs in US"),
+    }
+    jobs = [("workday", {"token": t, "company": t.title()}) for t in answers] + [("adzuna", {})]
+
+    def adapter(_fetcher, _cfg, token="", **_):
+        return answers.get(token) or SourceResult(source="adzuna")
+
+    saved = scan._jobs_for, fetch.get
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = Config(titles_include=["devops"], db_path=str(Path(tmp) / "t.db"),
+                     locations=Locations(anchor="", radius="any", countries=[]))
+        try:
+            # lambda: these boards instead of the configured sources.
+            scan._jobs_for = lambda _cfg, _part="all": jobs
+            # lambda: every source name resolves to the stand-in above.
+            fetch.get = lambda _name: adapter
+            with Store(cfg.db_path) as store:
+                scan.run(cfg, store)
+                reads = {r["token"]: bool(r["complete"]) for r in store.board_reads()}
+        finally:
+            scan._jobs_for, fetch.get = saved
+    assert reads == {"nt": True, "big": False, "down": False}, reads
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]
