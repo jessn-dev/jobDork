@@ -44,6 +44,18 @@ very case of a job it does not list) left no trace.
   only partly or not at all, or to look again before applying.
 - Guide: Tags and the job post's window.
 
+## Changed — 2026-10-27 — The README opens on a banner
+
+The README's title was the small icon beside "jobDork" in heading type. It
+opens now on a banner, as Guardrails AI's does: the icon, the name large,
+and "Find the job posts worth your time" beneath, 560 pixels wide, then a
+rule and the badges.
+
+- `docs/images/banner-light.svg` and `banner-dark.svg`, drawn from
+  `packaging/icon.svg`; GitHub shows the dark one on a dark page.
+- Cropped to the artwork, so it sits centred; each line's width is fixed,
+  so Windows' wider font cannot run it off the edge.
+
 ## Added — 2026-10-27 — Remove jobdork from a computer, choosing what of yours goes
 
 Windows' uninstaller removed the program and left everything else,
