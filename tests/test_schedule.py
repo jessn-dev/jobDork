@@ -376,6 +376,40 @@ def test_no_answer_off_or_a_prerelease_shows_nothing():
     assert updates.parse("0.0.0+source") is None
 
 
+def test_a_check_that_fails_says_why_instead_of_calling_this_the_newest():
+    """0.14.4 said "you have 0.14.4, the newest" with 0.15.0 out, because a
+    failed request looked the same as no newer release."""
+    import ssl
+    import urllib.error
+
+    def refused(url):
+        raise urllib.error.HTTPError(url, 403, "rate limited", {}, None)
+
+    def unverified(url):
+        raise urllib.error.URLError(ssl.SSLCertVerificationError("bad cert"))
+
+    with tempfile.TemporaryDirectory() as tmp, _env(JOBDORK_UPDATE_CHECK=None):
+        found = updates.check(tmp, current="0.14.4", fetch=refused, force=True)
+        assert not found["newer"] and "limiting requests" in found["failed"]
+        assert found["url"] == updates.RELEASES_PAGE
+        assert "certificate" in updates.check(tmp, current="0.14.4", fetch=unverified,
+                                              force=True)["failed"]
+        # Nothing was learnt, so nothing is kept: the next look asks again.
+        assert not (Path(tmp) / updates.CACHE_FILE).exists()
+        assert "failed" not in updates.check(tmp, current="0.14.4", fetch=_release("v0.14.4"))
+
+
+def test_github_is_asked_with_certifis_certificates():
+    """urllib alone uses the certificates of the Python it runs in; the
+    desktop app's may have none where it looks."""
+    import certifi
+
+    context = updates._tls()
+    assert context.verify_mode.name == "CERT_REQUIRED" and context.check_hostname
+    assert context.cert_store_stats()["x509_ca"] > 0
+    assert certifi.where()
+
+
 def test_the_setting_turns_the_check_off_and_asks_nothing():
     asked = []
 

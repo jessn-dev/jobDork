@@ -35,7 +35,8 @@ provider can be listed twice with different models.
 
 Each reader card has the **Provider**, the **Ollama address** (for Ollama on
 another computer), the **API key** (for paid providers) and the **Model**
-(**Load models** lists what is available).
+(**Load models** lists what is available; for a model the list does not
+have, choose **Other: type a model name** and type it).
 
 ## When to use it
 
@@ -115,4 +116,6 @@ hallucination.
 ## Save and test
 
 **Save** keeps your choices. **Save and test** also asks every reader and
-checker to answer, and says how long each took or why it could not.
+checker to answer, and says how long each took or why it could not. While
+it asks, the button shows **Testing…** with a spinning circle: a hosted
+model answers in seconds, a local one can take a minute.
