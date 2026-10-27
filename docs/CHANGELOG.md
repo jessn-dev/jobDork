@@ -14,8 +14,8 @@ settings file, your data, kept keys, the commands, the environment
 variables, the installers and Docker image, or what PRIVACY.md rules out,
 said in the notes with how to move over. The pages' look, scores, sources
 and the database's tables are not promised. 1.0.0 is the public launch,
-after 0.15.2's Update is checked, the security review's work, and a few
-people who do not program have installed it.
+after 0.15.2's Update is checked, the security review's work, a few people
+who do not program have installed it, and jobdork is in WinGet.
 
 ## Changed — 2026-10-27 — version 0.15.2
 

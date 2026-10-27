@@ -60,7 +60,8 @@ on a Mac and on Windows (the way every later fix reaches people); the
 security work from the 2026-10-27 review (hash-checked installs in CI, DNS
 rebinding, invisible characters in adverts, dependency review); three to
 five people who do not program installing and using it, and what they hit
-fixed in 0.16.x. Linux installers and code signing are not conditions: 1.0
+fixed in 0.16.x; jobdork in WinGet, so Windows users can `winget install`
+it. Linux installers and code signing are not conditions: 1.0
 can name the systems it ships for, and add one in a minor release.
 
 **Why.** Until now 0.x has meant "still changing", and minor versions were
