@@ -8,6 +8,13 @@
 | Linux, an Intel Mac, or if you prefer Python | [Run it from source](https://github.com/jessn-dev/jobDork/blob/main/docs/run/source.md) |
 | A NAS or home server, always on | [Docker](https://github.com/jessn-dev/jobDork/blob/main/docs/run/docker.md) or the [NAS guide](https://github.com/jessn-dev/jobDork/blob/main/docs/run/nas.md) |
 
+On a Mac you can also install it with one command in Terminal, which
+checks the download for you and skips the first-open warning:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jessn-dev/jobDork/main/packaging/install-mac.sh)"
+```
+
 Every way works the same once it is open: this guide is about the app
 itself. The ways to run it, side by side, are in
 [docs/run](https://github.com/jessn-dev/jobDork/blob/main/docs/run/README.md).

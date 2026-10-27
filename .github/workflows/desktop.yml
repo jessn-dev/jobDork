@@ -81,3 +81,124 @@ jobs:
           path: ${{ matrix.file }}
           if-no-files-found: error
           retention-days: 7
+
+  # The WinGet manifest, tried for real on every pull request: written for the
+  # installer just built (scripts/winget_manifest.py), checked with `winget
+  # validate`, installed with `winget install --manifest` the way WinGet's
+  # own checks install a submission (silently, as the runner's user), checked
+  # in what Windows lists, then removed with `winget uninstall`. The
+  # installer is served from the runner itself; nothing is published.
+  winget:
+    needs: build
+    runs-on: windows-2025
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Fetch the Windows installer the build made
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: desktop-Windows
+          path: dist
+
+      # The image's software list does not name winget; if it is missing,
+      # Microsoft's own module puts it there, at a pinned version.
+      - name: Make sure winget is there
+        shell: pwsh
+        run: |
+          if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+            Install-PackageProvider -Name NuGet -Force | Out-Null
+            Install-Module Microsoft.WinGet.Client -RequiredVersion 1.29.380 -Repository PSGallery -Scope AllUsers -Force
+            Repair-WinGetPackageManager -AllUsers -Force
+          }
+
+      - name: Write a manifest for this build
+        shell: bash
+        run: |
+          exe=$(ls dist/jobdork-*-windows-x64-setup.exe)
+          name=$(basename "$exe")
+          version=${name#jobdork-}
+          version=${version%-windows-x64-setup.exe}
+          python scripts/winget_manifest.py "$version" --out winget --installer "$exe" \
+            --url "http://127.0.0.1:8765/$name" --iss packaging/jobdork.iss --date "$(date -u +%F)"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      # winget marks what it downloads as from the internet, and Windows then
+      # holds an unsigned installer at a security prompt before it starts:
+      # on this runner nobody can answer it, and the install waits forever.
+      # Tried 2026-10-27: the same installer, silent, installs in a second
+      # without the mark and never starts with it. Here, on a runner thrown
+      # away after the job, .exe files count as low risk, so the test checks
+      # the manifest, the silent install and the uninstall, not the prompt.
+      # On a person's computer the prompt shows until the installer is signed.
+      - name: Let this runner start a downloaded unsigned installer
+        shell: pwsh
+        run: |
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Associations'
+          New-Item -Path $key -Force | Out-Null
+          Set-ItemProperty -Path $key -Name LowRiskFileTypes -Value '.exe'
+
+      - name: Install it with winget, check it, remove it
+        shell: pwsh
+        run: |
+          winget --version
+          $manifest = "winget/manifests/j/jessn-dev/jobdork/$env:VERSION"
+          $server = Start-Process python -ArgumentList '-m', 'http.server', '8765', '--bind', '127.0.0.1', '--directory', 'dist' -PassThru -WindowStyle Hidden
+          try {
+            winget settings --enable LocalManifestFiles
+            $checked = winget validate --manifest $manifest | Out-String
+            Write-Output $checked
+            if ($LASTEXITCODE -and $checked -notmatch 'succeeded with warnings') { throw "winget validate failed ($LASTEXITCODE)" }
+
+            # With a time limit and the installer's own log: a silent install
+            # that waits on something shows nothing but a spinner, so on the
+            # limit say what is still running and what both logs say.
+            $log = Join-Path $PWD 'inno-install.log'
+            $install = Start-Process winget -PassThru -NoNewWindow -ArgumentList @(
+              'install', '--manifest', $manifest, '--silent', '--disable-interactivity',
+              '--accept-package-agreements', '--accept-source-agreements', '--log', $log)
+            if (-not $install.WaitForExit(300000)) {
+              Write-Output '--- still running after 5 minutes:'
+              Get-CimInstance Win32_Process | Sort-Object ProcessId |
+                Format-Table ProcessId, ParentProcessId, Name, CommandLine -AutoSize -Wrap | Out-String -Width 300
+              Get-Process | Where-Object { $_.MainWindowTitle } | Format-Table Id, ProcessName, MainWindowTitle -AutoSize
+              Write-Output '--- the installer log:'
+              if (Test-Path $log) { Get-Content $log -Tail 60 }
+              Write-Output '--- winget log:'
+              $diag = "$env:LOCALAPPDATA\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\DiagOutputDir"
+              Get-ChildItem $diag -Filter *.log -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1 | Get-Content -Tail 60
+              throw 'winget install did not finish in 5 minutes'
+            }
+            if ($install.ExitCode) {
+              if (Test-Path $log) { Get-Content $log -Tail 60 }
+              throw "winget install failed ($($install.ExitCode))"
+            }
+            # What WinGet matches a package by: the name, version and publisher
+            # Windows lists the app under (the AppId in jobdork.iss, with _is1).
+            $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{89BA0AFD-43DD-4F5C-ADC2-221D5F8E1EA6}_is1'
+            $app = Get-ItemProperty $key
+            Write-Output "Listed as '$($app.DisplayName)' $($app.DisplayVersion) by $($app.Publisher) in $($app.InstallLocation)"
+            if ($app.DisplayName -ne 'jobdork' -or $app.DisplayVersion -ne $env:VERSION -or $app.Publisher -ne 'jessn-dev') {
+              throw 'Windows lists it under a name, version or publisher the manifest does not say'
+            }
+            $exe = Join-Path $app.InstallLocation 'jobdork.exe'
+            if (-not (Test-Path $exe)) { throw "no $exe after installing" }
+
+            winget uninstall --manifest $manifest --silent --disable-interactivity --accept-source-agreements
+            if ($LASTEXITCODE) { throw "winget uninstall failed ($LASTEXITCODE)" }
+            if (Test-Path $key) { throw 'still listed under Installed apps after uninstalling' }
+            if (Test-Path $exe) { throw "$exe is still there after uninstalling" }
+            Write-Output 'winget installed and removed jobdork from the manifest.'
+          } finally {
+            Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
+          }

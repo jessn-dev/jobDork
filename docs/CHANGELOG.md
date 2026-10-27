@@ -6,6 +6,52 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-27 — Install on a Mac with one command, and a WinGet manifest for Windows
+
+- **One command installs or updates jobdork on a Mac**
+  (`packaging/install-mac.sh`), pasted into Terminal:
+  `bash -c "$(curl -fsSL https://raw.githubusercontent.com/jessn-dev/jobDork/main/packaging/install-mac.sh)"`.
+  It asks GitHub for the newest release, takes the `.dmg` only if GitHub
+  Actions uploaded it, checks its SHA-256 against the release's
+  `SHA256SUMS.txt` and, when the GitHub CLI is signed in, its build
+  attestation; then it quits an open jobdork, puts the new app in
+  /Applications (~/Applications when that cannot be written), keeping the
+  old one until the new one is in place, and opens it. No password, no
+  setting changed; macOS does not show the first-open warning, which is for
+  files a browser downloaded. Tested with stand-ins for the network and the
+  disk image (tests/test_install_mac.py): it installs, refuses a file that
+  does not match its checksum and keeps the old app, and refuses a file
+  GitHub Actions did not upload before downloading it.
+- **`scripts/winget_manifest.py X.Y.Z`** writes the WinGet manifest for a
+  release (three files in the 1.12 schema, in winget-pkgs' folder layout):
+  the Windows installer's address and SHA-256 from the release, `inno` and
+  per-user, so WinGet runs it silently, and the name Windows lists it under.
+  It is what a pull request to microsoft/winget-pkgs adds so that
+  `winget install jessn-dev.jobdork` works; that submission is planned
+  before 1.0.0.
+- **Every release writes its WinGet manifest:** the release workflow's last
+  step runs the script on the release's own checksums and keeps the three
+  files with the run (`winget-manifest-vX.Y.Z`, 90 days), after the release
+  page, so a manifest problem never holds up a release.
+- **The manifest is tried for real on every pull request:** a `winget` job
+  on Windows writes one for the installer just built, serves the installer
+  from the runner, runs `winget validate`, `winget install --manifest`
+  (silent, as WinGet's own checks install a submission), checks the name,
+  version and publisher Windows lists it under and that `jobdork.exe` is
+  there, then `winget uninstall` and checks both are gone. winget marks
+  what it downloads as from the internet, and Windows holds an unsigned
+  installer with that mark at a security prompt before it starts (tried:
+  without the mark it installs silently in a second; with it, it never
+  starts on a runner where nobody can answer). So on the runner `.exe`
+  files count as low risk; on a person's computer, installing with winget
+  shows Windows' prompt for an unsigned installer, as a browser download
+  does.
+- **The Windows installer names the app "jobdork"** under Installed apps
+  (`UninstallDisplayName`), instead of Inno Setup's "jobdork version
+  0.15.2": WinGet matches an installed app to its package by that name.
+- Docs: the desktop guide, the user guide's Getting started and home page,
+  and the README.
+
 ## Added — 2026-10-27 — What 1.0 promises, and when it comes
 
 docs/DECISIONS.md now says what a version number promises from 1.0.0 on:

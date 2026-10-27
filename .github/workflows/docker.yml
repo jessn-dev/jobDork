@@ -323,3 +323,24 @@ jobs:
           python3 scripts/release_notes.py --page "$TAG" "$IMAGE" "$DIGEST" > notes.md
           gh release create "$TAG" --repo "$REPO" --title "jobdork $version" \
             --notes-file notes.md --verify-tag installers/*
+
+      # The WinGet manifest for this release (scripts/winget_manifest.py),
+      # from the checksums above and the tag's installer script: nothing is
+      # fetched. Kept with the run, to test on Windows and submit to
+      # microsoft/winget-pkgs (RELEASING steps); after the release page, so a
+      # manifest problem never holds up the release.
+      - name: Write the WinGet manifest
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python3 scripts/winget_manifest.py "${TAG#v}" --out winget \
+            --sums installers/SHA256SUMS.txt --date "$(date -u +%F)"
+          find winget -type f -print -exec cat {} \;
+
+      - name: Keep the WinGet manifest with the run
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: winget-manifest-${{ github.ref_name }}
+          path: winget/
+          if-no-files-found: error
+          retention-days: 90

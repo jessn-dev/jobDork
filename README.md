@@ -140,7 +140,9 @@ gitignored, with `.env`, `data/` and `out/`), so your search stays yours.
 
 **The installers are not code-signed**, so macOS and Windows warn the first
 time you open one; [the desktop guide](docs/run/desktop.md#the-first-open-warning)
-says how to get past it and how to check a download instead. Every installer
+says how to get past it and how to check a download instead, and gives a
+one-command install for the Mac that checks the download itself and skips
+the warning. Every installer
 carries a build attestation from this repository's release workflow, and the
 app's **Update** button opens a new installer only after that attestation
 verifies ([SECURITY.md](SECURITY.md#how-the-app-checks-an-update-before-opening-it)).

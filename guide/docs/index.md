@@ -120,7 +120,9 @@ lists every address jobdork contacts and why.
 **Why does my computer warn me when I open it?**
 The installers are not code-signed, so macOS and Windows warn once.
 Each installer carries a build attestation instead, so you can check it was
-built by this project's own workflow.
+built by this project's own workflow. On a Mac, installing with
+[one command in Terminal](getting-started.md#install-it) checks it for you
+and skips the warning.
 [How to open it and check it](https://github.com/jessn-dev/jobDork/blob/main/docs/run/desktop.md#the-first-open-warning)
 
 ## Get started
