@@ -38,7 +38,14 @@ it and into an entry when the work is done.
   from the runner, runs `winget validate`, `winget install --manifest`
   (silent, as WinGet's own checks install a submission), checks the name,
   version and publisher Windows lists it under and that `jobdork.exe` is
-  there, then `winget uninstall` and checks both are gone.
+  there, then `winget uninstall` and checks both are gone. winget marks
+  what it downloads as from the internet, and Windows holds an unsigned
+  installer with that mark at a security prompt before it starts (tried:
+  without the mark it installs silently in a second; with it, it never
+  starts on a runner where nobody can answer). So on the runner `.exe`
+  files count as low risk; on a person's computer, installing with winget
+  shows Windows' prompt for an unsigned installer, as a browser download
+  does.
 - **The Windows installer names the app "jobdork"** under Installed apps
   (`UninstallDisplayName`), instead of Inno Setup's "jobdork version
   0.15.2": WinGet matches an installed app to its package by that name.

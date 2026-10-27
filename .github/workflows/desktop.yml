@@ -133,36 +133,20 @@ jobs:
             --url "http://127.0.0.1:8765/$name" --iss packaging/jobdork.iss --date "$(date -u +%F)"
           echo "VERSION=$version" >> "$GITHUB_ENV"
 
-      # Why a silent install stalled (2026-10-27): the installer run directly,
-      # then with the "downloaded from the internet" mark winget gives it.
-      - name: Probe the installer without and with the internet mark
+      # winget marks what it downloads as from the internet, and Windows then
+      # holds an unsigned installer at a security prompt before it starts:
+      # on this runner nobody can answer it, and the install waits forever.
+      # Tried 2026-10-27: the same installer, silent, installs in a second
+      # without the mark and never starts with it. Here, on a runner thrown
+      # away after the job, .exe files count as low risk, so the test checks
+      # the manifest, the silent install and the uninstall, not the prompt.
+      # On a person's computer the prompt shows until the installer is signed.
+      - name: Let this runner start a downloaded unsigned installer
         shell: pwsh
         run: |
-          function Show-Stuck {
-            Get-CimInstance Win32_Process | Sort-Object ProcessId |
-              Format-Table ProcessId, ParentProcessId, Name, CommandLine -AutoSize -Wrap | Out-String -Width 300
-            Get-Process | Where-Object { $_.MainWindowTitle } | Format-Table Id, ProcessName, MainWindowTitle -AutoSize
-          }
-          function Try-Install($exe, $label) {
-            $log = Join-Path $PWD "probe-$label.log"
-            $p = Start-Process $exe -PassThru -ArgumentList '/SP-', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$log`""
-            $done = $p.WaitForExit(180000)
-            Write-Output "=== $label : finished=$done exit=$(if ($done) { $p.ExitCode })"
-            if (-not $done) { Show-Stuck; Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
-            if (Test-Path $log) { Get-Content $log -Tail 15 } else { Write-Output 'no installer log' }
-            $un = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{89BA0AFD-43DD-4F5C-ADC2-221D5F8E1EA6}_is1' -ErrorAction SilentlyContinue
-            if ($un) {
-              $exeUn = ($un.UninstallString -replace '"', '')
-              Start-Process $exeUn -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
-              Write-Output "uninstalled after $label"
-            }
-          }
-          $exe = (Get-Item dist/jobdork-*-windows-x64-setup.exe).FullName
-          Try-Install $exe 'no-mark'
-          $marked = Join-Path $env:RUNNER_TEMP (Split-Path $exe -Leaf)
-          Copy-Item $exe $marked
-          Set-Content -Path $marked -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3"
-          Try-Install $marked 'internet-mark'
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Associations'
+          New-Item -Path $key -Force | Out-Null
+          Set-ItemProperty -Path $key -Name LowRiskFileTypes -Value '.exe'
 
       - name: Install it with winget, check it, remove it
         shell: pwsh
