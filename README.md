@@ -1,7 +1,11 @@
-<h1 align="center">
-  <img src="packaging/icon.svg" alt="" width="64" height="64" align="absmiddle">
-  jobDork
-</h1>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/banner-dark.svg">
+    <img src="docs/images/banner-light.svg" alt="jobDork: find the job posts worth your time" width="560">
+  </picture>
+</p>
+
+<hr>
 
 <p align="center">
   <a href="https://github.com/jessn-dev/jobDork/actions/workflows/docker.yml"><img alt="Build" src="https://github.com/jessn-dev/jobDork/actions/workflows/docker.yml/badge.svg?branch=main"></a>

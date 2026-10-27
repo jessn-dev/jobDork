@@ -6,6 +6,18 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-27 — The README opens on a banner
+
+The README's title was the small icon beside "jobDork" in heading type. It
+opens now on a banner, as Guardrails AI's does: the icon, the name large,
+and "Find the job posts worth your time" beneath, 560 pixels wide, then a
+rule and the badges.
+
+- `docs/images/banner-light.svg` and `banner-dark.svg`, drawn from
+  `packaging/icon.svg`; GitHub shows the dark one on a dark page.
+- Cropped to the artwork, so it sits centred; each line's width is fixed,
+  so Windows' wider font cannot run it off the edge.
+
 ## Changed — 2026-10-26 — version 0.15.1
 
 0.15.1 carries the 13 entries below, everything since 0.15.0 (25 October),
