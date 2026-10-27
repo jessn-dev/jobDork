@@ -40,7 +40,7 @@ DONE = "done"
 # later step, and every score, reads it.
 REQUIRED = {"resume": "upload your resume first",
             "search": "give at least one job title to search for",
-            "where": "choose the country and city you are in"}
+            "where": "choose the country you are in"}
 
 # When the AI test passes in setup, every scan has the model read this many
 # of the best new job posts (llm.judge_on_scan, llm.judge_top). The page's
@@ -79,8 +79,48 @@ def _check_required(data: dict, step: str) -> None:
         raise ValueError(REQUIRED["resume"])
     if reached > STEP_NAMES.index("search") and not (data.get("titles") or {}).get("include"):
         raise ValueError(REQUIRED["search"])
-    if reached > STEP_NAMES.index("where") and not (data.get("locations") or {}).get("anchor"):
+    loc = data.get("locations") or {}
+    # The country is the one answer needed; regions and cities are optional.
+    # A city names its country too; 0.15.3 and earlier kept one as `anchor`.
+    if reached > STEP_NAMES.index("where") and not (
+            loc.get("country") or loc.get("cities") or loc.get("anchor")):
         raise ValueError(REQUIRED["where"])
+
+
+def _places(pick: dict) -> dict:
+    """The picker's choices, as config: a country, then any regions and any
+    cities in it, each city written as text resolve() reads back.
+
+    A city not in the gazetteer is refused rather than saved unplaced, which
+    would quietly turn its radius off; so is a region the country lacks.
+    """
+    country = str(pick.get("country") or "").strip().upper()
+    if not country:
+        raise ValueError("choose a country")
+    known = {r["code"] for r in geo.picker_regions(country)["regions"]}
+    regions = list(dict.fromkeys(str(r).strip().upper() for r in pick.get("regions") or []
+                                 if str(r).strip()))
+    unknown = [r for r in regions if r not in known]
+    if unknown:
+        raise ValueError(f"{', '.join(unknown)} is not a region of that country")
+    cities: list[str] = []
+    for one in pick.get("cities") or []:
+        city = str(one.get("city") or "").strip()
+        region = str(one.get("region") or "").strip().upper()
+        if not city:
+            continue
+        anchor = geo.picker_anchor(city, region, country)
+        where = geo.resolve_anchor(anchor, (country,))
+        if (not where.located or where.country != country
+                or (region and geo.region_at(where) != region)):
+            raise ValueError(f"{city!r} is not in the place list for that "
+                             "country and region; choose one from the suggestions")
+        # Written with the region it was placed in, so "Austin" chosen with
+        # no state reads back as the same Austin, not the largest of two.
+        cities.append(geo.picker_anchor(where.city or city, region or geo.region_at(where),
+                                        country))
+    return {"country": country, "regions": regions,
+            "cities": list(dict.fromkeys(cities))}
 
 
 def write(path: str, payload: dict) -> config_mod.Config:
@@ -157,7 +197,7 @@ def rewrite(original: str, payload: dict) -> str:
         # A new config: no place and every country until the Where step, so
         # nobody starts out measured from the built-in default's Naperville
         # or limited to the United States.
-        data["locations"] = {"anchor": "", "countries": []}
+        data["locations"] = {"cities": [], "regions": [], "countries": []}
 
     titles = data.setdefault("titles", {})
     if "titles_include" in payload:
@@ -168,28 +208,16 @@ def rewrite(original: str, payload: dict) -> str:
                              if str(t).strip()]
 
     locations = data.setdefault("locations", {})
-    if "anchor_pick" in payload:
-        # The picker's three choices, written as text resolve() reads back.
-        # A city not in the gazetteer is refused rather than saved unplaced,
-        # which would quietly turn the radius off.
-        pick = payload["anchor_pick"] or {}
-        city = str(pick.get("city") or "").strip()
-        country = str(pick.get("country") or "").strip().upper()
-        region = str(pick.get("region") or "").strip().upper()
-        if not city or not country:
-            raise ValueError("choose a country and a city")
-        anchor = geo.picker_anchor(city, region, country)
-        where = geo.resolve_anchor(anchor, (country,))
-        if (not where.located or where.country != country
-                or (region and geo.region_at(where) != region)):
-            raise ValueError(f"{city!r} is not in the place list for that "
-                             "country and region; choose one from the suggestions")
-        payload = {**payload, "anchor": anchor}
-    for key, field in (("anchor", "anchor"), ("radius", "radius"),
-                       ("units", "units"), ("countries", "countries"),
-                       ("work_modes", "work_modes")):
+    if "anchor" in payload:                 # one city, as 0.15.3 wrote it
+        payload = {**payload, "cities": [payload["anchor"]] if payload["anchor"] else []}
+        locations.pop("anchor", None)
+    if "places_pick" in payload:
+        payload = {**payload, **_places(payload["places_pick"] or {})}
+        locations.pop("anchor", None)       # 0.15.3's one city, now in cities
+    for key in ("country", "regions", "cities", "radius", "units", "countries",
+                "work_modes"):
         if key in payload:
-            locations[field] = payload[key]
+            locations[key] = payload[key]
 
     salary = data.setdefault("salary", {})
     if "salary_floor" in payload:

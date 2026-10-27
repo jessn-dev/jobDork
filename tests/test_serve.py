@@ -49,7 +49,7 @@ class _Running:
         self.cfg = Config(
             path=str(config_file),
             titles_include=["software engineer"],
-            locations=Locations(anchor="Chicago, IL", radius="exact",
+            locations=Locations(cities=["Chicago, IL"], radius="exact",
                                 units="mi", countries=["US"]),
             salary=Salary(),
             db_path=str(Path(self.tmp.name) / "serve.db"),
@@ -505,7 +505,7 @@ def test_the_page_can_edit_the_config_and_it_is_validated():
         assert saved["titles_include"] == ["security analyst"]
         assert saved["countries"] == ["DE"]
         # Reloaded config replaced the live one, so the next request uses it.
-        assert run.cfg_now.locations.anchor == "Berlin, Germany"
+        assert run.cfg_now.locations.cities == ["Berlin, Germany"]
     _with_server(check)
 
 
@@ -706,15 +706,16 @@ def test_where_you_are_is_saved_from_the_picker_and_must_resolve():
     def check(run):
         code, body = run.get("/api/places/cities?country=PH&q=bagu")
         assert code == 200 and "Baguio" in json.loads(body)["cities"]
-        code, saved = _post_json(run, "/api/config", {"anchor_pick": {
-            "country": "PH", "region": "15", "city": "Baguio"}})
+        code, saved = _post_json(run, "/api/config", {"places_pick": {
+            "country": "PH", "cities": [{"region": "15", "city": "Baguio"}]}})
         assert code == 200, saved
-        assert saved["anchor"] == "Baguio, Cordillera, Philippines"
-        assert saved["anchor_place"]["located"] and saved["anchor_place"]["region"] == "15"
-        code, body = _post_json(run, "/api/config", {"anchor_pick": {
-            "country": "PH", "region": "", "city": "Atlantis"}})
+        city = saved["places"]["cities"][0]
+        assert city["text"] == "Baguio, Cordillera, Philippines"
+        assert city["located"] and city["region"] == "15"
+        code, body = _post_json(run, "/api/config", {"places_pick": {
+            "country": "PH", "cities": [{"region": "", "city": "Atlantis"}]}})
         assert code == 400 and "suggestions" in body, body
-        assert run.cfg_now.locations.anchor == "Baguio, Cordillera, Philippines"
+        assert run.cfg_now.locations.cities == ["Baguio, Cordillera, Philippines"]
     _with_server(check)
 
 

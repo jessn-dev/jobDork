@@ -6,6 +6,35 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-28 — Where you would work: any states and cities, or the whole country
+
+Setup's Where step required one city, and every distance was measured from
+it. Someone who would work in two cities, or anywhere in a state, or
+anywhere in the country, could not say so. Now only the country is
+required, and **Add** puts as many states (provinces, regions) and cities
+as you like in a list under the picker, each with × to take it out, in
+setup and on the Search page alike:
+
+- A job post anywhere in a state you added is kept.
+- A job post within the radius of a city you added is kept; the distance
+  is to the nearest of your cities, and the score's explanation names it.
+- Neither: job posts from the whole country are kept, and the radius is
+  not used.
+- Remote jobs are kept wherever they are, as before.
+
+The job sources that search near a place (Adzuna, USAJOBS, Workable, the
+German employment agency) search each city and state once; Himalayas reads
+your hours from your first city. A city chosen without a state is saved
+with the state it was found in, so "Austin" reads back as the same Austin.
+The terminal's `jobdork setup` asks the same way: states, then cities,
+blank when done.
+
+In the config, `locations.anchor` becomes `locations.country`,
+`locations.regions` and `locations.cities` (docs/CONFIG.md). A config from
+0.15.3 or earlier still reads: its anchor is its one city, and saving the
+place on the dashboard writes the new keys. A radius with no city is no
+longer refused.
+
 ## Changed — 2026-10-27 — version 0.15.3
 
 0.15.3 carries the 3 entries below, everything since 0.15.2 (27 October):

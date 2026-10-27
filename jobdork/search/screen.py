@@ -229,8 +229,50 @@ def _excluded_by(banned: str, role: Role, resolved: geo.Resolved, cfg) -> bool:
     return needle.lower() in (role.location_raw or "").lower()
 
 
+@dataclass
+class Home:
+    """Where you would work, placed once per scan rather than once per post.
+
+    Any of `cities` (within the radius of one), or anywhere in one of
+    `regions`. Neither means the whole country: nothing to measure from.
+    """
+    cities: list[tuple[str, geo.Resolved]] = field(default_factory=list)
+    regions: list[str] = field(default_factory=list)
+    country: str = ""
+
+    @property
+    def placed(self) -> list[tuple[str, geo.Resolved]]:
+        return [(text, at) for text, at in self.cities if at.located]
+
+    def region_of(self, where: geo.Resolved) -> str:
+        """The chosen region a place is in, or ""."""
+        return next((r for r in self.regions if geo.in_region(where, self.country, r)), "")
+
+    def region_label(self, code: str) -> str:
+        return geo.region_label(self.country, code)
+
+    def nearest(self, where: geo.Resolved) -> tuple[str, float | None]:
+        """(city, miles) of the chosen city nearest a place."""
+        found = [(text, geo.distance_between(at, where)) for text, at in self.placed]
+        found = [f for f in found if f[1] is not None]
+        # lambda: sort key, the distance.
+        return min(found, key=lambda f: f[1]) if found else ("", None)
+
+    def words(self) -> str:
+        """"Austin, TX or Denver, CO or Texas", for a reason."""
+        return " or ".join([*(text for text, _ in self.cities),
+                            *(self.region_label(r) for r in self.regions)])
+
+
+def home_of(cfg: Config) -> Home:
+    prefs = cfg.country_prefs()
+    return Home(cities=[(text, geo.resolve_anchor(text, prefs)) for text in cfg.locations.cities],
+                regions=list(cfg.locations.regions),
+                country=cfg.locations.country or (prefs[0] if prefs else ""))
+
+
 def location_verdict(
-    role: Role, cfg: Config, anchor: geo.Resolved, mode: str
+    role: Role, cfg: Config, home: Home, mode: str
 ) -> tuple[bool, str, float, list[str]]:
     """(keep, reason_if_dropped, score, flags)."""
     flags: list[str] = []
@@ -257,35 +299,54 @@ def location_verdict(
     if mode == "remote":
         return True, "", 20.0, flags
 
-    radius = cfg.radius_miles()
-    if cfg.locations.radius == "exact":
-        if not anchor.located and not anchor.state:
-            return True, "", 0.0, flags
-        if not (resolved.city or resolved.state):
-            flags.append(f"location not resolved: {resolved.note or role.location_raw!r}")
-            return True, "", 0.0, flags
-        if geo.same_place(anchor, resolved):
-            return True, "", 25.0, flags
-        return False, f"{role.location_raw!r} is not {cfg.locations.anchor}", 0.0, flags
-
-    if radius is None or not anchor.located:
+    # No city and no region: the whole country, nothing to measure from.
+    if not home.cities and not home.regions:
         return True, "", 0.0, flags
 
-    if not resolved.located:
+    _, distance = home.nearest(resolved)
+    role.distance_mi = round(distance, 1) if distance is not None else None
+
+    # In a region you chose: kept, whatever the distance to your cities.
+    if home.regions and home.region_of(resolved):
+        return True, "", 25.0, flags
+    if not (resolved.city or resolved.state):
         # Kept on purpose. "We could not read it" is not "it is far away".
         flags.append(f"location not resolved: {resolved.note or role.location_raw!r}")
         return True, "", 0.0, flags
+    outside = f"{role.location_raw!r} is not in {home.words()}"
+    if not home.cities:
+        return False, outside, 0.0, flags
 
-    distance = geo.distance_between(anchor, resolved)
-    role.distance_mi = round(distance, 1) if distance is not None else None
+    radius = cfg.radius_miles()
+    if cfg.locations.radius == "exact":
+        cities = [at for _, at in home.cities if at.located or at.state]
+        if not cities and not home.regions:
+            return True, "", 0.0, flags
+        if any(geo.same_place(at, resolved) for at in cities):
+            return True, "", 25.0, flags
+        return False, outside, 0.0, flags
+
+    if radius is None or not home.placed:
+        # A city that could not be placed turns its radius off, as before,
+        # unless a region is there to keep to.
+        return (True, "", 0.0, flags) if not home.regions else (False, outside, 0.0, flags)
+
+    if not resolved.located:
+        flags.append(f"location not resolved: {resolved.note or role.location_raw!r}")
+        return True, "", 0.0, flags
+
     if distance is None:
         return True, "", 0.0, flags
     if distance > radius:
         units = cfg.locations.units or "mi"
         shown = geo.from_miles(distance, units)
         limit = geo.from_miles(radius, units)
-        return (False, f"{shown:.0f} {units} away, outside {limit:.0f} {units}",
-                0.0, flags)
+        far = (f"{shown:.0f} {units} away, outside {limit:.0f} {units}"
+               if len(home.cities) == 1 else
+               f"{shown:.0f} {units} from the nearest of your cities, outside {limit:.0f} {units}")
+        if home.regions:
+            far += f", and not in {' or '.join(home.region_label(r) for r in home.regions)}"
+        return False, far, 0.0, flags
 
     # Nearer is better, but only worth a few points: a role 24 miles out that
     # fits is worth more than one next door that does not.
@@ -359,21 +420,31 @@ def dealbreaker_verdict(role: Role, cfg: Config) -> tuple[bool, str, float, list
 # The verdict functions return points and, on a drop, a reason. A kept role
 # gets no reason, so these say in words what the points were for.
 
-def _explain_location(role: Role, cfg: Config, anchor: geo.Resolved,
+def _explain_location(role: Role, cfg: Config, home: Home,
                       mode: str, points: float) -> str:
-    where = cfg.locations.anchor or "your anchor"
     units = cfg.locations.units or "mi"
     if mode == "remote":
         return "remote, so distance does not apply: flat 20"
+    if not home.cities and not home.regions:
+        return "no city or region chosen, so the whole country counts and distance is not scored: 0"
+    resolved = geo.Resolved(city=role.city, state=role.state, country=role.country,
+                            lat=role.lat, lon=role.lon)
+    region = home.region_of(resolved) if home.regions else ""
+    if region and points:
+        return f"{role.location_raw or 'location'} is in {home.region_label(region)}, one of your regions: 25"
+    if not home.cities:
+        return f"could not place {role.location_raw or 'the location'} in your regions: 0"
+    where, _ = home.nearest(resolved)
+    where = where or home.cities[0][0]
     if cfg.locations.radius == "exact":
         if points:
-            return f"{role.location_raw or 'location'} is {where}: 25"
-        return f"could not place {role.location_raw or 'the location'} against {where}: 0"
+            return f"{role.location_raw or 'location'} is one of your cities: 25"
+        return f"could not place {role.location_raw or 'the location'} against {home.words()}: 0"
     radius = cfg.radius_miles()
     if radius is None:
         return "no radius set, so distance is not scored: 0"
-    if not anchor.located:
-        return f"{where} could not be placed on a map: 0"
+    if not home.placed:
+        return f"{home.cities[0][0]} could not be placed on a map: 0"
     if role.distance_mi is None:
         return f"could not place {role.location_raw or 'the location'} on a map: 0"
     shown = geo.from_miles(role.distance_mi, units)
@@ -382,7 +453,7 @@ def _explain_location(role: Role, cfg: Config, anchor: geo.Resolved,
            f"radius; nearer scores more: 25 × (1 − {shown:.0f}/{limit:.0f}) + 5")
     if role.distance_mi < 1 and role.city:
         # The case that looked like a bug: "Chicago, Illinois" is the centre
-        # of Chicago, which is the anchor, so 0 miles and full points.
+        # of Chicago, which is your city, so 0 miles and full points.
         why += (f". Measured to the centre of {role.city}; "
                 "the posting gives no street address")
     return why
@@ -427,7 +498,7 @@ def _explain_fit(match, resume, description: str) -> str:
 def screen(
     role: Role,
     cfg: Config,
-    anchor: geo.Resolved | None = None,
+    home: Home | None = None,
     resume=None,
     first_seen: str = "",
     today=None,
@@ -441,8 +512,8 @@ def screen(
     `first_seen`, when the post is already stored, dates a post the board
     gave no date for (freshness.age); `today` is for tests.
     """
-    if anchor is None:
-        anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
+    if home is None:
+        home = home_of(cfg)
 
     verdict = Verdict()
 
@@ -495,14 +566,14 @@ def screen(
     else:
         verdict.add("arrangement", 10.0, 10, f"{mode}, which you accept: 10")
 
-    keep, why, points, flags = location_verdict(role, cfg, anchor, mode)
+    keep, why, points, flags = location_verdict(role, cfg, home, mode)
     verdict.flags.extend(flags)
     if not keep:
         verdict.keep, verdict.rule = False, "location"
         verdict.reasons.append(why)
         return verdict
     verdict.add("location", points, 30,
-                _explain_location(role, cfg, anchor, mode, points))
+                _explain_location(role, cfg, home, mode, points))
 
     keep, why, points, flags = salary_verdict(role, cfg)
     verdict.flags.extend(flags)

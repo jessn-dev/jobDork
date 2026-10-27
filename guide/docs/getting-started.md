@@ -43,9 +43,11 @@ keychain so you enter each once ([Your keys](settings.md#your-keys)).
    for**, the titles to find, and any to leave out. With AI set up, it
    suggests titles from your resume. You can also pick the kinds of
    employers and add dealbreakers.
-4. **Where** (required). Your country and city are required; the state
-   can stay at **Any**. Then how far you would travel, and whether you want
-   remote, hybrid or on-site work. **Continue** names the field still empty.
+4. **Where** (required). Only your country is required. Then, if you
+   like, **Add** states and cities, as many as you want: posts anywhere in a
+   state you add are kept, and posts within your radius of a city you add.
+   Add none and posts from the whole country are kept. Then how far you
+   would travel, and whether you want remote, hybrid or on-site work.
 5. **Pay and job sources** (optional). The lowest yearly pay you would
    take: only a post that *states* lower pay is hidden (see
    [the salary floor](search.md#location-work-arrangement-and-pay)). Two

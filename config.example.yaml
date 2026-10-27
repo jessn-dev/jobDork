@@ -24,15 +24,24 @@ titles:
     - support engineer
 
 locations:
-  # Where you are. "City, ST" in the US, Canada and Australia; "City, Country"
-  # anywhere else. A bare region works too. Used as the centre of the radius,
-  # and sent to the sources that can filter on it themselves.
+  # Where you would work. A job post (not remote) is kept when it is anywhere
+  # in one of `regions`, or within the radius of one of `cities`. Neither
+  # keeps every post from the country. Both are sent to the sources that can
+  # filter on a place themselves.
+  # The country you live in: the regions are in it.
+  country: US
+  # Region codes in that country: [TX, CA] in the US, ["15"] (Cordillera) in
+  # the Philippines. Optional.
+  regions: []
+  # "City, ST" in the US, Canada and Australia; "City, Region, Country" or
+  # "City, Country" anywhere else. Each is a centre for the radius. Optional.
   #   "Chicago, IL"   "Makati, Philippines"   "Berlin, Germany"   "Sydney, NSW"
-  # Left out altogether, it is "Naperville, IL", and countries is [US].
-  anchor: "Naperville, IL"
+  # Left out altogether, it is ["Naperville, IL"], and countries is [US].
+  # (0.15.3 and earlier wrote one city as `anchor:`, which still reads.)
+  cities: ["Naperville, IL"]
 
-  # "exact", or a distance in `units` below.
-  #   exact   the posting's city and region must match the anchor
+  # "exact", or a distance in `units` below, from each of your cities.
+  #   exact   the posting's city and region must match one of your cities
   #   25      measured with the bundled gazetteer, no geocoding API
   # Remote roles skip this entirely: distance to a job with no office is not
   # a number that means anything.
