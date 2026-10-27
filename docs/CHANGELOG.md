@@ -27,8 +27,12 @@ it and into an entry when the work is done.
   the Windows installer's address and SHA-256 from the release, `inno` and
   per-user, so WinGet runs it silently, and the name Windows lists it under.
   It is what a pull request to microsoft/winget-pkgs adds so that
-  `winget install jessn-dev.jobdork` works; that submission is planned with
-  1.0.0.
+  `winget install jessn-dev.jobdork` works; that submission is planned
+  before 1.0.0.
+- **Every release writes its WinGet manifest:** the release workflow's last
+  step runs the script on the release's own checksums and keeps the three
+  files with the run (`winget-manifest-vX.Y.Z`, 90 days), after the release
+  page, so a manifest problem never holds up a release.
 - **The Windows installer names the app "jobdork"** under Installed apps
   (`UninstallDisplayName`), instead of Inno Setup's "jobdork version
   0.15.2": WinGet matches an installed app to its package by that name.
