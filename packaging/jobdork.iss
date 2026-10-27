@@ -93,11 +93,10 @@ begin
   Keys[4] := 'keys';      Labels[4] := 'Saved job-source keys (Adzuna, USAJOBS)';
   Keys[5] := 'logs';      Labels[5] := 'Logs';
   Keys[6] := 'downloads'; Labels[6] := 'Installers the Update button left in Downloads';
-  Form := CreateCustomForm();
+  { Inno Setup 6 takes the size here: ClientWidth, ClientHeight, KeepSizeX, KeepSizeY. }
+  Form := CreateCustomForm(ScaleX(480), ScaleY(340), False, False);
   try
     Form.Caption := 'Uninstall jobdork';
-    Form.ClientWidth := ScaleX(480);
-    Form.ClientHeight := ScaleY(340);
     Intro := TNewStaticText.Create(Form);
     Intro.Parent := Form;
     Intro.Left := ScaleX(16);
