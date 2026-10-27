@@ -6,6 +6,45 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-27 — version 0.15.3
+
+0.15.3 carries the 3 entries below, everything since 0.15.2 (27 October):
+
+- **A desktop app for Intel Macs**, `jobdork-0.15.3-macos-x86_64.dmg`,
+  beside the Apple Silicon one: download, open, drag into Applications.
+- **Install on a Mac with one command** in Terminal, which checks the
+  download itself and skips the first-open warning; and a WinGet manifest
+  written for every release and installed for real on every pull request.
+- **What 1.0 promises**, written down in docs/DECISIONS.md.
+
+Updating from 0.15.2 uses the update window 0.15.2 brought. An Intel Mac
+has no earlier jobdork to update: it starts at 0.15.3.
+
+## Added — 2026-10-27 — A desktop app for Intel Macs
+
+The desktop app was built for Apple Silicon Macs only; on an Intel Mac the
+only ways in were Docker or running from source, too much for someone who
+just wants to download and install. From 0.15.3 every release has
+`jobdork-X.Y.Z-macos-x86_64.dmg` beside the Apple Silicon one, built and
+self-tested on GitHub's Intel Mac machines (`macos-15-intel`) and attested
+the same way. macOS 12 or newer.
+
+- The app's **Update** button takes the installer for the Mac it runs on,
+  and the one-command install for Macs does too.
+- The release page lists it, with how to tell which Mac you have (Apple
+  menu → About This Mac).
+- **One library is older on the Intel app:** `cryptography` 48.0.1, the
+  last version built for Intel Macs; every other build has 50.0.2. Three
+  advisories are fixed after 48.0.1: in PKCS#7 decryption (not used), in
+  slow certificate-chain building (the update check builds chains only from
+  Sigstore's own verified trusted root), and in DNS-name constraints (the
+  update check's certificates name a workflow, not a host). CI's dependency
+  audit accepts those three for that entry alone, audited separately from
+  the rest, which still allows none; the reasons are beside it in
+  `.github/workflows/docker.yml`.
+- Docs: the desktop guide, run guides, README, SECURITY.md, DECISIONS, and
+  the user guide's home page and Getting started.
+
 ## Added — 2026-10-27 — Install on a Mac with one command, and a WinGet manifest for Windows
 
 - **One command installs or updates jobdork on a Mac**

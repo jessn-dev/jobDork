@@ -26,7 +26,7 @@ only after the owner approves it in the `release` environment. A push to
 | `hadolint` | Dockerfile mistakes |
 | Trivy on the built image | High and critical vulnerabilities in every package in the image, fixed or not, plus secrets and misconfiguration |
 | `scripts/check_image.sh` | That the image runs as user 1000, has no pip, contains no `.env`, config or database, cannot rewrite its own code, and that the dashboard starts and refuses a missing token and an address not named |
-| Desktop app build (`desktop.yml`), macOS and Windows, after the tests and scans pass | That both installers still build from the hash-pinned `requirements-desktop.lock`, and that the built app carries every module and data file it needs and can verify a build attestation (its `--self-test`) |
+| Desktop app build (`desktop.yml`), macOS (Apple Silicon and Intel) and Windows, after the tests and scans pass | That every installer still build from the hash-pinned `requirements-desktop.lock`, and that the built app carries every module and data file it needs and can verify a build attestation (its `--self-test`) |
 
 **How the image is built to be hard to tamper with:**
 
@@ -71,7 +71,7 @@ only after the owner approves it in the `release` environment. A push to
 2. **After the merge**, bring `main` up to date, then tag it and push the tag:
    `git checkout main && git pull`, then check that `main` now says the new
    version, `grep -m1 '^version' pyproject.toml`, and only then
-   `git tag v0.15.2 && git push origin v0.15.2`. Only an admin can create a
+   `git tag v0.15.3 && git push origin v0.15.3`. Only an admin can create a
    `v*` tag, and once pushed it can never be moved or deleted, so a tag made
    before the pull lands on the old commit for good (as `v0.14.0`,
    `v0.14.1` and `v0.14.2` did). Pushing a branch or opening a pull request does not put
@@ -126,7 +126,7 @@ swapped later.
 Check that it was built by this repository's workflow and not altered since:
 
 ```bash
-cosign verify jessengolab/jobdork:0.15.2 \
+cosign verify jessengolab/jobdork:0.15.3 \
   --certificate-identity-regexp '^https://github.com/jessn-dev/jobDork/\.github/workflows/docker\.yml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

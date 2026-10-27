@@ -208,11 +208,13 @@ def _uploader(asset: dict) -> str:
 
 def installer_name(version: str) -> str:
     """The installer this computer takes from a release, or "" when there is
-    none for it (Linux, an Intel Mac, a copy that is not the desktop app)."""
+    none for it (Linux, a copy that is not the desktop app). Macs have one
+    for Apple silicon and one for Intel (from 0.15.3)."""
     if not getattr(sys, "frozen", False):
         return ""
-    if sys.platform == "darwin" and platform.machine() == "arm64":
-        return f"jobdork-{version}-macos-arm64.dmg"
+    if sys.platform == "darwin":
+        arch = "arm64" if platform.machine() == "arm64" else "x86_64"
+        return f"jobdork-{version}-macos-{arch}.dmg"
     if sys.platform == "win32":
         return f"jobdork-{version}-windows-x64-setup.exe"
     return ""

@@ -91,10 +91,38 @@ jobs:
       # are dropped first: pip-audit skips a package whose marker does not
       # match the machine it runs on, and this one is Linux, while pyobjc is
       # macOS-only and pythonnet Windows-only.
+      #
+      # Three advisories are accepted for one entry only: cryptography 48.0.1,
+      # pinned for the Intel Mac build because 49 and later publish no Intel
+      # macOS wheels (packaging/desktop-build.in). Every other build has
+      # 50.0.2, where they are fixed. Why none matters to jobdork:
+      # PYSEC-2026-3552 (CVE-2026-69247) is in PKCS#7 decryption, which nothing
+      # here does. PYSEC-2026-3553 (CVE-2026-69249) slows certificate-chain
+      # building on duplicate intermediates; sigstore's update check builds
+      # chains only from Sigstore's own trusted root, verified first, never
+      # from the downloaded file. PYSEC-2026-3554 (CVE-2026-69248) concerns
+      # DNS-name constraints, and the update check's certificates name a
+      # workflow, not a host. Remove these when the Intel pin goes.
+      #
+      # pip-audit refuses a package listed twice, so the Intel-only entry is
+      # audited on its own, and only it gets those three exceptions.
       - name: Desktop dependencies have no known vulnerabilities
         run: |
-          sed -E 's/ ; [^\\]*\\$/ \\/' requirements-desktop.lock > "$RUNNER_TEMP/desktop-all.lock"
+          python3 - <<'PY'
+          import os, re
+          tmp = os.environ["RUNNER_TEMP"]
+          intel = "platform_machine == 'x86_64' and sys_platform == 'darwin'"
+          blocks = re.split(r"\n(?=\S)", open("requirements-desktop.lock").read())
+          with open(f"{tmp}/desktop-all.lock", "w") as rest, \
+               open(f"{tmp}/desktop-intel-mac.lock", "w") as mac:
+              for block in blocks:
+                  first = block.split("\n", 1)[0]
+                  plain = re.sub(r" ; [^\\\n]*\\$", r" \\", block, count=1, flags=re.M)
+                  (mac if intel in first else rest).write(plain + "\n")
+          PY
           pip-audit -r "$RUNNER_TEMP/desktop-all.lock" --require-hashes --disable-pip --strict
+          pip-audit -r "$RUNNER_TEMP/desktop-intel-mac.lock" --require-hashes --disable-pip --strict \
+            --ignore-vuln PYSEC-2026-3552 --ignore-vuln PYSEC-2026-3553 --ignore-vuln PYSEC-2026-3554
 
       # Medium severity and up, medium confidence and up. A finding judged
       # safe is marked in the code with its reason (`# nosec` and a comment).

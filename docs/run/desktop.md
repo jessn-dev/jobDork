@@ -6,9 +6,18 @@ Nothing to type, no Python to install. Other ways to run it:
 
 | System | Download |
 |---|---|
-| Mac with Apple Silicon (M1 or later), macOS 12 or newer | `jobdork-0.15.2-macos-arm64.dmg` |
-| Windows 10 or 11, 64-bit | `jobdork-0.15.2-windows-x64-setup.exe` |
-| Intel Mac, Linux | No installer: run the same window [from source](source.md#the-desktop-window-from-source) |
+| Mac with Apple Silicon (M1 or later), macOS 12 or newer | `jobdork-0.15.3-macos-arm64.dmg` |
+| Mac with an Intel processor, macOS 12 or newer | `jobdork-0.15.3-macos-x86_64.dmg` (from 0.15.3) |
+| Windows 10 or 11, 64-bit | `jobdork-0.15.3-windows-x64-setup.exe` |
+| Linux | No installer: run the same window [from source](source.md#the-desktop-window-from-source) |
+
+**Which Mac do I have?** Apple menu → **About This Mac**. "Chip: Apple M…"
+is Apple Silicon; "Processor: … Intel" is Intel.
+
+The Intel app keeps one library, `cryptography`, at 48.0.1: 49 and later
+are no longer built for Intel Macs. The three advisories fixed since are in
+code jobdork does not use that way, and the reasons are written beside the
+exception in `.github/workflows/docker.yml`.
 
 Installers are attached to the
 [Releases](https://github.com/jessn-dev/jobDork/releases) page from 0.14.4
@@ -59,7 +68,7 @@ above):
 [GitHub CLI](https://cli.github.com/):
 
 ```bash
-gh attestation verify jobdork-0.15.2-macos-arm64.dmg --repo jessn-dev/jobDork
+gh attestation verify jobdork-0.15.3-macos-arm64.dmg --repo jessn-dev/jobDork
 ```
 
 or compare its SHA-256 with `SHA256SUMS.txt` on the same release.
@@ -131,8 +140,8 @@ problem, or through the dashboard's Feedback page otherwise.
 ```bash
 pip install --require-hashes -r requirements-desktop.lock
 pip install --no-deps --no-build-isolation -e .
-python packaging/build.py   # macOS: dist/jobdork-0.15.2-macos-arm64.dmg
-                            # Windows: dist/jobdork-0.15.2-windows-x64-setup.exe
+python packaging/build.py   # macOS: dist/jobdork-0.15.3-macos-arm64.dmg
+                            # Windows: dist/jobdork-0.15.3-windows-x64-setup.exe
 ```
 
 The lock pins every package by version and hash, as the release builds do;

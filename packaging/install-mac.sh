@@ -14,7 +14,7 @@
 # and keys are not touched: they live in ~/Library/Application Support/jobdork
 # and the keychain, not in the app. Run it again to update.
 #
-# macOS 12 or newer on Apple silicon (M1 or later). Bash 3.2, as macOS ships.
+# macOS 12 or newer, on Apple silicon or Intel. Bash 3.2, as macOS ships.
 # JOBDORK_INSTALL_DIR puts the app in another folder; JOBDORK_INSTALL_NO_OPEN=1
 # leaves it closed.
 
@@ -34,7 +34,11 @@ die() {
 }
 
 [ "$(uname -s)" = Darwin ] || die "this command is for macOS. Windows and Linux: $GUIDE"
-[ "$(uname -m)" = arm64 ] || die "the Mac app is built for Apple silicon (M1 or later). On an Intel Mac, run it from source: https://github.com/$REPO/blob/main/docs/run/source.md"
+case "$(uname -m)" in
+    arm64) arch=arm64 ;;
+    x86_64) arch=x86_64 ;;
+    *) die "no Mac app for a $(uname -m) processor" ;;
+esac
 major=$(sw_vers -productVersion | cut -d. -f1)
 [ "$major" -ge 12 ] || die "jobdork needs macOS 12 or newer; this Mac has $(sw_vers -productVersion)"
 
@@ -57,7 +61,7 @@ curl -fsSL --proto '=https' --tlsv1.2 -H "Accept: application/vnd.github+json" \
     -o "$work/release.json" "$API" || die "could not reach GitHub ($API)"
 tag=$(field tag_name) || die "GitHub's answer named no release"
 version=${tag#v}
-dmg="jobdork-$version-macos-arm64.dmg"
+dmg="jobdork-$version-macos-$arch.dmg"
 
 # The two files this needs, each uploaded by GitHub Actions and nobody else.
 dmg_url=""

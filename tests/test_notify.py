@@ -302,6 +302,15 @@ def test_only_the_desktop_app_on_a_known_system_gets_an_installer():
     assert updates.installer_name("9.0.0") == ""                    # not the desktop app
     with _platform("win32", frozen=True):
         assert updates.installer_name("9.0.0") == "jobdork-9.0.0-windows-x64-setup.exe"
+    saved = updates.platform.machine
+    try:
+        for machine, arch in (("arm64", "arm64"), ("x86_64", "x86_64")):
+            # lambda: the processor this Mac reports, Apple silicon or Intel.
+            updates.platform.machine = lambda m=machine: m
+            with _platform("darwin", frozen=True):
+                assert updates.installer_name("9.0.0") == f"jobdork-9.0.0-macos-{arch}.dmg"
+    finally:
+        updates.platform.machine = saved
     with _platform("linux", frozen=True):
         assert updates.installer_name("9.0.0") == ""
     try:

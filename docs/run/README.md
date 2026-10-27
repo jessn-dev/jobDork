@@ -16,8 +16,8 @@ folder (see [Moving between them](#moving-between-them)).
 run on another computer of yours, one model on each when one computer cannot
 hold both: [ai-on-two-computers.md](ai-on-two-computers.md).
 
-**Not sure?** Take the desktop app on a Mac or a Windows PC. On Linux or an
-Intel Mac there is no installer: run it [from source](source.md), which
+**Not sure?** Take the desktop app on a Mac (Apple Silicon or Intel) or a
+Windows PC. On Linux there is no installer: run it [from source](source.md), which
 also gives you the desktop window (`jobdork app`). Use the NAS guide only if
 you want it running while your computer is off.
 

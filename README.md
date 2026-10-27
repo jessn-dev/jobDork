@@ -118,8 +118,8 @@ fully. [Limits](#limits) has the list.
 
 | | For | Guide |
 |---|---|---|
-| **Desktop app** | macOS (Apple Silicon) and Windows: an installer, its own window, scheduled scans, notifications, and updates from inside the app | [docs/run/desktop.md](docs/run/desktop.md) |
-| **From source** | Any system with Python 3.10 or newer, Linux and Intel Macs included | [docs/run/source.md](docs/run/source.md) |
+| **Desktop app** | macOS (Apple Silicon or Intel) and Windows: an installer, its own window, scheduled scans, notifications, and updates from inside the app | [docs/run/desktop.md](docs/run/desktop.md) |
+| **From source** | Any system with Python 3.10 or newer, Linux included | [docs/run/source.md](docs/run/source.md) |
 | **In the terminal** | Every command without the dashboard: scripts, cron jobs, servers with no screen | [docs/run/cli.md](docs/run/cli.md) |
 | **Docker** | The published image on your computer, or always on a NAS | [docs/run/docker.md](docs/run/docker.md), [docs/run/nas.md](docs/run/nas.md) |
 
