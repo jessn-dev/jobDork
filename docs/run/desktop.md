@@ -21,6 +21,23 @@ under that run's **Artifacts** for a week.
 
 **macOS.** Open the `.dmg` and drag jobdork into Applications.
 
+**macOS, with one command.** Paste this into Terminal (in Applications →
+Utilities):
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jessn-dev/jobDork/main/packaging/install-mac.sh)"
+```
+
+It downloads the newest jobdork from the Releases page, checks it is the
+file this repository's release workflow built (who uploaded it, its SHA-256
+in `SHA256SUMS.txt`, and its build attestation when the
+[GitHub CLI](https://cli.github.com/) is installed), copies it into
+Applications and opens it. It asks for no password and changes no setting,
+and macOS does not show the first-open warning below: that warning is for
+files a browser downloaded. Run it again to update; your settings, job posts
+and keys are not in the app and are not touched.
+[Read the script](../../packaging/install-mac.sh) before you run it.
+
 **Windows.** Run the setup. It installs for you alone, so it asks for no
 administrator password, and it shows what jobdork keeps and sends before
 installing ([PRIVACY.md](../../PRIVACY.md) in full).
@@ -29,7 +46,8 @@ installing ([PRIVACY.md](../../PRIVACY.md) in full).
 
 The installers are not code-signed (see
 [why](../DECISIONS.md#a-desktop-app-a-pywebview-window-unsigned-at-first--2026-10-21)),
-so each system warns once:
+so each system warns once (on a Mac, not when installed with the command
+above):
 
 - **macOS** says it cannot check jobdork for malicious software. Click
   **Done**, open **System Settings → Privacy & Security**, scroll down to the

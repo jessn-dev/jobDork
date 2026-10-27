@@ -32,6 +32,9 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 SetupIconFile={#Icon}
 UninstallDisplayIcon={app}\jobdork.exe
+; The name under Installed apps. Without it Windows shows "jobdork version
+; 0.15.2", and WinGet matches a package by this name (scripts/winget_manifest.py).
+UninstallDisplayName=jobdork
 OutputDir={#Output}
 OutputBaseFilename=jobdork-{#Version}-windows-x64-setup
 Compression=lzma2
