@@ -113,7 +113,7 @@ class Bridge:
     `open_url`, so no other site's script can reach these.
     """
 
-    CALLS = ("open_url", "save_file", "open_file")
+    CALLS = ("open_url", "save_file", "open_file", "quit_app")
     # A request carrying the largest file, base64 encoded, and its name.
     BODY_LIMIT = MAX_FILE_BYTES * 4 // 3 + 64 * 1024
 
@@ -131,6 +131,14 @@ class Bridge:
             return getattr(self, name)(*args)
         except TypeError:
             raise ValueError(f"{name} was not given what it needs") from None
+
+    def quit_app(self) -> bool:
+        """Close the window, which stops jobdork: on a Mac the new version
+        cannot replace this one while it runs. The page asks first."""
+        if self._window is None:
+            return False
+        self._window.destroy()
+        return True
 
     def open_url(self, url: str) -> bool:
         """Open a web address in the user's own browser."""
