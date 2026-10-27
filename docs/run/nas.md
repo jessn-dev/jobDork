@@ -149,7 +149,7 @@ instead of the Tailscale address: [ai-on-two-computers.md](ai-on-two-computers.m
 **The image.** jobdork is published to Docker Hub as
 [`jessengolab/jobdork`](https://hub.docker.com/r/jessengolab/jobdork/tags).
 Use a version tag so an update is your choice: the newest release is
-`jessengolab/jobdork:0.15.1`, and `latest` follows whichever is newest. **Use 0.14.4 or newer:** older images do not create their own
+`jessengolab/jobdork:0.15.2`, and `latest` follows whichever is newest. **Use 0.14.4 or newer:** older images do not create their own
 settings on the first start and restart over and over without a
 `config.yaml` mapped in. Every published image is signed;
 [SECURITY.md](../../SECURITY.md) shows how to check the signature and pin the
@@ -191,14 +191,14 @@ without compose, asks for each value instead:
 
 | Setting | Value |
 |---|---|
-| Image | `jessengolab/jobdork:0.15.1` |
+| Image | `jessengolab/jobdork:0.15.2` |
 | Port | NAS `8765` → container `8765` |
 | Volume | `…/docker/jobdork/data` → `/app/data`, read/write |
 | Environment | `JOBDORK_ALLOW_HOSTS` = the NAS's addresses, comma separated: its home-network address and its Tailscale name, e.g. `10.0.0.122,my-nas.tail1234.ts.net` |
 | Memory limit | 1 GB is plenty |
 | Auto restart | On |
 
-On Unraid: **Docker** → **Add Container** → Repository `jessengolab/jobdork:0.15.1`;
+On Unraid: **Docker** → **Add Container** → Repository `jessengolab/jobdork:0.15.2`;
 then **Add another Path, Port, Variable, Label or Device** three times: a
 Port (8765 to 8765), a Path (container `/app/data`, host
 `/mnt/user/appdata/jobdork`) and a Variable (`JOBDORK_ALLOW_HOSTS`) → **Apply**.
@@ -209,7 +209,7 @@ Or as a command:
 docker run -d --name jobdork --restart unless-stopped -p 8765:8765 \
   -e JOBDORK_ALLOW_HOSTS=10.0.0.122,my-nas.tail1234.ts.net \
   -v /volume1/docker/jobdork/data:/app/data \
-  jessengolab/jobdork:0.15.1
+  jessengolab/jobdork:0.15.2
 ```
 
 **Opening it.** The container's log prints the address with its access token,
