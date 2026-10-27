@@ -6,6 +6,20 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-28 — The first scan's two parts, told apart
+
+Setup's last step runs a quick scan and then a full scan of every other
+employer board, in the background; the Dashboard said only that "the rest
+of the employer boards are being read". Now its note names each part with
+what it reads, "Quick scan: reading the job sites and 8 employer boards",
+then "Full scan started: reading the other 412 employer boards; job posts
+keep arriving", and when the full scan ends it says **Your job posts are
+ready**, with how many, a **View job posts** button and **Dismiss**. The
+computer says so too, with notifications on, whether anything was new or
+not and whether the window is open or closed: that is the scan someone
+closed the window to wait for. It is the full scan's only notice; the
+ordinary "N new job posts" is not sent for it as well.
+
 ## Changed — 2026-10-27 — version 0.15.3
 
 0.15.3 carries the 3 entries below, everything since 0.15.2 (27 October):
@@ -6679,16 +6693,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   cannot work, and every **Load models** fails. Say when the address is
   this computer's own and nothing answers there, and leave the box empty
   rather than pre-filled when the page-wide address is only the default.
-- **The first scan's two parts, told apart** (asked 2026-10-27). Setup's
-  last step runs a quick scan ("first scan": the keyword job sites, your own
-  boards and 8 built-in ones) and then a "full scan" of every other
-  built-in board, in the background. The Dashboard should say which is
-  running and that it started: "Quick scan: reading job sites and 8
-  employer boards" then "Full scan started: reading the other N employer
-  boards; job posts keep arriving". When the full scan ends, tell the
-  person their job posts are ready to view: a notice on the page with a
-  **View job posts** button, and the computer's notification when
-  notifications are on, including when the window was closed meanwhile.
 - **The hallucination rate in colour** (asked 2026-10-27): the Dashboard
   tile and the "Hallucination, over time" chart green at 5% or below (the
   2-5% target in docs/AI-MODELS.md), amber above 5% up to 10%, red above

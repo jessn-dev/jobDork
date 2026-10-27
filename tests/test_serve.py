@@ -1029,6 +1029,47 @@ def test_the_first_scan_starts_only_at_setups_last_step():
     _with_server(check)
 
 
+def test_the_first_scan_names_its_two_parts_and_says_when_the_second_is_ready():
+    """The quick part's boards and the rest's are counted for the Dashboard,
+    and the end of the second is kept as ready until it is seen."""
+    from jobdork.core import notify
+    from jobdork.output import render
+    from jobdork.search import scan as scan_mod
+
+    def check(run):
+        saved = (scan_mod._jobs_for, scan_mod.run, notify.first_scan_ready,
+                 notify.scan_finished, render.write_all)
+        told = []
+        # lambda: two keyword sources and three boards in the quick part, five boards after.
+        scan_mod._jobs_for = lambda cfg, part="all": (
+            [("workable", {}), ("adzuna", {})] + [("greenhouse", {"token": f"q{i}"}) for i in range(3)]
+            if part == "quick" else [("greenhouse", {"token": f"r{i}"}) for i in range(5)])
+        # lambda: a scan that finds nothing, quickly.
+        scan_mod.run = lambda cfg, store, progress=None, part="all": scan_mod.ScanReport()
+        # lambda: no report files: they would land in the folder the tests run from.
+        render.write_all = lambda *a, **kw: []
+        # lambda: record what the computer would have been told.
+        notify.first_scan_ready = lambda cfg, kept, **kw: told.append(("ready", kept))
+        # lambda: likewise for an ordinary scan's notice.
+        notify.scan_finished = lambda cfg, new, kept, **kw: told.append(("scan", new))
+        try:
+            jobs = serve_mod.api_mod.first_scan_jobs(run.cfg)
+            assert [name for name, _ in jobs] == ["first scan", "full scan"]
+            state = json.loads(run.get("/api/state")[1])["first_scan"]
+            assert (state["quick"], state["rest"], state["ready"]) == (3, 5, False)
+            lines = []
+            jobs[1][1](lines.append)
+        finally:
+            (scan_mod._jobs_for, scan_mod.run, notify.first_scan_ready,
+             notify.scan_finished, render.write_all) = saved
+        assert told and told[0][0] == "ready", "the full scan says ready, not 'nothing new'"
+        state = json.loads(run.get("/api/state")[1])["first_scan"]
+        assert state["ready"] and state["kept"] == told[0][1]
+        code, _ = run.post("/api/first-scan/seen", {})
+        assert code == 200 and not json.loads(run.get("/api/state")[1])["first_scan"]["ready"]
+    _with_server(check)
+
+
 def test_your_credentials_are_saved_and_an_advert_is_checked_against_them():
     def check(run):
         code, saved = _post_json(run, "/api/config", {"credentials": ["IAT I", "CISSP"]})
