@@ -630,6 +630,10 @@ main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
 #view-prefs h3.psec{margin:1.5rem 0 .4rem}
 #view-prefs .said-line{font-size:.88rem;margin-right:auto}
 #view-prefs #theme .switch{margin-left:0;background:var(--card);color:var(--fg)}
+.q-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem;
+  padding:.35rem 0;border-bottom:1px solid var(--line);font-size:.86rem}
+.q-list{margin:.2rem 0 0;padding-left:1.2rem}
+.q-list .q-row .hint{margin-left:.35rem}
 .bgscan{border:1px solid var(--accent);border-radius:8px;padding:.6rem .8rem;
   color:var(--fg);background:var(--card);font-size:.88rem}
 .keycard{border:1px solid var(--line);border-radius:8px;
@@ -888,6 +892,11 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
             <button data-icon="table-2" class="linkbtn" data-table="m-hal">Show as table</button></div>
           <div class="legend lines" id="m-hal-legend" style="margin-top:.35rem"></div>
           <div class="chart" id="m-hal"></div>
+        </div>
+        <div class="panel" id="q-panel">
+          <div class="panel-head"><h3>Running and waiting</h3>
+            <span class="sub" id="q-sub"></span></div>
+          <div id="q-box"></div>
         </div>
         <div class="panel">
           <div class="panel-head"><h3>Feedback on AI output, per day</h3>
@@ -2899,7 +2908,40 @@ async function refreshState() {
   }[busy ? s.job : ''];
   $('bgscan').hidden = !first;
   if (first) $('bgscan').textContent = first;
+  drawQueue(s);
 }
+
+// What runs now, with Stop for a scan (it keeps what it has found), and
+// what waits, first in, first out, each with what started it and Cancel.
+// A change to the search, Projects or Education queues a job by itself.
+function drawQueue(s) {
+  const waiting = s.waiting || [];
+  const ago = t => { const m = Math.max(0, Math.round((Date.now() / 1000 - t) / 60));
+    return m < 1 ? 'just now' : m === 1 ? 'a minute ago' : `${m} minutes ago`; };
+  $('q-sub').textContent = waiting.length ? `${waiting.length} waiting` : '';
+  const now = s.busy ? `<div class="q-row q-now"><span><b>${esc(cap(s.job))}</b> running</span>${
+      /scan$/.test(s.job) ? `<button data-icon="circle-x" class="act danger" id="q-stop" type="button"
+        title="Stops reading more boards; the job posts found so far are kept">Stop</button>` : ''}</div>`
+    : '<p class="hint">Nothing running.</p>';
+  $('q-box').innerHTML = now + (waiting.length ? `<ol class="q-list">${waiting.map(w =>
+      `<li class="q-row"><span><b>${esc(cap(w.name))}</b>${w.why ? ` · ${esc(w.why)}` : ''}
+        <span class="hint">queued ${ago(w.at)}</span></span>
+        <button class="linkbtn" data-q-cancel="${w.id}" type="button">Cancel</button></li>`).join('')}</ol>`
+    : '<p class="hint">Nothing waiting. A change to your search, Projects or Education waits here while a job runs.</p>');
+  if ($('q-stop')) $('q-stop').onclick = async () => {
+    $('q-stop').disabled = true; $('q-stop').textContent = 'Stopping…';
+    const r = await api('/api/stop', {method: 'POST'});
+    if (!r.ok) toast(cap(await r.text()), 'err');
+  };
+}
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-q-cancel]');
+  if (!b) return;
+  b.disabled = true;
+  const r = await api('/api/queue/cancel', {method: 'POST', body: form({id: b.dataset.qCancel})});
+  if (!r.ok) toast(cap(await r.text()), 'err');
+  refreshState();
+});
 
 // ── first-run setup ──────────────────────────────────────────────────────────
 // While the config says setup is unfinished, the page is only this: one step
@@ -3596,6 +3638,8 @@ async function pollActivity() {
       $('act-dot').hidden = !d.running.length;
       $('act-dot').classList.toggle('live', d.running.length > 0);
       if (visible) drawActivity(d);
+      // While a job runs, the queue beside it can change with any save.
+      if (visible && d.running.length) refreshState();
     }
   } catch (e) { /* the server is restarting; try again next tick */ }
   actTimer = setTimeout(pollActivity, visible ? 2000 : 10000);

@@ -2207,8 +2207,8 @@ def first_scan_jobs(cfg) -> list[tuple[str, object]]:
 
     quick = scan_job(cfg, part="quick")
 
-    def first(progress):
-        summary = quick(progress)
+    def first(progress, stop=None):
+        summary = quick(progress, stop=stop)
         setup.write(cfg.path, {"setup_step": setup.DONE})
         progress("setup finished; reading the rest of the employer boards next")
         return summary
@@ -2216,7 +2216,7 @@ def first_scan_jobs(cfg) -> list[tuple[str, object]]:
 
 
 def scan_job(cfg, part: str = "all"):
-    def work(progress):
+    def work(progress, stop=None):
         from ..core import notify
         from ..db.store import Store
         from ..output import render
@@ -2224,13 +2224,14 @@ def scan_job(cfg, part: str = "all"):
 
         with Store(cfg.db_path) as store:
             try:
-                report = scan_mod.run(cfg, store, progress=progress, part=part)
+                report = scan_mod.run(cfg, store, progress=progress, part=part, stop=stop)
             except Exception as exc:
                 notify.scan_failed(cfg, f"{type(exc).__name__}: {exc}")
                 raise
             summary = " · ".join(report.lines())
             notify.scan_finished(cfg, report.newly_seen, report.kept)
-            if cfg.llm.judge_on_scan:
+            # Stopped: the AI reading after it waits for the next scan too.
+            if cfg.llm.judge_on_scan and not (stop and stop.is_set()):
                 summary += " · " + _judge_after_scan(cfg, store, progress)
             render.write_all(store.list_roles(), cfg, report)
         return summary

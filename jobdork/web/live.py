@@ -21,6 +21,7 @@ second would earn a rate limit the first was carefully avoiding.
 from __future__ import annotations
 
 import contextlib
+import inspect
 import json
 import queue
 import threading
@@ -114,9 +115,15 @@ class Runner:
         # What is running, so the page can say "scanning" or "drafting a CV"
         # rather than a bare spinner, and so a refusal can name the holder.
         self.current: str = ""
-        # Jobs waiting for this one: {name: make}, `make()` building the work
-        # when its turn comes, so it reads the settings as they are then.
-        self._queued: dict = {}
+        # Jobs waiting for this one, first in, first out: each {id, name,
+        # why, at, make}, `make()` building the work when its turn comes, so
+        # it reads the settings as they are then. Every request is kept, with
+        # what started it, and any can be cancelled while it waits.
+        self._queued: list[dict] = []
+        self._next_id = 0
+        # Set by Stop; a job that takes `stop` (a scan) checks it, keeps what
+        # it has, and ends early. Cleared when the next job starts.
+        self.stopping = threading.Event()
         # Set and cleared under the lock, not read off the thread: a thread
         # that has decided to finish is still alive for a moment, and a job
         # queued in that moment would wait for a run that never comes.
@@ -141,24 +148,43 @@ class Runner:
             self._begin([(name, work), *then])
             return True, ""
 
-    def queue(self, name: str, make) -> bool:
+    def queue(self, name: str, make, why: str = "") -> bool:
         """Run `make()` now, or after what is running. True if it started now.
 
-        One of each name waits: a second request for a re-screen while one
-        waits is the same re-screen, built from the newest settings. Used
-        when a change to the search starts a job by itself, where refusing
-        would lose the change.
+        Used when a change to the search starts a job by itself, where
+        refusing would lose the change. `why` says what started it
+        ("Search: added Nurse Practitioner"), for the queue on the Dashboard.
         """
         with self._lock:
             if self.busy:
-                self._queued.pop(name, None)       # to the back, as the newest
-                self._queued[name] = make
+                self._next_id += 1
+                self._queued.append({"id": self._next_id, "name": name, "why": why,
+                                     "at": time.time(), "make": make})
                 return False
             self._begin([(name, make())])
             return True
 
-    def waiting(self) -> list[str]:
-        return list(self._queued)
+    def waiting(self) -> list[dict]:
+        """What waits, in the order it will run, without the work itself."""
+        with self._lock:
+            return [{k: v for k, v in q.items() if k != "make"} for q in self._queued]
+
+    def cancel(self, job_id: int) -> bool:
+        """Take one waiting job off the queue. False if it is not waiting."""
+        with self._lock:
+            kept = [q for q in self._queued if q["id"] != job_id]
+            gone = len(kept) != len(self._queued)
+            self._queued = kept
+            return gone
+
+    def stop(self) -> bool:
+        """Ask the running job to stop, keeping what it has. False if none
+        runs. A job that cannot stop part way (a re-screen) finishes."""
+        if not self.busy:
+            return False
+        self.stopping.set()
+        self.broker.publish(Event("status", f"stopping {self.current or 'the job'}"))
+        return True
 
     def _begin(self, jobs) -> None:
         """Under the lock: start a thread running `jobs`."""
@@ -179,8 +205,8 @@ class Runner:
                     self.current = ""
                     self._running = False
                     return
-                name = next(iter(self._queued))
-                make = self._queued.pop(name)
+                entry = self._queued.pop(0)
+                name, make = entry["name"], entry["make"]
                 self.current = name
             try:
                 work = make()
@@ -192,6 +218,7 @@ class Runner:
     def _wrap(self, name: str, work) -> bool:
         from ..core import telemetry
 
+        self.stopping.clear()
         self.broker.publish(Event("status", f"{name} started"))
 
         def progress(line: str) -> None:
@@ -202,7 +229,9 @@ class Runner:
                      if self.db_path else contextlib.nullcontext())
         try:
             with recording:
-                summary = work(progress)
+                # A job that can stop part way says so by taking `stop`.
+                takes_stop = "stop" in inspect.signature(work).parameters
+                summary = work(progress, stop=self.stopping) if takes_stop else work(progress)
                 telemetry.summary(summary or f"{name} finished")
         except Exception as exc:                # one job, not the server
             self.broker.publish(Event(

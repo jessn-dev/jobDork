@@ -63,6 +63,14 @@ The charts below them:
   rest, day by day.
 - **Hallucination, over time**: claims not supported, by kind of writing
   (**By kind**) or by AI model (**By model**).
+- **Running and waiting**: the job running now, and the ones waiting
+  their turn, first in first out, each with what started it ("Search: added
+  Nurse Practitioner"). A change to your search, Projects or Education
+  starts a scan or a re-scoring by itself, and waits here while another job
+  runs. **Cancel** takes a waiting one off. **Stop**, beside a running scan,
+  stops it reading more boards: the boards being read at that moment
+  finish, and every job post found so far is kept. The AI reading after a
+  scan is skipped when it is stopped.
 - **Feedback on AI output, per day**: your thumbs up and down on AI
   writing ([how to rate it](job-window.md#rate-the-ai)).
 
