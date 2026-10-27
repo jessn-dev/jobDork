@@ -619,6 +619,12 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 if not raw.isdigit():
                     return self._reject(400, "not a cover letter id")
                 return self._wrap(api_mod.delete_letter, cfg_holder["cfg"], int(raw))
+            if path == "/api/own-board":
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.check_own_board, cfg_holder["cfg"],
+                                  str(form.get("uid") or ""))
             if path == "/api/uninstall":
                 form = self._body()
                 if form is None:

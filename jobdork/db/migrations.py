@@ -42,7 +42,7 @@ log = logging.getLogger("jobdork.db.migrations")
 
 # The version a fresh database is created at, and the version this code
 # understands. Bumped by adding a step below.
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 
 
 class MigrationError(Exception):
@@ -298,6 +298,20 @@ def _v11_to_v12(conn: sqlite3.Connection) -> None:
     _add_column(conn, "llm_calls", "error", "TEXT NOT NULL DEFAULT ''")
 
 
+def _v12_to_v13(conn: sqlite3.Connection) -> None:
+    """The employer boards each scan read, and whether to the end: so an
+    aggregator's post can be checked against a board that answered with
+    nothing matching (search/ownboard.py)."""
+    conn.execute('''CREATE TABLE IF NOT EXISTS board_reads (
+    platform    TEXT NOT NULL,
+    token       TEXT NOT NULL,
+    company     TEXT NOT NULL,
+    complete    INTEGER NOT NULL,
+    read_at     TEXT NOT NULL,
+    PRIMARY KEY (platform, token)
+)''')
+
+
 # Numbered, ordered, append-only. The key is the version a step produces.
 STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     2: _v1_to_v2,
@@ -311,6 +325,7 @@ STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     10: _v9_to_v10,
     11: _v10_to_v11,
     12: _v11_to_v12,
+    13: _v12_to_v13,
 }
 
 

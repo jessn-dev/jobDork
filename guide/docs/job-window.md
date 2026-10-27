@@ -27,6 +27,12 @@ The whole job advert, with:
 
 - **Yellow tags**: what to know before you apply
   ([tags](statuses.md#yellow-tags)).
+- **On the employer's own board?** For a post from Adzuna, Himalayas,
+  Arbeitnow or Kalibrr: what the last scan found on the employer's own board
+  (on it, not on it, read only partly, or not read). **Check the employer's
+  own board** asks that board now, for this job's title, and says whether it
+  is there, with a link if it is. Useful when the scan could not tell, or
+  before you apply.
 - **Certifications and licenses this post asks for**: each line of the
   advert that asks for one, marked *required* or *preferred*, and a tick for
   the ones you have (from your resume, or your list on

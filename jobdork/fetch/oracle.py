@@ -213,4 +213,6 @@ def fetch(fetcher, cfg, token: str = "", company: str = "", **_) -> SourceResult
             # Ranked by relevance: a page with no title of yours ends it.
             if not kept or len(listings) < PAGE_SIZE:
                 break
+        else:                                # stopped at the page limit, not the end
+            result.complete = False
     return result

@@ -217,4 +217,6 @@ def fetch(fetcher, cfg, token: str = "", company: str = "", **_) -> SourceResult
                     f"{base_url(tenant, dc)}/{site}{path}"))
             if len(postings) < PAGE_SIZE or (page + 1) * PAGE_SIZE >= total:
                 break
+        else:                                # stopped at the page limit, not the end
+            result.complete = False
     return result

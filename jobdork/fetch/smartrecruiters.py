@@ -112,5 +112,9 @@ def fetch(fetcher, cfg, token: str = "", company: str = "", **_) -> SourceResult
         offset += len(items)
         if offset >= int(payload.get("totalFound") or 0):
             break
+    else:                                    # stopped at the page limit, not the end
+        result = _result_for("smartrecruiters", roles, requests_made, errors)
+        result.complete = False
+        return result
 
     return _result_for("smartrecruiters", roles, requests_made, errors)
