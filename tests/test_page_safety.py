@@ -34,6 +34,18 @@ def test_no_escaped_text_is_put_inside_a_handlers_quotes():
     assert not bad, bad
 
 
+def test_a_server_error_is_logged_with_its_reason():
+    """"failed on the server (HTTP 502)" hid "Ollama is not answering at
+    ...": every 5xx the page meets goes through serverProblem, which adds
+    the server's own words, and a 502 (another service) is a warning."""
+    page = _page()
+    assert "failed on the server (HTTP" not in page.replace(
+        "`${what} failed on the server (HTTP ${status})`", ""), \
+        "a 5xx logged without its reason"
+    assert page.count("serverProblem(what,") >= 3   # fetch, its fallback, the upload
+    assert "pageProblem(status === 502 ? 'warning' : 'error'" in page
+
+
 def test_every_built_link_is_a_web_address():
     """A posting's address could be javascript: or data:, which runs in the
     page when clicked. Every href built from data goes through webHref."""
