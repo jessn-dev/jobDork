@@ -10,6 +10,79 @@ Newest first.
 
 ---
 
+## What 1.0 promises, and when it comes — 2026-10-27
+
+**Decided.** jobdork stays at 0.x until its public launch, and 1.0.0 is
+that launch. From 1.0.0 on, the version says what an update can do to you
+([Semantic Versioning](https://semver.org)):
+
+| Update | Example | What it may do |
+|---|---|---|
+| Patch | 1.0.0 → 1.0.1 | Fix what was wrong. Nothing else changes. |
+| Minor | 1.0 → 1.1 | Add. Everything below keeps working as it did. |
+| Major | 1.x → 2.0 | Break something below, only when it has to: said in the release notes, with how to move over, and the old way still read for at least one minor release before it, with a warning, where it can be. |
+
+**What is kept working (the promise covers these):**
+
+- **Your settings:** every key in `config.yaml` that docs/CONFIG.md
+  describes, with the meaning it describes. A new key always has a default,
+  so an old file still loads. A key that is going away is still read, with a
+  warning, until the next major version.
+- **Your data:** the database and the data folder (`data/`: the database,
+  backups, your resume) are carried forward by every update; jobdork
+  migrates the database itself. Going back to an
+  older version is not promised: an older jobdork refuses a newer database
+  rather than damage it.
+- **Your keys:** keys kept in the computer's keychain stay where they are
+  (the keychain entries named `jobdork`), and the choice to keep them is
+  kept.
+- **The commands:** `jobdork` and its subcommands and flags as `jobdork
+  --help` lists them, and their exit codes (0 done, 1 failed, 2 used wrong,
+  130 stopped with Ctrl-C).
+- **The environment variables** docs/CONFIG.md lists (`JOBDORK_HOME`,
+  `JOBDORK_CONFIG` and the others).
+- **Running it:** the desktop installers' names on the release page, the
+  Docker image's name and its `/app/data` folder and port, and the in-app
+  Update from any 1.x to a later 1.x.
+- **What it will not do:** what PRIVACY.md says jobdork never sends or
+  stores. Loosening any of it is a major version, never a minor one, and
+  most of it is not for changing at all.
+
+**What is not promised**, and may change in any release: how the pages
+look and where things sit on them; the dashboard's own web addresses
+(`/api/...`, for the page itself, not for scripts); scores, fit and the AI's
+wording; the job sources and built-in boards (sites change, ban and close);
+the database's tables (use the commands or the page, not SQL); log text;
+anything in a file or setting the docs call internal or experimental.
+
+**When 1.0.** At launch, after: 0.15.2 out, and Update from 0.15.1 checked
+on a Mac and on Windows (the way every later fix reaches people); the
+security work from the 2026-10-27 review (hash-checked installs in CI, DNS
+rebinding, invisible characters in adverts, dependency review); three to
+five people who do not program installing and using it, and what they hit
+fixed in 0.16.x; jobdork in WinGet, so Windows users can `winget install`
+it. Linux installers and code signing are not conditions: 1.0
+can name the systems it ships for, and add one in a minor release.
+
+**Why.** Until now 0.x has meant "still changing", and minor versions were
+features and patches fixes, with no promise about what a feature may break.
+People launching from a list or a post will install it, set it up and leave
+it running for months; they need to know an update will not lose their
+settings, posts or keys. The list is what someone would have built on:
+their settings file, their data, their scripts calling the commands, their
+Docker setup. The pages are left out on purpose: they will keep improving,
+and promising they never move would stop that.
+
+**Ruled out.** 1.0 at the next release (0.15.2 or 0.16.0): its first users
+would find what was missed, and each fix that had to change something
+listed above would cost a 2.0. Staying at 0.x after launch: it tells
+people nothing an update may do, and reads as "not ready".
+
+**Revisit when** the list above blocks a change that most users want (then
+it is a 2.0, planned, not a reason to drop the promise), or something not
+on the list turns out to be what people build on (then it joins the list in
+a minor release).
+
 ## Your own projects are always in a tailored resume — 2026-10-23
 
 **Decided.** Every project added on the Resume page goes into a tailored
