@@ -795,6 +795,50 @@ def cmd_serve(args) -> int:
                            token=args.token)
 
 
+def cmd_uninstall(args) -> int:
+    """Remove jobdork's traces from this computer, and what you choose of
+    yours (core/uninstall.py): the desktop app's folder, not a source
+    checkout's (./run.sh clean is for that)."""
+    from .core import uninstall
+
+    home = Path(args.home).expanduser() if args.home else None
+    items = [i for i in uninstall.inventory(home) if i.paths]
+    if args.remove is not None:
+        choose = {c.strip() for c in args.remove.split(",") if c.strip()}
+        if "all" in choose:
+            choose = set(uninstall.CHOICES)
+        unknown = choose - set(uninstall.CHOICES)
+        if unknown:
+            print(f"not something to remove: {', '.join(sorted(unknown))}; "
+                  f"choose from {', '.join(uninstall.CHOICES)} or all", file=sys.stderr)
+            return 2
+    elif sys.stdin.isatty():
+        print("The scheduled scan and the app window's storage are always removed.\n"
+              "Of yours, choose what to delete; anything you do not answer y to is kept.\n")
+        choose = set()
+        for item in items:
+            mb = item.size / 1e6
+            answer = input(f"Delete {item.label} ({item.what}; {mb:.1f} MB)? [y/N] ")
+            if answer.strip().lower() in ("y", "yes"):
+                choose.add(item.key)
+    else:
+        choose = set()
+    out = uninstall.remove(choose, home)
+    if out["unscheduled"]:
+        print("removed the scheduled scan")
+    for path in out["removed"]:
+        print(f"removed {path}")
+    for path, why in out["failed"]:
+        print(f"could not remove {path}: {why}", file=sys.stderr)
+    kept = [label for key, label, _ in uninstall.ITEMS if key in out["left"]]
+    if kept:
+        print(f"kept: {', '.join(kept)}")
+    print("Now remove the program itself: on a Mac drag jobdork from Applications to "
+          "the Trash; on Linux delete the AppImage, or `sudo apt remove jobdork`; on "
+          "Windows, Settings, Apps, jobdork, Uninstall.")
+    return 1 if out["failed"] else 0
+
+
 def cmd_app(args) -> int:
     from .web import app
 
@@ -1564,6 +1608,16 @@ def build_parser() -> argparse.ArgumentParser:
                    help="developer tools in the window (right-click, Inspect) "
                         "and debug logging")
     p.set_defaults(func=cmd_app)
+
+    p = subs.add_parser("uninstall", help="remove jobdork's scheduled scan and app "
+                                          "storage, and what you choose of your data")
+    p.add_argument("--remove", default=None, metavar="ITEMS",
+                   help="what of yours to delete, comma separated: settings, jobs, "
+                        "resume, documents, keys, logs, downloads, or all. Without it "
+                        "you are asked about each; nothing is deleted you do not choose")
+    p.add_argument("--home", default="",
+                   help="the app's folder, if not the usual one (also $JOBDORK_HOME)")
+    p.set_defaults(func=cmd_uninstall)
 
     p = subs.add_parser("discover", parents=[over],
                         help="find an employer's board from their own site")

@@ -205,6 +205,15 @@ p#count a{cursor:pointer}
 .savestate svg{width:14px;height:14px}
 @keyframes spin{to{transform:rotate(360deg)}}
 button.busy svg.bi{animation:spin .8s linear infinite}
+/* The update window: one line per stage, ticked off as it passes. */
+.updsteps{list-style:none;margin:0 0 .8rem;padding:0}
+.updsteps li{display:flex;align-items:center;gap:.5rem;padding:.3rem 0;color:var(--muted)}
+.updsteps li svg{width:18px;height:18px;flex:none}
+.updsteps li.now{color:var(--fg);font-weight:600}
+.updsteps li.now svg{animation:spin .8s linear infinite;color:var(--accent)}
+.updsteps li.ok{color:var(--fg)} .updsteps li.ok svg{color:var(--ok)}
+.updsteps li.bad{color:var(--bad)} .updsteps li.bad svg{color:var(--bad)}
+#upd-next ol{margin:.3rem 0 0;padding-left:1.3rem} #upd-next li{margin:.25rem 0}
 .spin{display:inline-flex;vertical-align:-.2em;margin-right:.35rem}
 .spin svg{width:15px;height:15px;animation:spin .8s linear infinite}
 /* A required field left empty, named in the message beside Continue. */
@@ -1049,6 +1058,12 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       </div>
       <div id="cl-result"></div>
     </div>
+
+    <h3 class="psec">Remove jobdork from this computer</h3>
+    <p class="hint" style="margin-top:0">The scheduled scan and the app window's storage are
+      always removed. Of yours, tick what to delete as well: anything not ticked is kept, so
+      a reinstall finds it.</p>
+    <div class="cleanup" id="rm-box"><p class="hint" id="rm-msg"></p></div>
   </section>
 
   <section id="view-tools" hidden>
@@ -1451,6 +1466,20 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <button data-icon="x" class="act primary" id="resume-close">Close</button>
   </div>
 </dialog>
+<dialog id="upddlg" aria-labelledby="upd-title">
+  <div class="dlg-head"><strong id="upd-title">Updating jobdork</strong><span class="hint" id="upd-sub"></span></div>
+  <div class="dlg-body">
+    <ol class="updsteps" id="upd-steps"></ol>
+    <div class="pbar" id="upd-bar" hidden><span id="upd-bar-fill" style="width:0"></span></div>
+    <p class="hint" id="upd-bytes" aria-live="polite"></p>
+    <div id="upd-next" aria-live="polite"></div>
+  </div>
+  <div class="dlg-foot">
+    <button data-icon="external-link" class="act" id="upd-dlg-page" type="button" hidden>Release page</button>
+    <button data-icon="power" class="act primary" id="upd-quit" type="button" hidden>Quit jobdork</button>
+    <button data-icon="x" class="act" id="upd-dlg-close" type="button">Close</button>
+  </div>
+</dialog>
 <dialog id="letterdlg" aria-labelledby="letter-title">
   <div class="dlg-head"><strong id="letter-title"></strong><span class="hint" id="letter-sub"></span></div>
   <div class="dlg-body"><div class="advert md-doc" id="letter-body"></div></div>
@@ -1516,6 +1545,7 @@ const DESK = {
   open_url: url => deskCall('open_url', url),
   save_file: (name, data) => deskCall('save_file', name, data),
   open_file: (name, data) => deskCall('open_file', name, data),
+  quit_app: () => deskCall('quit_app'),
 };
 const desk = () => (window.pywebview ? DESK : null);
 // A job post's address comes from whoever posted it. Only a web address
@@ -5388,7 +5418,7 @@ async function saveSetting(change, said) {
 
 async function drawPrefs() {
   cfg = await (await api('/api/config')).json();
-  drawSchedule(); drawFolders(); drawNotify(); drawUpdates(); drawPrefBoards();
+  drawSchedule(); drawFolders(); drawNotify(); drawUpdates(); drawPrefBoards(); drawRemove();
 }
 
 function drawNotify() {
@@ -5488,11 +5518,155 @@ $('upd-check').onclick = async () => {
   await showVersion('/api/update/check', 'POST');
 };
 $('upd-page').onclick = () => lastVersion && openOut(lastVersion.url);
+// ── remove jobdork ───────────────────────────────────────────────────────────
+// Settings' last section (api.uninstall_items / uninstall_now): each item of
+// the person's is its own choice, none ticked; then a confirmation naming
+// what goes; then what is left to do, the program itself.
+const mbOf = n => n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : n >= 1e3 ? `${Math.round(n / 1e3)} KB` : `${n} bytes`;
+
+async function drawRemove() {
+  const box = $('rm-box');
+  const r = await api('/api/uninstall');
+  if (!r.ok) { box.innerHTML = `<p class="hint">${esc(cap(await r.text()))}.</p>`; return; }
+  const d = await r.json();
+  const items = d.items.filter(i => i.present);
+  box.innerHTML = `${items.length ? items.map(i => `<div class="row">
+      <label class="check-inline"><input type="checkbox" class="rm-item" value="${esc(i.key)}">
+        <b>${esc(i.label)}</b></label>
+      <span class="hint">${esc(i.what)} · ${mbOf(i.size)}</span></div>`).join('')
+    : '<p class="hint">Nothing of yours is left on this computer.</p>'}
+    <div class="row">${d.finish === 'windows'
+      ? `<span class="hint">On Windows, uninstall from <b>Settings, Apps, jobdork,
+          Uninstall</b>: it asks the same questions, and can remove files jobdork has open.</span>`
+      : '<button data-icon="trash-2" class="act danger" id="rm-start" type="button">Remove jobdork…</button>'}
+      <span id="rm-confirm"></span></div>
+    <div id="rm-result" aria-live="polite"></div>`;
+  const start = $('rm-start');
+  if (start) start.onclick = () => askRemove(d);
+}
+
+function askRemove(d) {
+  const chosen = [...document.querySelectorAll('.rm-item:checked')].map(b => b.value);
+  const names = d.items.filter(i => chosen.includes(i.key)).map(i => i.label);
+  $('rm-confirm').innerHTML = `<span>Remove the scheduled scan${names.length
+      ? `, and delete: <b>${names.map(esc).join(', ')}</b>` : ', and keep all of yours'}?</span>
+    <button data-icon="trash-2" class="act danger" id="rm-yes" type="button">Yes, remove</button>
+    <button data-icon="x" class="act" id="rm-no" type="button">Cancel</button>`;
+  $('rm-no').onclick = () => { $('rm-confirm').innerHTML = ''; };
+  $('rm-yes').onclick = async () => {
+    $('rm-yes').disabled = true;
+    const r = await api('/api/uninstall', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({remove: chosen})});
+    if (!r.ok) { $('rm-result').innerHTML = `<p class="err">${esc(cap(await r.text()))}</p>`; return; }
+    finishRemove(await r.json());
+  };
+}
+
+function finishRemove(out) {
+  const failed = out.failed.length ? `<p class="err">Could not remove:
+    ${out.failed.map(([p, why]) => `<code>${esc(p)}</code> (${esc(why)})`).join(', ')}</p>` : '';
+  const last = {
+    mac: 'click <b>Quit jobdork</b>, then drag jobdork from <b>Applications</b> to the Trash.',
+    appimage: `click <b>Quit jobdork</b>, then delete <code>${esc(out.appimage)}</code>.`,
+    linux: 'click <b>Quit jobdork</b>, then in a terminal: <code>sudo apt remove jobdork</code>.',
+  }[out.finish] || 'quit jobdork and delete the program.';
+  $('rm-box').innerHTML = `<p class="saved"><b>Removed${out.unscheduled ? ' the scheduled scan,' : ''}
+      ${out.removed.length} item${out.removed.length === 1 ? '' : 's'}.</b>
+      ${out.left.length ? 'What you did not tick is kept.' : ''}</p>${failed}
+    <p>Last step: ${last}</p>
+    ${desk() ? '<button data-icon="power" class="act primary" id="rm-quit" type="button">Quit jobdork</button>' : ''}`;
+  if ($('rm-quit')) $('rm-quit').onclick = () => desk().quit_app();
+}
+
+// ── the update window ───────────────────────────────────────────────────────
+// Follows the update job (api.update_progress) from asking GitHub to opening
+// the installer, then says how to finish installing. 0.15.0 showed a notice
+// "Downloading the update" while the job had already failed: here a failure
+// is shown, with its reason and the release page.
+const UPD_STEPS = [
+  ['asking', 'Asking GitHub for the release'],
+  ['downloading', 'Downloading the installer'],
+  ['checksum', "Checking it against the release's checksums"],
+  ['attestation', "Checking it was built by jobdork's release workflow"],
+  ['opened', 'Opening the installer'],
+];
+let updTimer = 0, updAt = 0;
+const mb = n => (n / 1e6).toFixed(n < 1e7 ? 1 : 0);
+
+function updStepAt(d) {
+  // Which step is under way: each stage is reported once it has passed.
+  if (d.stage === 'asking') return 0;
+  if (d.stage === 'downloading') return d.total && d.done >= d.total ? 2 : 1;
+  if (d.stage === 'checksum') return 3;
+  if (d.stage === 'attestation') return 4;
+  if (d.stage === 'opened') return UPD_STEPS.length;
+  return updAt;
+}
+
+function drawUpdate(d) {
+  const failed = d.stage === 'failed';
+  if (!failed) updAt = updStepAt(d);
+  $('upd-steps').innerHTML = UPD_STEPS.map(([, label], i) => {
+    const kind = i < updAt ? 'ok' : i === updAt ? (failed ? 'bad' : 'now') : '';
+    const icon = {ok: 'circle-check', now: 'loader-circle', bad: 'circle-x'}[kind] || 'circle-dot';
+    return `<li class="${kind}">${svgIcon(icon)}<span>${label}</span></li>`;
+  }).join('');
+  const downloading = updAt === 1 && !failed && d.total;
+  $('upd-bar').hidden = !downloading;
+  if (downloading) $('upd-bar-fill').style.width = `${Math.min(100, d.done * 100 / d.total)}%`;
+  $('upd-bytes').textContent = downloading
+    ? `${Math.floor(d.done * 100 / d.total)}% · ${mb(d.done)} of ${mb(d.total)} MB` : '';
+  $('upd-sub').textContent = d.file || '';
+  $('upd-dlg-page').hidden = !failed;
+  $('upd-quit').hidden = !(d.stage === 'opened' && d.platform === 'mac' && desk());
+  $('upd-next').innerHTML = failed
+    ? `<p class="err"><b>The update did not finish.</b> ${esc(cap(d.error || 'No reason was given.'))}</p>
+       <p class="hint">Nothing was installed. Try again later, or download the installer from
+       the release page and open it; your settings and job posts are kept either way.</p>`
+    : d.stage !== 'opened' ? ''
+    : d.platform === 'mac'
+    ? `<p><b>${esc(d.file || 'The installer')}</b> is open in a Finder window. To finish:</p>
+       <ol><li>Click <b>Quit jobdork</b> below.</li>
+         <li>In the Finder window, drag <b>jobdork</b> onto <b>Applications</b> and choose
+           <b>Replace</b>.</li>
+         <li>Open jobdork from Applications. Settings, Updates shows the new version.</li></ol>
+       <p class="hint">Your settings and job posts are kept: they are not inside the app.</p>`
+    : d.platform === 'windows'
+    ? `<p><b>The installer is open.</b> Follow it: it closes jobdork when it needs to, and
+       offers to open the new version when it finishes.</p>
+       <p class="hint">Your settings and job posts are kept.</p>`
+    : `<p><b>${esc(d.file || 'The installer')}</b> is open; follow it to finish.</p>`;
+  $('upd-title').textContent = d.stage === 'opened' ? 'Ready to install'
+    : failed ? 'Update not finished' : 'Updating jobdork';
+}
+
+async function followUpdate() {
+  clearTimeout(updTimer);
+  if (!$('upddlg').open) return;
+  try {
+    const r = await api('/api/update/progress');
+    if (r.ok) {
+      const d = await r.json();
+      drawUpdate(d);
+      if (['opened', 'failed'].includes(d.stage)) return;
+    }
+  } catch (e) { /* the server is gone; the window says nothing new */ }
+  updTimer = setTimeout(followUpdate, 400);
+}
+
 $('upd-install').onclick = async () => {
   const r = await api('/api/update/install', {method: 'POST'});
-  if (!r.ok) { toast(`Not started: ${await r.text()}`, 'err'); return; }
-  toast('Downloading the update. The installer opens when it has been checked.');
+  // 409: one is already running; the window follows that one.
+  if (!r.ok && r.status !== 409) { toast(`Not started: ${await r.text()}`, 'err'); return; }
+  updAt = 0;
+  drawUpdate({stage: 'asking', platform: ''});
+  $('upddlg').showModal();
+  followUpdate();
 };
+$('upd-dlg-close').onclick = () => $('upddlg').close();
+$('upddlg').addEventListener('close', () => clearTimeout(updTimer));
+$('upd-dlg-page').onclick = () => lastVersion && openOut(lastVersion.url);
+$('upd-quit').onclick = () => { const d = desk(); if (d) d.quit_app(); };
 $('upd-toggle').onclick = async () => {
   const on = !cfg.update_check;
   if (await saveSetting({update_check: on}, on ? 'jobdork checks for a newer version once a day.'
