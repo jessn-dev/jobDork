@@ -44,6 +44,52 @@ very case of a job it does not list) left no trace.
   only partly or not at all, or to look again before applying.
 - Guide: Tags and the job post's window.
 
+## Added — 2026-10-27 — Remove jobdork from a computer, choosing what of yours goes
+
+Windows' uninstaller removed the program and left everything else,
+including the scheduled scan's task, which went on starting a program that
+was gone. On a Mac or Linux there was no uninstall at all: dragging the app
+to the Trash left the scheduled scan and every file behind.
+
+- **One way to remove it everywhere** (core/uninstall.py). The scheduled
+  scan and the app window's storage always go. Of the person's, each item is
+  its own choice and none is chosen: settings, job posts (with their
+  backups), the resume, letters and tailored resumes, saved job-source keys,
+  logs, and installers Update left in Downloads. Only jobdork's folder, its
+  documents folder and its own installers are ever touched; a link pointing
+  elsewhere is not followed.
+- **Windows:** the uninstaller (Settings, Apps) shows the same items as
+  tick-boxes before it removes the program; a silent uninstall keeps
+  everything.
+- **Settings, "Remove jobdork from this computer"** in the desktop app on a
+  Mac or Linux: tick, confirm, and it says what is left to do (Mac: quit and
+  drag the app to the Trash).
+- **`jobdork uninstall`** from a terminal asks about each item, or
+  `--remove jobs,logs` (or `all`).
+
+## Added — 2026-10-27 — An update window that shows each step
+
+Updating from 0.15.0 to 0.15.1, Update showed a notice, "Downloading the
+update. The installer opens when it has been checked.", and nothing after
+it: the job had failed three times on its first request ("could not ask
+GitHub for the release (URLError)"), and that was written only to the
+activity list. Nothing said it had stopped, or that it was still going.
+
+- **Update opens a window** that follows the job: asking GitHub for the
+  release, downloading the installer with a bar and how much is done ("44% ·
+  52 of 118 MB"), checking it against the release's checksums, checking its
+  build attestation, opening it. Each step is ticked off as it passes.
+- **Then how to finish.** Mac: **Quit jobdork**, drag jobdork onto
+  Applications in the Finder window that opened and choose Replace, open it
+  again. Windows: follow the installer, which closes jobdork and offers to
+  open the new version.
+- **A failure is shown in the window**, with its reason and **Release page**
+  to download it by hand. A download that drops part way now says so ("the
+  download stopped (could not reach GitHub; is this computer online?)")
+  rather than a Python error.
+- The app can quit itself when asked (`quit_app`, the page's one new call to
+  the app); the guide's Settings page describes the window.
+
 ## Changed — 2026-10-26 — version 0.15.1
 
 0.15.1 carries the 13 entries below, everything since 0.15.0 (25 October),

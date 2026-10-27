@@ -374,3 +374,59 @@ if __name__ == "__main__":
                 print(f"FAIL {name}")
                 traceback.print_exc(limit=3)
     raise SystemExit(1 if failed else 0)
+
+
+def test_the_update_window_is_told_each_stage_as_it_passes():
+    with tempfile.TemporaryDirectory() as tmp, _platform("win32", frozen=True):
+        fetch, files = _github(GOOD_SUMS)
+        seen = []
+        updates.download_installer(Path(tmp) / "Downloads", opener=_opener(files), fetch=fetch,
+                                   verify=_vouches(),
+                                   # lambda: records each stage and its facts, in order.
+                                   step=lambda stage, **facts: seen.append((stage, facts)))
+        stages = [s for s, _ in seen]
+        assert stages[:2] == ["asking", "downloading"] and stages[-2:] == ["checksum", "attestation"]
+        assert seen[1][1] == {"file": NAME, "version": "9.0.0"}
+        assert ("bytes", {"done": len(INSTALLER), "total": len(INSTALLER)}) in seen
+
+
+def test_a_download_that_stops_part_way_says_why():
+    with tempfile.TemporaryDirectory() as tmp, _platform("win32", frozen=True):
+        fetch, _files = _github(GOOD_SUMS)
+
+        def dropped(request, timeout=0):
+            raise OSError("connection reset")
+        _refused(Path(tmp), "the download stopped", opener=dropped, fetch=fetch, verify=_vouches())
+
+
+def test_the_update_window_shows_the_end_and_a_failure_with_its_reason():
+    """0.15.0 said "Downloading the update" while the job had already failed."""
+    from jobdork.web import api, app
+
+    def done(folder, progress=None, step=None):
+        step("asking")
+        step("downloading", file=NAME, version="9.0.0")
+        step("checksum")
+        step("attestation")
+        return folder / NAME
+
+    def refused(folder, progress=None, step=None):
+        step("asking")
+        raise updates.UpdateError("could not ask GitHub for the release (offline)")
+
+    original, opener = updates.download_installer, app.open_with_system
+    try:
+        # lambda: stands in for opening the installer, which a test must not do.
+        app.open_with_system = lambda path: None
+        with _platform("win32", frozen=True):
+            updates.download_installer = done
+            api.update_job(None)(lambda line: None)
+            state = api.update_progress()
+            assert state["stage"] == "opened" and state["file"] == NAME
+            updates.download_installer = refused
+            with contextlib.suppress(RuntimeError):
+                api.update_job(None)(lambda line: None)
+            state = api.update_progress()
+            assert state["stage"] == "failed" and "offline" in state["error"]
+    finally:
+        updates.download_installer, app.open_with_system = original, opener

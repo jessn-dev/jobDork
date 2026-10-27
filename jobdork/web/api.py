@@ -33,6 +33,7 @@ import logging
 import os
 import re
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -2587,6 +2588,73 @@ def notify_test(cfg) -> dict:
             "why": "" if shown else "the system did not take it; see Warnings and errors"}
 
 
+def _finish_removing() -> str:
+    """What is left to do once jobdork's traces are gone: the program itself."""
+    if sys.platform == "darwin":
+        return "mac"
+    if sys.platform == "win32":
+        return "windows"
+    return "appimage" if os.environ.get("APPIMAGE") else "linux"
+
+
+def uninstall_items() -> dict:
+    """Settings' "Remove jobdork from this computer": what there is, item by
+    item, with its size, for the person to choose from."""
+    from ..core import uninstall
+
+    if not getattr(sys, "frozen", False):
+        raise ApiError("this is for the desktop app; a copy run from source keeps its data "
+                       "in its own folder, which ./run.sh clean empties", 409)
+    return {"finish": _finish_removing(), "appimage": os.environ.get("APPIMAGE", ""),
+            "items": [{"key": i.key, "label": i.label, "what": i.what, "size": i.size,
+                       "present": bool(i.paths)} for i in uninstall.inventory()]}
+
+
+def uninstall_now(form: dict) -> dict:
+    """Remove jobdork's traces and what the person chose (core/uninstall.py).
+
+    Not on Windows: the database is open while jobdork runs and Windows will
+    not delete an open file. Its uninstaller (Settings, Apps) asks the same
+    questions and removes them after jobdork has closed."""
+    from ..core import uninstall
+
+    uninstall_items()                        # the desktop app only
+    if sys.platform == "win32":
+        raise ApiError("on Windows, uninstall jobdork from Settings, Apps: it asks the "
+                       "same questions, and can remove files jobdork has open", 409)
+    choose = form.get("remove") if isinstance(form, dict) else None
+    if not isinstance(choose, list) or not all(isinstance(c, str) for c in choose):
+        raise ApiError("remove is a list of items")
+    out = uninstall.remove(set(choose))
+    out["finish"] = _finish_removing()
+    out["appimage"] = os.environ.get("APPIMAGE", "")
+    return out
+
+
+# Where the update the page's window follows has got to (update_progress).
+# One update at a time: the runner runs one job at a time.
+_UPDATE: dict = {"stage": "idle"}
+_UPDATE_LOCK = threading.Lock()
+
+
+def _update_at(stage: str, **facts) -> None:
+    with _UPDATE_LOCK:
+        if stage == "bytes":
+            _UPDATE.update(facts)
+        else:
+            _UPDATE.update(stage=stage, **facts)
+
+
+def update_progress() -> dict:
+    """The update window's state: its stage ("idle", "asking", "downloading",
+    "checksum", "attestation", "opened", "failed"), the bytes so far, and
+    what to say. 0.15.0 showed "Downloading the update" while the job had
+    already failed; the window shows the failure and its reason."""
+    with _UPDATE_LOCK:
+        return {**_UPDATE, "platform": "mac" if sys.platform == "darwin"
+                else "windows" if sys.platform == "win32" else "other"}
+
+
 def update_job(cfg):
     """Download this computer's installer for the newest release, check it
     against the release's checksums, and open it: the Windows installer
@@ -2598,13 +2666,21 @@ def update_job(cfg):
     if not getattr(sys, "frozen", False):
         raise ApiError("only the desktop app installs its own updates; see how "
                        "to update this copy under Settings, Updates", 409)
+    with _UPDATE_LOCK:
+        _UPDATE.clear()
+        _UPDATE.update(stage="asking", done=0, total=0)
 
     def work(progress):
         folder = Path.home() / "Downloads"
         try:
-            path = updates.download_installer(folder, progress=progress)
+            path = updates.download_installer(folder, progress=progress, step=_update_at)
         except updates.UpdateError as exc:
+            _update_at("failed", error=str(exc))
             raise RuntimeError(str(exc)) from None
+        except Exception as exc:
+            _update_at("failed", error=f"{type(exc).__name__}: {exc}")
+            raise
         open_with_system(path)
+        _update_at("opened", path=str(path), file=path.name)
         return f"opened {path.name}; follow the installer to finish the update"
     return work

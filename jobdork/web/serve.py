@@ -543,6 +543,10 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._wrap(api_mod.folders, cfg_holder["cfg"])
             if path == "/api/version":
                 return self._wrap(api_mod.newer_version, cfg_holder["cfg"])
+            if path == "/api/update/progress":
+                return self._wrap(api_mod.update_progress)
+            if path == "/api/uninstall":
+                return self._wrap(api_mod.uninstall_items)
             return self._reject(404, "no such path")
 
         def do_POST(self) -> None:
@@ -619,6 +623,11 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     return self._reject(400, "bad request body")
                 return self._wrap(api_mod.check_own_board, cfg_holder["cfg"],
                                   str(form.get("uid") or ""))
+            if path == "/api/uninstall":
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.uninstall_now, form)
             if path == "/api/update/check":
                 return self._wrap(api_mod.newer_version, cfg_holder["cfg"], True)
             if path == "/api/update/install":
