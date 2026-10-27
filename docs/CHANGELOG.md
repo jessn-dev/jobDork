@@ -6,6 +6,13 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-26 — The README's logo sits level with its title
+
+The README's title had the logo with `align="center"`, which an image does
+not take, so the logo sat on the text's baseline and "jobDork" rode high
+beside it. It is `align="absmiddle"` now, which GitHub keeps and browsers
+centre on the line; checked in GitHub's own rendering of the heading.
+
 ## Added — 2026-10-26 — The AI on two computers: a guide
 
 The reader and the checker the AI page recommends (`gemma4:26b` and
