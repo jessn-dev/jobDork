@@ -356,6 +356,45 @@ def test_work_history_is_counted_from_the_resumes_dates_not_by_a_model():
     assert work_span("Seven years of Python.") is None
 
 
+def test_work_and_study_are_told_apart_by_the_resumes_sections():
+    """A pharmacist's resume (2026-10-26): "Up to present" was not read, a
+    faculty job at a university was dropped as study, and a degree's dates
+    on their own line were counted as work."""
+    from jobdork.search.resume import work_span
+
+    text = ("Educational Background\n\nBachelor of Science in Chemical Engineering\n"
+            "August 2019 - July 2020\n\n"
+            "Work/Internship Experiences\n\n"
+            "University of Eastern Pangasinan (February 2026 - Up to present)\n"
+            "Faculty Instructor\n"
+            "Language Teacher\n"
+            "State University Hospital (January 2025 - March 2025)\n"
+            "Hospital Pharmacy Intern\n\n"
+            "Awards\n\nDean's Lister (June 2021 - May 2023)\n")
+    span = work_span(text, today=(2026, 10))
+    assert span.first == "January 2025" and span.last == "Present", span
+    assert span.months == 3 + 9, span
+
+
+def test_a_pdf_read_one_word_per_line_is_read_by_layout():
+    from jobdork.search.resume import _word_per_line
+
+    assert _word_per_line("\n \n".join(["April", "2025", "-", "present", "Athlon", "Sports", "NBA"] * 8))
+    assert not _word_per_line("\n".join(["Built CI with Jenkins at Acme."] * 50))
+
+
+def test_a_certificates_term_and_months_to_come_are_not_work():
+    """ "(cycle Feb 2024 to Jan 2027)" under a certification was counted as
+    work, to a month that had not come yet."""
+    from jobdork.search.resume import work_span
+
+    text = ("DevOps Engineer, Acme, March 2016 - May 2020\n"
+            "Security+ | Certified 2024\n(cycle Feb 2024 to Jan 2027)\n"
+            "Certified Nursing Assistant, Mercy, June 2021 - December 2027\n")
+    span = work_span(text, today=(2026, 10))
+    assert span.months == 51 + 65 and span.last == "Present", span
+
+
 def test_the_judge_is_given_the_measured_work_history_and_the_guard_too():
     from jobdork.ai import judging
     sent = {}
@@ -415,12 +454,81 @@ def test_gaps_in_the_other_words_models_use_are_settled_too():
     gaps = ["The resume does not explicitly list Django.", "The candidate has not worked with BGP.",
             "The candidate's experience with Argo CD is not clearly documented.",
             "The candidate has not held a Staff level position.",
-            "The candidate's experience with Jenkins is not explicitly confirmed."]
+            "The candidate's experience with Jenkins is not explicitly confirmed.",
+            "The candidate's background is not in linguistics.",
+            "The resume does not provide writing samples."]
     got = _verified(gaps, [{"n": i, "claim": c, "verdict": "absent", "source": "resume",
                             "quote": ""} for i, c in enumerate(gaps, 1)], {"resume": RESUME})
     assert got == {gaps[0]: "supported", gaps[1]: "supported", gaps[2]: "supported",
-                   gaps[3]: "supported", gaps[4]: "contradicted"}, got
+                   gaps[3]: "supported", gaps[4]: "contradicted", gaps[5]: "supported",
+                   gaps[6]: "supported"}, got
     assert guard._missing(gaps[2]) == "Argo CD"
+
+
+def test_a_claim_that_only_names_a_skill_the_resume_lists_is_supported_by_script():
+    """The checker called "has experience with Kubernetes" unsupported with
+    Kubernetes in the resume's skills; a claim of how much or how well, or
+    naming something the resume does not, still goes by the checker."""
+    resume = "Skills: Kubernetes, Helm, Docker. Built CI with Jenkins at Acme. Go live in May."
+    claims = ["The candidate has experience with Kubernetes.",
+              "The resume lists Docker, Helm and Jenkins",
+              "The candidate has extensive experience with Kubernetes.",
+              "The candidate has 5 years of experience with Docker.",
+              "The candidate has experience with Kubernetes and Kafka.",
+              "The candidate has experience with Go.",
+              "The candidate has experience with Helm deployments."]
+    got = _verified(claims, [{"n": i, "claim": c, "verdict": "unsupported", "source": "",
+                              "quote": ""} for i, c in enumerate(claims, 1)],
+                    {"resume": resume, "advert": "Kafka, Kubernetes, Go."})
+    assert [got[c] for c in claims] == ["supported", "supported"] + ["unsupported"] * 5, got
+
+
+def test_a_short_name_is_a_whole_word_when_a_gap_is_checked():
+    """".NET" was found in "Kubernetes" and "Go" in "Google", so true gaps
+    were marked contradicted."""
+    claims = ["The resume does not mention .NET.", "The resume does not mention Go."]
+    got = _verified(claims, [{"n": i, "claim": c, "verdict": "absent", "source": "resume",
+                              "quote": q} for i, (c, q) in enumerate(zip(claims, [".NET", "Go"], strict=True), 1)],
+                    {"resume": "Kubernetes on Google Cloud, MongoDB."})
+    assert set(got.values()) == {"supported"}, got
+
+
+def test_a_gap_the_resume_fills_is_rescored_and_becomes_a_reason():
+    """"The resume does not mention Linux" over a skills line listing Linux
+    is a match: the reader scores again told so, and what it still calls
+    missing becomes a reason the guard can check."""
+    from jobdork.ai import judging
+
+    resume = "Skills: Linux/Unix, Python"
+    asked = []
+
+    def fake_judge(settings, role, resume_text, notes=""):
+        asked.append(role.get("found", ""))
+        return {"score": 60 if len(asked) == 1 else 75, "reasons": ["Knows Python."],
+                "concerns": ["The resume does not mention Linux.",
+                             "The resume does not mention Django."]}
+
+    original = judging.judge
+    judging.judge = fake_judge
+    try:
+        verdict = judging.judge_checked(None, {"description": "x" * 300}, resume)
+    finally:
+        judging.judge = original
+    assert asked == ["", "- the resume lists Linux"]
+    assert verdict["score"] == 75 and verdict["rescored_from"] == 60
+    assert verdict["concerns"] == ["The resume does not mention Django."]
+    assert verdict["reasons"] == ["Knows Python.", "The resume lists Linux."]
+    assert verdict["found"] == ["Linux"]
+    got = _verified(["The resume lists Linux."], [{"n": 1, "claim": "The resume lists Linux.",
+                    "verdict": "unsupported", "source": "", "quote": ""}], {"resume": resume})
+    assert got["The resume lists Linux."] == "supported"
+
+
+def test_a_skill_the_checker_contradicts_is_left_to_it():
+    claim = "The candidate has experience with Kubernetes."
+    got = _verified([claim], [{"n": 1, "claim": claim, "verdict": "contradicted",
+                               "source": "resume", "quote": ""}], {"resume": "Kubernetes"})
+    assert got[claim] == "contradicted"
 
 
 def test_reading_a_gap_takes_no_time_on_a_hostile_claim():
@@ -467,3 +575,31 @@ if __name__ == "__main__":
             print(f"FAIL {name}: {type(exc).__name__}: {exc}")
     print(f"{len(tests) - failures}/{len(tests)} passed")
     raise SystemExit(1 if failures else 0)
+
+
+def test_letter_pairs_a_font_draws_as_one_glyph_are_spelled_out():
+    """A construction manager's CV came out "construcƟon", "submiƩals",
+    "MicrosoŌ": a checker's quote of "construction" never matched it."""
+    from jobdork.search.resume import _fix_glyphs
+
+    assert _fix_glyphs("construc Ɵon, submiƩals, MicrosoŌ Project, "
+                       "compeƟƟve, on-Ɵme, ﬁeld ﬀort") == \
+        "construction, submittals, Microsoft Project, competitive, on-time, field ffort"
+    assert _fix_glyphs("Ōsaka office") == "Ōsaka office"     # a real letter
+
+
+def test_a_gap_is_read_past_its_filler_words_and_through_its_lists():
+    """phi4:14b wrote "lacks specific experience with Azure DevOps" and
+    "does not mention CI/CD tools like Jenkins, GitHub Actions or GitLab CI"
+    over a resume listing both; 39 of its 45 gap flags were such."""
+    resume = guard._loose("Skills: Azure DevOps Pipelines, SQL Server, CI/CD: Jenkins, Git.")
+    assert guard._gap("The candidate lacks specific experience with Azure DevOps.", "",
+                      resume) == "contradicted"
+    assert guard._gap("The resume does not mention CI/CD tools like Jenkins, GitHub Actions, "
+                      "or GitLab CI.", "", resume) == "contradicted"
+    assert guard._gap("The resume does not mention Cypress or Playwright.", "",
+                      resume) == "supported"
+    assert guard._missing("The candidate lacks the required US citizenship for the role.") == \
+        "US citizenship"
+    assert guard._missing("The resume does not mention GCP experience explicitly.") == \
+        "GCP experience"

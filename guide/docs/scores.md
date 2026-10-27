@@ -74,6 +74,10 @@ the AI got that wrong, see [the hallucination check](ai.md#the-hallucination-che
 
 - **?** means the advert or your resume was too thin to judge; it says so
   rather than guess.
+- When the model calls something missing that your resume lists ("the
+  resume does not mention Linux" over a skills line with Linux), jobdork
+  catches it, asks the model to score again knowing it is there, and lists
+  it under **For**. The verdict says so, with the first score.
 - **≠ 22** after the score means a second model scored it very differently
   (20 points or more apart): **models disagree**. Read the advert yourself.
 - The thumbs beside it in the [job post window](job-window.md#rate-the-ai)

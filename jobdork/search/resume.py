@@ -422,6 +422,33 @@ def docx_markdown(path: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip() + "\n"
 
 
+# Letter pairs some fonts (Calibri, in Word's PDF export) draw as one glyph,
+# which come out of the PDF as other letters: "construcƟon", "submiƩals",
+# "MicrosoŌ" (a construction manager's CV, 2026-10-26: 156 of them). A quote
+# of "construction" then never matched the resume, so true claims were
+# flagged. Only between lowercase letters, where no real word has them.
+_GLYPH_PAIRS = {"\u019f": "ti", "\u01a9": "tt", "\u014c": "ft"}
+_GLYPH = re.compile(r"(?<=[a-z\-\u019f\u01a9])[ \t]?([\u019f\u01a9])[ \t]?(?=[a-z\u019f\u01a9])"
+                    r"|(?<=[a-z])[ \t]?([\u019f\u01a9\u014c])(?![A-Za-z])")
+
+
+def _fix_glyphs(text: str) -> str:
+    import unicodedata
+
+    # Real ligatures (ﬁ ﬀ ﬂ ﬃ ﬄ ﬅ ﬆ) have a standard spelling out.
+    # lambda: an adapter, the match object to the text normalize takes.
+    text = re.sub("[\ufb00-\ufb06]", lambda m: unicodedata.normalize("NFKC", m.group()), text)
+    text = text.replace("\uf0b7", "•")          # a font's own bullet, private use
+    # lambda: picks the pair for whichever group matched.
+    return _GLYPH.sub(lambda m: _GLYPH_PAIRS[m.group(1) or m.group(2)], text)
+
+
+def _word_per_line(text: str) -> bool:
+    """Most lines one word: a PDF whose words came out apart."""
+    counts = sorted(len(line.split()) for line in text.splitlines() if line.strip())
+    return len(counts) >= 40 and counts[len(counts) // 2] <= 1
+
+
 def _read_pdf(path: Path) -> str:
     """Read a PDF via pypdf, which is optional and says so when absent.
 
@@ -441,9 +468,19 @@ def _read_pdf(path: Path) -> str:
     try:
         reader = PdfReader(str(path))
         text = "\n\n".join((page.extract_text() or "") for page in reader.pages)
+        # Some PDFs place every word apart, and come out one word per line
+        # ("April / 2025 / - / present"): every word read, every line lost.
+        # Read by layout instead. Not always: layout puts two columns side
+        # by side, line by line, where the default reads one, then the other.
+        if _word_per_line(text):
+            laid = "\n\n".join(
+                (page.extract_text(extraction_mode="layout") or "") for page in reader.pages)
+            text = "\n".join(re.sub(r"[ \t]{2,}", " ", line).strip()
+                              for line in laid.splitlines())
     except Exception as exc:                      # pypdf raises a wide variety
         raise ResumeError(f"{path} could not be read as a PDF: {exc}") from exc
 
+    text = _fix_glyphs(text)
     if len(text.strip()) < 200:
         raise ResumeError(
             f"{path} yielded only {len(text.strip())} characters of text. It is "
@@ -543,12 +580,53 @@ def years_claimed(text: str) -> int:
 _MONTHS = {m: i for i, m in enumerate(
     ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
 _MONTH = r"((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*)\.?\s+((?:19|20)\d\d)"
-_SPAN = re.compile(_MONTH + r"\s*(?:-|\u2013|\u2014|to)\s*(?:" + _MONTH + r"|(present|current|now))",
-                   re.IGNORECASE)
-# Words near a date range that make it study, not work.
+# "- Present", and "- Up to present" / "to date" as resumes in the Philippines
+# write it: a pharmacist's two current jobs were not counted (2026-10-26).
+_SPAN = re.compile(_MONTH + r"\s*(?:-|\u2013|\u2014|to)\s*(?:" + _MONTH
+                   + r"|(?:up\s+to\s+)?(present|current|now|date))", re.IGNORECASE)
+# Words near a date range that make it study, not work; or a certificate's
+# or licence's term: "(cycle Feb 2024 to Jan 2027)" was counted as work, to
+# a month that had not come yet (2026-10-26).
 _STUDY = re.compile(r"universit|college|school|bachelor|master|degree|diploma|"
-                    r"institute|academy|education|b\.?s\.?c?\b|m\.?s\.?c?\b",
+                    r"institute|academy|education|b\.?s\.?c?\b|m\.?s\.?c?\b|"
+                    # Not "certified" or "licensed": Certified Nursing
+                    # Assistant and Licensed Practical Nurse are jobs.
+                    r"cycle|valid|expir|renew",
                     re.IGNORECASE)
+
+
+# Section headings, to tell study from work by where dates sit rather than by
+# the employer's name: "University of Eastern Pangasinan (February 2026 - Up
+# to present)" is a faculty job, and was dropped as study (2026-10-26).
+_HEADING = re.compile(r"^[ \t•*#\-]*([A-Za-z][A-Za-z &/,'-]{2,48}?)[ \t]*:?[ \t]*$", re.MULTILINE)
+_EDU_HEADING = re.compile(r"^(?:education(?:al)?\b|academic\b)", re.IGNORECASE)
+_WORK_HEADING = re.compile(
+    r"\b(?:experiences?|employment|work history|career history|internships?)\s*$"
+    r"|^(?:work|professional|relevant|career)\b", re.IGNORECASE)
+# Plural, or words no job title starts with: "Language Teacher", "Training
+# Coordinator" and "Project Manager" are jobs, not headings.
+_OTHER_HEADING = re.compile(
+    r"^(?:skills|technical skills|key skills|leadership|awards|honou?rs|trainings|"
+    r"seminars|certifications|licen[sc]es|references|character references|projects|"
+    r"summary|professional summary|profile|personal profile|objectives?|"
+    r"career objectives?|languages|interests|affiliations|memberships|examinations|"
+    r"publications)\b", re.IGNORECASE)
+
+
+def _sections(text: str) -> list[tuple[int, str]]:
+    """(position, "study" | "work" | "other") for each heading the resume has."""
+    out = []
+    for m in _HEADING.finditer(text):
+        name = m.group(1).strip()
+        if len(name.split()) > 5:
+            continue
+        # Other first: "Professional Summary" and "Career Objective" are not work.
+        kind = ("study" if _EDU_HEADING.search(name)
+                else "other" if _OTHER_HEADING.search(name)
+                else "work" if _WORK_HEADING.search(name) else "")
+        if kind:
+            out.append((m.start(), kind))
+    return out
 
 
 @dataclass
@@ -580,16 +658,40 @@ def work_span(text: str, today: tuple[int, int] | None = None) -> WorkSpan | Non
 
     now = today or time.localtime()[:2]
     spans = []
+    sections = _sections(text or "")
+    # With a work section, only its dates are work: an award's or a club's
+    # "June 2021 - May 2023" is not. Without one, the words beside them decide.
+    has_work = any(kind == "work" for _, kind in sections)
     for m in _SPAN.finditer(text or ""):
+        under = [kind for at, kind in sections if at < m.start()]
+        if under and (under[-1] == "study" or (has_work and under[-1] == "other")):
+            continue
+        if under and under[-1] == "work":
+            start = (int(m.group(2)), _MONTHS[m.group(1)[:3].lower()])
+            end = (now if m.group(5) else
+                   (int(m.group(4)), _MONTHS[m.group(3)[:3].lower()]))
+            end = min(end, now)
+            if start <= end:
+                spans.append((start, end, m))
+            continue
         # Its own line before it, and a few characters after (PDF text can
         # run "December 2015Bachelor's" together), not the next entry.
         before = text[max(0, m.start() - 60):m.start()].rsplit("\n", 1)[-1]
-        if _STUDY.search(before + text[m.end():m.end() + 12]):
+        after = text[m.end():m.end() + 12]
+        # Dates on a line of their own belong to the line above: "Bachelor
+        # of Science in Chemical Engineering" then "August 2019 - July 2020"
+        # was counted as a year of work.
+        if not before.strip(" \t(") and not after.split("\n", 1)[0].strip(" \t)"):
+            lines = text[:m.start()].rstrip().rsplit("\n", 1)
+            before = lines[-1] if lines else ""
+        if _STUDY.search(before + after):
             continue
         start = (int(m.group(2)), _MONTHS[m.group(1)[:3].lower()])
         end = (now if m.group(5) else
                (int(m.group(4)), _MONTHS[m.group(3)[:3].lower()]))
-        if end >= start:
+        # Months not yet come are not worked: a planned end date counts to now.
+        end = min(end, now)
+        if start <= end:
             spans.append((start, end, m))
     if not spans:
         return None
@@ -605,8 +707,11 @@ def work_span(text: str, today: tuple[int, int] | None = None) -> WorkSpan | Non
     total += _months(cur_start, cur_end)
     first = min(spans, key=lambda s: s[0])[2]
     last = max(spans, key=lambda s: s[1])[2]
+    ends = (int(last.group(4)), _MONTHS[last.group(3)[:3].lower()]) if last.group(3) else now
     return WorkSpan(first=f"{first.group(1)} {first.group(2)}",
-                    last=(last.group(5).capitalize() if last.group(5)
+                    last=("Present" if last.group(5) and last.group(5).lower() == "date"
+                          else last.group(5).capitalize() if last.group(5)
+                          else "Present" if ends > now
                           else f"{last.group(3)} {last.group(4)}"),
                     months=total)
 
