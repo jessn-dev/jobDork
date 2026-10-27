@@ -270,6 +270,13 @@ def self_test() -> list[str]:
     why = updates.check_bundled_attestation()
     if why:
         problems.append(f"cannot verify a build attestation: {why}")
+    # Remember keys must reach the system's keychain (core/keystore.py). Only
+    # finds the backend: asks the keychain nothing, so no prompt.
+    if sys.platform in ("darwin", "win32"):
+        from ..core import keystore
+        why = keystore.unavailable()
+        if why:
+            problems.append(f"cannot keep keys: {why}")
     return problems
 
 

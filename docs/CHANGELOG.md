@@ -6,6 +6,42 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-27 — Keys: asked for again after a restart, or kept in the computer's keychain by choice
+
+After jobdork closed or updated, AI keys held in memory were gone and
+nothing asked for them: the AI simply stopped, with a line on the Dashboard.
+Adzuna and USAJOBS keys lived in a plain-text file, `data/source-keys.env`.
+
+- **A choice on setup's first page and in Settings, Your keys:** ask for keys
+  each time jobdork starts (the default; memory only), or keep them in this
+  computer's own encrypted store: the macOS Keychain, Windows Credential
+  Manager, or the Secret Service on Linux (`keyring`, core/keystore.py),
+  encrypted with your login. Turning it on keeps the keys entered so far;
+  off removes the kept copies; **Forget saved keys** removes them all.
+- **No key is written to a file any more**, AI or job source. An old
+  `source-keys.env` is read for one run while the page asks **Keep them in**
+  the keychain or **This time only**; the file is deleted either way.
+- **Enter your keys**: when jobdork starts without a key its AI page or job
+  sources use, a window asks for them (AI keys, and the Adzuna or USAJOBS
+  keys you had given, which are tested before they are kept). **Not now**
+  leaves it until the next start. jobdork remembers which job sources you
+  gave keys for, by name only (`key_sources`).
+- A kept AI key comes back from the keychain after the idle wipe or a
+  restart; **Forget** on the AI page removes the kept copy too.
+- **Kept keys never outlive jobdork:** **Start over** and removing jobdork
+  (Settings, the Windows uninstaller, `jobdork uninstall`) always remove them
+  from the keychain, with the scheduled scan; when removing, they are not one
+  of the items to choose.
+- **On a Mac,** an unsigned app is asked "jobdork wants to use your
+  keychain" once after each update (Always Allow); until then a scheduled
+  scan runs without the kept keys. Said on both pages and in the guide.
+  Containers have no keychain: the page says so, and keys come from the
+  environment as before.
+- The desktop build carries `keyring` and its backends, and its self-test
+  checks the Mac and Windows builds can reach the keychain. Docs: PRIVACY,
+  CONFIG (`remember_keys`, `key_sources`), DECISIONS, run guides, README, and
+  the guide's Settings, AI, Getting started and glossary pages.
+
 ## Added — 2026-10-27 — Remove jobdork from a computer, choosing what of yours goes
 
 Windows' uninstaller removed the program and left everything else,

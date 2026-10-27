@@ -38,6 +38,35 @@ Turn them off, or their sound off, with the buttons here. **Send a test
 notification** checks they reach you. (On a Mac the first one asks your
 permission; in Docker, the page rings a bell while it is open instead.)
 
+## Your keys
+
+Where AI keys (Claude, Gemini, ChatGPT, Groq) and job-source keys (Adzuna,
+USAJOBS) go. Never into a file or the settings.
+
+- **Ask for them each time jobdork starts**: held in memory only. When
+  jobdork closes or updates they are gone, and when it starts again a window,
+  **Enter your keys**, asks for the ones your AI page and job sources use.
+  **Not now** leaves it until the next start; the AI page and the Sources
+  page take them too.
+- **Keep them in this computer's keychain** (macOS Keychain, Windows
+  Credential Manager, or the Secret Service on Linux): encrypted with your
+  login, so you enter each key once. Turning it on keeps the keys you have
+  entered so far; turning it off removes the kept copies.
+    - **On a Mac**, after each jobdork update the Mac asks once to let jobdork
+      use the keychain: choose **Always Allow**. Until you do, a scheduled scan
+      runs without the kept keys.
+    - **In a container** or on Linux without a Secret Service, there is no
+      keychain to keep them in; the page says so. In a container, give keys in
+      its environment instead.
+- **Forget saved keys** removes every key kept in the keychain. Keys held
+  now stay until jobdork closes. **Start over** on the Dashboard and removing
+  jobdork ([below](#remove-jobdork-from-this-computer)) also remove them,
+  always: kept keys never outlive jobdork on your computer.
+
+Earlier versions (0.15.1 and before) kept Adzuna and USAJOBS keys in a plain
+file. The first start of a newer one asks where they go, **Keep them in**
+the keychain or **This time only**, and deletes the file either way.
+
 ## Updates
 
 Which version you have and whether a newer one is out.
@@ -91,16 +120,16 @@ every delete, and a deleted post stays deleted: later scans leave it out.
 
 ## Remove jobdork from this computer
 
-To take jobdork off your computer cleanly. The scheduled scan and the app
-window's storage always go. Of yours, tick what to delete as well; anything
-not ticked is kept, so a reinstall finds it:
+To take jobdork off your computer cleanly. The scheduled scan, the app
+window's storage and any keys kept in your computer's keychain always go.
+Of yours, tick what to delete as well; anything not ticked is kept, so a
+reinstall finds it:
 
 - **Settings**: what you search for, where, pay, the AI page.
 - **Job posts**, with your statuses, notes and AI verdicts, and the backups
   of them.
 - **Your resume**.
 - **Letters and tailored resumes** jobdork wrote (in Documents, job-applications).
-- **Saved job-source keys** (Adzuna, USAJOBS).
 - **Logs**.
 - **Downloaded installers** the Update button left in Downloads.
 
@@ -115,4 +144,4 @@ remove the program itself, as the page says:
   `sudo apt remove jobdork` if you installed the .deb.
 
 From a terminal it is `jobdork uninstall`, which asks about each item, or
-`jobdork uninstall --remove jobs,logs` (or `all`).
+`jobdork uninstall --remove jobs,logs` (or `all`). Saved keys go either way.

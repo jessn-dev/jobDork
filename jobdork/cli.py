@@ -802,7 +802,7 @@ def cmd_uninstall(args) -> int:
     from .core import uninstall
 
     home = Path(args.home).expanduser() if args.home else None
-    items = [i for i in uninstall.inventory(home) if i.paths]
+    items = [i for i in uninstall.inventory(home) if i.present]
     if args.remove is not None:
         choose = {c.strip() for c in args.remove.split(",") if c.strip()}
         if "all" in choose:
@@ -813,7 +813,8 @@ def cmd_uninstall(args) -> int:
                   f"choose from {', '.join(uninstall.CHOICES)} or all", file=sys.stderr)
             return 2
     elif sys.stdin.isatty():
-        print("The scheduled scan and the app window's storage are always removed.\n"
+        print("The scheduled scan, the app window's storage and any keys kept in the "
+              "keychain are always removed.\n"
               "Of yours, choose what to delete; anything you do not answer y to is kept.\n")
         choose = set()
         for item in items:
@@ -1359,8 +1360,8 @@ def cmd_sources(args) -> int:
             print(f"  {name:16} {reason}")
         if any(not getattr(cfg.sources, f"{n}_ready")() for n in dormant
                if hasattr(cfg.sources, f"{n}_ready")):
-            print("\nKeys go in .env, or are pasted in setup (kept in "
-                  f"data/{config.SOURCE_KEYS_FILE}); never in config.yaml.")
+            print("\nKeys go in .env, or are pasted in the app (held in memory, or in "
+                  "the computer's keychain if you chose to keep keys); never in config.yaml.")
     return 0
 
 
@@ -1609,11 +1610,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "and debug logging")
     p.set_defaults(func=cmd_app)
 
-    p = subs.add_parser("uninstall", help="remove jobdork's scheduled scan and app "
-                                          "storage, and what you choose of your data")
+    p = subs.add_parser("uninstall", help="remove jobdork's scheduled scan, app storage "
+                                          "and saved keys, and what you choose of your data")
     p.add_argument("--remove", default=None, metavar="ITEMS",
                    help="what of yours to delete, comma separated: settings, jobs, "
-                        "resume, documents, keys, logs, downloads, or all. Without it "
+                        "resume, documents, logs, downloads, or all (keys kept in the "
+                        "keychain always go). Without it "
                         "you are asked about each; nothing is deleted you do not choose")
     p.add_argument("--home", default="",
                    help="the app's folder, if not the usual one (also $JOBDORK_HOME)")

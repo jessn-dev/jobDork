@@ -37,10 +37,11 @@ Once it is open, the app is the same whichever way you run it: the
   stopping and starting again comes back to the same step.
 - **Every setting** is in one `config.yaml`, written by setup and the
   dashboard, or by hand: [../CONFIG.md](../CONFIG.md).
-- **API keys for AI providers are held in memory only** and forgotten when
-  jobdork stops. Keys for job sources (Adzuna, USAJOBS) are kept in
-  `data/source-keys.env` beside the database, readable by you alone, or in
-  `.env`, which wins.
+- **Keys are never written to a file.** AI keys and job-source keys (Adzuna,
+  USAJOBS) are held in memory and asked for again after jobdork closes, or,
+  if you choose, kept in your computer's keychain (macOS Keychain, Windows
+  Credential Manager, Secret Service on Linux). In Docker, which has no
+  keychain, give them in the environment or `.env`, which always win.
 - **Feedback's Send works out of the box.** It goes to the maintainers'
   relay, whose address is built into jobdork itself, in every way of
   running it: nothing to set up, and no key in the app (the relay holds

@@ -26,7 +26,10 @@ a = Analysis(
     # Sigstore's trust roots (sigstore/_store/*.json), which an update's
     # build attestation is verified against when the network cannot refresh
     # them; the self-test verifies one offline to prove they came along.
-    + collect_data_files("sigstore") + copy_metadata("sigstore"),
+    + collect_data_files("sigstore") + copy_metadata("sigstore")
+    # keyring finds the keychain it talks to (macOS Keychain, Windows
+    # Credential Manager) through its package metadata's entry points.
+    + copy_metadata("keyring"),
     # Imported only inside functions or behind a try, so named here: the
     # Claude provider and the PDF reader are extras a pip install may skip,
     # and an app user cannot add them afterwards. The command line runs the
@@ -34,6 +37,9 @@ a = Analysis(
     hiddenimports=["anthropic", "pypdf", "jobdork.cli",
                    # Imported inside a function: an update's attestation check.
                    *collect_submodules("sigstore"),
+                   # Keys you choose to keep (core/keystore.py): every backend,
+                   # each loaded by name from its entry point.
+                   *collect_submodules("keyring.backends"),
                    # Imported inside a function, for notifications on macOS.
                    *(["UserNotifications"] if sys.platform == "darwin" else [])],
     # The dork generator is a terminal tool; the app never runs it.

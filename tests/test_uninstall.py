@@ -55,9 +55,9 @@ def test_nothing_of_yours_goes_unless_you_choose_it():
         out = uninstall.remove(set(), home, docs, dl, sched=sched)
         assert sched.removed and out["unscheduled"]
         assert not (home / "window").exists()                 # the program's own
-        for kept in ("config.yaml", "data/jobdork.db", "data/resume.pdf",
-                     "data/source-keys.env", "logs/app.log"):
+        for kept in ("config.yaml", "data/jobdork.db", "data/resume.pdf", "logs/app.log"):
             assert (home / kept).exists(), kept
+        assert not (home / "data" / "source-keys.env").exists()   # keys always go
         assert docs.exists() and (dl / "jobdork-0.15.1-macos-arm64.dmg").exists()
         assert set(out["left"]) == set(uninstall.CHOICES)
 
@@ -65,7 +65,7 @@ def test_nothing_of_yours_goes_unless_you_choose_it():
 def test_each_item_goes_on_its_own():
     with tempfile.TemporaryDirectory() as tmp:
         home, docs, dl = _computer(Path(tmp))
-        out = uninstall.remove({"jobs", "keys", "downloads"}, home, docs, dl, sched=_Scheduler())
+        out = uninstall.remove({"jobs", "downloads"}, home, docs, dl, sched=_Scheduler())
         assert not (home / "data" / "jobdork.db").exists()
         assert not (home / "data" / "jobdork.db-wal").exists()
         assert not (home / "data" / "backups").exists()
@@ -133,7 +133,7 @@ def test_the_command_removes_what_it_is_told_and_keeps_the_rest():
             uninstall._unschedule = lambda home, sched: False
             # lambda: the temporary folders in place of the real ones, read at each use.
             uninstall.documents_root, uninstall.downloads = (lambda: docs), (lambda: dl)
-            code = cli.main(["uninstall", "--home", str(home), "--remove", "logs,keys"])
+            code = cli.main(["uninstall", "--home", str(home), "--remove", "logs"])
             assert code == 0
             assert not (home / "logs").exists() and not (home / "data" / "source-keys.env").exists()
             assert (home / "config.yaml").exists() and docs.exists()
@@ -197,3 +197,21 @@ def test_the_settings_page_removes_only_in_the_desktop_app_and_not_on_windows():
             assert refused(api.uninstall_now, {"remove": "logs"}) == 400
     finally:
         uninstall.remove = saved
+
+
+def test_saved_keys_always_go_whatever_is_chosen():
+    """Kept in the keychain, keys would outlive jobdork in the system's store,
+    where nobody would think to look (2026-10-27)."""
+    from jobdork.core import keystore
+
+    assert "keys" not in uninstall.CHOICES
+    with tempfile.TemporaryDirectory() as tmp:
+        home, docs, dl = _computer(Path(tmp))
+        keystore.save("ai:groq", "gsk_FakeKeyForTests012345")
+        try:
+            out = uninstall.remove(set(), home, docs, dl, sched=_Scheduler())
+            assert keystore.load("ai:groq") == ""
+            assert "keys kept in this computer's keychain" in out["removed"]
+            assert (home / "config.yaml").exists()                  # nothing else chosen
+        finally:
+            keystore.forget_all()

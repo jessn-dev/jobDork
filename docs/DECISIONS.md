@@ -159,18 +159,20 @@ ship with the app, so nobody has to?
 3. **A user who wants a keyed source pastes their own key into the app**
    (built: a card per source on the Sources page and in setup's job-sources
    step, with what it adds, a "Get one free" link, and the key tried against
-   the source when it is saved). The key is kept in a file in `data/`
-   (`source-keys.env`), readable only by jobdork's user: not the config, not
-   the database, never a log, never the image. It is the user's key on the
-   user's machine. Environment variables keep working for those who prefer
-   them. **An OS keychain was considered on 2026-10-25 and not adopted:** these
-   keys are free and cannot spend money, scheduled scans (run by the
-   system's scheduler while jobdork is closed) need them, and a keychain is
-   missing in Docker and on a NAS and often locked to a Linux cron job.
+   the source when it is saved). **Changed 2026-10-27:** no key is written to
+   a file. It is held in memory, or, if the user chooses (setup's first page,
+   Settings), kept in the OS keychain through `keyring` (core/keystore.py).
+   The earlier `source-keys.env` (2026-10-25: chosen over a keychain because
+   scheduled scans need keys while jobdork is closed, and a keychain is
+   missing in Docker and locked to a Linux cron job) is migrated and deleted.
+   Accepted: an unsigned Mac app is asked for keychain access once per
+   version, and a scheduled scan nobody answers runs without kept keys;
+   Docker and NAS users give keys in the environment.
 
-4. **AI keys follow the burn rules.** Keys for hosted models (Claude,
-   Gemini, ChatGPT) are held in memory only and wiped when the server stops;
-   they are re-entered after a restart. Ollama, run locally, needs no key and
+4. **AI keys follow the burn rules, unless kept by choice.** Keys for hosted
+   models (Claude, Gemini, ChatGPT, Groq) are held in memory and wiped when
+   the server stops; they are re-entered after a restart, which the page asks
+   for (2026-10-27), or kept in the OS keychain when the user chose it. Ollama, run locally, needs no key and
    is the way to an AI that survives restarts. This is separate from job
    source keys on purpose: an AI key can spend money.
 

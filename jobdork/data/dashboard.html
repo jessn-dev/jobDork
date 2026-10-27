@@ -214,6 +214,12 @@ button.busy svg.bi{animation:spin .8s linear infinite}
 .updsteps li.ok{color:var(--fg)} .updsteps li.ok svg{color:var(--ok)}
 .updsteps li.bad{color:var(--bad)} .updsteps li.bad svg{color:var(--bad)}
 #upd-next ol{margin:.3rem 0 0;padding-left:1.3rem} #upd-next li{margin:.25rem 0}
+.keyschoice{border:1px solid var(--line);border-radius:10px;padding:.6rem .9rem .4rem;margin:1rem 0;text-align:left}
+.keyschoice legend{font-weight:600;padding:0 .3rem}
+.keyschoice.plain{border:0;padding:0;margin:0 0 .4rem}
+.keyschoice label.check{margin:.45rem 0}
+.keyschoice label.check .hint{display:block;margin:.1rem 0 0 1.5rem}
+.keyschoice label.muted b{color:var(--muted)}
 .spin{display:inline-flex;vertical-align:-.2em;margin-right:.35rem}
 .spin svg{width:15px;height:15px;animation:spin .8s linear infinite}
 /* A required field left empty, named in the message beside Continue. */
@@ -696,7 +702,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <button class="item" data-view="settings" data-label="Search" data-info="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen." aria-description="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24a1 1 0 0 1-1.42 1.42l-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span class="label">Search</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="sources" data-label="Sources" data-info="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, holds the keys for Adzuna and USAJOBS, adds a job post from a link, and adds or removes employer boards." aria-description="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, holds the keys for Adzuna and USAJOBS, adds a job post from a link, and adds or removes employer boards."><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 8.2C5.6 9.3 8.6 10 12 10s6.4-.7 8-1.8V12c0 1.66-3.6 3-8 3s-8-1.34-8-3V8.2zm0 7c1.6 1.1 4.6 1.8 8 1.8s6.4-.7 8-1.8V19c0 1.66-3.6 3-8 3s-8-1.34-8-3v-3.8z"/></svg><span class="label">Sources</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
-  <button class="item" data-view="ai" data-label="AI" data-info="Choose a model (local through Ollama, or Claude, Gemini, ChatGPT or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are held in memory only." aria-description="Choose a model (local through Ollama, or Claude, Gemini, ChatGPT or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are held in memory only."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2l1.9 5.6 5.6 1.9-5.6 1.9L11 17l-1.9-5.6-5.6-1.9 5.6-1.9L11 2zm7.5 11l.95 2.55 2.55.95-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95L18.5 13z"/></svg><span class="label">AI</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="ai" data-label="AI" data-info="Choose a model (local through Ollama, or Claude, Gemini, ChatGPT or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are never written to a file: held in memory, or kept in your keychain if you choose." aria-description="Choose a model (local through Ollama, or Claude, Gemini, ChatGPT or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are never written to a file: held in memory, or kept in your keychain if you choose."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2l1.9 5.6 5.6 1.9-5.6 1.9L11 17l-1.9-5.6-5.6-1.9 5.6-1.9L11 2zm7.5 11l.95 2.55 2.55.95-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95L18.5 13z"/></svg><span class="label">AI</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="tools" data-label="Feedback" data-info="Send a problem, an idea or a question to the people who make jobdork." aria-description="Send a problem, an idea or a question to the people who make jobdork."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><rect x="11" y="5.75" width="10" height="2.5" rx="1.25"/><circle cx="18" cy="17" r="3"/><rect x="3" y="15.75" width="10" height="2.5" rx="1.25"/></svg><span class="label">Feedback</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <div class="foot">
     <div class="status" id="net" role="status" hidden><span class="dot"></span><span id="net-text"></span></div>
@@ -818,7 +824,8 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
             Deletes everything and runs setup again</b>
           Your settings, every job post with its status, notes and AI verdict,
           your uploaded resume, the documents written for job posts, reports,
-          and the job-source and AI keys. Then setup opens from the start. You
+          and every AI and job-source key, those kept in your computer's keychain
+          included. Then setup opens from the start. You
           see exactly what goes, and confirm, before anything is deleted.
         </span>
       </span>
@@ -999,6 +1006,9 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <p class="hint" id="note-said" style="margin:.3rem 0 0"></p>
     </div>
 
+    <h3 class="psec">Your keys</h3>
+    <div class="cleanup" id="keys-box"></div>
+
     <h3 class="psec">Updates</h3>
     <div class="cleanup">
       <div class="row">
@@ -1060,9 +1070,9 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     </div>
 
     <h3 class="psec">Remove jobdork from this computer</h3>
-    <p class="hint" style="margin-top:0">The scheduled scan and the app window's storage are
-      always removed. Of yours, tick what to delete as well: anything not ticked is kept, so
-      a reinstall finds it.</p>
+    <p class="hint" style="margin-top:0">The scheduled scan, the app window's storage and any
+      keys kept in this computer's keychain are always removed. Of yours, tick what to delete
+      as well: anything not ticked is kept, so a reinstall finds it.</p>
     <div class="cleanup" id="rm-box"><p class="hint" id="rm-msg"></p></div>
   </section>
 
@@ -1123,10 +1133,11 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <p class="hint" style="margin:0 0 1rem">Readers are asked in order: the first does the
       work, and when it cannot answer (no key held, not reachable, rate limited, an error)
       the next one does, so a second reader keeps things going when the first is down. The
-      same provider can be listed again with another model. A key is per provider, kept
-      in this server's memory only and never written to the config, the database, a log,
-      or sent back to this page; it is forgotten when you stop jobdork, when you click
-      Forget, or a minute after the last dashboard tab closes.</p>
+      same provider can be listed again with another model. A key is per provider, never
+      written to a file, the config, the database or a log, nor sent back to this page:
+      held in memory and forgotten when you stop jobdork, when you click Forget, or a
+      minute after the last dashboard tab closes, or kept in this computer's keychain if
+      you chose that under Settings, Your keys.</p>
 
     <div class="field" id="ai-when"><label>When to use it</label>
       <label class="check"><input type="checkbox" id="ai-on-scan"> After each scan,
@@ -1464,6 +1475,14 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <div class="dlg-foot">
     <button data-icon="download" class="act" id="resume-dl">Download original</button>
     <button data-icon="x" class="act primary" id="resume-close">Close</button>
+  </div>
+</dialog>
+<dialog id="keysdlg" aria-labelledby="keys-title">
+  <div class="dlg-head"><strong id="keys-title">Enter your keys</strong>
+    <span class="hint">jobdork closed or updated, and these keys went with it</span></div>
+  <div class="dlg-body" id="keys-body"></div>
+  <div class="dlg-foot">
+    <button data-icon="x" class="act" id="keys-later" type="button">Not now</button>
   </div>
 </dialog>
 <dialog id="upddlg" aria-labelledby="upd-title">
@@ -2405,7 +2424,7 @@ $('btn-start-over').onclick = async () => {
     d.resume && `your uploaded resume (${esc(d.resume)})`,
     d.documents && `${n(d.documents)} documents written for job posts (cover letters, CVs)`,
     d.reports && `${n(d.reports)} report files`,
-    'the job-source keys saved in the app, and the AI keys held in memory'].filter(Boolean);
+    "every AI and job-source key: those held now, and any kept in this computer's keychain"].filter(Boolean);
   box.innerHTML = `<b>Start over: this deletes everything and runs setup again.</b>
     <ul style="margin:.35rem 0">${items.map(i => `<li>${i}</li>`).join('')}</ul>
     <div class="hint">It cannot be undone, except from the backup below. A resume you
@@ -2799,6 +2818,7 @@ let noteCfg = {enabled: true, sound: true, native: true};
 async function refreshState() {
   const s = await (await api('/api/state')).json();
   if (s.notifications) noteCfg = s.notifications;
+  if (s.keys) { keysInfo = s.keys; askForKeys(s.keys); }
   if (s.setup) drawSetup(s.setup);
   // Just finished: open the dashboard. The token lives only in this page's
   // memory, so it goes back in the address for the one load that reads it.
@@ -2875,10 +2895,11 @@ function drawSetup(st) {
       <p class="hint">Ollama runs on your own computer and costs nothing. Claude,
       Gemini, ChatGPT and Groq spend tokens on your key. Once the test passes, every
       scan has the model read the ${SETUP_JUDGE_TOP} best new job posts against your
-      resume (change it on the AI page). A key typed here is held in
-      memory only and forgotten when jobdork stops; to keep one, put it in
-      ${st.in_container ? 'the container\'s environment' : '<code>.env</code>'}
-      (for example <code>ANTHROPIC_API_KEY=…</code>).
+      resume (change it on the AI page). A key typed here goes where you chose on
+      the first page: memory only, asked for again after jobdork closes, or this
+      computer's keychain.${st.in_container ? ` A container has no keychain: to keep a
+      key, put it in the container's environment (for example
+      <code>ANTHROPIC_API_KEY=…</code>).` : ''}
       ${st.ollama_from_docker ? `From inside Docker, Ollama on this computer is at
       <code>${esc(st.ollama_from_docker)}</code>.` : ''}</p>`;
     $('setup-slot').append($('view-ai'));
@@ -3132,6 +3153,138 @@ const WEL_ICON = {
   arrow: 'M13.3 5.3a1 1 0 0 1 1.4 0l6 6a1 1 0 0 1 0 1.4l-6 6a1 1 0 0 1-1.4-1.4l4.3-4.3H4a1 1 0 1 1 0-2h13.6l-4.3-4.3a1 1 0 0 1 0-1.4z',
 };
 
+// Where keys go (core/keystore.py): asked on setup's first page and in
+// Settings. Keeping is a choice, never the default; where this computer has
+// no keychain (a container, Linux without a Secret Service) it says why.
+let keysInfo = null;
+function keysChoiceHtml(id, titled = true) {
+  const k = keysInfo || {store: "this computer's keychain", unavailable: '', remember: false};
+  const off = !!k.unavailable;
+  const mac = /macOS/.test(k.store || '');
+  // In Settings the section's heading names it already: no box, no legend.
+  return `<fieldset class="keyschoice${titled ? '' : ' plain'}" id="${id}">${titled
+      ? '<legend>Your keys</legend>' : ''}
+    <p class="hint">AI keys (Claude, Gemini, ChatGPT, Groq) and job-source keys (Adzuna,
+      USAJOBS). Never written to a file or the settings.</p>
+    <label class="check"><input type="radio" name="${id}" value="ask" ${!k.remember || off ? 'checked' : ''}>
+      <b>Ask for them each time jobdork starts</b>
+      <span class="hint">Held in memory only. After jobdork closes or updates, it asks again.</span></label>
+    <label class="check${off ? ' muted' : ''}"><input type="radio" name="${id}" value="keep"
+        ${k.remember && !off ? 'checked' : ''} ${off ? 'disabled' : ''}>
+      <b>Keep them in ${esc(k.store)}</b>
+      <span class="hint">${off ? esc(cap(k.unavailable)) + '.'
+        : `Encrypted with your login, so you enter each key once.${mac ? ` After each
+          jobdork update the Mac asks once to let jobdork use the keychain: choose
+          <b>Always Allow</b>. Until you do, a scheduled scan runs without the keys.` : ''}`}</span></label>
+  </fieldset>`;
+}
+const keysChoice = id => (document.querySelector(`#${id} input:checked`) || {}).value === 'keep';
+
+// Asked when jobdork starts without keys it needs: after it closed or
+// updated, a key held in memory only is gone. Once per start unless you say
+// Not now; never during setup, which asks in its own steps.
+let keysAsked = false;
+function askForKeys(k) {
+  if (setupStep || keysAsked || $('keysdlg').open) return;
+  if (!k.missing.length && !k.legacy) return;
+  keysAsked = true;
+  drawKeysPrompt(k);
+  $('keysdlg').showModal();
+}
+$('keys-later').onclick = () => $('keysdlg').close();
+
+async function drawKeysPrompt(k) {
+  const ai = k.missing.filter(m => m.kind === 'ai');
+  const sources = k.missing.filter(m => m.kind === 'source').map(m => m.name);
+  $('keys-title').textContent = ai.length || sources.length ? 'Enter your keys' : 'Your saved keys';
+  $('keys-body').innerHTML = `
+    ${k.legacy ? `<div class="keycard"><b>Keys from an earlier version.</b> jobdork 0.15.1 and
+      before kept your Adzuna and USAJOBS keys in a plain file. It is deleted either way;
+      choose where its keys go.
+      <div class="bar">${k.unavailable ? '' : `<button type="button" class="act primary" data-legacy="1">
+        Keep them in ${esc(k.store)}</button>`}
+        <button type="button" class="act" data-legacy="0">This time only</button></div></div>` : ''}
+    ${ai.map(m => `<div class="keycard"><b>${esc(m.label)}</b>, for the AI page
+      <div class="bar"><span class="secret"><input type="password" autocomplete="off"
+          spellcheck="false" data-ai="${esc(m.name)}" placeholder="Paste the key"
+          aria-label="${esc(m.label)} API key" style="width:20rem"><button type="button"
+          class="act" data-show aria-pressed="false">Show</button></span>
+        <button type="button" class="act primary" data-hold="${esc(m.name)}">Save</button>
+        <span class="hint" data-said="${esc(m.name)}"></span></div></div>`).join('')}
+    <div id="keys-sources"></div>
+    ${keysChoiceHtml('dlg-keys')}
+    <p id="keys-msg" class="hint" aria-live="polite"></p>`;
+  const say = (text, cls) => { $('keys-msg').className = cls || 'hint'; $('keys-msg').textContent = text; };
+  $('keys-body').querySelectorAll('[data-show]').forEach(btn => btn.onclick = () => {
+    const input = btn.previousElementSibling, show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.textContent = show ? 'Hide' : 'Show';
+    btn.setAttribute('aria-pressed', String(show));
+  });
+  $('keys-body').querySelectorAll('[data-hold]').forEach(btn => btn.onclick = async () => {
+    const box = $('keys-body').querySelector(`[data-ai="${btn.dataset.hold}"]`);
+    const r = await api('/api/llm/key', {method: 'POST', body: form({provider: btn.dataset.hold, key: box.value})});
+    box.value = ''; box.type = 'password';
+    const said = $('keys-body').querySelector(`[data-said="${btn.dataset.hold}"]`);
+    if (!r.ok) { said.className = 'err'; said.textContent = cap(await r.text()); return; }
+    const d = await r.json();
+    said.className = 'saved'; said.textContent = cap(d.note || 'held until jobdork closes');
+    keysDone();
+  });
+  $('keys-body').querySelectorAll('[data-legacy]').forEach(btn => btn.onclick = async () => {
+    const r = await api('/api/keys/legacy', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({keep: btn.dataset.legacy === '1'})});
+    if (!r.ok) { say(cap(await r.text()), 'err'); return; }
+    btn.closest('.keycard').innerHTML = `<span class="saved">${btn.dataset.legacy === '1'
+      ? `Kept in ${esc(k.store)}; the plain file is deleted.` : 'Used this time only; the plain file is deleted.'}</span>`;
+    keysDone();
+  });
+  $('keys-body').querySelectorAll('#dlg-keys input').forEach(radio => radio.onchange = async () => {
+    const r = await api('/api/config', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({remember_keys: keysChoice('dlg-keys')})});
+    if (!r.ok) { say(cap(await r.text()), 'err'); return; }
+    const d = await r.json(); cfg = null;
+    say(d.keys || '', 'saved');
+  });
+  if (sources.length) {
+    const d = await (await api('/api/setup/sources')).json();
+    const keyed = d.keyed.filter(x => sources.includes(x.name));
+    $('keys-sources').innerHTML = keyCardsHtml(keyed);
+    $('keys-sources').querySelectorAll('[data-want]').forEach(b => b.click());   // open the boxes
+    wireKeyCards($('keys-sources'), keyed, say, async () => keysDone());
+  }
+}
+
+// Settings, Your keys: the same choice as setup's first page, and Forget.
+function drawKeys() {
+  $('keys-box').innerHTML = `${keysChoiceHtml('set-keys', false)}
+    <div class="row"><button data-icon="eraser" class="act" id="keys-forget" type="button">Forget saved keys</button>
+      <span class="hint" id="keys-said" aria-live="polite">Removes every key kept in the keychain; keys
+        held now stay until jobdork closes.</span></div>`;
+  $('keys-box').querySelectorAll('#set-keys input').forEach(radio => radio.onchange = async () => {
+    const r = await api('/api/config', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({remember_keys: keysChoice('set-keys')})});
+    $('keys-said').className = r.ok ? 'saved' : 'err';
+    $('keys-said').textContent = r.ok ? ((await r.json()).keys || 'Saved.') : cap(await r.text());
+    cfg = null; refreshState();
+  });
+  $('keys-forget').onclick = async () => {
+    const r = await api('/api/keys/forget', {method: 'POST'});
+    $('keys-said').className = r.ok ? 'saved' : 'err';
+    $('keys-said').textContent = r.ok ? 'Saved keys forgotten.' : cap(await r.text());
+  };
+}
+
+// After each key: when nothing is missing any more, the prompt closes.
+async function keysDone() {
+  const s = await (await api('/api/state')).json();
+  if (s.keys) keysInfo = s.keys;
+  if (s.keys && !s.keys.missing.length && !s.keys.legacy) {
+    $('keysdlg').close();
+    toast('Keys entered. jobdork can use them now.');
+  }
+}
+
 function drawSetupWelcome(st) {
   const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="${d}"/></svg>`;
   const pillar = (ic, head, text) =>
@@ -3158,11 +3311,13 @@ function drawSetupWelcome(st) {
     </ul>
     <h3>What setup asks · ${st.steps.length - 1} short steps</h3>
     <ol class="route">${route}</ol>
+    ${keysChoiceHtml('wel-keys')}
     <div class="go">
       <p class="need">Have your resume ready: PDF, Word, Markdown or plain text.</p>
       <button type="button" class="act start" id="setup-start">Get started ${svg(WEL_ICON.arrow)}</button>
     </div></div>`;
-  $('setup-start').onclick = () => setupGo(st.steps[1].name);
+  $('setup-start').onclick = () => setupGo(st.steps[1].name,
+    {remember_keys: keysChoice('wel-keys')});
   $('setup-start').focus({preventScroll: true});
 }
 
@@ -5418,7 +5573,7 @@ async function saveSetting(change, said) {
 
 async function drawPrefs() {
   cfg = await (await api('/api/config')).json();
-  drawSchedule(); drawFolders(); drawNotify(); drawUpdates(); drawPrefBoards(); drawRemove();
+  drawSchedule(); drawFolders(); drawNotify(); drawUpdates(); drawPrefBoards(); drawKeys(); drawRemove();
 }
 
 function drawNotify() {
@@ -5548,7 +5703,7 @@ async function drawRemove() {
 function askRemove(d) {
   const chosen = [...document.querySelectorAll('.rm-item:checked')].map(b => b.value);
   const names = d.items.filter(i => chosen.includes(i.key)).map(i => i.label);
-  $('rm-confirm').innerHTML = `<span>Remove the scheduled scan${names.length
+  $('rm-confirm').innerHTML = `<span>Remove the scheduled scan and any saved keys${names.length
       ? `, and delete: <b>${names.map(esc).join(', ')}</b>` : ', and keep all of yours'}?</span>
     <button data-icon="trash-2" class="act danger" id="rm-yes" type="button">Yes, remove</button>
     <button data-icon="x" class="act" id="rm-no" type="button">Cancel</button>`;

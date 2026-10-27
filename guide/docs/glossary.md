@@ -44,7 +44,8 @@
 
 **Key (API key)**
 : A password-like code from an AI company or a job source that lets jobdork
-  use it on your account. AI keys are held in memory only.
+  use it on your account. Held in memory only, or kept in your computer's
+  keychain if you choose ([Your keys](settings.md#your-keys)); never in a file.
 
 **Match**
 : Points for everything you asked for, added up. Not a percentage.

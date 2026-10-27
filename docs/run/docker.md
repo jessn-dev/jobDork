@@ -45,7 +45,6 @@ and use `jobdork` in place of `jessengolab/jobdork:0.15.1`.
 | `config.yaml` | Your settings, written by setup and the dashboard |
 | `jobdork.db` | Job posts, statuses, AI verdicts |
 | `documents/` | Your resume, cover letters, CVs |
-| `source-keys.env` | Keys for Adzuna and USAJOBS, if you added them in setup |
 | `logs/` | What the scans printed |
 
 A `config.yaml` you already have can be mapped instead, with

@@ -7,7 +7,10 @@ Windows uninstaller, Settings' "Remove jobdork from this computer" and
 
 The program's own traces always go: the scheduled scan (a LaunchAgent, a
 Task Scheduler task or a crontab line, which would otherwise go on starting
-a program that is gone) and the app window's storage. Everything else is the
+a program that is gone), the app window's storage, and every key jobdork
+kept in the computer's keychain, AI and job source alike: left there, they
+would outlive the program in the system's store, where the person would not
+think to look (and an old plain source-keys.env with them). Everything else is the
 person's, and goes only when they choose it, item by item: their settings,
 job posts, resume, letters and tailored resumes, saved job-source keys,
 logs, and the installers Update downloaded. Nothing is chosen unless they
@@ -35,7 +38,6 @@ ITEMS = (
     ("resume", "Your resume", "the resume file you uploaded"),
     ("documents", "Letters and tailored resumes",
      "the cover letters, tailored resumes and job descriptions jobdork wrote"),
-    ("keys", "Saved job-source keys", "the Adzuna and USAJOBS keys you saved"),
     ("logs", "Logs", "what jobdork wrote down while it ran"),
     ("downloads", "Downloaded installers", "installers the Update button left in Downloads"),
 )
@@ -53,6 +55,10 @@ class Item:
     label: str
     what: str
     paths: list[Path]
+
+    @property
+    def present(self) -> bool:
+        return bool(self.paths)
 
     @property
     def size(self) -> int:
@@ -87,7 +93,6 @@ def inventory(home: Path | None = None, docs: Path | None = None,
         + [data / "backups", data / "version-check.json", data / "scan.lock"],
         "resume": sorted(data.glob("resume.*")),
         "documents": [docs, home / "out"],
-        "keys": [data / "source-keys.env"],
         "logs": [home / "logs"],
         "downloads": sorted({p for g in _INSTALLER_GLOBS for p in dl.glob(g)}),
     }
@@ -131,11 +136,19 @@ def remove(choose, home: Path | None = None, docs: Path | None = None,
     window = home / "window"
     if window.exists():
         gone(window)
+    # Always: keys kept in the keychain, and an old plain keys file.
+    from . import keystore
+    if _keychain_has_keys():
+        keystore.forget_all()
+        out["removed"].append("keys kept in this computer's keychain")
+    old_keys = home / "data" / "source-keys.env"
+    if old_keys.exists():
+        gone(old_keys)
     for item in inventory(home, docs, dl):
         if item.key in choose:
             for path in item.paths:
                 gone(path)
-        elif item.paths:
+        elif item.present:
             out["left"].append(item.key)
     # Folders jobdork made and that are now empty go too.
     for folder in (home / "data", home):
@@ -146,6 +159,11 @@ def remove(choose, home: Path | None = None, docs: Path | None = None,
         except OSError:
             pass
     return out
+
+
+def _keychain_has_keys() -> bool:
+    from . import keystore
+    return any(keystore.load(name) for name in keystore.names())
 
 
 def _unschedule(home: Path, sched) -> bool:

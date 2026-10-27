@@ -48,7 +48,9 @@ app = ["pywebview>=6.2",
        # Checks an update's build attestation before opening it (core/updates.py).
        "sigstore>=4.5.1",
        # macOS Notification Center under the app's own name (core/notify.py).
-       "pyobjc-framework-UserNotifications>=12; sys_platform == 'darwin'"]
+       "pyobjc-framework-UserNotifications>=12; sys_platform == 'darwin'",
+       # Keys you choose to keep, in the computer's own keychain (core/keystore.py).
+       "keyring>=25"]
 # Building the installers (packaging/build.py): PyInstaller, and Pillow to
 # turn packaging/icon.png into each platform's icon format.
 package = ["pyinstaller>=6.22", "pillow>=11"]

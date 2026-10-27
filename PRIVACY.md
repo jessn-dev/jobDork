@@ -22,7 +22,6 @@ Everything stays in folders on the machine jobdork runs on:
 | Job posts found, your statuses and notes, AI verdicts, run history, warnings and errors | `data/jobdork.db` |
 | Copies of the database, made before anything is deleted | `data/backups/` |
 | Your resume, as you uploaded it, and the projects and education you add | `data/` |
-| Keys for Adzuna and USAJOBS, if you enter them in the app | `data/source-keys.env`, readable by your user account only |
 | Cover letters and tailored resumes you ask for | `Documents/job-applications/` (in Docker, `data/documents/`) |
 | What a scheduled scan printed | `logs/scheduled-scan.log` |
 
@@ -31,9 +30,17 @@ Support/jobdork` on macOS, `%LOCALAPPDATA%\jobdork` on Windows,
 `~/.local/share/jobdork` on Linux. **Settings → Where your files are**
 card shows the exact paths and opens them.
 
-**Keys for AI providers** (Claude, Gemini, ChatGPT, Groq) are held in memory only.
-They are never written to disk, and are forgotten when jobdork stops, or a
-minute after the last Dashboard window closes.
+**Keys** for AI providers (Claude, Gemini, ChatGPT, Groq) and job sources
+(Adzuna, USAJOBS) are never written to a file, the settings or a log. By
+default they are held in memory only, forgotten when jobdork stops or a
+minute after the last Dashboard window closes, and asked for again at the
+next start. If you choose **Keep them in this computer's keychain** (setup's
+first page, or Settings, Your keys), they are kept in your system's own
+encrypted store, the macOS Keychain, Windows Credential Manager or the
+Secret Service on Linux, encrypted with your login, and nowhere else.
+Versions up to 0.15.1 kept Adzuna and USAJOBS keys in a plain file,
+`data/source-keys.env`; a newer version deletes it at its first start, after
+asking whether to move its keys to the keychain.
 
 **Deleting it.** The Dashboard's **Start over** deletes your settings, job
 posts, resume, documents and keys, after showing you exactly what goes.

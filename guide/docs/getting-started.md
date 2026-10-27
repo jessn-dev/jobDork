@@ -22,6 +22,10 @@ the same step.
 
 ![The first page of setup](images/setup.png)
 
+On the first page, **Your keys** asks where the keys you enter go: asked
+for each time jobdork starts (the default), or kept in your computer's
+keychain so you enter each once ([Your keys](settings.md#your-keys)).
+
 1. **Your resume** (required). A PDF, Word (`.docx`), Markdown or text
    file. Every job post is scored against it. It stays on your computer.
 2. **AI** (optional). Connect Ollama, a free AI that runs on your own
