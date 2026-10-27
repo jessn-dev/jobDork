@@ -6,6 +6,33 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-26 — version 0.15.1
+
+0.15.1 carries the 13 entries below, everything since 0.15.0 (25 October),
+and the employer boards re-verified on 26 October (417 of 420 answering).
+The ones a user notices most:
+
+- **AI verdicts you can rely on.** With `gemma4:26b` reading and
+  `qwen3.8:27b` checking, 2.9% of a verdict's claims were unsupported,
+  measured on seven resumes in six fields; eight local models compared in
+  docs/AI-MODELS.md. A skill the AI called missing that your resume lists
+  now counts for you, and the score is redone.
+- **Resumes read whole:** current jobs written "Up to present", jobs at a
+  university, PDFs that came out one word per line or with broken letter
+  pairs ("construcƟon"), and resumes up to 20,000 characters.
+- **Setup fixes:** "Other: type a model name" shows its box, Groq has its
+  mark, Save and test shows it is working, and the Where step says what it
+  needs.
+- **Check now says when it could not reach GitHub**, instead of calling
+  your version the newest.
+- **A guide for the AI on two computers**, with what to do about AMD cards
+  on Windows.
+
+Updating from 0.15.0 with its own Update button uses 0.15.0's check: the
+release's checksums and its build attestation. On some computers 0.15.0's
+Check now cannot reach GitHub and says you have the newest (fixed here); if
+it does, download 0.15.1 from the release page and install it over 0.15.0.
+
 ## Added — 2026-10-26 — Choosing an AI model, measured
 
 Which local model to recommend was a guess from one resume. Eight readers
