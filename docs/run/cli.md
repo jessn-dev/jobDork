@@ -33,7 +33,7 @@ them into: put `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY` or `GROQ_
 | `jobdork list` | Print stored job posts. `--new` for what the last scan added, `--flags` for why each was flagged |
 | `jobdork show <uid>` | One job post in full, with the advert |
 | `jobdork applied <url\|company\|uid> -s <status>` | Record what you did: `interested`, `applied`, `interviewing`, `offer`, `rejected`… `--note` adds a note |
-| `jobdork add <url>` | Fetch a posting by its address into the database |
+| `jobdork add <url>` | Fetch a posting by its address into the database: any board jobdork reads, Taleo Enterprise, or any page with schema.org job markup |
 | `jobdork rescreen` | Apply the current config to what is stored; `--remove` deletes what no longer matches, never a post you acted on |
 | `jobdork check` | Close the postings that are gone |
 | `jobdork enrich` | Fetch the full advert for posts stored as a summary |

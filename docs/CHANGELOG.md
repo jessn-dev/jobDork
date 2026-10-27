@@ -6,6 +6,31 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-28 — Add a job post from any link
+
+**Add a job post** (and `jobdork add`) knew five systems by their addresses
+and refused the rest: a UnitedHealth Group post on Taleo Enterprise came
+back "cannot tell which platform that URL is on" (2026-10-27). Now a link
+is read the best way its system allows (fetch/link.py):
+
+- **A board in the address** (Greenhouse, Ashby, Lever, Breezy,
+  SmartRecruiters): the board is read and the post found on it, as before.
+- **Workday, Oracle Recruiting and Eightfold**, whose pages are drawn by
+  script: the post's own record, as a scan reads its advert.
+- **Taleo Enterprise** (`*.taleo.net/careersection/…`): its job page has no
+  schema.org markup, but keeps the title, job number, place, department,
+  job type, posting date and advert in a hidden `initialHistory` field,
+  which is read; the employer's name comes from the page's title.
+- **Any other page**: its schema.org `JobPosting`, as an employer's careers
+  site is read. robots.txt is honoured.
+- **Nothing readable**: the reason says what was tried, and the page opens a
+  form to paste the advert's text, with its title, employer and place.
+  **Add from the text** stores it under its link, screened like any post
+  and marked "advert pasted in".
+
+A Greenhouse post on the employer's own site (`?gh_jid=`) is now read from
+its page when it has no board token, instead of being refused.
+
 ## Changed — 2026-10-27 — version 0.15.3
 
 0.15.3 carries the 3 entries below, everything since 0.15.2 (27 October):
@@ -6717,19 +6742,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   keychain, never a file), so jobdork can use an Ollama behind a
   gatekeeper that checks keys; and one pasted connection code that fills
   the AI page.
-- **Add a job post from any link** (found 2026-10-27, a UnitedHealth Group
-  post on `uhg.taleo.net/careersection/10000/jobdetail.ftl?job=2389918`
-  refused with "cannot tell which platform that URL is on. Supported:
-  greenhouse, ashby, lever, breezy, smartrecruiters"). Adding by link
-  (`add_by_url`, `cli._platform_for`) knows 5 systems, fewer than a scan
-  reads, and nothing else. Recognise every system jobdork reads (Workday,
-  Oracle, Taleo Business Edition, Eightfold and the rest); for any other
-  link, read the page itself (schema.org `JobPosting`, as fetch/site.py
-  does); and a reader for **Taleo Enterprise** (`*.taleo.net/careersection/`):
-  its job page carries the title, job number, place, department, type,
-  posting date and description in the page's `initialHistory` field, with
-  no `JobPosting` data. When nothing can be read, say so and offer to paste
-  the advert's text instead.
 - **The error log names the reason, not only the status.** A model list
   that could not be loaded is recorded as "GET /api/llm/models failed on
   the server (HTTP 502)", although jobdork knows the reason ("Ollama is not

@@ -555,9 +555,12 @@ The token is four parts, `host/path/org/cws`
   no longer available", which counts as closed.
 - Paced at one page a second for every `*.taleo.net` host.
 
-Taleo Enterprise (`*.taleo.net/careersection/…`) is a different product and
-has no reader; Kaiser Permanente and UnitedHealth Group, which use it, are
-read through their own careers sites instead.
+Taleo Enterprise (`*.taleo.net/careersection/…`) is a different product,
+with no board reader: Kaiser Permanente and UnitedHealth Group, which use it,
+are scanned through their own careers sites instead. One of its job posts can
+be added by its link: its job page has no schema.org markup, but carries the
+title, job number, place, department, job type, posting date and advert in a
+hidden `initialHistory` field, read by fetch/link.py.
 
 ---
 
