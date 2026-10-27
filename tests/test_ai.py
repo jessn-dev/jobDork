@@ -515,3 +515,33 @@ if __name__ == "__main__":
             print(f"FAIL {name}: {type(exc).__name__}: {exc}")
     print(f"{len(tests) - failures}/{len(tests)} passed")
     raise SystemExit(1 if failures else 0)
+
+
+def test_a_prompt_block_name_never_reaches_the_page():
+    """Told to use only <<MEASURED>> for years, a model wrote "has <<MEASURED>>
+    of experience" into 11 of 29 verdicts; the length it holds goes there."""
+    from jobdork.ai.llm import unblock
+
+    work = ("Work history in the resume: January 2016 to September 2023, 7 years "
+            "8 months in all: every role together")
+    assert unblock("Has <<MEASURED>> of experience, per <<POSTING DATES>>.", work) == \
+        "Has 7 years 8 months of experience, per the posting dates."
+    assert "<<" not in unblock("Has <<MEASURED>> of work and <<FOUND>> things.")
+    assert unblock("Plain text, no blocks.", work) == "Plain text, no blocks."
+
+
+def test_the_measured_total_is_never_given_to_one_field():
+    """The measured length is every role together; "7 years 8 months as a
+    DevOps Engineer" was a claim no resume makes."""
+    from jobdork.ai.llm import total_only
+
+    work = "Work history in the resume: January 2016 to September 2023, 7 years 8 months in all"
+    assert total_only("Has 7 years 8 months of experience as a DevOps Engineer.", work) == \
+        "Has 7 years 8 months of work in all."
+    assert total_only("Has 7 years 8 months of work experience.", work) == \
+        "Has 7 years 8 months of work experience."
+    assert total_only("Has 3 years of Java.", work) == "Has 3 years of Java."
+    assert total_only("Has 7 years 8 months of work with Terraform.", work) == \
+        "Has 7 years 8 months of work in all."
+    assert total_only("Has 7 years 8 months of work in all.", work) == \
+        "Has 7 years 8 months of work in all."

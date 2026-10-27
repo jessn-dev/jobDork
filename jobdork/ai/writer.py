@@ -35,7 +35,15 @@ from ..core import telemetry
 from ..writing import gates as gates_mod
 from ..writing import humanize
 from . import guard
-from .llm import MAX_ADVERT, MAX_RESUME, LLMError, Settings, _fenced, complete_json
+from .llm import (
+    MAX_ADVERT,
+    MAX_RESUME,
+    LLMError,
+    Settings,
+    _fenced,
+    complete_json,
+    unblock,
+)
 
 MIN_ADVERT = 200
 LETTER_FILE = "cover-letter-ai.md"      # not cover-letter.md: that is claude -p's
@@ -69,8 +77,9 @@ state.
 A script checks every figure.
 - A number of years belongs to what the resume attaches it to. "10 years \
 building web applications" is not 10 years of each language listed.
-- A total of years worked comes only from <<MEASURED>>, which the tool \
-counted from the resume's dates: never add up dates yourself, and leave the \
+- A total of years worked comes only from the length in <<MEASURED>>, \
+written out as it is there, never the block's name; the tool \
+counted it from the resume's dates: never add up dates yourself, and leave the \
 total out when it is not given.
 - Say about the company only what the advert says. No flattery it does not \
 support.
@@ -193,7 +202,8 @@ bullets only where the resume says it was done in that job. Each project's \
 to three bullets, from the resume or the PROJECTS notes only.
 
 "summary": two or three plain sentences: their role, years of experience as \
-<<MEASURED>> gives them (none when it is not given; never add up dates \
+the length in <<MEASURED>> gives them, written out (none when it is not \
+given; never add up dates \
 yourself), one or two strengths the resume shows, and the kind of role they \
 want (this one). "skills": the resume's skills as short plain terms, the \
 ones this advert asks for first, no ratings. "experience": every job in the \
@@ -344,7 +354,7 @@ def cover_letter(settings: Settings, row, resume_text: str,
     record = resume_text + (f"\n\n{work}" if work else "")
     raw = complete_json(settings, LETTER_SYSTEM, user, LETTER_SCHEMA,
                         max_tokens=1500, purpose="cover_letter")
-    paragraphs = [humanize.clean(_one_line(p, 1500), keep_quotes=True)
+    paragraphs = [unblock(humanize.clean(_one_line(p, 1500), keep_quotes=True), work)
                   for p in raw.get("paragraphs") or [] if str(p).strip()][:4]
     text = "\n\n".join(paragraphs)
     if not text:
@@ -487,7 +497,7 @@ def tailored_resume(settings: Settings, row, resume_text: str,
     telemetry.tick(done=1)
 
     dropped, unmatched = [], []
-    doc = {"summary": _plain(raw.get("summary"), 1200),
+    doc = {"summary": unblock(_plain(raw.get("summary"), 1200), work),
            "skills": [], "experience": [], "education": [],
            "certifications": [], "projects": []}
     seen = set()

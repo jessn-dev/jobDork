@@ -6,6 +6,104 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-26 — Choosing an AI model, measured
+
+Which local model to recommend was a guess from one resume. Eight readers
+were measured the same way, on seven resumes in six fields (software,
+marketing, sports writing, copywriting, pharmacy, construction quality
+control), 56 job posts each from real boards, all checked by `qwen3.8:27b`.
+
+- **docs/AI-MODELS.md:** the results and what they mean. `gemma4:26b`
+  2.9% unsupported claims, no resume above 4.5%; `qwen3:14b` 9.9%,
+  `gemma3:12b` 10.0%, `phi4:14b` 13.0%, `mistral-small3.2:24b` 13.9%,
+  `llama3.1:8b` 14.3% (and 27 of 56 verdicts failed), `gpt-oss:20b` 14.9%,
+  `qwen3:30b` 18.4%. Seconds per job post on a Mac M4 and on a PC with a 12
+  GB card, what to run on which computer, local against hosted, and that
+  the rules were tuned on `gemma4:26b`'s mistakes. Linked from the README and
+  the user guide's AI page.
+- **scripts/hallucination_benchmark.py:** the measurement, for anyone's own
+  resumes and models, hosted ones included (`--reader gemini:<model>` with
+  the key in the environment). Works on a copy of the database; keeps the
+  verdicts so a second run re-checks without asking the reader;
+  `--case RESUME DATABASE COUNT` pairs a resume with jobs in its own field;
+  `model@http://host:11434` runs a model on another computer.
+
+## Changed — 2026-10-26 — A missing skill the resume lists counts for you, and the score is redone
+
+Models wrote "the resume does not mention Linux" over a skills line listing
+Linux, and "lacks specific experience with Azure DevOps" over "Azure DevOps
+Pipelines" (`phi4:14b`: 39 of its 45 gap flags). Shown as a reason against
+the job, and it pulled the score down.
+
+- Before a verdict is stored, each concern calling something missing is
+  checked against the resume by script, past filler words ("specific
+  experience with", "familiarity with", "explicitly", "required for the
+  role") and through lists ("CI/CD tools like Jenkins, GitHub Actions or
+  GitLab CI": any one found fills it).
+- When one is found, the reader scores again, told what the resume has; the
+  concern becomes a reason, "The resume lists Linux.", which the claim check
+  confirms like any other. One more call, only for such a verdict.
+- The verdict says so: "The model first called Linux missing; your resume
+  lists it, so it scored again (first 60)." The guide's Scores page explains
+  it.
+
+## Changed — 2026-10-26 — The AI reader says only what the resume says
+
+The reader prompt, from what the claim check flagged most across seven
+resumes:
+
+- A skill the resume only lists is named as listed, never with what it was
+  used for or where ("used Docker for deployment workflows" over a skills
+  line), and never tied to an employer unless one bullet names both.
+- No depth or amount ("extensive", "deep", "expertise in", "lacks depth
+  in"), and nothing a background is "centered on" or "in".
+- A gap names one thing as the advert does, after looking for it in the
+  skills lines too; citizenship, clearance or a licence the resume does not
+  state is "the resume does not state US citizenship".
+- An old post's concern gives its age as measured ("posted 45 days ago"),
+  not that it "may already be filled", which no source can support.
+- The claim check leaves out judgements of fit ("does not match the role",
+  "is a strong fit"), which are opinions, and reads more gap wordings ("does
+  not provide", "background is not in"); a short name such as ".NET" or "Go"
+  must be a whole word ("Go" was found in "Google"); and a claim that only
+  says the resume lists a skill is confirmed by script when it does.
+
+## Fixed — 2026-10-26 — "<<MEASURED>>" in verdicts, and the total years given to one field
+
+Told to take years of experience only from the <<MEASURED>> block, a model
+wrote "has <<MEASURED>> of experience" into 11 of 29 verdicts, and the page
+showed it. And "7 years 8 months as a DevOps Engineer" gave the total of
+every role to one title.
+
+- The prompts for verdicts, letters and tailored resumes ask for the length
+  written out; any block name left is replaced before it is stored, the
+  measured block with its length ("7 years 8 months"), the others with
+  plain words.
+- Where the measured length is given to one field or title, the sentence
+  says what it is: "7 years 8 months of work in all".
+
+## Fixed — 2026-10-26 — Resumes read whole, and work told from study
+
+Seven resumes read against what their PDFs hold:
+
+- **"Up to present"** and "to date" end a current job: a pharmacist's two
+  current jobs were not counted.
+- **Study or work is decided by the section** the dates sit in (Education,
+  Experience, Employment), not by the employer's name: a faculty job at a
+  university and an internship at another were dropped as study, while a
+  degree's dates on a line of their own were counted as work, and so were an
+  award's. A resume without such headings is read as before.
+- **A certificate's term** ("cycle Feb 2024 to Jan 2027") is not work, and
+  no month after today is counted.
+- **PDFs that come out one word per line** are read by layout instead, every
+  word kept (290 of 290).
+- **Letter pairs a font draws as one shape** come out as their letters:
+  "construcƟon", "submiƩals", "MicrosoŌ" (156 in one CV) read
+  "construction", "submittals", "Microsoft", so a quote of them matches;
+  ﬁ, ﬀ and ﬂ are spelled out.
+- **A resume is read up to 20,000 characters**, from 12,000: four pages
+  came to 11,597. Past it, the log says it was cut.
+
 ## Fixed — 2026-10-26 — The README's logo sits level with its title
 
 The README's title had the logo with `align="center"`, which an image does
@@ -6283,6 +6381,19 @@ open; a digest arrives, and what arrived with it is what was not there before.
   large Asian and Mexican employers), regional job sites are the lever.
   SuccessFactors behind its older portal only (Edison, NRG, Wipro) is still
   unread.
+- **An interactive demo for the launch** (Product Hunt recommends one; the
+  tools it names include Arcade, Storylane, Supademo, Hexus, Layerpath,
+  Guideflow and ScreenSpace). Two ways, not yet chosen: record one with
+  Arcade or Supademo, on a dashboard running made-up demo data
+  (`scripts/guide_demo.py`) from a written click script with a caption per
+  step (resume, suggested titles, scan, scored job posts, an AI verdict with
+  its claim check, a tailored letter); or a demo build of the dashboard
+  itself on the website, the real page on fixed demo data with no server.
+  The recording is done in the maintainer's own browser and account.
+- **Sources: say why no employer boards are read.** With `sources.keyless`
+  narrowed to sources that are not employer-board platforms (no workday,
+  greenhouse…), `jobdork sources` says "0 built-in employer boards" without
+  saying that the platforms left out are the reason (seen 2026-10-26).
 
 ### Waiting on a decision
 

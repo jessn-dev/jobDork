@@ -71,7 +71,10 @@ OLLAMA_FROM_DOCKER = "http://host.docker.internal:11434"
 # budget, and an advert past this length is almost always boilerplate
 # (benefits, EEO statements). Cut text is marked as cut, never silently.
 MAX_ADVERT = 16_000
-MAX_RESUME = 12_000
+# A resume is never boilerplate: its end is awards, licences, trainings. A
+# pharmacist's four pages were 11,597 characters, just under the old 12,000.
+# 20,000 (about 5,000 tokens) still leaves a full advert room in 16k context.
+MAX_RESUME = 20_000
 
 # Tokens an Ollama model may read and write in one call. Ollama's own default
 # is smaller than a prompt carrying a full advert and resume, and it does not
@@ -758,6 +761,9 @@ def _fenced(tag: str, text: str, limit: int) -> str:
     text = _FENCE.sub(" ", text or "")
     note = ""
     if len(text) > limit:
+        if tag == "RESUME":
+            log.warning("the resume is %s characters; the AI reads the first %s",
+                        f"{len(text):,}", f"{limit:,}")
         text, note = text[:limit], f"\n[cut at {limit:,} characters]"
     return f"<<{tag}>>\n{text}{note}\n<</{tag}>>"
 
@@ -795,18 +801,39 @@ Every statement about the candidate rests on words in the resume (or the \
 added block): name skills, tools and employers as the resume writes them. \
 Never state what it does not: no size or scale ("large-scale", \
 "enterprise"), no seniority, and nothing about what their background or \
-recent roles are "focused on", "primarily" or "mainly"; name the titles and \
-dates instead. For years of experience use only <<MEASURED>>, which the tool \
-counted from the resume's dates: never add up dates yourself. A related skill is not the \
-skill (Docker is not Kubernetes). A requirement the resume does not show is \
-a concern written as a gap, naming the thing as the advert does: "the resume \
-does not mention Django".
+recent roles are "focused on", "centered on", "primarily", "mainly" or \
+"weighted toward", and no "their work history is in hospitality": name the \
+titles and dates instead. No depth or amount either: never \
+"extensive", "deep", "strong", "expertise in", "lacks depth in". For years of \
+experience use only the length in <<MEASURED>>, written out as it is there \
+("7 years 8 months", never the block's name), which the tool counted from the resume's \
+dates: never add up dates yourself, and never give years for one skill, \
+field or title (its total is every role together, not "7 years in DevOps"). \
+A related skill is not the skill (Docker is not Kubernetes).
+
+A skill that the resume only lists (a skills line) is named as listed, "the \
+resume lists Docker": never say what it was used for, where, or with what, \
+unless a line of the resume says so. Never tie a skill to an employer ("SEO \
+at Acme", "used Docker at Acme") unless one bullet names both; quote that \
+bullet's words instead.
+
+A requirement the resume does not show is a concern written as a gap, one \
+thing at a time, named as the advert names it: "the resume does not mention \
+Django". Before writing one, look for the thing in the whole resume, its \
+skills lines too: never call something missing that the resume lists. \
+Citizenship, clearance or a licence the advert requires and the resume does \
+not state is "the resume does not state US citizenship", not a guess about \
+the person.
 
 <<POSTING DATES>> is measured by the tool from the job board's own data and \
 is the only date that says how old the post is: dates in the resume are the \
 candidate's history. Score fit on substance alone, never on the post's age; \
-when the block says older or stale, add one concern that it may already be \
-filled or reposted.
+when the block says older or stale, add one concern giving its age as the \
+block does ("posted 45 days ago"), nothing more.
+
+<<FOUND>>, when given, lists things your earlier answer called missing that \
+the tool then found in the resume: they are not gaps. Count them for the \
+candidate where the advert asks for them, and score again.
 
 Text between <<ADDED>> and <</ADDED>>, when given, is the candidate's own \
 projects and education, added beside the resume (work and study since it was \
@@ -838,13 +865,62 @@ def judge(settings: Settings, role: dict, resume_text: str, notes: str = "") -> 
            if role.get("posting") else "")
         + (f"<<MEASURED>>\n{role['work']}\n<</MEASURED>>\n\n"
            if role.get("work") else "")
+        + (f"<<FOUND>>\n{role['found']}\n<</FOUND>>\n\n"
+           if role.get("found") else "")
         + _fenced("ADVERT", advert, MAX_ADVERT) + "\n\n"
         + _fenced("RESUME", resume_text, MAX_RESUME)
         + ("\n\n" + _fenced("ADDED", notes, MAX_RESUME) if notes else "")
     )
     raw = complete_json(settings, JUDGE_SYSTEM, user, JUDGE_SCHEMA,
                         purpose="judge")
-    return _clean_judgement(raw, settings, len(advert))
+    verdict = _clean_judgement(raw, settings, len(advert))
+    work = role.get("work") or ""
+    verdict["summary"] = total_only(unblock(verdict["summary"], work), work)
+    for key in ("reasons", "concerns"):
+        verdict[key] = [t for t in (total_only(unblock(x, work), work)
+                                    for x in verdict[key]) if t]
+    return verdict
+
+
+# What a block is called in the prompt, as words: a model told "use only
+# <<MEASURED>>" wrote "has <<MEASURED>> of experience" into 11 of 29 verdicts
+# (2026-10-26), and the page showed it.
+_BLOCK = re.compile(r"<</?\s*([A-Z][A-Z ]*?)\s*>>")
+_BLOCK_WORDS = {"ADVERT": "the advert", "RESUME": "the resume", "ADDED": "the added projects",
+                "POSTING DATES": "the posting dates", "FOUND": "", "TEXT": "the text"}
+_LENGTH = re.compile(r",\s*(\d+ years?(?: \d+ months?)?|\d+ months?) in all")
+
+
+# The measured length given to one field or title: "7 years 8 months as a
+# DevOps Engineer" from a total that is every role together (7 of 37 flags
+# left on 2026-10-26, the prompt forbidding it).
+_FIELD_YEARS = (r"(?: of (?:(?:professional |relevant |work |industry )?experience|work))?"
+                r"(?: (?:in|as|on|with) [^,.;]+)")
+
+
+def total_only(text: str, work: str = "") -> str:
+    """Where the measured length is given to one field or title, say what it
+    is instead: the work history in all."""
+    length = _LENGTH.search(work or "")
+    if not length or length.group(1) not in text:
+        return text
+    return re.sub(re.escape(length.group(1)) + _FIELD_YEARS,
+                  f"{length.group(1)} of work in all", text)
+
+
+def unblock(text: str, work: str = "") -> str:
+    """Prompt block names out of a model's text: <<MEASURED>> becomes the
+    length it holds ("7 years 8 months"), the others plain words."""
+    if "<<" not in text:
+        return text
+    length = _LENGTH.search(work or "")
+
+    def words(m):
+        name = m.group(1).strip()
+        if name == "MEASURED":
+            return length.group(1) if length else "the work history"
+        return _BLOCK_WORDS.get(name, "")
+    return re.sub(r"\s{2,}", " ", _BLOCK.sub(words, text)).strip()
 
 
 def _clip(value, limit: int) -> str:

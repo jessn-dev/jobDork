@@ -4050,6 +4050,9 @@ function aiTag(a) {
       ${a.concerns?.length ? '<b>Against</b>' + list(a.concerns) : ''}
       ${flagged.length ? `<b title="The guard split this text into claims and checked each against the advert and your resume. These were in neither.">Not in the advert or resume</b><ul>${flagged.map(f =>
         `<li><s>${esc(f.claim)}</s></li>`).join('')}</ul>` : ''}
+      ${(a.found || []).length ? `<p class="hint" style="margin:.4rem 0 0">The model first called
+        ${a.found.map(esc).join(', ')} missing; your resume lists ${a.found.length === 1 ? 'it' : 'them'},
+        so ${a.rescored_from != null ? `it scored again (first ${a.rescored_from})` : 'they count for you'}.</p>` : ''}
       ${second}
       <div class="meta-line">${esc(a.model)} · ${esc((a.at || '').replace('T', ' '))}
         · read ${Number(a.advert_chars || 0).toLocaleString()} characters of advert${checked}</div>

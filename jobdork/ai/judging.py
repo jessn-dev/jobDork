@@ -119,7 +119,7 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
                     grouping.earliest_seen(store.conn, uid=row["uid"]), cfg.freshness),
                 "work": work}
         try:
-            verdict = judge(settings, role, resume_text, notes)
+            verdict = judge_checked(settings, role, resume_text, notes)
         except LLMError as exc:
             report.failed.append(row["uid"])
             telemetry.tick(done=report.judged + len(report.failed), count="failed")
@@ -177,6 +177,62 @@ def second_opinion(settings, role: dict, resume_text: str, verdict: dict,
     verdict["second"] = {"model": checker.label, "score": other["score"],
                          "verdict": other["verdict"], "summary": other["summary"]}
     verdict["disagree"] = abs(other["score"] - verdict["score"]) >= DISAGREE_POINTS
+
+
+def false_gaps(verdict: dict, record: str) -> list[str]:
+    """What the verdict's concerns call missing that the resume has.
+
+    Models wrote "the resume does not mention Linux" over a skills line
+    listing Linux (8 of 50 flags on 2026-10-26, across five resumes). The
+    script that checks a gap settles these for certain.
+    """
+    return [found for c in verdict.get("concerns", [])
+            if (found := guard.gap_filled(c, record))]
+
+
+def correct_false_gaps(verdict: dict, record: str) -> list[str]:
+    """Turn each false gap into what it is, a match: the concern goes, and
+    "The resume lists Linux." becomes a reason, which the guard checks like
+    any other. Returns what was found; `found` on the verdict keeps it."""
+    found = []
+    keep = []
+    for concern in verdict.get("concerns", []):
+        thing = guard.gap_filled(concern, record)
+        if thing:
+            found.append(thing)
+        else:
+            keep.append(concern)
+    if found:
+        verdict["concerns"] = keep
+        verdict["reasons"] = [*verdict.get("reasons", []),
+                              *(f"The resume lists {t}." for t in found)]
+        verdict["found"] = list(dict.fromkeys([*verdict.get("found", []), *found]))
+    return found
+
+
+def judge_checked(settings, role: dict, resume_text: str, notes: str = "") -> dict:
+    """judge(), then once more when it called missing what the resume has.
+
+    A gap that was not one also pulled the score down, so the reader is told
+    what the tool found (<<FOUND>>) and scores again; whatever it still gets
+    wrong is turned into a reason (correct_false_gaps). One extra call, only
+    for a verdict with a false gap.
+    """
+    record = resume_text + ("\n\n" + notes if notes else "")
+    verdict = judge(settings, role, resume_text, notes)
+    found = false_gaps(verdict, record)
+    if found:
+        try:
+            again = judge(settings, {**role, "found": "\n".join(
+                f"- the resume lists {t}" for t in found)}, resume_text, notes)
+        except LLMError:
+            again = None
+        if again is not None:
+            again["rescored_from"] = verdict["score"]
+            verdict = again
+            verdict["found"] = found
+    correct_false_gaps(verdict, record)
+    return verdict
 
 
 def verdict_text(verdict: dict) -> str:

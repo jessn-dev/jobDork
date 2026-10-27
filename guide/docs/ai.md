@@ -17,9 +17,14 @@ a job post, and jobdork scans without one.
 | **Claude**, **Gemini**, **ChatGPT**, **Groq** | Paid by use, on your own key from that company (Groq also has a free tier, with low limits) | Sent to that company, with your email, phone number and profile links removed first |
 
 For Ollama: install it from [ollama.com](https://ollama.com), download a
-model (`ollama pull gemma4:26b` for good results with 32 GB of memory, a
-smaller one otherwise), then choose **Ollama (local)** here and **Load
-models**. For the others: paste your key and **Hold in memory**.
+model (`ollama pull gemma4:26b`), then choose **Ollama (local)** here and
+**Load models**. For the others: paste your key and **Hold in memory**.
+
+**Which model.** Measured on seven resumes in six fields, `gemma4:26b` made
+2.9% unsupported claims; every other local model tried, smaller ones
+included, made 10% or more. The numbers, what runs on which computer, and how
+to measure a model yourself, hosted ones included:
+[Choosing an AI model, measured](https://github.com/jessn-dev/jobDork/blob/main/docs/AI-MODELS.md).
 
 **Keys are held in memory only**: never written to a file, the database or
 a log, and forgotten when jobdork stops, when you click **Forget**, or a

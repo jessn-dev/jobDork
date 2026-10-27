@@ -76,7 +76,9 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
   only. It can judge posts, write a cover letter, review your resume and
   write a tailored resume as a PDF. A second model checks each output, claim
   by claim, against your resume and the advert, and anything unsupported is
-  flagged. It never applies for you. [The AI page](https://jessn-dev.github.io/jobDork/ai/)
+  flagged: 2.9% of claims with the recommended local model, measured on seven
+  resumes in six fields ([models compared](docs/AI-MODELS.md)). It never
+  applies for you. [The AI page](https://jessn-dev.github.io/jobDork/ai/)
 - **Keeps track.** Statuses from *new* to *offer*, notes, a check for posts
   that have closed, scans on a schedule, notifications, and an email digest.
 - **Reaches past what it can read.** A **Search Google Jobs** link opens your
