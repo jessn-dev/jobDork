@@ -6,6 +6,17 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-28 — Download badges in the README
+
+Two more badges under the title: **downloads**, every file downloaded from
+every GitHub Release since the first (0.14.3), counted by GitHub; and
+**docker pulls**, every pull of `jessengolab/jobdork` from Docker Hub since
+the image was first pushed. Both are read live by shields.io. The download
+count includes each release's `SHA256SUMS.txt`, which the in-app update and
+anyone checking a download also fetch, so it runs a little above the number
+of installers downloaded (21 of 29 on 28 October). 0.14.0 to 0.14.2 were
+tags with no release files, so there is nothing earlier to count.
+
 ## Changed — 2026-10-27 — version 0.15.3
 
 0.15.3 carries the 3 entries below, everything since 0.15.2 (27 October):
