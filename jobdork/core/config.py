@@ -442,6 +442,8 @@ class Reader:
     provider: str
     model: str = ""
     ollama_url: str = ""
+    # For Ollama behind a gatekeeper: send it the Ollama key (llm.OLLAMA_KEY).
+    ollama_key: bool = False
 
     def key(self) -> tuple[str, str, str]:
         return (self.provider, self.model, self.ollama_url)
@@ -1150,7 +1152,9 @@ def _readers(ai: dict, name: str = "readers") -> list[Reader]:
             raise ConfigError(f"llm.{name} entry {i} must be a mapping with provider and model")
         reader = Reader(provider=str(entry.get("provider") or "").strip().lower(),
                         model=str(entry.get("model") or "").strip(),
-                        ollama_url=str(entry.get("ollama_url") or "").strip().rstrip("/"))
+                        ollama_url=str(entry.get("ollama_url") or "").strip().rstrip("/"),
+                        ollama_key=bool(entry.get("ollama_key")) and
+                        str(entry.get("provider") or "").strip().lower() == "ollama")
         if not reader.provider:
             raise ConfigError(f"llm.{name} entry {i} has no provider")
         if any(r.key() == reader.key() for r in readers):

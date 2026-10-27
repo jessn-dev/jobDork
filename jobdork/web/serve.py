@@ -483,7 +483,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 query = parse_qs(urlsplit(self.path).query)
                 return self._wrap(api_mod.llm_models, cfg_holder["cfg"],
                                   query.get("provider", [""])[0],
-                                  query.get("url", [""])[0])
+                                  query.get("url", [""])[0],
+                                  query.get("key", [""])[0] == "1")
             if path == "/api/sources":
                 return self._wrap(api_mod.sources_report, cfg_holder["cfg"])
             if path == "/api/directory":
@@ -838,6 +839,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if path == "/api/llm/key":
                 return self._wrap(api_mod.llm_key, str(form.get("provider") or ""),
                                   str(form.get("key") or ""))
+            if path == "/api/llm/connection":
+                return self._wrap(api_mod.llm_connection, str(form.get("code") or ""))
             if path == "/api/llm/forget":
                 return self._wrap(api_mod.llm_forget,
                                   str(form.get("provider") or ""))

@@ -281,6 +281,24 @@ model made with `PARAMETER num_gpu`) did not help either.
 - Your resume and the job posts go to the PC to be read. Over Tailscale they
   are encrypted end to end, and they stay on your two computers.
 
+## Someone else using your Ollama
+
+For a tester who is not on your tailnet, put Ollama behind a gatekeeper that
+checks a key (a reverse proxy or tunnel that requires
+`Authorization: Bearer <key>`), and give them a connection code instead of
+four settings:
+
+```bash
+jobdork ollama-code --url https://ollama.example.org --reader gemma4:26b --checker qwen3.8:27b
+```
+
+It asks for the key without showing it (never on the command line, where it
+would stay in your shell's history) and prints one line starting
+`jobdork-ollama-1:`. Send it privately: it carries the key. They paste it on
+their AI page under **Use this code**. jobdork sends the key only on the
+Ollama lines marked **Send the Ollama key**; a refused key says "the key was
+refused". `JOBDORK_OLLAMA_KEY` in the environment works too.
+
 ## When something does not work
 
 | You see | Meaning |

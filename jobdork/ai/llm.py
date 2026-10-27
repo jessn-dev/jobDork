@@ -35,6 +35,7 @@ and clipped before it is stored.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -62,7 +63,14 @@ ENV_KEYS = {
     "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
     "openai": ("OPENAI_API_KEY",),
     "groq": ("GROQ_API_KEY",),
+    "ollama": ("JOBDORK_OLLAMA_KEY",),
 }
+# An Ollama on someone else's computer, behind a gatekeeper that checks a
+# key (a beta tester using the owner's Ollama through a tunnel): one key,
+# held like the others, and sent only by the Ollama lines marked to send it
+# (llm.readers' `ollama_key`), never to an address nobody chose to trust.
+# Not in KEYED: an Ollama needs no key unless a line says so.
+OLLAMA_KEY = "ollama"
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
 # Ollama on the same computer, as a container reaches it (Docker Desktop).
 OLLAMA_FROM_DOCKER = "http://host.docker.internal:11434"
@@ -98,6 +106,14 @@ class LLMError(Exception):
 # ── keys ──────────────────────────────────────────────────────────────────────
 
 
+def looks_like_key(key: str) -> str:
+    """The key, trimmed; LLMError when it cannot be one."""
+    key = (key or "").strip()
+    if not 8 <= len(key) <= 512 or any(c.isspace() for c in key):
+        raise LLMError("that does not look like an API key")
+    return key
+
+
 class KeyVault:
     """API keys for this server run, in memory, as mutable bytes.
 
@@ -111,11 +127,9 @@ class KeyVault:
         self._lock = threading.Lock()
 
     def put(self, provider: str, key: str) -> None:
-        if provider not in KEYED:
+        if provider not in (*KEYED, OLLAMA_KEY):
             raise LLMError(f"{provider!r} takes no key")
-        key = (key or "").strip()
-        if not 8 <= len(key) <= 512 or any(c.isspace() for c in key):
-            raise LLMError("that does not look like an API key")
+        key = looks_like_key(key)
         with self._lock:
             self._burn(provider)
             self._keys[provider] = bytearray(key.encode("utf-8"))
@@ -155,7 +169,7 @@ VAULT = KeyVault()
 
 def key_for(provider: str) -> tuple[str, str]:
     """(key, where it came from). The page's key wins over the environment."""
-    if provider not in KEYED:
+    if provider not in (*KEYED, OLLAMA_KEY):
         return "", ""
     held = VAULT.get(provider)
     if held:
@@ -174,6 +188,44 @@ def key_for(provider: str) -> tuple[str, str]:
     return "", ""
 
 
+# ── a connection code ─────────────────────────────────────────────────────────
+# Everything a tester needs to use someone's Ollama, in one string pasted on
+# the AI page: the address, the key, and the models to read and to check
+# with. Made by the Ollama's owner (`jobdork ollama-code`), sent privately:
+# it carries the key, so it is a secret like the key itself.
+CODE_PREFIX = "jobdork-ollama-1:"
+
+
+def connection_code(url: str, key: str, reader: str, checker: str = "") -> str:
+    url = (url or "").strip().rstrip("/")
+    if not re.match(r"https?://[^\s/]+$", url):
+        raise LLMError("the address must be http(s)://host:port, with nothing after it")
+    if not reader.strip():
+        raise LLMError("name the model to read with")
+    data = {"url": url, "key": looks_like_key(key), "reader": reader.strip(),
+            "checker": checker.strip()}
+    raw = base64.urlsafe_b64encode(json.dumps(data, separators=(",", ":")).encode()).decode()
+    return CODE_PREFIX + raw.rstrip("=")
+
+
+def read_connection_code(code: str) -> dict:
+    """{url, key, reader, checker} from a code. Raises LLMError."""
+    code = re.sub(r"\s+", "", code or "")
+    if not code.startswith(CODE_PREFIX):
+        raise LLMError(f"that is not a jobdork connection code (they start {CODE_PREFIX})")
+    raw = code[len(CODE_PREFIX):]
+    try:
+        data = json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
+    except (ValueError, TypeError):
+        raise LLMError("that connection code is cut short or changed; paste it whole") from None
+    if not isinstance(data, dict) or not all(isinstance(data.get(k), str)
+                                             for k in ("url", "key", "reader")):
+        raise LLMError("that connection code is missing its address, key or model")
+    if not re.match(r"https?://[^\s/]+$", data["url"]):
+        raise LLMError("the connection code's address is not http(s)://host:port")
+    return {k: str(data.get(k) or "") for k in ("url", "key", "reader", "checker")}
+
+
 # ── settings ──────────────────────────────────────────────────────────────────
 
 
@@ -184,6 +236,8 @@ class Settings:
     provider: str = ""
     model: str = ""
     ollama_url: str = DEFAULT_OLLAMA_URL
+    # This Ollama is behind a gatekeeper: send it the Ollama key.
+    ollama_key: bool = False
     context: int = DEFAULT_CONTEXT
     # The second models that check the readers' work (llm.checkers), in the
     # order they are tried; empty when none is chosen.
@@ -206,13 +260,15 @@ class Settings:
         url = llm.ollama_url or DEFAULT_OLLAMA_URL
         context = int(getattr(llm, "context", 0) or DEFAULT_CONTEXT)
         checkers = [cls(provider=r.provider, model=r.model,
-                        ollama_url=r.ollama_url or url, context=context)
+                        ollama_url=r.ollama_url or url, context=context,
+                        ollama_key=getattr(r, "ollama_key", False))
                     for r in getattr(llm, "checkers", None) or []]
         if not checkers and getattr(llm, "checker_provider", ""):
             checkers = [cls(provider=llm.checker_provider, model=llm.checker_model,
                             ollama_url=url, context=context)]
         readers = [cls(provider=r.provider, model=r.model,
-                       ollama_url=r.ollama_url or url, context=context)
+                       ollama_url=r.ollama_url or url, context=context,
+                       ollama_key=getattr(r, "ollama_key", False))
                    for r in getattr(llm, "readers", None) or []]
         if not readers:
             readers = [cls(provider=llm.provider, model=llm.model, ollama_url=url,
@@ -221,7 +277,8 @@ class Settings:
         first = ready[0] if ready else readers[0]
         rest = [r for r in readers if r is not first]
         return cls(provider=first.provider, model=first.model, ollama_url=first.ollama_url,
-                   context=context, checkers=checkers, fallbacks=rest)
+                   ollama_key=first.ollama_key, context=context, checkers=checkers,
+                   fallbacks=rest)
 
     def chain(self) -> list[Settings]:
         """This reader and the ones after it, in the order they are asked."""
@@ -248,6 +305,8 @@ class Settings:
         if self.provider in KEYED and not key_for(self.provider)[0]:
             return (f"no {PROVIDERS[self.provider]} key held. Enter it on the "
                     "AI page")
+        if self.provider == "ollama" and self.ollama_key and not key_for(OLLAMA_KEY)[0]:
+            return "no Ollama key held. Enter it on the AI page, or paste a connection code"
         return ""
 
     @property
@@ -504,17 +563,28 @@ def _ollama(s: Settings, system: str, user: str, schema: dict,
                     "num_ctx": s.context},
     }
     if on_text:
-        return _ollama_stream(url, body, on_text)
-    data = _post(url, body, {}, LOCAL_TIMEOUT)
+        return _ollama_stream(url, body, on_text, _ollama_headers(s))
+    data = _post(url, body, _ollama_headers(s), LOCAL_TIMEOUT)
     _used(data.get("prompt_eval_count"), data.get("eval_count"))
     return (data.get("message") or {}).get("content", "")
 
 
-def _ollama_stream(url: str, body: dict, on_text) -> str:
+def _ollama_headers(s: Settings) -> dict:
+    """The Ollama key, for a line marked to send it; nothing otherwise."""
+    if not s.ollama_key:
+        return {}
+    key, _ = key_for(OLLAMA_KEY)
+    return {"Authorization": f"Bearer {key}"} if key else {}
+
+
+def _ollama_stream(url: str, body: dict, on_text, headers: dict | None = None) -> str:
     """The same call, read a line at a time: one JSON object per chunk."""
     text = ""
     try:
-        with requests.post(url, json=body, stream=True, timeout=LOCAL_TIMEOUT) as resp:
+        with requests.post(url, json=body, stream=True, timeout=LOCAL_TIMEOUT,
+                           headers=headers or {}) as resp:
+            if resp.status_code in (401, 403):
+                raise LLMError("the key was refused")
             if resp.status_code == 404:
                 raise LLMError("model not found. Pick one from the list")
             if not resp.ok:
@@ -699,7 +769,10 @@ def list_models(settings: Settings) -> list[str]:
     if p == "ollama":
         try:
             resp = requests.get(settings.ollama_url.rstrip("/") + "/api/tags",
-                                timeout=5)
+                                timeout=5, headers=_ollama_headers(settings))
+            if resp.status_code in (401, 403):
+                raise LLMError("the Ollama key was refused" if settings.ollama_key else
+                               "that Ollama asks for a key: tick Send the Ollama key")
             resp.raise_for_status()
         except requests.RequestException:
             raise LLMError(f"Ollama is not answering at {settings.ollama_url} "

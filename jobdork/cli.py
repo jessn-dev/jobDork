@@ -519,6 +519,27 @@ def _platform_for(url: str) -> tuple[str, str]:
     return "", ""
 
 
+def cmd_ollama_code(args) -> int:
+    """For someone to use your Ollama behind a gatekeeper that checks a key:
+    the address, the models and the key in one string, pasted on their AI
+    page. The key is asked for here, unseen, never taken from the command
+    line, where it would stay in the shell's history."""
+    import getpass
+
+    from .ai import llm
+
+    key = getpass.getpass("The key your gatekeeper checks (not shown): ")
+    try:
+        code = llm.connection_code(args.url, key, args.reader, args.checker)
+    except llm.LLMError as exc:
+        print(f"ollama-code: {exc}", file=sys.stderr)
+        return 1
+    print("\nSend this privately, as you would a password. It carries the key:\n")
+    print(code)
+    print("\nThey paste it on jobdork's AI page, under Use this code, and click Save.")
+    return 0
+
+
 def cmd_discover(args) -> int:
     """Find an employer's board by reading it off their own careers page."""
     from .fetch.http import Fetcher
@@ -1632,6 +1653,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = subs.add_parser("sources", parents=[over], help="what will run, and what is dormant")
     p.set_defaults(func=cmd_sources)
+
+    p = subs.add_parser("ollama-code",
+                        help="a connection code for someone to use your Ollama")
+    p.add_argument("--url", required=True,
+                   help="the address they reach your Ollama at, e.g. https://ollama.example.org")
+    p.add_argument("--reader", required=True, help="the model they read with, e.g. gemma4:26b")
+    p.add_argument("--checker", default="", help="a model to check with (optional)")
+    p.set_defaults(func=cmd_ollama_code)
 
     p = subs.add_parser("dork", help="the original Google query generator")
     p.add_argument("rest", nargs=argparse.REMAINDER)

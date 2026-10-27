@@ -56,6 +56,16 @@ one: each card takes its own Ollama address. Step by step, with Tailscale so
 nothing is opened to your network:
 [the AI on two computers](https://github.com/jessn-dev/jobDork/blob/main/docs/run/ai-on-two-computers.md).
 
+**Using someone else's Ollama?** If its owner put it behind a gatekeeper
+that asks for a key, they can give you a **connection code**. Paste it in
+the box above the readers and click **Use this code**: it fills in their
+address and models, ticks **Send the Ollama key** on those lines, and holds
+the key like any other (in memory, or in this computer's keychain if you
+chose that). Click **Save** to keep the lines. Keep the code private, like
+a password: it carries the key. Without a code, tick **Send the Ollama key**
+on the line and paste the key they gave you in its box. The key goes only
+to the lines with that box ticked.
+
 ## When to use it
 
 - **After each scan, judge the top N job posts not yet judged**: the AI

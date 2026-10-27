@@ -556,7 +556,7 @@ it off a resume you use with a hosted model if that matters to you.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `llm.readers` | list | empty (off) | The AI readers, in the order they are asked, up to 6: each `{provider, model}`, and for Ollama an optional `ollama_url`. The first does the work; when it cannot answer (no key held, not reachable, rate limited, an error) the next one does. The same provider may be listed again with another model, but not the same model twice. Setup offers up to 3; the AI page the rest |
+| `llm.readers` | list | empty (off) | The AI readers, in the order they are asked, up to 6: each `{provider, model}`, and for Ollama an optional `ollama_url` and `ollama_key: true` (send the Ollama key, held in memory or the keychain like the other keys, never in this file, to an Ollama behind a gatekeeper). The first does the work; when it cannot answer (no key held, not reachable, rate limited, an error) the next one does. The same provider may be listed again with another model, but not the same model twice. Setup offers up to 3; the AI page the rest |
 | `llm.provider` | string | empty (off) | The first reader's provider: `ollama`, `anthropic` (Claude), `gemini`, `openai` (ChatGPT) or `groq`. A config with no `readers` has this one reader |
 | `llm.model` | string | empty | The first reader's model, e.g. `gemma4:26b`; the AI page lists what is available |
 | `llm.ollama_url` | URL | `http://localhost:11434` | Where Ollama answers. Must be `http(s)://host:port` |
