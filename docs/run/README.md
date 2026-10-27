@@ -12,6 +12,10 @@ folder (see [Moving between them](#moving-between-them)).
 | **Docker, on your computer** | The dashboard from the published image, nothing installed but Docker | Docker | [docker.md](docker.md) |
 | **Docker, on a NAS or home server** | jobdork always on, opened from your laptop or phone anywhere, the AI on another computer | A NAS with Docker; Tailscale | [nas.md](nas.md) |
 
+**The AI on another computer.** Whichever way you run it, the AI models can
+run on another computer of yours, one model on each when one computer cannot
+hold both: [ai-on-two-computers.md](ai-on-two-computers.md).
+
 **Not sure?** Take the desktop app on a Mac or a Windows PC. On Linux or an
 Intel Mac there is no installer: run it [from source](source.md), which
 also gives you the desktop window (`jobdork app`). Use the NAS guide only if

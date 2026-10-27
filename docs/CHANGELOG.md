@@ -104,6 +104,35 @@ Seven resumes read against what their PDFs hold:
 - **A resume is read up to 20,000 characters**, from 12,000: four pages
   came to 11,597. Past it, the log says it was cut.
 
+## Added — 2026-10-26 — The AI on two computers: a guide
+
+The reader and the checker the AI page recommends (`gemma4:26b` and
+`qwen3.8:27b`) are about 18 GB each, and one 32 GB Mac could not hold both:
+they pushed each other out of memory and calls failed. jobdork already lets
+every model have its own Ollama address; nothing said how to use that.
+
+- **docs/run/ai-on-two-computers.md:** the reader on a PC with a graphics
+  card, the checker on the laptop jobdork runs on, joined by Tailscale. It
+  covers checking the card is used (`ollama ps`, and AMD cards Ollama does
+  not list), Windows' settings and a firewall rule that lets in Tailscale's
+  addresses only, keeping the PC awake, a test from the laptop, the AI page
+  and `config.yaml`, security and what to do when it does not connect.
+  Written from a working setup: a MacBook Pro (M4) checking, a Windows 11
+  PC with an RX 6700 XT reading, 78% of the model on the card, about 50
+  seconds a job post over Tailscale.
+- **AMD cards on Windows:** Flash Attention with the `q8_0` cache, the usual
+  advice for fitting more on a card, made every job post on the RX 6700 XT
+  fail (Vulkan device faults, about 210 seconds each before the crash). The
+  guide gives those two settings for NVIDIA only, and has a section with the
+  signs (HTTP 500 "forcibly closed", `device fault` in Ollama's log), the fix,
+  and what was not the cause (shared GPU memory in use).
+- **Which computer runs what:** by the strong computer's graphics memory,
+  where the reader and checker go; with 40 GB or more both go there and
+  jobdork's own computer needs no Ollama. And how to keep a smaller card
+  free for other work between scans (`OLLAMA_KEEP_ALIVE 2m`).
+- Linked from the user guide's AI page, docs/run/README.md and the NAS
+  guide.
+
 ## Fixed — 2026-10-26 — The hallucination check reads more ways of saying something is missing
 
 Reported from 0.14.4 with Gemini judging and Ollama (gemma4:26b) checking:
