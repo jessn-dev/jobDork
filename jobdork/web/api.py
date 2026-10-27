@@ -1818,7 +1818,7 @@ def fresh_scan_job(cfg, expect):
 
 def llm_state(cfg) -> dict:
     """AI settings for the page. Says which keys are held, never what they are."""
-    from ..ai import llm
+    from ..ai import limits, llm
     from ..core.config import MAX_READERS, SETUP_MAX_READERS
 
     settings = llm.Settings.from_config(cfg)
@@ -1844,6 +1844,9 @@ def llm_state(cfg) -> dict:
         "ollama_url": cfg.llm.ollama_url,
         "judge_on_scan": cfg.llm.judge_on_scan,
         "judge_top": cfg.llm.judge_top,
+        "daily_limits": cfg.llm.daily_limits,
+        # What each free-tier model has used today, and why one is stopped.
+        "allowance": limits.snapshot(),
         "read_pages": cfg.llm.read_pages,
         "guard": cfg.llm.guard,
         "keys": {p: llm.key_for(p)[1] for p in llm.KEYED},

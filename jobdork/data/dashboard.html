@@ -1160,6 +1160,23 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
         advert. A 26B local model takes about a minute per job post, and the
         check adds two more calls to each.</div></div>
 
+    <div class="field" id="ai-free"><label>Free Gemini and Groq keys: today's allowance</label>
+      <div id="ai-allowance"></div>
+      <div class="picker">
+        <label>Gemini, requests a day<input id="ai-lim-gemini" type="number" min="0"
+          placeholder="Learned" style="width:8rem"></label>
+        <label>Groq, requests a day<input id="ai-lim-groq" type="number" min="0"
+          placeholder="Groq says" style="width:8rem"></label>
+      </div>
+      <div class="hint">A free key allows so many requests a minute and a day, set per
+        model by the provider. jobdork keeps under them so the key does not run out:
+        it spaces its requests, and stops scans' AI reading a few requests short of the
+        day's limit, keeping those for what you ask yourself; the next reader in your
+        list (Ollama, say) answers instead. Groq tells jobdork its numbers with every
+        answer; Gemini only when it refuses, so jobdork learns them then. To stop
+        sooner, type the daily limit Google AI Studio or the Groq console shows you.
+        Gemini's day starts at midnight Pacific time.</div></div>
+
     <div class="field" id="ai-check"><label>Second models, to check the readers</label>
       <div id="ai-checkers"></div>
       <div class="bar" style="margin:-.2rem 0 .3rem">
@@ -4343,6 +4360,7 @@ async function drawAI() {
   $('ai-top').value = ai.judge_top;
   $('ai-pages').checked = ai.read_pages;
   $('ai-guard').checked = ai.guard;
+  drawAllowance();
   $('ai-msg').textContent = ai.problem ? ai.problem : `Ready: ${ai.label}`;
   $('ai-msg').className = ai.problem ? 'hint' : 'saved';
   ai.checkers = ai.checkers && ai.checkers.length ? ai.checkers : [blankReader()];
@@ -4522,6 +4540,19 @@ function listToSave(list) {
   return out;
 }
 
+// Each free-tier model's day so far, and the limits you set.
+function drawAllowance() {
+  const lim = ai.daily_limits || {};
+  $('ai-lim-gemini').value = lim.gemini || '';
+  $('ai-lim-groq').value = lim.groq || '';
+  const rows = ai.allowance || [];
+  $('ai-allowance').innerHTML = rows.length ? rows.map(m => `<p class="${m.stopped ? 'warnc' : ''}">
+      <b>${esc(m.label)}</b>: ${n(m.calls_today)} used today${m.left_today != null
+        ? `, ${n(m.left_today)} left${m.per_day ? ` of ${n(m.per_day)}` : ''}` : ''}${
+        m.per_minute ? ` · ${n(m.per_minute)} a minute` : ''}${m.stopped ? ` · ${esc(cap(m.stopped))}` : ''}</p>`).join('')
+    : '<p class="hint">No free Gemini or Groq model asked since jobdork started.</p>';
+}
+
 async function saveAI() {
   syncReaders();
   const readers = listToSave('readers'), checkers = listToSave('checkers');
@@ -4533,7 +4564,9 @@ async function saveAI() {
       ollama_url: firstOllama && firstOllama.ollama_url ? firstOllama.ollama_url : (ai.ollama_url || ''),
       judge_on_scan: $('ai-on-scan').checked,
       judge_top: Number($('ai-top').value) || 25, read_pages: $('ai-pages').checked,
-      guard: $('ai-guard').checked, checkers})});
+      guard: $('ai-guard').checked, checkers,
+      daily_limits: {gemini: Number($('ai-lim-gemini').value) || 0,
+                     groq: Number($('ai-lim-groq').value) || 0}})});
   if (!r.ok) { $('ai-msg').className = 'err'; $('ai-msg').textContent = await r.text(); return false; }
   const fresh = await r.json();
   ai = {...ai, ...fresh, readers: fresh.readers.length ? fresh.readers : [blankReader()],

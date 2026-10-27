@@ -545,3 +545,131 @@ def test_the_measured_total_is_never_given_to_one_field():
         "Has 7 years 8 months of work in all."
     assert total_only("Has 7 years 8 months of work in all.", work) == \
         "Has 7 years 8 months of work in all."
+
+
+# ── free-tier limits (ai/limits.py) ──────────────────────────────────────────
+
+_GEMINI_OK = ('{"candidates": [{"content": {"parts": [{"text": "{\\"ok\\": true}"}]}}],'
+              ' "usageMetadata": {"promptTokenCount": 10, "candidatesTokenCount": 2}}')
+_GROQ_OK = '{"choices": [{"message": {"content": "{\\"ok\\": true}"}}]}'
+
+
+def _gemini_refusal(per: str, size: int, delay: str) -> str:
+    import json
+    return json.dumps({"error": {"code": 429, "message": "You exceeded your current quota",
+        "status": "RESOURCE_EXHAUSTED", "details": [
+            {"@type": "type.googleapis.com/google.rpc.QuotaFailure", "violations": [
+                {"quotaId": f"GenerateRequestsPer{per}PerProjectPerModel-FreeTier",
+                 "quotaValue": str(size)}]},
+            {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": delay}]}})
+
+
+def _ask(provider: str, purpose: str = "") -> dict:
+    return llm._call_one(llm.Settings(provider=provider, model="m"), "sys", "user",
+                         {"type": "object"}, 100, purpose, None)
+
+
+def _with_key(provider, answers, test):
+    from jobdork.ai import limits
+    limits.forget()
+    waited = []
+    saved_sleep = limits._sleep
+    limits._sleep = waited.append
+    llm.VAULT.put(provider, "test-key-1234567890abcdef")
+    posts, slept, undo = _posting(answers)
+    try:
+        test(posts, slept, waited)
+    finally:
+        undo()
+        limits._sleep = saved_sleep
+        llm.VAULT.forget(provider)
+        limits.forget()
+
+
+def test_groq_s_own_count_keeps_scans_off_the_last_requests_of_the_day():
+    """Groq says how many requests are left today; a scan stops with a few
+    still left, and what you ask yourself may use them."""
+    headers = {"x-ratelimit-remaining-requests": "5", "x-ratelimit-limit-requests": "1000",
+               "x-ratelimit-reset-requests": "2h3m", "x-ratelimit-remaining-tokens": "7000",
+               "x-ratelimit-reset-tokens": "7.5s"}
+
+    def test(posts, slept, waited):
+        assert _ask("groq", "judge") == {"ok": True}
+        try:
+            _ask("groq", "judge")
+        except llm.LLMError as exc:
+            assert "5 free requests left today" in str(exc), exc
+            assert llm.error_kind(str(exc)) == "rate_limited"
+        else:
+            raise AssertionError("a scan must stop short of the day's last requests")
+        assert len(posts) == 1, "nothing is sent once it stops"
+        assert _ask("groq", "") == {"ok": True}, "what you ask yourself still goes"
+        from jobdork.ai import limits
+        row = limits.snapshot()[0]
+        assert (row["calls_today"], row["left_today"], row["per_day"]) == (2, 5, 1000)
+    _with_key("groq", [_Answer(200, _GROQ_OK, headers), _Answer(200, _GROQ_OK, headers)], test)
+
+
+def test_groq_waits_for_the_minute_when_its_tokens_would_run_short():
+    headers = {"x-ratelimit-remaining-requests": "900",
+               "x-ratelimit-remaining-tokens": "50", "x-ratelimit-reset-tokens": "12s"}
+
+    def test(posts, slept, waited):
+        _ask("groq")
+        _ask("groq")              # needs about 100 tokens: 50 are left this minute
+        assert len(waited) == 1 and 11 < waited[0] <= 12, waited
+    _with_key("groq", [_Answer(200, _GROQ_OK, headers), _Answer(200, _GROQ_OK, headers)], test)
+
+
+def test_gemini_s_minute_refusal_is_waited_out_and_learned():
+    def test(posts, slept, waited):
+        assert _ask("gemini") == {"ok": True}
+        assert len(posts) == 2 and slept == [3.0], "asked again after its own delay"
+        _ask("gemini")
+        assert waited and 5 < waited[0] <= 6, "10 a minute: one every 6 seconds"
+    _with_key("gemini", [_Answer(429, _gemini_refusal("Minute", 10, "3s")),
+                         _Answer(200, _GEMINI_OK), _Answer(200, _GEMINI_OK)], test)
+
+
+def test_gemini_s_day_refusal_stops_that_model_until_it_resets():
+    def test(posts, slept, waited):
+        for _ in range(2):
+            try:
+                _ask("gemini", "judge")
+            except llm.LLMError as exc:
+                assert "free daily limit of 250 requests" in str(exc), exc
+                assert "asked again" in str(exc) and llm.error_kind(str(exc)) == "rate_limited"
+            else:
+                raise AssertionError("a spent day must stop the model")
+        assert len(posts) == 1, "the second is not sent at all"
+        from jobdork.ai import limits
+        assert limits.snapshot()[0]["per_day"] == 250
+    _with_key("gemini", [_Answer(429, _gemini_refusal("Day", 250, "50000s"))], test)
+
+
+def test_your_own_daily_limit_stops_background_work_short_of_it():
+    from jobdork.ai import limits
+
+    def test(posts, slept, waited):
+        limits.set_daily_limits({"gemini": 7})
+        _ask("gemini", "judge")
+        _ask("gemini", "judge")
+        try:
+            _ask("gemini", "judge")       # 7 - 2 = 5 left: the reserve
+        except llm.LLMError as exc:
+            assert "kept back for what you ask yourself" in str(exc)
+        else:
+            raise AssertionError("background work must keep the reserve")
+    _with_key("gemini", [_Answer(200, _GEMINI_OK), _Answer(200, _GEMINI_OK)], test)
+
+
+def test_daily_limits_are_read_and_checked_in_the_config():
+    from jobdork.core.config import _daily_limits
+    assert _daily_limits({"Gemini": "250", "groq": 0}) == {"gemini": 250}
+    for bad in ({"anthropic": 10}, {"gemini": "lots"}, {"gemini": -1}, [1]):
+        try:
+            _daily_limits(bad)
+        except ConfigError:
+            pass
+        else:
+            raise AssertionError(f"{bad!r} must be refused")

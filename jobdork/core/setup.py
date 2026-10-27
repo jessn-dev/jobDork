@@ -272,6 +272,9 @@ def rewrite(original: str, payload: dict) -> str:
             if key in given:
                 section[key] = cast(given[key]).strip() if cast is str \
                     else cast(given[key])
+        if isinstance(given.get("daily_limits"), dict):
+            section["daily_limits"] = {str(p): int(n or 0) for p, n in
+                                       given["daily_limits"].items() if int(n or 0) > 0}
         for key in ("judge_on_scan", "read_pages", "guard"):
             if key in given:
                 section[key] = str(given[key]).lower() in ("1", "true", "yes", "on")
