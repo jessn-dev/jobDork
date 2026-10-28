@@ -39,7 +39,9 @@ OutputDir={#Output}
 OutputBaseFilename=jobdork-{#Version}-windows-x64-setup
 Compression=lzma2
 SolidCompression=yes
-WizardStyle=modern
+; Inno draws the controls itself in the windows11 style: Windows' own tick
+; boxes came out cut off on a screen at high scaling (0.15.2).
+WizardStyle=modern windows11
 ; Relative to this script's folder.
 InfoBeforeFile=privacy.txt
 CloseApplications=yes
@@ -75,16 +77,24 @@ end;
 
 { Asks, item by item, what of theirs to delete. Nothing is ticked: what is
   not ticked is kept. Cancel stops the uninstall. A silent uninstall asks
-  nothing and keeps everything. The keys match core/uninstall.py ITEMS. }
+  nothing and keeps everything. The keys match core/uninstall.py ITEMS.
+
+  Laid out as the installer's pages are: a white band with a bold title and
+  a line under it, the choices, a line, then the buttons at the installer's
+  size. Every size goes through ScaleX/ScaleY once, and the form is told to
+  keep it (KeepSizeX/KeepSizeY True): left to Inno, a screen at 150-200%
+  scaled it a second time, filling the screen with clipped text (0.15.2). }
 function InitializeUninstall(): Boolean;
 var
   Form: TSetupForm;
-  Intro: TNewStaticText;
+  Band: TPanel;
+  Title, Subtitle, Intro: TNewStaticText;
+  TopLine, BottomLine: TBevel;
   Boxes: array[0..5] of TNewCheckBox;
   Keys: array[0..5] of String;
   Labels: array[0..5] of String;
   OkButton, CancelButton: TNewButton;
-  I, Top: Integer;
+  I, Top, Inset: Integer;
 begin
   Result := True;
   Choices := '';
@@ -96,49 +106,97 @@ begin
   Keys[3] := 'documents'; Labels[3] := 'Letters and tailored resumes jobdork wrote';
   Keys[4] := 'logs';      Labels[4] := 'Logs';
   Keys[5] := 'downloads'; Labels[5] := 'Installers the Update button left in Downloads';
-  { Inno Setup 6 takes the size here: ClientWidth, ClientHeight, KeepSizeX, KeepSizeY. }
-  Form := CreateCustomForm(ScaleX(480), ScaleY(320), False, False);
+  { ClientWidth, ClientHeight, KeepSizeX, KeepSizeY. }
+  Form := CreateCustomForm(ScaleX(500), ScaleY(380), True, True);
   try
     Form.Caption := 'Uninstall jobdork';
+    Form.Position := poScreenCenter;
+    Inset := ScaleX(40);
+
+    Band := TPanel.Create(Form);
+    Band.Parent := Form;
+    Band.Left := 0;
+    Band.Top := 0;
+    Band.Width := Form.ClientWidth;
+    Band.Height := ScaleY(58);
+    Band.BevelOuter := bvNone;
+    Band.Color := clWindow;
+
+    Title := TNewStaticText.Create(Form);
+    Title.Parent := Band;
+    Title.Left := ScaleX(24);
+    Title.Top := ScaleY(12);
+    Title.Font.Style := [fsBold];
+    Title.Caption := 'Remove jobdork';
+
+    Subtitle := TNewStaticText.Create(Form);
+    Subtitle.Parent := Band;
+    Subtitle.Left := Inset;
+    Subtitle.Top := ScaleY(32);
+    Subtitle.Caption := 'Choose what of yours to delete as well.';
+
+    TopLine := TBevel.Create(Form);
+    TopLine.Parent := Form;
+    TopLine.Shape := bsTopLine;
+    TopLine.Left := 0;
+    TopLine.Top := Band.Height;
+    TopLine.Width := Form.ClientWidth;
+    TopLine.Height := ScaleY(2);
+
     Intro := TNewStaticText.Create(Form);
     Intro.Parent := Form;
-    Intro.Left := ScaleX(16);
-    Intro.Top := ScaleY(14);
-    Intro.Width := Form.ClientWidth - ScaleX(32);
     Intro.AutoSize := False;
-    Intro.Height := ScaleY(56);
     Intro.WordWrap := True;
+    Intro.Left := Inset;
+    Intro.Top := Band.Height + ScaleY(14);
+    Intro.Width := Form.ClientWidth - 2 * Inset;
+    Intro.Height := ScaleY(56);
     Intro.Caption := 'jobdork, its scheduled scan and any keys it kept in Credential Manager ' +
       'will be removed. Tick what of yours to delete as well. Anything not ticked is kept, ' +
       'so a reinstall finds it.';
-    Top := ScaleY(78);
+
+    Top := Intro.Top + Intro.Height + ScaleY(6);
     for I := 0 to 5 do
     begin
       Boxes[I] := TNewCheckBox.Create(Form);
       Boxes[I].Parent := Form;
-      Boxes[I].Left := ScaleX(16);
+      Boxes[I].Left := Inset;
       Boxes[I].Top := Top;
-      Boxes[I].Width := Form.ClientWidth - ScaleX(32);
+      Boxes[I].Width := Form.ClientWidth - 2 * Inset;
+      Boxes[I].Height := ScaleY(21);
       Boxes[I].Caption := Labels[I];
       Boxes[I].Checked := False;
-      Top := Top + ScaleY(28);
+      Top := Top + ScaleY(26);
     end;
-    OkButton := TNewButton.Create(Form);
-    OkButton.Parent := Form;
-    OkButton.Caption := 'Uninstall';
-    OkButton.Width := ScaleX(90);
-    OkButton.Left := Form.ClientWidth - ScaleX(200);
-    OkButton.Top := Form.ClientHeight - ScaleY(44);
-    OkButton.ModalResult := mrOk;
-    OkButton.Default := True;
+
+    BottomLine := TBevel.Create(Form);
+    BottomLine.Parent := Form;
+    BottomLine.Shape := bsTopLine;
+    BottomLine.Left := 0;
+    BottomLine.Top := Form.ClientHeight - ScaleY(48);
+    BottomLine.Width := Form.ClientWidth;
+    BottomLine.Height := ScaleY(2);
+
     CancelButton := TNewButton.Create(Form);
     CancelButton.Parent := Form;
     CancelButton.Caption := 'Cancel';
-    CancelButton.Width := ScaleX(90);
-    CancelButton.Left := Form.ClientWidth - ScaleX(104);
-    CancelButton.Top := OkButton.Top;
+    CancelButton.Width := ScaleX(75);
+    CancelButton.Height := ScaleY(23);
+    CancelButton.Left := Form.ClientWidth - ScaleX(10) - CancelButton.Width;
+    CancelButton.Top := Form.ClientHeight - ScaleY(36);
     CancelButton.ModalResult := mrCancel;
     CancelButton.Cancel := True;
+
+    OkButton := TNewButton.Create(Form);
+    OkButton.Parent := Form;
+    OkButton.Caption := 'Uninstall';
+    OkButton.Width := ScaleX(75);
+    OkButton.Height := ScaleY(23);
+    OkButton.Left := CancelButton.Left - ScaleX(10) - OkButton.Width;
+    OkButton.Top := CancelButton.Top;
+    OkButton.ModalResult := mrOk;
+    OkButton.Default := True;
+
     if Form.ShowModal() = mrOk then
     begin
       for I := 0 to 5 do

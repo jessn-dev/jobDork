@@ -204,3 +204,69 @@ jobs:
           } finally {
             Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
           }
+
+  # Pictures of the installer's pages and the uninstaller's window, as they
+  # draw on Windows, kept with the run: the uninstaller's own window and the
+  # installer's tick boxes once drew wrong on a screen at high scaling, which
+  # no test of the files catches. The runner's screen is at 100%.
+  windows-pictures:
+    needs: build
+    runs-on: windows-2025
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Fetch the Windows installer the build made
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: desktop-Windows-X64
+          path: dist
+
+      - name: Photograph the installer and the uninstaller
+        shell: pwsh
+        run: |
+          # A runner thrown away after the job: let it open a downloaded
+          # unsigned installer without Windows' prompt.
+          $policy = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Associations'
+          New-Item -Path $policy -Force | Out-Null
+          Set-ItemProperty -Path $policy -Name LowRiskFileTypes -Value '.exe'
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          New-Item -ItemType Directory pictures | Out-Null
+          function Snap($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("pictures/$name.png"); $g.Dispose(); $bmp.Dispose()
+          }
+          function Stop-Setup {
+            Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -match 'jobdork-.*setup|\\is-[^\\]+\\|unins\d+|_iu' } |
+              ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+          }
+          $exe = (Get-Item dist/jobdork-*-windows-x64-setup.exe).FullName
+          $shell = New-Object -ComObject WScript.Shell
+
+          Start-Process $exe
+          Start-Sleep 8; Snap 'installer-1'
+          foreach ($n in 2..3) {
+            $null = $shell.AppActivate('Setup - jobdork'); Start-Sleep 1
+            $shell.SendKeys('{ENTER}'); Start-Sleep 3; Snap "installer-$n"
+          }
+          Stop-Setup; Start-Sleep 2
+
+          Start-Process $exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{89BA0AFD-43DD-4F5C-ADC2-221D5F8E1EA6}_is1'
+          $uninstaller = ((Get-ItemProperty $key).UninstallString -replace '"', '')
+          Start-Process $uninstaller
+          Start-Sleep 8; Snap 'uninstaller'
+          Stop-Setup; Start-Sleep 2
+          Start-Process $uninstaller -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          Get-ChildItem pictures
+
+      - name: Keep the pictures
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-pictures
+          path: pictures/
+          if-no-files-found: error
+          retention-days: 7

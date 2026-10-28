@@ -6,6 +6,20 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-28 — The Windows uninstaller's window, at any screen scaling
+
+On a screen at 150-200% scaling, 0.15.2's uninstaller window ("Remove
+jobdork", with its tick boxes for what of yours to delete) was scaled twice
+and filled the screen with clipped text; and the installer's own tick boxes,
+drawn by Windows, came out cut off. Now the uninstaller's window is laid out
+as the installer's pages are, a white band with a bold title and a line
+under it, the choices, a line, then buttons at the installer's size, every
+size scaled once and kept that way (`CreateCustomForm(..., True, True)`); and
+the installer draws its controls itself in the Windows 11 style
+(`WizardStyle=modern windows11`). A new CI job, `windows-pictures`, installs
+each pull request's Windows build, photographs three installer pages and the
+uninstaller's window, and keeps the pictures with the run for seven days, as
+no test of the files can show how they draw.
 ## Security — 2026-10-28 — Hidden characters out of what the AI reads
 
 An advert can carry characters a reader cannot see but an AI model reads:
