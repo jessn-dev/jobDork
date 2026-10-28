@@ -6666,6 +6666,28 @@ open; a digest arrives, and what arrived with it is what was not there before.
 
 ## Still outstanding
 
+- **The app in your own language** (asked 2026-10-28). A language chosen on
+  setup's first screen, before anything else, and changeable in Settings:
+  every page, setup step, message and the guide in it. The most-used
+  languages first (Spanish, Chinese, Hindi, Arabic, Portuguese, French,
+  Filipino, among others), and a way to ask for one that is missing (a
+  feedback kind). With it, a **resume written in another language**: its
+  skills read (today the skill list is English), and the AI asked to read
+  and answer in it. A resume's file name in any script already works
+  (0.15.4).
+- **More job boards** (asked 2026-10-28, the big US list). Indeed, LinkedIn,
+  ZipRecruiter, Monster, SimplyHired, CareerBuilder, Dice, Built In and
+  FlexJobs are out for the reason in PLATFORMS.md (no public API; their
+  terms and robots.txt refuse scripts) and stay reachable through
+  `jobdork dork` and **Search Google Jobs**. Stack Overflow Jobs closed in
+  2022; USAJOBS is read already. Worth checking, each against its terms and
+  robots.txt before anything is built: **We Work Remotely** (a public RSS
+  feed; already planned in REGIONS.md), **Idealist** (nonprofits),
+  **Snagajob** (hourly work) and **Handshake** (students; behind a school
+  login, so likely out). The licensed way to the big boards is a keyed
+  reseller of Google's job results (JSearch, SerpApi), a decision in
+  DECISIONS.md.
+
 - **Europe outside Germany, the Gulf, and New Zealand** stay thin (measured
   2026-10-23): their large employers mostly name no board, and their job
   sites are closed to scripts or need a key (Reed, France Travail). What is
