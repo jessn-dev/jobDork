@@ -6,6 +6,18 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-28 — Any reader or checker can be moved or removed, the first too
+
+On the AI page and setup's AI step, only reader 2 onward (and checker 2
+onward) had **Earlier** and **Remove**: the first line could not be taken
+out or moved down, so swapping two meant retyping both. Now, once there are
+two or more, every line has **Remove**, every line but the first has
+**Earlier**, and every line but the last has the new **Later**. Removing the
+first makes the next one first. A single line is still turned off with
+**Off** (readers) or **None** (checkers).
+
+---
+
 ## Fixed — 2026-10-28 — AI providers by their company names, and a save message that says which line
 
 The AI page and setup's AI step named two providers by their chat apps: they

@@ -4623,7 +4623,8 @@ function drawList(list, loadAll) {
   $(kind.box).innerHTML = items.map((r, i) => `<div class="reader" data-list="${list}" data-i="${i}">
     <div class="rhead"><b>${kind.name} ${i + 1}</b>
       <span class="hint">${kind.when(i)}</span>
-      <span class="acts">${i > 0 ? `<button data-icon="chevron-left" class="act r-up" type="button" title="Ask this one earlier">Earlier</button>
+      <span class="acts">${items.length > 1 ? `${i > 0 ? `<button data-icon="chevron-left" class="act r-up" type="button" title="Ask this one earlier">Earlier</button>` : ''}
+        ${i < items.length - 1 ? `<button data-icon="chevron-right" class="act r-down" type="button" title="Ask this one later">Later</button>` : ''}
         <button data-icon="trash-2" class="act r-del" type="button">Remove</button>` : ''}</span></div>
     <div class="field"><label>Provider</label><div class="seg r-prov">${
       [...(i === 0 ? [''] : []), ...Object.keys(ai.providers)].map(p =>
@@ -4680,12 +4681,17 @@ function wireReader(card, load) {
   });
   const del = card.querySelector('.r-del');
   if (del) del.onclick = () => { syncReaders(); ai[list].splice(i, 1); drawReaders(true); };
-  const up = card.querySelector('.r-up');
-  if (up) up.onclick = () => {
+  // Any line moves and goes, the first too, once there are two: the one
+  // below then becomes first. A single line is turned off with Off or None.
+  const move = to => {
     syncReaders();
-    [ai[list][i - 1], ai[list][i]] = [ai[list][i], ai[list][i - 1]];
+    [ai[list][to], ai[list][i]] = [ai[list][i], ai[list][to]];
     drawReaders(true);
   };
+  const up = card.querySelector('.r-up');
+  if (up) up.onclick = () => move(i - 1);
+  const down = card.querySelector('.r-down');
+  if (down) down.onclick = () => move(i + 1);
   card.querySelector('.r-load').onclick = () => loadReaderModels(card, false);
   // Ticking it shows the key box; the line's models are read with the key.
   card.querySelector('.r-okey').onchange = () => { syncReaders(); drawReaders(true); };
