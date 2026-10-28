@@ -34,6 +34,22 @@ and change), so nothing is hardcoded: jobdork reads what each says.
 What is learned is held in memory: after a restart the provider's next
 refusal teaches it again. Measuring how many job posts a day a free key
 covers (the "Hosted models measured" item below) still needs real keys.
+## Added — 2026-10-27 — A progress bar when a resume is uploaded
+
+Uploading a resume showed only "Uploading…" or "Reading…" until the answer
+came, so a slow upload or a long PDF looked the same as a page that had
+stopped. Now a bar under the file picker, on the Resume page and in the
+setup wizard, fills as the file goes up, then moves while jobdork reads it,
+and goes when the answer arrives. The button (or file picker) waits while
+it runs, so the same file is not sent twice, and no answer at all from
+jobdork is said, rather than leaving "Reading…" on screen for good.
+
+**Fixed:** a resume whose file name had a character outside Latin-1, such
+as a curly apostrophe (`Maria’s Resume.pdf`), an en dash or `履歴書.pdf`,
+was never sent: the browser refused it, the error log said "got no answer
+from the server: Type error", and setup sat on "Reading…". Found in a
+0.15.3 test on an Intel Mac. The name is now sent encoded (the server reads
+only its extension), and a refusal by the page is logged as one.
 
 ## Changed — 2026-10-27 — version 0.15.3
 
