@@ -1142,7 +1142,7 @@ def test_the_first_scan_names_its_two_parts_and_says_when_the_second_is_ready():
             [("workable", {}), ("adzuna", {})] + [("greenhouse", {"token": f"q{i}"}) for i in range(3)]
             if part == "quick" else [("greenhouse", {"token": f"r{i}"}) for i in range(5)])
         # lambda: a scan that finds nothing, quickly.
-        scan_mod.run = lambda cfg, store, progress=None, part="all": scan_mod.ScanReport()
+        scan_mod.run = lambda cfg, store, progress=None, part="all", stop=None: scan_mod.ScanReport()
         # lambda: no report files: they would land in the folder the tests run from.
         render.write_all = lambda *a, **kw: []
         # lambda: record what the computer would have been told.
