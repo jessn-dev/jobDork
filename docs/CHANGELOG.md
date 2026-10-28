@@ -19,6 +19,15 @@ computer says so too, with notifications on, whether anything was new or
 not and whether the window is open or closed: that is the scan someone
 closed the window to wait for. It is the full scan's only notice; the
 ordinary "N new job posts" is not sent for it as well.
+## Added — 2026-10-28 — The hallucination rate in colour
+
+The Dashboard's Hallucination tile and its "Hallucination, over time" chart
+are measured against the 2-5% target in docs/AI-MODELS.md: green at 5% or
+under, amber above 5% up to 10%, red above 10%, where every other local
+model measured. The tile says it in words beside the colour (*within
+target*, *watch it*, *too high: try a bigger model or a checker*), the
+chart shades those three ranges behind its lines with a key under it, and
+each day's tooltip names the range.
 ## Changed — 2026-10-28 — Where you would work: any states and cities, or the whole country
 
 Setup's Where step required one city, and every distance was measured from
@@ -6773,6 +6782,16 @@ open; a digest arrives, and what arrived with it is what was not there before.
   2-5% target in docs/AI-MODELS.md), amber above 5% up to 10%, red above
   10% (where every other local model measured). Said in words too, not by
   colour alone ("within target", "watch it", "too high: see AI-MODELS.md").
+- **The first scan's two parts, told apart** (asked 2026-10-27). Setup's
+  last step runs a quick scan ("first scan": the keyword job sites, your own
+  boards and 8 built-in ones) and then a "full scan" of every other
+  built-in board, in the background. The Dashboard should say which is
+  running and that it started: "Quick scan: reading job sites and 8
+  employer boards" then "Full scan started: reading the other N employer
+  boards; job posts keep arriving". When the full scan ends, tell the
+  person their job posts are ready to view: a notice on the page with a
+  **View job posts** button, and the computer's notification when
+  notifications are on, including when the window was closed meanwhile.
 - **A scan queue you can see and cancel** (asked 2026-10-27). A change to
   Search, Projects, Education or Sources starts a scan or re-screen; one
   that arrives while another runs waits (web/live.py `Runner.queue`), but
