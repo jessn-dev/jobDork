@@ -17,7 +17,17 @@ name: Desktop app
 
 on:
   workflow_call:
+    inputs:
+      pictures:
+        description: Photograph the Windows installer and uninstaller
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      pictures:
+        description: Photograph the Windows installer and uninstaller
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -225,6 +235,9 @@ jobs:
   # installer's tick boxes once drew wrong on a screen at high scaling, which
   # no test of the files catches. The runner's screen is at 100%.
   windows-pictures:
+    # Only when asked: docker.yml asks when packaging/jobdork.iss changed,
+    # and Run workflow has a tick box for it. A release takes none.
+    if: inputs.pictures
     needs: build
     runs-on: windows-2025
     timeout-minutes: 15

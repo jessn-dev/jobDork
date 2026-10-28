@@ -215,6 +215,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.diff.outputs.changed }}
+      pictures: ${{ steps.diff.outputs.pictures }}
     steps:
       - name: Checkout repository (the history, to compare with)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -229,6 +230,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
           BEFORE: ${{ github.event.before }}
         run: |
+          # A release builds the installers but takes no pictures of them.
           if [[ "$REF" == refs/tags/v* ]]; then echo "changed=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           if [ "$EVENT" = pull_request ]; then from="$BASE"; else from="$BEFORE"; fi
           # A new branch, or a base not in this history: build, to be sure.
@@ -237,6 +239,11 @@ jobs:
           fi
           files=$(git diff --name-only "$from" HEAD)
           printf '%s\n' "$files"
+          # The Windows pictures only show something when the installer
+          # script itself changed: how its pages and the uninstaller draw.
+          if printf '%s\n' "$files" | grep -qx 'packaging/jobdork.iss'; then
+            echo "pictures=true" >> "$GITHUB_OUTPUT"
+          fi
           # The build's own files, its locked dependencies and the version,
           # the two workflows, and the code only the installed app runs.
           if printf '%s\n' "$files" | grep -qE '^(packaging/|requirements-desktop\.lock$|pyproject\.toml$|\.github/workflows/(desktop|docker)\.yml$|jobdork/web/app\.py$|jobdork/core/(updates|notify|keystore|uninstall)\.py$)'; then
@@ -254,6 +261,8 @@ jobs:
     needs: [test, security, packaging]
     if: needs.packaging.outputs.changed == 'true'
     uses: ./.github/workflows/desktop.yml
+    with:
+      pictures: ${{ needs.packaging.outputs.pictures == 'true' }}
     permissions:
       contents: read
       id-token: write        # attests the installers on a tag

@@ -20,6 +20,12 @@ workflows, or the code only the installed app runs (the window, the update
 check, notifications, the keychain, uninstalling). desktop.yml's **Run
 workflow** button builds any branch by hand.
 
+The Windows pictures (the installer's pages and the uninstaller's window,
+added for 0.15.4's high-scaling fix) are taken only when the installer
+script itself, `packaging/jobdork.iss`, changes, or when **Run workflow**'s
+"Photograph the Windows installer and uninstaller" box is ticked; never on a
+release.
+
 ## Changed — 2026-10-28 — version 0.15.4
 
 0.15.4 carries the 21 entries below, everything since 0.15.3 (27 October).
