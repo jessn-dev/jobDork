@@ -226,7 +226,10 @@ links. The app treats them as hostile.
   public addresses only. One that names this machine or its network
   (`localhost`, `192.168.x.x`, `169.254.169.254`), or redirects there, is
   refused (`jobdork/fetch/http.py`), so a posting cannot use the app to
-  reach your router, printer or NAS.
+  reach your router, printer or NAS. The connection goes to the very
+  address that was checked, not to a second lookup of the name, so a site
+  that answers the check with a public address and the connection with a
+  private one (DNS rebinding) reaches nothing either.
 - **In the desktop app** the page can ask the app for three things only:
   open a web address in your browser, save a file where you choose, and
   show a PDF. A file is shown only if it really is a PDF, and always as
