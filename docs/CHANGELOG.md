@@ -19,6 +19,15 @@ computer says so too, with notifications on, whether anything was new or
 not and whether the window is open or closed: that is the scan someone
 closed the window to wait for. It is the full scan's only notice; the
 ordinary "N new job posts" is not sent for it as well.
+## Fixed — 2026-10-28 — The secret scan, failing on two made-up keys
+
+The security check's secret scan (gitleaks) reads every branch, and two
+made-up keys in the Ollama-key tests of #78 matched its "generic API key"
+rule, so the check failed on main and on every pull request opened after.
+Both findings are listed in `.gitleaksignore`, the way an earlier test key
+is, and #78's tests now name the key once as `_FAKE_KEY`, marked
+`gitleaks:allow`, so no new finding comes from them.
+
 ## Added — 2026-10-27 — A progress bar when a resume is uploaded
 
 Uploading a resume showed only "Uploading…" or "Reading…" until the answer
