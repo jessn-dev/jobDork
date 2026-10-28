@@ -6,6 +6,13 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-28 — The release page's check section, named for what it does
+
+A release page's section on making sure a download is genuine was headed
+"Check it is the real one"; it is now **Verify Build Package**, over the
+same checksum, attestation and image signature steps
+(scripts/release_notes.py). Pages already published keep their heading.
+
 ## Added — 2026-10-28 — An Ollama behind a gatekeeper, and a connection code
 
 For a beta tester using someone else's Ollama without joining their

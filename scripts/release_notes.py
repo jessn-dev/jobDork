@@ -155,7 +155,7 @@ def page(tag: str, image: str, digest: str, previous: str = "") -> str:
         "  jobdork and click **Open Anyway**, then **Open Anyway** again.",
         "- **Windows** shows \"Windows protected your PC\". Click **More info**, then "
         "**Run anyway**.", "",
-        "## Check it is the real one", "",
+        "## Verify Build Package", "",
         "An installer: compare its SHA-256 with `SHA256SUMS.txt`, or with the "
         "[GitHub CLI](https://cli.github.com/):", "",
         "```bash",
