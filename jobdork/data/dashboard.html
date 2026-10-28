@@ -446,6 +446,10 @@ table.data tr.on td{background:var(--card)}
 table.data tr.on td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
 table.data td.n{white-space:nowrap}
 .warnc{color:var(--warn);font-weight:600} .badc{color:var(--bad);font-weight:600}
+.okc{color:var(--ok);font-weight:600}
+.chart .band{opacity:.09} .chart .band.ok{fill:var(--ok)} .chart .band.warn{fill:var(--warn)}
+.chart .band.bad{fill:var(--bad)}
+.legend .bands{color:var(--muted);font-size:.72rem}
 /* a modal dialog clips overflow by default, which would cut the tip off */
 dialog{overflow:visible}
 .paste{margin:.25rem 0 1rem}
@@ -3815,6 +3819,13 @@ async function rate(btn, value) {
 let mDays = 30, mData = null, halBy = 'kind';
 const mTable = {};
 const pct = x => x == null ? '-' : `${(x * 100).toFixed(x > 0 && x < 0.1 ? 1 : 0)}%`;
+// The hallucination target is 2-5% (docs/AI-MODELS.md): at or under 5% is
+// green, to 10% amber, above that red, where every other local model
+// measured. In words as well as colour, for anyone who cannot tell them apart.
+const HAL_BANDS = [{to: 5, cls: 'ok', word: 'within target'},
+  {to: 10, cls: 'warn', word: 'watch it'},
+  {to: Infinity, cls: 'bad', word: 'too high: try a bigger model or a checker'}];
+const halBand = percent => HAL_BANDS.find(b => percent <= b.to);
 const toolInk = i => `var(--s${i + 1})`;
 const shortDate = d => d.slice(5).replace('-', '/');
 
@@ -3872,8 +3883,10 @@ function drawMetrics() {
          (calls.failed ? `<span class="badc">${n(calls.failed)} failed</span>` : 'none failed') + late(calls.recorded_since)) +
     tile('P50 AI latency', calls.p50 == null ? '-' : secs(calls.p50),
          calls.p95 == null ? 'no calls' : `P95 ${secs(calls.p95)}`) +
-    tile('Hallucination', h.rate == null ? '-' : pct(h.rate),
-         h.outputs ? `${h.unsupported} of ${n(h.claims)} claims · coverage ${pct(h.coverage)}${late(h.recorded_since)}`
+    tile('Hallucination', h.rate == null ? '-'
+           : `<span class="${halBand(h.rate * 100).cls}c">${pct(h.rate)}</span>`,
+         h.outputs ? `${h.rate == null ? '' : `<span class="${halBand(h.rate * 100).cls}c">${halBand(h.rate * 100).word}</span> · `}${
+           h.unsupported} of ${n(h.claims)} claims · coverage ${pct(h.coverage)}${late(h.recorded_since)}`
                    : 'no AI output yet', hTip);
 
   // Runs by tool
@@ -3907,7 +3920,9 @@ function drawMetrics() {
     return {...k, ink: toolInk(i), tot};
   });
   $('m-hal-legend').innerHTML = halKinds.map(k =>
-    `<span><i style="background:${k.ink}"></i>${esc(cap(k.label))} <b>${k.tot.c ? `${n(k.tot.u)} of ${n(k.tot.c)}` : '-'}</b></span>`).join('');
+    `<span><i style="background:${k.ink}"></i>${esc(cap(k.label))} <b>${k.tot.c ? `${n(k.tot.u)} of ${n(k.tot.c)}` : '-'}</b></span>`).join('') +
+    `<span class="bands">Background: <b class="okc">5% or under, within target</b> ·
+      <b class="warnc">to 10%, watch it</b> · <b class="badc">above 10%, too high</b></span>`;
   const pctOf = c => c ? +(100 * c.unsupported / c.claims).toFixed(1) : null;
   const dayTotal = x => Object.values(claimsOf(x)).reduce((a, c) => ({c: a.c + c.claims, u: a.u + c.unsupported}), {c: 0, u: 0});
   if (mTable['m-hal']) {
@@ -3923,10 +3938,12 @@ function drawMetrics() {
   } else {
     lines($('m-hal'), d.per_day,
       halKinds.map(k => ({label: cap(k.label), ink: k.ink, value: x => pctOf(claimsOf(x)[k.kind]),
-                       detail: x => `${claimsOf(x)[k.kind].unsupported} of ${claimsOf(x)[k.kind].claims} claims`})),
+                       detail: x => `${claimsOf(x)[k.kind].unsupported} of ${claimsOf(x)[k.kind].claims} claims, ${
+                         halBand(pctOf(claimsOf(x)[k.kind])).word}`})),
       x => { const t = dayTotal(x); return `${t.u} of ${t.c} claims unsupported that day`; },
       {fmt: v => `${+v.toFixed(1)}%`, dots: true, max: 100, floor: 10,
-       empty: 'Nothing checked this day', label: `Share of claims not supported, per day and ${byModel ? 'model' : 'kind'}`});
+       empty: 'Nothing checked this day', label: `Share of claims not supported, per day and ${byModel ? 'model' : 'kind'}`,
+       bands: HAL_BANDS});
   }
 
   // Feedback
@@ -4102,6 +4119,12 @@ function lines(el, days, series, foot, opts = {}) {
   const Y = v => T + ph - v / top * ph;
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
     aria-label="${esc(opts.label || 'Per-day chart')}; use Show as table for the numbers">`;
+  // Shaded ranges behind the lines, each up to its `to` value (as the values).
+  (opts.bands || []).reduce((from, b) => {
+    if (from < top) svg += `<rect class="band ${b.cls}" x="${L}" width="${pw}"
+      y="${Y(Math.min(b.to, top)).toFixed(1)}" height="${(Y(from) - Y(Math.min(b.to, top))).toFixed(1)}"/>`;
+    return b.to;
+  }, 0);
   [0, top / 2, top].filter(t => opts.fmt || Number.isInteger(t)).forEach(t => {
     const y = Y(t) + .5;
     svg += `<line class="${t ? 'grid' : 'base'}" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/>
