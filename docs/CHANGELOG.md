@@ -6,6 +6,16 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-28 — A Mac build that fails on "Resource busy"
+
+GitHub's macOS machines now and then refuse to make the disk image,
+"hdiutil: create failed - Resource busy", while Spotlight or the malware
+scan holds the folder a moment; it broke the Apple Silicon build on #71 and
+the Intel one on #77, and a re-run passed each time. The build script now
+asks again itself, after 5, 15 and 30 seconds, and only for that error:
+anything else still stops the build at once, and four refusals in a row
+still fail it (packaging/build.py, `run_retrying_busy`).
+
 ## Added — 2026-10-28 — An Ollama behind a gatekeeper, and a connection code
 
 For a beta tester using someone else's Ollama without joining their
