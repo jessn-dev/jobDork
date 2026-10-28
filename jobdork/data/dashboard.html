@@ -418,6 +418,7 @@ h3{font-size:.9rem;margin:1.2rem 0 .45rem}
 .pbar > span{display:block;height:100%;background:var(--accent);border-radius:5px;
   transition:width .6s ease}
 .pbar.indet > span{width:30%;animation:slide 1.4s ease-in-out infinite}
+.upbar .pbar{max-width:28rem}
 @keyframes slide{0%{margin-left:-30%}100%{margin-left:100%}}
 .stack{display:flex;height:12px;gap:2px;margin:.3rem 0 .4rem}
 .stack > span{border-radius:3px;min-width:3px}
@@ -1318,6 +1319,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <button data-icon="trash-2" class="act" id="btn-resume-del" hidden>Delete resume</button>
       <span id="resumemsg"></span>
     </div>
+    <div class="upbar" id="resume-bar"></div>
     <div id="resumeinfo"></div>
     <p class="hint temp-note" id="resume-temp" hidden>Running in a container: the resume
       and the documents below are kept in a temporary folder, emptied when jobdork
@@ -2930,6 +2932,7 @@ function drawSetup(st) {
       suggest what to search for. It stays on this computer.</p>
       <p><input type="file" id="setup-file" accept=".pdf,.docx,.md,.markdown,.txt"
         aria-label="Resume file"></p>
+      <div class="upbar" id="setup-bar"></div>
       <p class="hint">PDF, Word, Markdown or plain text.</p>
       <div id="setup-read"></div>`;
     $('setup-file').onchange = () => setupUpload($('setup-file').files[0], st);
@@ -3154,12 +3157,63 @@ function setupLocationForm() {
   drawConfig();
 }
 
+// Send a resume with a bar under it: the bytes going up, then a moving bar
+// while the server reads the file, so a long PDF does not look like a page
+// that stopped. XMLHttpRequest, as fetch says nothing of an upload's
+// progress. Answers as api() does, with a Response; no answer at all is one
+// too (503), so the caller shows a reason rather than "Reading…" for good.
+function sendResume(file, bar, msg) {
+  const what = 'POST /api/resume';
+  bar.innerHTML = `<div class="pbar" role="progressbar" aria-label="Resume upload"
+    aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span style="width:0%"></span></div>`;
+  const track = bar.firstChild, fill = track.firstChild;
+  msg.className = 'hint'; msg.textContent = 'Uploading…';
+  return new Promise(done => {
+    const x = new XMLHttpRequest();
+    x.upload.onprogress = e => {
+      if (!e.lengthComputable) return;
+      const pct = Math.round(e.loaded * 100 / e.total);
+      fill.style.width = `${pct}%`; track.setAttribute('aria-valuenow', pct);
+      msg.textContent = `Uploading… ${pct}%`;
+    };
+    x.upload.onload = () => {      // all sent: what is left is the reading
+      track.classList.add('indet'); track.removeAttribute('aria-valuenow');
+      fill.style.width = ''; msg.textContent = 'Reading your resume…';
+    };
+    x.onload = () => {
+      bar.innerHTML = '';
+      if (x.status >= 500) pageProblem('error', `${what} failed (HTTP ${x.status})${
+        x.responseText ? ': ' + String(x.responseText).slice(0, 300) : ''}`);
+      done(new Response(x.responseText, {status: x.status}));
+    };
+    x.onerror = () => {
+      bar.innerHTML = '';
+      pageProblem('error', `${what} got no answer from the server`);
+      done(new Response('jobdork did not answer. Is it still running?', {status: 503}));
+    };
+    // A refusal before anything is sent is the page's, not the server's:
+    // 0.15.3 logged one as "got no answer from the server: Type error".
+    try {
+      x.open('POST', '/api/resume');
+      x.setRequestHeader('X-Jobdork-Token', TOKEN);
+      // Encoded: a header takes Latin-1 only, and "Maria’s Resume.pdf"
+      // stopped the upload here. The server reads nothing but the extension.
+      x.setRequestHeader('X-Filename', encodeURIComponent(file.name));
+      x.setRequestHeader('Content-Type', 'application/octet-stream');
+      x.send(file);
+    } catch (e) {
+      bar.innerHTML = '';
+      pageProblem('error', `${what} was not sent: the page refused it (${e.message || e})`);
+      done(new Response(`This file could not be sent: ${e.message || e}`, {status: 400}));
+    }
+  });
+}
+
 async function setupUpload(file, st) {
   if (!file) return;
-  $('setup-msg').className = 'hint'; $('setup-msg').textContent = 'Reading…';
-  const r = await api('/api/resume', {method: 'POST',
-    headers: {'X-Filename': file.name, 'Content-Type': 'application/octet-stream'},
-    body: file});
+  $('setup-file').disabled = true;
+  const r = await sendResume(file, $('setup-bar'), $('setup-msg'));
+  $('setup-file').disabled = false;
   if (!r.ok) {
     $('setup-msg').className = 'err'; $('setup-msg').textContent = cap(await r.text());
     return;
@@ -5357,10 +5411,9 @@ $('btn-upload').onclick = async () => {
   const file = $('resume-file').files[0];
   const msg = $('resumemsg');
   if (!file) { msg.className = 'err'; msg.textContent = 'Choose a file first.'; return; }
-  msg.className = 'hint'; msg.textContent = 'Uploading…';
-  const r = await api('/api/resume', {method: 'POST',
-    headers: {'X-Filename': file.name, 'Content-Type': 'application/octet-stream'},
-    body: file});
+  $('btn-upload').disabled = true;
+  const r = await sendResume(file, $('resume-bar'), msg);
+  $('btn-upload').disabled = false;
   if (!r.ok) { const why = cap(await r.text()); msg.className = 'err'; msg.textContent = why; toast(why, 'err'); return; }
   const d = await r.json();
   cfg = null;
