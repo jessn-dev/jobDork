@@ -1472,15 +1472,28 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <div id="keyinfo"></div>
 
     <h2 style="margin-top:1.25rem">Add a Job Post</h2>
-    <p class="hint">A job post you found yourself, on an employer's board: paste its
-      link and it is read into Job posts like any scanned post, advert and all.</p>
+    <p class="hint">A job post you found yourself, anywhere: paste its link and it is
+      read into Job posts like any scanned post, advert and all. An employer's board
+      (Greenhouse, Lever, Workday, Oracle, Taleo Enterprise and others) gives the whole
+      post; any other page is read from what it publishes for search engines. When a
+      page cannot be read, paste the advert's text instead.</p>
     <div class="bar">
-      <input id="add-url" placeholder="https://job-boards.greenhouse.io/acme/jobs/1"
-        style="flex:1;min-width:22rem">
-      <input id="add-token" placeholder="Board token, if the URL has none" style="width:15rem">
+      <input id="add-url" placeholder="The job post's link" style="flex:1;min-width:22rem">
+      <input id="add-token" placeholder="Board token, if the link has none" style="width:15rem">
       <button data-icon="plus" class="act" id="btn-add">Add</button>
     </div>
     <div id="addmsg"></div>
+    <form class="field" id="add-paste" hidden>
+      <div class="picker">
+        <label>Job title<input id="add-p-title" required></label>
+        <label>Employer<input id="add-p-company"></label>
+        <label>Place<input id="add-p-place" placeholder="e.g. Austin, TX, or Remote"></label>
+      </div>
+      <label>The advert, pasted from the page<textarea id="add-p-text" rows="10"
+        style="width:100%" placeholder="Everything the post says: duties, requirements, pay"></textarea></label>
+      <div class="bar"><button data-icon="plus" class="act primary" type="submit">Add from the text</button>
+        <button class="act" type="button" id="add-p-cancel">Cancel</button></div>
+    </form>
 
     <h2 style="margin-top:1.25rem" id="boards-head">Employer boards</h2>
     <p class="hint">These give full advert text, which aggregators do not. A board
@@ -2859,18 +2872,39 @@ $('fbk-save').onclick = () => {
            'jobdork-feedback.md');
 };
 
-$('btn-add').onclick = async () => {
-  const r = await api('/api/add', {method: 'POST',
-    body: form({url: $('add-url').value, token: $('add-token').value})});
-  const msg = $('addmsg');
-  if (!r.ok) { msg.innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
-  const d = await r.json();
-  msg.innerHTML = `<span class="saved">${d.added ? 'added' : 'updated'}</span> ` +
+// A link jobdork could not read (422) opens the form for its pasted advert.
+function showAdded(d) {
+  $('addmsg').innerHTML = `<span class="saved">${d.added ? 'added' : 'updated'}</span> ` +
     `${esc(d.title)} at ${esc(d.company)}` +
     (d.passes_filters ? '' :
       `<div class="hint">Does not pass your filters (${esc(d.why_not)}). ` +
       `Stored anyway because you asked for it.</div>`);
   loadRoles();
+}
+$('btn-add').onclick = async () => {
+  const btn = $('btn-add'), msg = $('addmsg');
+  btn.disabled = true; msg.innerHTML = '<span class="hint">Reading the link…</span>';
+  const r = await api('/api/add', {method: 'POST',
+    body: form({url: $('add-url').value, token: $('add-token').value})});
+  btn.disabled = false;
+  if (!r.ok) {
+    msg.innerHTML = `<span class="err">${esc(cap(await r.text()))}</span>`;
+    $('add-paste').hidden = r.status !== 422;
+    if (r.status === 422) $('add-p-title').focus();
+    return;
+  }
+  $('add-paste').hidden = true;
+  showAdded(await r.json());
+};
+$('add-p-cancel').onclick = () => { $('add-paste').hidden = true; $('addmsg').innerHTML = ''; };
+$('add-paste').onsubmit = async ev => {
+  ev.preventDefault();
+  const r = await api('/api/add/text', {method: 'POST', body: form({url: $('add-url').value,
+    title: $('add-p-title').value, company: $('add-p-company').value,
+    location: $('add-p-place').value, text: $('add-p-text').value})});
+  if (!r.ok) { $('addmsg').innerHTML = `<span class="err">${esc(cap(await r.text()))}</span>`; return; }
+  $('add-paste').reset(); $('add-paste').hidden = true;
+  showAdded(await r.json());
 };
 
 function connect() {
