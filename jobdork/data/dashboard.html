@@ -270,6 +270,15 @@ button.armed:not(.del){color:var(--warn);border-color:var(--warn);font-weight:60
 .picker{display:flex;flex-wrap:wrap;gap:.6rem}
 .picker label{display:flex;flex-direction:column;gap:.2rem;font-size:.75rem;margin:0}
 .picker select,.picker input{width:14rem;max-width:100%}
+.padd{display:flex;gap:.4rem;align-items:flex-end}
+.padd label{flex:1;min-width:0}
+.pchips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.45rem 0 .2rem}
+.pchips:empty{display:none}
+.pchip{display:inline-flex;align-items:center;gap:.25rem;padding:.12rem .2rem .12rem .6rem;
+  border:1px solid var(--line);border-radius:999px;font-size:.8rem}
+.pchip.bad{border-color:var(--bad);color:var(--bad)}
+.pchip button{border:0;background:none;padding:0 .3rem;cursor:pointer;color:inherit;
+  font-size:1rem;line-height:1}
 .hint{color:var(--muted);font-size:.78rem;margin-top:.25rem}
 .saved{color:var(--ok);font-size:.85rem}.err{color:var(--bad);font-size:.85rem}
 .dot{width:.5rem;height:.5rem;border-radius:50%;display:inline-block;
@@ -1226,8 +1235,9 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       </div>
       <div class="sgroup">
       <h3>Countries to keep job posts from</h3>
-      <p class="hint">Separate from where you are, which is only the centre of the
-        radius. List every country you would work in or for: living in Baguio and
+      <p class="hint">Separate from the states and cities under Location, which
+        are only about where you would go to an office. List every country you
+        would work in or for: living in Baguio and
         open to remote work for US employers is the Philippines and the United
         States. A job post from anywhere else is dropped, and these also choose
         which sources search (USAJOBS only runs for the United States). None
@@ -1591,8 +1601,12 @@ function openOut(url) {
 // does, when you click.
 function googleJobsUrl(title) {
   const modes = (cfg && cfg.work_modes) || [];
+  // Your first city, else your first region: one search, not one per place.
+  const at = (cfg && cfg.places) || {cities: [], regions: []};
+  const place = at.cities.length ? `near ${at.cities[0].text}`
+    : at.regions.length ? `in ${at.regions[0].name}` : '';
   const words = modes.length === 1 && modes[0] === 'remote' ? `${title} remote jobs`
-    : cfg && cfg.anchor ? `${title} jobs near ${cfg.anchor}` : `${title} jobs`;
+    : place ? `${title} jobs ${place}` : `${title} jobs`;
   return 'https://www.google.com/search?udm=8&q=' + encodeURIComponent(words);
 }
 // Above the list, not after its last post: it was a small grey line at the
@@ -2973,22 +2987,21 @@ function drawSetup(st) {
   } else if (st.step === 'where') {
     const next = st.steps[at + 1].name;
     $('setup-body').innerHTML = `<h2>Where</h2>
-      <p>Where you are, how far you would travel to an office, and which kinds of
-      work to keep. Remote jobs are kept whatever the distance.</p>
-      <p class="hint"><b>Required:</b> your country and your city, because the
-      distance to an office is measured from your city. The rest is optional:
-      the state or province can stay at "Any", and the radius and kinds of work
-      can stay as they are.</p>`;
+      <p>Where you would work, how far you would travel to an office, and which
+      kinds of work to keep. Remote jobs are kept whatever the distance.</p>
+      <p class="hint"><b>Required:</b> only your country. Then, if you like, add
+      as many states (or provinces, regions) and cities as you want: job posts
+      anywhere in a state you add are kept, and those within the radius of a
+      city you add. Add none and job posts from the whole country are kept.
+      The radius and kinds of work can stay as they are.</p>`;
     setupLocationForm();
     $('setup-nav').innerHTML =
       '<button type="button" class="act primary" id="setup-next">Continue</button>';
     $('setup-next').onclick = async () => {
-      // Each missing field by name, and the cursor put in it: "country and
-      // city" with a country chosen read as if the state were the problem.
-      const missing = !$('c_pcountry').value ? ['c_pcountry', 'Choose your country.']
-        : !$('c_pcity').value.trim() ? ['c_pcity', 'Type your city and pick it from the list. It is required; the state can stay at "Any".']
+      // The one required field by name, and the cursor put in it.
+      const missing = !$('c_pcountry').value ? ['c_pcountry', 'Choose your country. States and cities are optional.']
         : null;
-      ['c_pcountry', 'c_pcity'].forEach(id => $(id).removeAttribute('aria-invalid'));
+      $('c_pcountry').removeAttribute('aria-invalid');
       if (missing) {
         $(missing[0]).setAttribute('aria-invalid', 'true');
         $(missing[0]).focus();
@@ -4938,51 +4951,65 @@ wireAdd('f-deal-re', 'msg-deal-re', () => {
   return {name, pattern, hard: $('add-deal-re-hard').value === '1'};
 }, 'dealbreakers');
 
-// ── Where you are: country, then region, then city ──────────────────────────
-// Every choice comes from the bundled place list, so a saved location always
-// resolves; a free-text one that did not quietly turned the radius off.
+// ── Where you would work: a country, then any regions and cities ────────────
+// Every choice comes from the bundled place list, so a saved city always
+// resolves; a free-text one that did not quietly turned the radius off. Only
+// the country is needed: no region and no city keeps the whole country.
+// The chosen ones are kept here until Save, like the rest of the form.
 let placeCountries = null, placeCurrencies = [], pickStart = '';
+let pickRegs = [], pickCits = [];
 const placeGet = async (what, params) =>
   (await api(`/api/places/${what}?` + new URLSearchParams(params))).json();
-const pickKey = () => [$('c_pcountry').value, $('c_pregion').value, $('c_pcity').value.trim()].join('|');
-const pickChanged = () => $('c_pcity') && $('c_pcity').value.trim() && pickKey() !== pickStart;
-
-// Nothing saved yet: Naperville, Illinois, United States, shown but not saved
-// until Save, like config.DEFAULT_ANCHOR for a config that leaves it out.
-const PICK_FALLBACK = {country: 'US', region: 'IL', city: 'Naperville'};
+const pickKey = () => JSON.stringify([$('c_pcountry').value, pickRegs.map(r => r.code),
+  pickCits.map(c => c.label)]);
+const pickChanged = () => !!$('c_pcountry') && pickKey() !== pickStart;
 
 async function drawPicker() {
-  const at = cfg.anchor_place || {};
+  const at = cfg.places || {country: '', regions: [], cities: []};
   await loadPlaceCountries();
-  const fresh = !cfg.anchor;
-  // In setup nothing is filled in for you: a new user chooses.
-  const setup = document.querySelector('.shell').classList.contains('setup');
-  const PICK_DEFAULT = setup ? {country: '', region: '', city: ''} : PICK_FALLBACK;
-  const country = at.located ? at.country : fresh ? PICK_DEFAULT.country
-    : ((cfg.countries || [])[0] || '');
   $('c_pcountry').innerHTML = '<option value="">Choose a country</option>' + placeCountries.map(c =>
-    `<option value="${c.code}"${c.code === country ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
-  await pickRegions(at.located ? at.region : fresh ? PICK_DEFAULT.region : '');
-  $('c_pcity').value = at.located ? at.city : fresh ? PICK_DEFAULT.city : '';
-  if (fresh && !setup) $('c_currency').value = 'USD';   // the default's own currency
+    `<option value="${c.code}"${c.code === at.country ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
+  await pickRegions();
+  pickRegs = at.regions.map(r => ({code: r.code, name: r.name}));
+  pickCits = at.cities.map(c => ({city: c.located ? c.city : c.text, region: c.region,
+    label: c.text, located: c.located}));
+  $('c_pcity').value = '';
   await pickCities();
-  pickStart = fresh ? '' : pickKey();
-  $('c_pwhere').className = at.located || setup ? 'hint' : 'err';
-  $('c_pwhere').textContent = at.located
-    ? 'The radius is measured from the centre of this city.'
-    : cfg.anchor
-      ? `Your saved location, "${cfg.anchor}", is not in the place list, so the radius is off. Choose it here and Save.`
-      : setup ? 'Required: choose your country, then start typing your city and pick it from the list.'
-      : 'No location saved yet, so the radius is off. Naperville is filled in; change it or Save it.';
+  pickStart = pickKey();
+  drawPickChips();
 }
 
-async function pickRegions(selected) {
+// What is chosen, each with a remove button, and in words what it keeps.
+function drawPickChips() {
+  const chip = (label, kind, i, bad) => `<span class="pchip${bad ? ' bad' : ''}"${bad
+    ? ' title="Not in the place list: remove it, then add the city again from the suggestions"' : ''}>${
+    esc(label)}<button type="button" data-drop-${kind}="${i}" aria-label="Remove ${esc(label)}">×</button></span>`;
+  $('c_pchips').innerHTML = pickRegs.map((r, i) => chip(`All of ${r.name}`, 'region', i))
+    .concat(pickCits.map((c, i) => chip(c.label, 'city', i, !c.located))).join('');
+  const sel = $('c_pcountry').selectedOptions[0];
+  const country = $('c_pcountry').value ? sel.textContent : '';
+  const bad = pickCits.filter(c => !c.located);
+  const box = $('c_pwhere');
+  box.className = bad.length ? 'err' : 'hint';
+  box.textContent = !country
+    ? 'Required: choose your country. States and cities are optional.'
+    : bad.length ? `${bad.map(c => `"${c.label}"`).join(', ')} is not in the place list, so no distance is measured from it. Remove it and add the city again from the suggestions.`
+    : !pickRegs.length && !pickCits.length
+      ? `No ${$('c_pregion-label').textContent.toLowerCase()} or city chosen: job posts from the whole country (${country}) are kept.`
+    : [pickRegs.length && `Job posts anywhere in ${pickRegs.map(r => r.name).join(' or ')} are kept.`,
+       pickCits.length && `${pickRegs.length ? 'So are job posts' : 'Job posts are kept'} within the radius of ${
+         pickCits.length === 1 ? 'this city' : 'any of these cities'}, measured from the centre.`]
+      .filter(Boolean).join(' ');
+  if (saveBase) paintSave(formDirty() ? 'dirty' : 'clean');
+}
+
+async function pickRegions() {
   const country = $('c_pcountry').value;
   const r = country ? await placeGet('regions', {country}) : {label: 'Region', regions: []};
   $('c_pregion-label').textContent = r.label;
   $('c_pregion-wrap').hidden = !r.regions.length;
   $('c_pregion').innerHTML = `<option value="">Any ${esc(r.label.toLowerCase())}</option>` +
-    r.regions.map(x => `<option value="${x.code}"${x.code === selected ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
+    r.regions.map(x => `<option value="${x.code}">${esc(x.name)}</option>`).join('');
 }
 
 let pickTimer = 0;
@@ -4992,9 +5019,31 @@ async function pickCities() {
   const d = await placeGet('cities', {country, region: $('c_pregion').value, q: $('c_pcity').value.trim()});
   $('c_pcities').innerHTML = d.cities.map(c => `<option value="${esc(c)}">`).join('');
 }
+
+function pickAddRegion() {
+  const sel = $('c_pregion'), code = sel.value;
+  if (!code) return;
+  if (!pickRegs.some(r => r.code === code)) pickRegs.push({code, name: sel.selectedOptions[0].textContent});
+  sel.value = ''; pickCities(); drawPickChips();
+}
+// A city typed but not added is added on Save or Continue too: leaving it
+// in the box and losing it was the easy mistake.
+function pickAddCity() {
+  const city = $('c_pcity').value.trim();
+  if (!city) return;
+  const region = $('c_pregion-wrap').hidden ? '' : $('c_pregion').value;
+  const named = region ? $('c_pregion').selectedOptions[0].textContent : '';
+  const label = named ? `${city}, ${named}` : city;
+  if (!pickCits.some(c => c.label.toLowerCase() === label.toLowerCase()))
+    pickCits.push({city, region, label, located: true});
+  $('c_pcity').value = ''; pickCities(); drawPickChips();
+}
+
 document.addEventListener('change', async ev => {
   if (ev.target.id === 'c_pcountry') {
-    await pickRegions(''); $('c_pcity').value = ''; pickCities();
+    // Regions and cities are in a country: another country starts afresh.
+    pickRegs = []; pickCits = [];
+    await pickRegions(); $('c_pcity').value = ''; pickCities(); drawPickChips();
     // The salary floor follows the country, in its own currency, where a
     // floor can use that currency; otherwise it is left as it was.
     const c = placeCountries.find(x => x.code === ev.target.value) || {};
@@ -5007,10 +5056,22 @@ document.addEventListener('change', async ev => {
     }
     if (c.units) $('c_units').value = c.units;      // miles or kilometres, as there
   }
-  if (ev.target.id === 'c_pregion') { $('c_pcity').value = ''; pickCities(); }
+  if (ev.target.id === 'c_pregion') pickCities();
 });
 document.addEventListener('input', ev => {
   if (ev.target.id === 'c_pcity') { clearTimeout(pickTimer); pickTimer = setTimeout(pickCities, 150); }
+});
+document.addEventListener('keydown', ev => {
+  if (ev.target.id === 'c_pcity' && ev.key === 'Enter') { ev.preventDefault(); pickAddCity(); }
+});
+document.addEventListener('click', ev => {
+  if (ev.target.id === 'c_addregion') return pickAddRegion();
+  if (ev.target.id === 'c_addcity') return pickAddCity();
+  const drop = ev.target.closest('[data-drop-region],[data-drop-city]');
+  if (!drop || !drop.closest('#c_pchips')) return;
+  if (drop.dataset.dropRegion != null) pickRegs.splice(+drop.dataset.dropRegion, 1);
+  else pickCits.splice(+drop.dataset.dropCity, 1);
+  drawPickChips();
 });
 
 async function loadPlaceCountries() {
@@ -5028,19 +5089,27 @@ async function drawConfig() {
     <div class="field">
       <div class="picker">
         <label>Country<select id="c_pcountry"></select></label>
-        <label id="c_pregion-wrap" hidden><span id="c_pregion-label">Region</span>
-          <select id="c_pregion"></select></label>
-        <label>City<input id="c_pcity" list="c_pcities" autocomplete="off"
-          spellcheck="false" placeholder="Start typing"></label>
+        <div class="padd" id="c_pregion-wrap" hidden>
+          <label><span id="c_pregion-label">Region</span><select id="c_pregion"></select></label>
+          <button type="button" class="act" id="c_addregion">Add</button></div>
+        <div class="padd">
+          <label>City<input id="c_pcity" list="c_pcities" autocomplete="off"
+            spellcheck="false" placeholder="Start typing"></label>
+          <button type="button" class="act" id="c_addcity">Add</button></div>
         <datalist id="c_pcities"></datalist>
       </div>
-      <div class="hint" id="c_pwhere"></div></div>
+      <div class="pchips" id="c_pchips" aria-live="polite"></div>
+      <div class="hint" id="c_pwhere"></div>
+      <div class="hint">Optional, as many as you like: <b>Add</b> a state to keep job
+        posts anywhere in it, and a city to keep those within the radius below. Choosing
+        a state first narrows the city suggestions.</div></div>
     <div class="field"><label>Radius</label>
       <input id="c_radius" value="${esc(cfg.radius)}" style="width:6rem">
       <select id="c_units">${['mi','km'].map(u =>
         `<option${u === cfg.units ? ' selected' : ''}>${u}</option>`).join('')}</select>
-      <div class="hint">How far from your city a job's office may be. Type a number,
-        or <b>exact</b> for jobs in your city only. Remote jobs are always kept, since
+      <div class="hint">How far from one of your cities a job's office may be. Type a
+        number, or <b>exact</b> for jobs in those cities only. With no city chosen it
+        is not used. Remote jobs are always kept, since
         there is no office to travel to, and so is a post whose location cannot be
         read.</div></div>
 
@@ -5070,8 +5139,7 @@ async function drawConfig() {
 // back; drawConfig() only redraws the form when there are none.
 let saveBase = '';
 const formState = () => JSON.stringify([
-  $('c_pcountry').value, $('c_pregion').value, $('c_pcity').value.trim(),
-  $('c_radius').value.trim(), $('c_units').value,
+  pickKey(), $('c_radius').value.trim(), $('c_units').value,
   [...document.querySelectorAll('.c_mode:checked')].map(c => c.value),
   $('c_floor').value.trim(), $('c_currency').value]);
 const formDirty = () => !!$('c_radius') && saveBase !== '' && formState() !== saveBase;
@@ -5103,14 +5171,15 @@ $('save').onclick = () => saveLocation();
 
 // Also setup's Where step, which shows this form: true once saved.
 async function saveLocation() {
+  pickAddCity();
   paintSave('saving');
   // The lists above save themselves; Save sends only the fields in this form.
   const r = await api('/api/config', {method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
-      ...(pickChanged() ? {anchor_pick: {country: $('c_pcountry').value,
-        region: $('c_pregion-wrap').hidden ? '' : $('c_pregion').value,
-        city: $('c_pcity').value.trim()}} : {}),
+      ...(pickChanged() ? {places_pick: {country: $('c_pcountry').value,
+        regions: pickRegs.map(r => r.code),
+        cities: pickCits.map(c => ({city: c.city, region: c.region}))}} : {}),
       radius: $('c_radius').value.trim(),
       units: $('c_units').value,
       work_modes: [...document.querySelectorAll('.c_mode:checked')].map(c => c.value),
@@ -5126,8 +5195,8 @@ async function saveLocation() {
   let note = 'Location, work arrangement and pay saved', rescan = cfg.rescan || '';
   // No countries listed means every country; a place just chosen is
   // almost always the first one meant, so it is listed for you.
-  const picked = cfg.anchor_place || {};
-  if (picked.located && !(cfg.countries || []).length) {
+  const picked = cfg.places || {};
+  if (picked.country && !(cfg.countries || []).length) {
     const r2 = await api('/api/config', {method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({countries: [picked.country]})});

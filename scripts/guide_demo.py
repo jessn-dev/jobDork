@@ -68,7 +68,8 @@ titles:
   exclude: [travel, licensed practical]
 credentials: [RN, BLS, ACLS]
 locations:
-  anchor: "Chicago, IL"
+  country: US
+  cities: ["Chicago, IL"]
   radius: 25
   countries: [US]
   work_modes: [office, hybrid, remote]
