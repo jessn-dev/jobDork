@@ -70,6 +70,7 @@ class _Running:
         # and a scan here would go online. Recorded, not run; a test that
         # wants the real queue puts it back (real_queue).
         self.queued: list[str] = []
+        self.why: list[str] = []          # what started each queued job
         self.runner.queue = self._record
         self.holder = {"cfg": self.cfg}
 
@@ -122,8 +123,9 @@ class _Running:
         except urllib.error.HTTPError as exc:
             return exc.code, exc.read()
 
-    def _record(self, name, make) -> bool:
+    def _record(self, name, make, why="") -> bool:
         self.queued.append(name)
+        self.why.append(why)
         return True
 
     def real_queue(self) -> None:
@@ -928,7 +930,9 @@ def _idle(runner):
     raise AssertionError(f"still running {runner.current}")
 
 
-def test_a_queued_job_waits_and_runs_once_from_the_newest_settings():
+def test_queued_jobs_run_first_in_first_out_and_any_can_be_cancelled():
+    """Every request is kept, with what started it; each is built when its
+    turn comes, from the settings as they are then; a waiting one can go."""
     runner, ran, gate = Runner(), [], threading.Event()
 
     def blocking(progress):
@@ -937,18 +941,95 @@ def test_a_queued_job_waits_and_runs_once_from_the_newest_settings():
 
     assert runner.start("scan", blocking)[0]
     settings = {"v": 1}
-    # lambda: builds the work when its turn comes, reading the settings then.
-    make = lambda: (lambda progress: ran.append(("rescreen", settings["v"])))  # noqa: E731
-    assert runner.queue("rescreen", make) is False
+
+    def make(name):
+        # lambda: the work, reading the settings when it runs.
+        return lambda: (lambda progress: ran.append((name, settings["v"])))
+
+    assert runner.queue("rescreen", make("rescreen"), why="Search: added midwife") is False
+    assert runner.queue("scan", make("scan"), why="Countries: added PH") is False
+    assert runner.queue("rescreen", make("rescreen 2"), why="Pay changed") is False
+    waiting = runner.waiting()
+    assert [(w["name"], w["why"]) for w in waiting] == [
+        ("rescreen", "Search: added midwife"), ("scan", "Countries: added PH"),
+        ("rescreen", "Pay changed")]
+    assert runner.cancel(waiting[1]["id"]) and not runner.cancel(waiting[1]["id"])
     settings["v"] = 2
-    assert runner.queue("rescreen", make) is False      # still one waiting
-    assert runner.waiting() == ["rescreen"]
     gate.set()
     _idle(runner)
-    assert ran == ["scan", ("rescreen", 2)]
+    assert ran == ["scan", ("rescreen", 2), ("rescreen 2", 2)]
     # Idle: it starts at once.
-    assert runner.queue("rescreen", make) is True
+    assert runner.queue("rescreen", make("rescreen")) is True
     _idle(runner)
+
+
+def test_stop_asks_a_job_that_can_stop_and_the_queue_goes_on():
+    runner, ran = Runner(), []
+    started = threading.Event()
+
+    def scan(progress, stop=None):
+        started.set()
+        stop.wait(5)
+        ran.append(("scan stopped", stop.is_set()))
+        return "kept what it had"
+
+    assert not runner.stop(), "nothing running, nothing to stop"
+    assert runner.start("scan", scan)[0]
+    # lambda: a job after it, which must still run.
+    runner.queue("rescreen", lambda: (lambda progress: ran.append("rescreen")))
+    started.wait(5)
+    assert runner.stop()
+    _idle(runner)
+    assert ran == [("scan stopped", True), "rescreen"]
+    assert not runner.stopping.is_set(), "cleared for the next job"
+
+
+def test_a_stopped_scan_reads_no_more_sources_and_keeps_what_it_read():
+    import tempfile
+
+    from jobdork import fetch
+    from jobdork.search import scan as scan_mod
+
+    stop = threading.Event()
+    calls = []
+
+    def board(fetcher, cfg, token="", **_):
+        calls.append(token)
+        stop.set()                                  # Stop pressed while the first reads
+        return fetch.SourceResult(source="greenhouse", roles=[Role(
+            platform="greenhouse", company="Acme", title="Registered Nurse",
+            url=f"https://boards.greenhouse.io/acme/jobs/{token}", work_mode="remote")])
+
+    saved_jobs, saved_get = scan_mod._jobs_for, fetch.get
+    # lambda: twenty boards, one at a time, so the rest are still waiting.
+    scan_mod._jobs_for = lambda cfg, part="all": [("greenhouse", {"token": str(i)}) for i in range(20)]
+    # lambda: every source is the stub board above.
+    fetch.get = lambda name: board
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = Config(titles_include=["registered nurse"], db_path=str(Path(tmp) / "s.db"),
+                         locations=Locations(countries=["US"]))
+            cfg.fetch.concurrency = 1
+            with serve_mod.Store(cfg.db_path) as store:
+                report = scan_mod.run(cfg, store, stop=stop)
+                kept = store.conn.execute("SELECT COUNT(*) FROM roles").fetchone()[0]
+    finally:
+        scan_mod._jobs_for, fetch.get = saved_jobs, saved_get
+    assert len(calls) < 20 and report.stopped >= 1
+    assert report.stopped + len(calls) == 20, "every board read or left unread"
+    assert kept == report.kept >= 1, "what was read is screened and stored"
+    assert any("not read" in line for line in report.lines())
+
+
+def test_a_queued_job_says_what_started_it():
+    old = Config(titles_include=["nurse"], locations=Locations(countries=["US"]))
+    more = Config(titles_include=["nurse", "Nurse Practitioner"],
+                  locations=Locations(countries=["US", "PH"]))
+    assert serve_mod.change_words(old, more) == \
+        "Search: added Nurse Practitioner; Countries: added PH"
+    fewer = Config(titles_include=[], locations=Locations(countries=["US"]))
+    assert serve_mod.change_words(old, fewer) == "Search: removed nurse"
+    assert serve_mod.change_words(old, old) == "Search settings changed"
 
 
 def test_what_a_search_change_starts():
@@ -1061,7 +1142,7 @@ def test_the_first_scan_names_its_two_parts_and_says_when_the_second_is_ready():
             [("workable", {}), ("adzuna", {})] + [("greenhouse", {"token": f"q{i}"}) for i in range(3)]
             if part == "quick" else [("greenhouse", {"token": f"r{i}"}) for i in range(5)])
         # lambda: a scan that finds nothing, quickly.
-        scan_mod.run = lambda cfg, store, progress=None, part="all": scan_mod.ScanReport()
+        scan_mod.run = lambda cfg, store, progress=None, part="all", stop=None: scan_mod.ScanReport()
         # lambda: no report files: they would land in the folder the tests run from.
         render.write_all = lambda *a, **kw: []
         # lambda: record what the computer would have been told.
