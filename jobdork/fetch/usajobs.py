@@ -41,6 +41,8 @@ floor does most of its work.
 
 from __future__ import annotations
 
+from itertools import product
+
 from ..core.textutil import to_text
 from ..db.store import Role
 from ..search import geo
@@ -72,21 +74,25 @@ def try_key(fetcher, key: str, email: str) -> tuple[str, str]:
     return verdict, why
 
 
-def _location_params(cfg) -> dict:
-    """LocationName plus Radius in MILES — Adzuna's is kilometres, this is not."""
-    anchor_text = cfg.locations.anchor.strip()
-    if not anchor_text:
-        return {}
-    anchor = geo.resolve_anchor(anchor_text, cfg.country_prefs())
-    if not anchor.state:
-        return {}
-    name = (f"{anchor.city}, {geo.state_name(anchor.state)}"
-            if anchor.city else geo.state_name(anchor.state))
-    params = {"LocationName": name}
+def _location_params(cfg) -> list[dict]:
+    """One search per place: LocationName plus Radius in MILES (Adzuna's is
+    kilometres, this is not) for each city, the state's name for each
+    region. No place is one search of the whole country."""
+    out: list[dict] = []
     radius = cfg.radius_miles()
-    if radius is not None:
-        params["Radius"] = round(radius)
-    return params
+    for text in cfg.locations.cities:
+        anchor = geo.resolve_anchor(text, cfg.country_prefs())
+        if not anchor.state:
+            continue
+        name = (f"{anchor.city}, {geo.state_name(anchor.state)}"
+                if anchor.city else geo.state_name(anchor.state))
+        params = {"LocationName": name}
+        if radius is not None:
+            params["Radius"] = round(radius)
+        out.append(params)
+    if cfg.locations.country in ("", "US"):
+        out += [{"LocationName": geo.state_name(r)} for r in cfg.locations.regions]
+    return out or [{}]
 
 
 # USAJOBS states the pay period as a two-letter code, not a word. Verified
@@ -141,8 +147,8 @@ def _num(value) -> float | None:
         return None
 
 
-def _location(item: dict, anchor: geo.Resolved | None = None) -> tuple[str, int]:
-    """Pick the location nearest your anchor, not simply the first one.
+def _location(item: dict, anchors: list[geo.Resolved] = ()) -> tuple[str, int]:
+    """Pick the location nearest one of your cities, not simply the first one.
 
     A federal posting is routinely open in a dozen cities at once. Taking
     `PositionLocation[0]` showed an Austin-matching job as "Salt Lake City",
@@ -157,13 +163,14 @@ def _location(item: dict, anchor: geo.Resolved | None = None) -> tuple[str, int]
     if not places:
         return clean(item.get("PositionLocationDisplay") or ""), 0
 
-    if anchor is not None and anchor.located and len(places) > 1:
+    located = [a for a in anchors if a.located]
+    if located and len(places) > 1:
         best, best_distance = None, None
         for place in places:
             lat, lon = place.get("Latitude"), place.get("Longitude")
             try:
-                distance = geo.haversine_mi(anchor.lat, anchor.lon,
-                                            float(lat), float(lon))
+                distance = min(geo.haversine_mi(a.lat, a.lon, float(lat), float(lon))
+                               for a in located)
             except (TypeError, ValueError):
                 continue
             if best_distance is None or distance < best_distance:
@@ -198,14 +205,14 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
         )
 
     headers = _headers(cfg.sources.usajobs_key, cfg.sources.usajobs_email)
-    location = _location_params(cfg)
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
+    places = _location_params(cfg)
+    anchors = [geo.resolve_anchor(c, cfg.country_prefs()) for c in cfg.locations.cities]
     roles: list[Role] = []
     errors: list[str] = []
     requests_made = 0
     seen: set[str] = set()
 
-    for title in cfg.titles_include:
+    for location, title in product(places, cfg.titles_include):
         for page in range(1, MAX_PAGES + 1):
             params = {
                 "PositionTitle": title,
@@ -227,7 +234,7 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
                 return SourceResult(source="usajobs", requests_made=requests_made,
                                     errors=[REFUSED_ERROR.format(status=resp.status)])
             if not resp.ok:
-                errors.append(f"{title!r}: {resp.error}")
+                errors.append(f"{location.get('LocationName') or 'all'}/{title!r}: {resp.error}")
                 break
 
             payload = resp.json if isinstance(resp.json, dict) else {}
@@ -257,7 +264,7 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
                         else None,
                     ) if part
                 ))
-                location_raw, place_count = _location(item, anchor)
+                location_raw, place_count = _location(item, anchors)
                 role = Role(
                     platform="usajobs",
                     company=clean(item.get("OrganizationName")

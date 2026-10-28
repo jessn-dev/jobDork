@@ -53,7 +53,7 @@ them into: put `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY` or `GROQ_
 for one run, checked exactly as the file is:
 
 ```bash
-jobdork scan --anchor "Berlin, Germany" --country DE
+jobdork scan --anchor "Berlin, Germany" --country DE   # one city, in place of your list
 jobdork list --title "penetration tester" --work-mode remote --salary-floor 150000
 ```
 

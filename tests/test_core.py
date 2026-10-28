@@ -28,7 +28,7 @@ def _cfg(**kwargs) -> Config:
     cfg = Config(
         titles_include=["software engineer", "backend engineer"],
         titles_exclude=["sales engineer"],
-        locations=Locations(anchor="Austin, TX", radius=25,
+        locations=Locations(cities=["Austin, TX"], radius=25,
                             countries=["US", "CA"]),
         salary=Salary(floor=None, currency="USD"),
     )
@@ -185,7 +185,7 @@ def test_tethered_remote_is_not_remote():
 
 
 def test_unstated_arrangement_is_kept_and_flagged():
-    cfg = _cfg(locations=Locations(anchor="", radius="exact",
+    cfg = _cfg(locations=Locations(cities=[], radius="exact",
                                    countries=["US", "CA"],
                                    work_modes=["remote"]))
     role = Role(platform="lever", title="Software Engineer",
@@ -196,7 +196,7 @@ def test_unstated_arrangement_is_kept_and_flagged():
 
 
 def test_stated_wrong_mode_is_dropped():
-    cfg = _cfg(locations=Locations(anchor="", radius="exact",
+    cfg = _cfg(locations=Locations(cities=[], radius="exact",
                                    countries=["US", "CA"],
                                    work_modes=["remote"]))
     role = Role(platform="workable", title="Software Engineer",
@@ -224,6 +224,123 @@ def test_far_office_role_is_dropped():
                 work_mode="office")
     verdict = screen.screen(role, cfg)
     assert not verdict.keep and "outside" in verdict.reasons[0]
+
+
+def _office(where: str) -> Role:
+    return Role(platform="workable", title="Software Engineer",
+                url=f"https://x.test/{where}", location_raw=where, work_mode="office")
+
+
+def test_any_of_several_cities_keeps_a_post_near_it():
+    """Two cities: near either is kept, far from both is dropped."""
+    cfg = _cfg(locations=Locations(cities=["Austin, TX", "Denver, CO"], radius=25,
+                                   country="US", countries=["US"]))
+    assert screen.screen(_office("Round Rock, TX"), cfg).keep, "near Austin"
+    assert screen.screen(_office("Aurora, CO"), cfg).keep, "near Denver"
+    verdict = screen.screen(_office("Seattle, WA"), cfg)
+    assert not verdict.keep and "nearest of your cities" in verdict.reasons[0]
+
+
+def test_a_region_keeps_all_of_it_and_adds_to_the_cities():
+    """States and cities together: in a state you chose, or near a city."""
+    cfg = _cfg(locations=Locations(cities=["Denver, CO"], regions=["TX"], radius=25,
+                                   country="US", countries=["US"]))
+    assert screen.screen(_office("El Paso, TX"), cfg).keep, "anywhere in Texas"
+    assert screen.screen(_office("Texas"), cfg).keep, "a post naming only the state"
+    assert screen.screen(_office("Aurora, CO"), cfg).keep, "near Denver"
+    verdict = screen.screen(_office("Seattle, WA"), cfg)
+    assert not verdict.keep and "not in Texas" in verdict.reasons[0]
+
+
+def test_regions_alone_keep_only_those_regions():
+    cfg = _cfg(locations=Locations(regions=["TX", "CA"], radius=25,
+                                   country="US", countries=["US"]))
+    assert screen.screen(_office("Austin, TX"), cfg).keep
+    assert screen.screen(_office("San Diego, CA"), cfg).keep
+    verdict = screen.screen(_office("Seattle, WA"), cfg)
+    assert not verdict.keep and "Texas or California" in verdict.reasons[0]
+    assert screen.screen(_office("somewhere unreadable"), cfg).keep, \
+        "a place that cannot be read is kept and flagged, as with a city"
+
+
+def test_no_region_and_no_city_keeps_the_whole_country():
+    cfg = _cfg(locations=Locations(cities=[], radius=25, country="US", countries=["US"]))
+    for where in ("Seattle, WA", "Miami, FL", "Austin, TX"):
+        assert screen.screen(_office(where), cfg).keep, where
+    assert not screen.screen(_office("Berlin, Germany"), cfg).keep, \
+        "the countries list still applies"
+
+
+def test_exact_with_several_cities_keeps_each_city_only():
+    cfg = _cfg(locations=Locations(cities=["Austin, TX", "Denver, CO"], radius="exact",
+                                   country="US", countries=["US"]))
+    assert screen.screen(_office("Austin, TX"), cfg).keep
+    assert screen.screen(_office("Denver, CO"), cfg).keep
+    assert not screen.screen(_office("Round Rock, TX"), cfg).keep
+
+
+def test_places_are_read_from_old_and_new_configs():
+    """0.15.3's one `anchor` reads as one city; regions need their country."""
+    import tempfile
+
+    from jobdork.core import config
+    from jobdork.core.config import ConfigError
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "c.yaml"
+        path.write_text("titles: {include: [x]}\nlocations: {anchor: 'Chicago, IL'}\n")
+        assert config.load(str(path)).locations.cities == ["Chicago, IL"]
+        path.write_text("titles: {include: [x]}\nlocations: {country: us, regions: [tx, ca],"
+                        " cities: ['Denver, CO'], anchor: 'Chicago, IL'}\n")
+        loc = config.load(str(path)).locations
+        assert (loc.country, loc.regions, loc.cities) == ("US", ["TX", "CA"], ["Denver, CO"]), \
+            "cities, when written, win over an old anchor"
+        assert loc.where_text() == "Denver, CO; Texas; California"
+        path.write_text("titles: {include: [x]}\nlocations: {regions: [TX]}\n")
+        try:
+            config.load(str(path))
+        except ConfigError as exc:
+            assert "locations.country" in str(exc)
+        else:
+            raise AssertionError("regions with no country must be refused")
+
+
+def test_the_picker_saves_many_places_or_none_and_refuses_unknown_ones():
+    import tempfile
+
+    from jobdork.core import setup
+    with tempfile.TemporaryDirectory() as tmp:
+        path = str(Path(tmp) / "c.yaml")
+        setup.write(path, {"titles_include": ["nurse"]})
+        cfg = setup.write(path, {"places_pick": {"country": "US", "regions": ["TX", "tx"],
+                                                 "cities": [{"city": "Denver", "region": "CO"},
+                                                            {"city": "Chicago", "region": ""}]}})
+        assert cfg.locations.country == "US" and cfg.locations.regions == ["TX"]
+        assert [c.split(",")[0] for c in cfg.locations.cities] == ["Denver", "Chicago"]
+        assert "anchor" not in Path(path).read_text()
+        cfg = setup.write(path, {"places_pick": {"country": "PH"}})
+        assert (cfg.locations.country, cfg.locations.regions, cfg.locations.cities) == ("PH", [], [])
+        for bad, word in (({"country": ""}, "country"),
+                          ({"country": "US", "regions": ["ZZ"]}, "region"),
+                          ({"country": "US", "cities": [{"city": "Atlantis"}]}, "suggestions")):
+            try:
+                setup.write(path, {"places_pick": bad})
+            except ValueError as exc:
+                assert word in str(exc), exc
+            else:
+                raise AssertionError(f"{bad} must be refused")
+
+
+def test_job_sources_search_each_place_once():
+    from jobdork.fetch import adzuna, usajobs, workable
+    cfg = _cfg(locations=Locations(cities=["Austin, TX", "Round Rock, TX"], regions=["CA"],
+                                   radius=25, country="US", countries=["US"]))
+    assert [p["where"] for p in adzuna._where(cfg)] == ["Austin, Texas", "Round Rock, Texas",
+                                                       "California"]
+    assert [p["LocationName"] for p in usajobs._location_params(cfg)][-1] == "California"
+    assert workable.location_queries(cfg) == ["Texas", "California"], "one query per state"
+    none = _cfg(locations=Locations(cities=[], radius=25, country="US", countries=["US"]))
+    assert adzuna._where(none) == [{}] and usajobs._location_params(none) == [{}]
+    assert workable.location_queries(none) == ["United States"]
 
 
 def test_nearby_office_role_is_kept():
@@ -663,7 +780,7 @@ def test_overrides_are_validated_like_the_file():
                     {"currency": "XYZ"},
                     {"work_modes": ["telepathic"]},
                     {"resume": "/definitely/not/here.pdf"},
-                    {"anchor": "", "radius": 25.0}):
+                    {"radius": -5.0}):
             cfg = config.load(path)
             try:
                 config.apply_overrides(cfg, **bad)
@@ -1016,16 +1133,16 @@ def test_setup_writes_the_config_a_step_at_a_time():
 
         cfg = setup.write(str(path), {"titles_include": ["nurse"],
                                       "setup_step": "where"})
-        assert cfg.locations.anchor == "" and cfg.locations.countries == [], \
+        assert cfg.locations.cities == [] and cfg.locations.countries == [], \
             "a new config has no default place or country"
         try:
             setup.write(str(path), {"setup_step": setup.DONE})
         except ValueError as exc:
-            assert "city" in str(exc)
+            assert "country" in str(exc)
         else:
-            raise AssertionError("set up with no place must be refused")
-        cfg = setup.write(str(path), {"anchor_pick": {"country": "US", "region": "IL",
-                                                      "city": "Chicago"},
+            raise AssertionError("set up with no country must be refused")
+        cfg = setup.write(str(path), {"places_pick": {"country": "US",
+                                                      "cities": [{"city": "Chicago", "region": "IL"}]},
                                       "setup_step": setup.DONE})
         assert cfg.setup_step == "" and "\nsetup:" not in path.read_text()
         config.require_set_up(cfg)
@@ -1198,9 +1315,10 @@ def test_jobdork_setup_where_step_places_you_and_keeps_your_countries():
         resume.write_text("# Me\n\nNurse\n", encoding="utf-8")
         setup.write("config.yaml", {"resume_path": str(resume),
                                     "titles_include": ["nurse"], "setup_step": "where"})
-        # A country by the start of its name, a region by name, a city typed
-        # in full, the default radius, remote only, and the US as well.
-        answers = iter(["philip", "cordillera", "Baguio", "", "remote", "us"])
+        # A country by the start of its name, a region by name (blank: no
+        # more), a city typed in full (blank: no more), the default radius,
+        # remote only, and the US as well.
+        answers = iter(["philip", "cordillera", "", "Baguio", "", "", "remote", "us"])
         saved = builtins.input
         builtins.input = lambda q="": _answer(answers)
         try:
@@ -1210,7 +1328,8 @@ def test_jobdork_setup_where_step_places_you_and_keeps_your_countries():
         cfg = config.load(require=False)
         assert cfg.setup_step == "scan", "pay and keys are optional: no answer is none"
         assert cfg.salary.currency == "PHP" and cfg.salary.floor is None
-        assert cfg.locations.anchor.startswith("Baguio")
+        assert [c.split(",")[0] for c in cfg.locations.cities] == ["Baguio"]
+        assert cfg.locations.regions == ["15"] and cfg.locations.country == "PH"
         assert cfg.locations.countries == ["PH", "US"]
         assert (cfg.locations.radius, cfg.locations.units) == (25.0, "km")
         assert cfg.locations.work_modes == ["remote"]
@@ -1503,17 +1622,17 @@ def test_screening_records_fit_apart_from_the_score():
     from jobdork.search.resume import Resume
 
     cfg = Config(titles_include=["software engineer"],
-                 locations=Locations(anchor="", radius="any", countries=[]),
+                 locations=Locations(cities=[], radius="any", countries=[]),
                  salary=Salary())
     cv = Resume(text="python", skills={"python"})
     role = Role(platform="workable", title="Software Engineer", url="https://x.test/f",
                 work_mode="remote", description="Python services.")
-    screen.screen(role, cfg, geo.resolve_anchor(""), cv)
+    screen.screen(role, cfg, screen.Home(), cv)
     assert role.fit is not None and 0 < role.fit < role.score
 
     bare = Role(platform="workable", title="Software Engineer", url="https://x.test/g",
                 work_mode="remote")
-    screen.screen(bare, cfg, geo.resolve_anchor(""), cv)
+    screen.screen(bare, cfg, screen.Home(), cv)
     assert bare.fit is None, "no advert is not a fit of 0"
 
 
@@ -1535,7 +1654,7 @@ def test_a_rescan_does_not_replace_a_fuller_advert_with_a_teaser():
             work_mode="remote", description=teaser)])
 
     cfg = Config(titles_include=["software engineer"],
-                 locations=Locations(anchor="", radius="any", countries=[]),
+                 locations=Locations(cities=[], radius="any", countries=[]),
                  salary=Salary())
     original_jobs, original_get = scan._jobs_for, fetch.get
     scan._jobs_for = lambda _cfg, _part="all": [("fake", {})]
@@ -1558,12 +1677,12 @@ def test_every_point_of_the_score_is_explained():
     from jobdork.search.resume import Resume
 
     cfg = Config(titles_include=["software engineer"],
-                 locations=Locations(anchor="", radius="any", countries=[]),
+                 locations=Locations(cities=[], radius="any", countries=[]),
                  salary=Salary())
     cv = Resume(text="python", skills={"python"})
     role = Role(platform="workable", title="Software Engineer", url="https://x.test/p",
                 work_mode="remote", description="Python and Go services.")
-    screen.screen(role, cfg, geo.resolve_anchor(""), cv)
+    screen.screen(role, cfg, screen.Home(), cv)
     names = [p["part"] for p in role.score_parts]
     assert names[:2] == ["title", "arrangement"] and names[-1] == "resume fit", names
     assert abs(sum(p["points"] for p in role.score_parts) - role.score) < 0.5
@@ -1580,7 +1699,7 @@ def test_rescreen_reaches_the_duplicate_copies_the_list_hides():
     from jobdork.search import scan
 
     cfg = Config(titles_include=["software engineer"],
-                 locations=Locations(anchor="", radius="any", countries=[]),
+                 locations=Locations(cities=[], radius="any", countries=[]),
                  salary=Salary())
     with tempfile.TemporaryDirectory() as tmp:
         cfg.db_path = str(Path(tmp) / "t.db")
@@ -1606,7 +1725,7 @@ def test_rescreening_is_not_seeing_the_role_again():
     from jobdork.search import scan
 
     cfg = Config(titles_include=["software engineer"],
-                 locations=Locations(anchor="", radius="any", countries=[]),
+                 locations=Locations(cities=[], radius="any", countries=[]),
                  salary=Salary())
     with tempfile.TemporaryDirectory() as tmp:
         cfg.db_path = str(Path(tmp) / "t.db")

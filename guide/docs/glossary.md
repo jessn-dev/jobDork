@@ -60,7 +60,7 @@
   never removed by a clean-up or a rule change.
 
 **Radius**
-: How far from your city a job may be.
+: How far from one of your cities a job may be.
 
 **Reader**
 : An AI model that reads adverts and writes for you. You can list up to
