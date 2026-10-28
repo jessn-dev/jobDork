@@ -42,8 +42,9 @@ ITEMS = (
     ("downloads", "Downloaded installers", "installers the Update button left in Downloads"),
 )
 CHOICES = tuple(key for key, _, _ in ITEMS)
-# Items in folders macOS guards: the first look into Documents or Downloads
-# asks the person to allow it, so opening Settings must not be that look.
+# Items in the person's own folders, Documents and Downloads, looked into
+# only when they ask: on a Mac the first look there makes macOS ask to allow
+# it, and on every system it is their folder, not the app's.
 GUARDED = ("documents", "downloads")
 
 # jobdork's installers, as the release names them, and Update's leftovers.

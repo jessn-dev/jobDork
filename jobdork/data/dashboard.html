@@ -6084,9 +6084,9 @@ $('upd-page').onclick = () => lastVersion && openOut(lastVersion.url);
 // what goes; then what is left to do, the program itself.
 const mbOf = n => n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : n >= 1e3 ? `${Math.round(n / 1e3)} KB` : `${n} bytes`;
 
-// On a Mac, Documents and Downloads are looked into only on "Also look"
-// (look=1): macOS asks to allow the first look, and opening Settings must
-// not be what asks.
+// Documents and Downloads are the person's folders, looked into only on
+// "Also look" (look=1): on a Mac the first look makes macOS ask to allow it,
+// and opening Settings must not be what asks.
 async function drawRemove(look) {
   const box = $('rm-box');
   const r = await api('/api/uninstall' + (look ? '?look=1' : ''));
@@ -6100,8 +6100,8 @@ async function drawRemove(look) {
       <span class="hint">${esc(i.what)} · ${i.unchecked ? 'not looked at yet' : mbOf(i.size)}</span></div>`).join('')
     : '<p class="hint">Nothing of yours is left on this computer.</p>'}
     ${unchecked ? `<div class="row"><button data-icon="search" class="act" id="rm-look" type="button">Also look in
-      Documents and Downloads</button><span class="hint">Your Mac asks once to let jobdork
-      look there.</span></div>` : ''}
+      Documents and Downloads</button><span class="hint">Your own folders, so jobdork looks
+      only when you ask${navigator.platform.startsWith('Mac') ? '; your Mac asks once to allow it' : ''}.</span></div>` : ''}
     <div class="row">${d.finish === 'windows'
       ? `<span class="hint">On Windows, uninstall from <b>Settings, Apps, jobdork,
           Uninstall</b>: it asks the same questions, and can remove files jobdork has open.</span>`
