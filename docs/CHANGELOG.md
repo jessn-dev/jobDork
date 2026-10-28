@@ -30,6 +30,16 @@ is read the best way its system allows (fetch/link.py):
 
 A Greenhouse post on the employer's own site (`?gh_jid=`) is now read from
 its page when it has no board token, instead of being refused.
+## Fixed — 2026-10-28 — The error log names the reason, not only the status
+
+A request the server could not answer was logged by the page as, for
+example, "GET /api/llm/models failed on the server (HTTP 502)", although
+the server had said why ("Ollama is not answering at …"). The log now
+carries the server's own words after the status. A 502 is jobdork
+reporting that another service it asked (Ollama, an AI provider) did not
+answer, so it is logged as a warning about that service, "another service
+did not answer", not as an error in jobdork. A resume upload's server
+error goes the same way.
 ## Fixed — 2026-10-28 — An Ollama on another computer, on the AI page
 
 A reader line with no address of its own showed the page-wide one in its
@@ -6832,6 +6842,19 @@ open; a digest arrives, and what arrived with it is what was not there before.
   answering at …"). Record the server's own message; and treat a 502 that
   only reports another service not answering as a warning about that
   service, not as an error in jobdork.
+- **Add a job post from any link** (found 2026-10-27, a UnitedHealth Group
+  post on `uhg.taleo.net/careersection/10000/jobdetail.ftl?job=2389918`
+  refused with "cannot tell which platform that URL is on. Supported:
+  greenhouse, ashby, lever, breezy, smartrecruiters"). Adding by link
+  (`add_by_url`, `cli._platform_for`) knows 5 systems, fewer than a scan
+  reads, and nothing else. Recognise every system jobdork reads (Workday,
+  Oracle, Taleo Business Edition, Eightfold and the rest); for any other
+  link, read the page itself (schema.org `JobPosting`, as fetch/site.py
+  does); and a reader for **Taleo Enterprise** (`*.taleo.net/careersection/`):
+  its job page carries the title, job number, place, department, type,
+  posting date and description in the page's `initialHistory` field, with
+  no `JobPosting` data. When nothing can be read, say so and offer to paste
+  the advert's text instead.
 - **Linux installers: an AppImage and a .deb** (chosen 2026-10-27, both),
   built and attested by the release workflow beside the Mac and Windows
   ones, with removal (`jobdork uninstall`, Settings) and Update for each.
