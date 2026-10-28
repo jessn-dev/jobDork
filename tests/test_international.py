@@ -25,7 +25,7 @@ from jobdork.search import geo, screen
 def _cfg(anchor: str, countries: list[str], radius=25, units="") -> Config:
     cfg = Config(
         titles_include=["software engineer"],
-        locations=Locations(anchor=anchor, radius=radius, units=units,
+        locations=Locations(cities=[anchor] if anchor else [], radius=radius, units=units,
                             countries=countries),
         salary=Salary(),
     )
@@ -160,13 +160,13 @@ def test_miles_config_is_unchanged():
 
 def test_km_radius_actually_filters_in_km():
     cfg = _cfg("Berlin, Germany", ["DE"], radius=30)   # 30 km ≈ 18.6 mi
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
+    home = screen.home_of(cfg)
     near = Role(platform="w", title="Software Engineer", url="https://x.test/1",
                 location_raw="Potsdam, Germany", work_mode="office")
     far = Role(platform="w", title="Software Engineer", url="https://x.test/2",
                location_raw="Hamburg, Germany", work_mode="office")
-    assert screen.screen(near, cfg, anchor).keep, "Potsdam is ~25 km from Berlin"
-    assert not screen.screen(far, cfg, anchor).keep, "Hamburg is ~250 km away"
+    assert screen.screen(near, cfg, home).keep, "Potsdam is ~25 km from Berlin"
+    assert not screen.screen(far, cfg, home).keep, "Hamburg is ~250 km away"
 
 
 # ── source routing ─────────────────────────────────────────────────────────────
@@ -291,7 +291,7 @@ def test_north_american_metros_are_unchanged():
 def _dropped(exclude, location, countries=("US",)) -> bool:
     cfg = Config(
         titles_include=["engineer"],
-        locations=Locations(anchor="", radius="exact", units="mi",
+        locations=Locations(cities=[], radius="exact", units="mi",
                             countries=list(countries), exclude=list(exclude)),
         salary=Salary(),
     )
@@ -335,7 +335,7 @@ def test_a_distance_is_shown_in_the_readers_units_converted():
 
     with tempfile.TemporaryDirectory() as tmp:
         cfg = Config(titles_include=["x"], db_path=str(Path(tmp) / "t.db"),
-                     locations=Locations(anchor="Berlin, Germany", radius=25,
+                     locations=Locations(cities=["Berlin, Germany"], radius=25,
                                          units="km", countries=["DE"]))
         with Store(cfg.db_path) as store:
             role = Role(platform="smartrecruiters", company="Acme", title="Engineer",
@@ -411,12 +411,12 @@ def test_a_config_that_leaves_location_out_is_naperville_us():
         path = Path(tmp) / "c.yaml"
         path.write_text("titles: {include: [engineer]}\n")
         cfg = config.load(str(path))
-        assert cfg.locations.anchor == "Naperville, IL"
+        assert cfg.locations.cities == ["Naperville, IL"]
         assert cfg.locations.countries == ["US"]
         path.write_text("titles: {include: [engineer]}\n"
                         "locations: {anchor: '', countries: [], radius: exact}\n")
         cfg = config.load(str(path))
-        assert cfg.locations.anchor == "" and cfg.locations.countries == []
+        assert cfg.locations.cities == [] and cfg.locations.countries == []
 
 
 # ── keep this block LAST ───────────────────────────────────────────────────────

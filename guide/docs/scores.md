@@ -24,7 +24,8 @@ its share:
 | The title matches one of yours exactly | 30 (18 for a looser match, the same words in another order) |
 | Remote, hybrid or on-site, as you asked | 10 |
 | A remote job | 20 |
-| Within your radius | 5 to 30; nearer is more |
+| Within your radius | 5 to 30; nearer is more (measured from the nearest of your cities) |
+| In a state or region you chose, or in one of your cities with *exact* | 25 |
 | Pay stated and above your floor | 10 to 20; more headroom is more |
 | Pay stated, no floor set | 5 |
 | Resume fit (the Fit score, below) | 0 to 25 |

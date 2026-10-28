@@ -51,6 +51,8 @@ documentation:
 
 from __future__ import annotations
 
+from itertools import product
+
 from ..core.textutil import to_text
 from ..db.store import Role
 from ..search import geo
@@ -116,30 +118,34 @@ def _location(job: dict) -> str:
     return clean(loc.get("display_name") or "")
 
 
-def _where(cfg) -> dict:
-    """`where` plus `distance`, which Adzuna wants in kilometres.
+def _where(cfg) -> list[dict]:
+    """One search per place: `where` plus `distance` for each of your cities,
+    which Adzuna wants in kilometres, and `where` alone for each region.
+    No place at all is one search of the whole index.
 
     Your radius may be configured in miles or kilometres; it is normalised to
     miles internally and converted here. Sending 25 where 40 was meant shrinks
     the search to a third of its area.
     """
-    anchor_text = cfg.locations.anchor.strip()
-    if not anchor_text:
-        return {}
-    anchor = geo.resolve_anchor(anchor_text, cfg.country_prefs())
-    if anchor.city and anchor.state:
-        where = f"{anchor.city}, {geo.state_name(anchor.state)}"
-    elif anchor.city:
-        where = anchor.city
-    elif anchor.state:
-        where = geo.state_name(anchor.state)
-    else:
-        return {}
-    params = {"where": where}
+    out: list[dict] = []
     radius = cfg.radius_miles()
-    if radius is not None:
-        params["distance"] = round(geo.miles_to_km(radius))
-    return params
+    for text in cfg.locations.cities:
+        anchor = geo.resolve_anchor(text, cfg.country_prefs())
+        if anchor.city and anchor.state:
+            where = f"{anchor.city}, {geo.state_name(anchor.state)}"
+        elif anchor.city:
+            where = anchor.city
+        elif anchor.state:
+            where = geo.state_name(anchor.state)
+        else:
+            continue
+        params = {"where": where}
+        if radius is not None:
+            params["distance"] = round(geo.miles_to_km(radius))
+        out.append(params)
+    out += [{"where": geo.region_label(cfg.locations.country, r)}
+            for r in cfg.locations.regions]
+    return out or [{}]
 
 
 def _indexes(cfg) -> list[str]:
@@ -174,77 +180,76 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
             skipped=f"Adzuna runs no national index for {wanted}. "
                     f"Available: {', '.join(sorted(COUNTRY_CURRENCY))}.",
         )
-    where = _where(cfg)
+    places = _where(cfg)
     roles: list[Role] = []
     errors: list[str] = []
     requests_made = 0
     seen: set[str] = set()
 
-    for country in countries:
-        for title in cfg.titles_include:
-            for page in range(1, MAX_PAGES + 1):
-                params = {
-                    "app_id": cfg.sources.adzuna_app_id,
-                    "app_key": cfg.sources.adzuna_app_key,
-                    "results_per_page": PAGE_SIZE,
-                    "title_only": title,
-                    "content-type": "application/json",
-                    **where,
-                }
-                # Ghost-age posts are not worth a request's quota: they would
-                # be dropped at screening anyway (freshness.ghost_days).
-                if cfg.freshness.ghost_days:
-                    params["max_days_old"] = cfg.freshness.ghost_days
-                resp = fetcher.get(API.format(country=country, page=page),
-                                   params=params)
-                requests_made += 1
-                if resp.status in REFUSED:
-                    return SourceResult(source="adzuna", requests_made=requests_made,
-                                        errors=[REFUSED_ERROR.format(status=resp.status)])
-                if not resp.ok:
-                    errors.append(f"{country}/{title!r}: {resp.error}")
-                    break
+    for country, where, title in product(countries, places, cfg.titles_include):
+        for page in range(1, MAX_PAGES + 1):
+            params = {
+                "app_id": cfg.sources.adzuna_app_id,
+                "app_key": cfg.sources.adzuna_app_key,
+                "results_per_page": PAGE_SIZE,
+                "title_only": title,
+                "content-type": "application/json",
+                **where,
+            }
+            # Ghost-age posts are not worth a request's quota: they would
+            # be dropped at screening anyway (freshness.ghost_days).
+            if cfg.freshness.ghost_days:
+                params["max_days_old"] = cfg.freshness.ghost_days
+            resp = fetcher.get(API.format(country=country, page=page),
+                               params=params)
+            requests_made += 1
+            if resp.status in REFUSED:
+                return SourceResult(source="adzuna", requests_made=requests_made,
+                                    errors=[REFUSED_ERROR.format(status=resp.status)])
+            if not resp.ok:
+                errors.append(f"{country}/{where.get('where') or 'all'}/{title!r}: {resp.error}")
+                break
 
-                payload = resp.json if isinstance(resp.json, dict) else {}
-                items = payload.get("results") or []
-                if not items:
-                    break
+            payload = resp.json if isinstance(resp.json, dict) else {}
+            items = payload.get("results") or []
+            if not items:
+                break
 
-                for job in items:
-                    url = job.get("redirect_url") or ""
-                    if not url:
-                        continue
+            for job in items:
+                url = job.get("redirect_url") or ""
+                if not url:
+                    continue
 
-                    # A predicted salary is Adzuna's guess, not the employer's
-                    # figure. Storing it as stated would let a guess hide a job.
-                    # The flag arrives as the STRING "1", not an integer or a
-                    # boolean, and a predicted figure always has min == max.
-                    predicted = str(job.get("salary_is_predicted") or "0") in ("1", "true", "True")
-                    lo = None if predicted else _num(job.get("salary_min"))
-                    hi = None if predicted else _num(job.get("salary_max"))
+                # A predicted salary is Adzuna's guess, not the employer's
+                # figure. Storing it as stated would let a guess hide a job.
+                # The flag arrives as the STRING "1", not an integer or a
+                # boolean, and a predicted figure always has min == max.
+                predicted = str(job.get("salary_is_predicted") or "0") in ("1", "true", "True")
+                lo = None if predicted else _num(job.get("salary_min"))
+                hi = None if predicted else _num(job.get("salary_max"))
 
-                    role = Role(
-                        platform="adzuna",
-                        company=clean((job.get("company") or {}).get("display_name")
-                                      or ""),
-                        title=clean(job.get("title") or ""),
-                        url=url,
-                        location_raw=_location(job),
-                        description=to_text(job.get("description") or ""),
-                        posted_at=(job.get("created") or "")[:10],
-                        salary_min=lo, salary_max=hi,
-                        salary_currency=COUNTRY_CURRENCY[country] if (lo or hi) else "",
-                        salary_period="year" if (lo or hi) else "",
-                        salary_stated=bool(lo or hi),
-                    )
-                    if predicted:
-                        role.flags.append("adzuna predicted salary ignored")
-                    if role.uid not in seen:
-                        seen.add(role.uid)
-                        roles.append(role)
+                role = Role(
+                    platform="adzuna",
+                    company=clean((job.get("company") or {}).get("display_name")
+                                  or ""),
+                    title=clean(job.get("title") or ""),
+                    url=url,
+                    location_raw=_location(job),
+                    description=to_text(job.get("description") or ""),
+                    posted_at=(job.get("created") or "")[:10],
+                    salary_min=lo, salary_max=hi,
+                    salary_currency=COUNTRY_CURRENCY[country] if (lo or hi) else "",
+                    salary_period="year" if (lo or hi) else "",
+                    salary_stated=bool(lo or hi),
+                )
+                if predicted:
+                    role.flags.append("adzuna predicted salary ignored")
+                if role.uid not in seen:
+                    seen.add(role.uid)
+                    roles.append(role)
 
-                if len(items) < PAGE_SIZE:
-                    break
+            if len(items) < PAGE_SIZE:
+                break
 
     return SourceResult(source="adzuna", roles=roles,
                         requests_made=requests_made, errors=errors)

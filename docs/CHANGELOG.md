@@ -19,6 +19,34 @@ computer says so too, with notifications on, whether anything was new or
 not and whether the window is open or closed: that is the scan someone
 closed the window to wait for. It is the full scan's only notice; the
 ordinary "N new job posts" is not sent for it as well.
+## Changed — 2026-10-28 — Where you would work: any states and cities, or the whole country
+
+Setup's Where step required one city, and every distance was measured from
+it. Someone who would work in two cities, or anywhere in a state, or
+anywhere in the country, could not say so. Now only the country is
+required, and **Add** puts as many states (provinces, regions) and cities
+as you like in a list under the picker, each with × to take it out, in
+setup and on the Search page alike:
+
+- A job post anywhere in a state you added is kept.
+- A job post within the radius of a city you added is kept; the distance
+  is to the nearest of your cities, and the score's explanation names it.
+- Neither: job posts from the whole country are kept, and the radius is
+  not used.
+- Remote jobs are kept wherever they are, as before.
+
+The job sources that search near a place (Adzuna, USAJOBS, Workable, the
+German employment agency) search each city and state once; Himalayas reads
+your hours from your first city. A city chosen without a state is saved
+with the state it was found in, so "Austin" reads back as the same Austin.
+The terminal's `jobdork setup` asks the same way: states, then cities,
+blank when done.
+
+In the config, `locations.anchor` becomes `locations.country`,
+`locations.regions` and `locations.cities` (docs/CONFIG.md). A config from
+0.15.3 or earlier still reads: its anchor is its one city, and saving the
+place on the dashboard writes the new keys. A radius with no city is no
+longer refused.
 ## Fixed — 2026-10-28 — The secret scan, failing on two made-up keys
 
 The security check's secret scan (gitleaks) reads every branch, and two
@@ -6678,6 +6706,28 @@ open; a digest arrives, and what arrived with it is what was not there before.
 ---
 
 ## Still outstanding
+
+- **The app in your own language** (asked 2026-10-28). A language chosen on
+  setup's first screen, before anything else, and changeable in Settings:
+  every page, setup step, message and the guide in it. The most-used
+  languages first (Spanish, Chinese, Hindi, Arabic, Portuguese, French,
+  Filipino, among others), and a way to ask for one that is missing (a
+  feedback kind). With it, a **resume written in another language**: its
+  skills read (today the skill list is English), and the AI asked to read
+  and answer in it. A resume's file name in any script already works
+  (0.15.4).
+- **More job boards** (asked 2026-10-28, the big US list). Indeed, LinkedIn,
+  ZipRecruiter, Monster, SimplyHired, CareerBuilder, Dice, Built In and
+  FlexJobs are out for the reason in PLATFORMS.md (no public API; their
+  terms and robots.txt refuse scripts) and stay reachable through
+  `jobdork dork` and **Search Google Jobs**. Stack Overflow Jobs closed in
+  2022; USAJOBS is read already. Worth checking, each against its terms and
+  robots.txt before anything is built: **We Work Remotely** (a public RSS
+  feed; already planned in REGIONS.md), **Idealist** (nonprofits),
+  **Snagajob** (hourly work) and **Handshake** (students; behind a school
+  login, so likely out). The licensed way to the big boards is a keyed
+  reseller of Google's job results (JSearch, SerpApi), a decision in
+  DECISIONS.md.
 
 - **Europe outside Germany, the Gulf, and New Zealand** stay thin (measured
   2026-10-23): their large employers mostly name no board, and their job

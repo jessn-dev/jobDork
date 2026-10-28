@@ -203,13 +203,21 @@ def _row_to_dict(row, units: str, fresh=None) -> dict:
     }
 
 
-def _anchor_place(cfg) -> dict:
-    """The anchor as the picker shows it: country, region and city, if placed."""
-    where = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
-    if not where.located:
-        return {"located": False, "note": where.note}
-    return {"located": True, "country": where.country, "city": where.city,
-            "region": geo.region_at(where)}
+def _places(cfg) -> dict:
+    """Where you would work, as the picker shows it: the country, each region
+    by code and name, each city with whether it could be placed."""
+    country = cfg.locations.country
+    cities = []
+    for text in cfg.locations.cities:
+        where = geo.resolve_anchor(text, cfg.country_prefs())
+        country = country or where.country
+        cities.append({"text": text, "located": where.located, "note": where.note,
+                       "city": where.city, "region": geo.region_at(where),
+                       "country": where.country})
+    return {"country": country or (cfg.locations.countries or [""])[0],
+            "regions": [{"code": r, "name": geo.region_label(country, r)}
+                        for r in cfg.locations.regions],
+            "cities": cities}
 
 
 def _screen_key(cfg) -> str:
@@ -243,7 +251,9 @@ def search_changes(old, fresh) -> tuple[bool, bool]:
     widened = (added(old.titles_include, fresh.titles_include)
                or added(old.locations.countries, fresh.locations.countries)
                or bool(boards)
-               or old.locations.anchor != fresh.locations.anchor)
+               or added(old.locations.cities, fresh.locations.cities)
+               or added(old.locations.regions, fresh.locations.regions)
+               or old.locations.country != fresh.locations.country)
     return widened, _screen_key(old) != _screen_key(fresh)
 
 
@@ -252,8 +262,7 @@ def _config_payload(cfg) -> dict:
     return {
         "titles_include": cfg.titles_include,
         "titles_exclude": cfg.titles_exclude,
-        "anchor": cfg.locations.anchor,
-        "anchor_place": _anchor_place(cfg),
+        "places": _places(cfg),
         "radius": cfg.locations.radius,
         "units": cfg.locations.units,
         "countries": cfg.locations.countries,

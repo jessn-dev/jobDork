@@ -57,7 +57,7 @@ class _Fetcher:
 
 def _cfg(countries=("PH",)):
     return Config(titles_include=["software engineer"], titles_exclude=["sales engineer"],
-                  locations=Locations(anchor="", countries=list(countries)))
+                  locations=Locations(cities=[], countries=list(countries)))
 
 
 def test_the_token_is_tenant_dc_and_site():
