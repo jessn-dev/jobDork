@@ -34,6 +34,15 @@ In the config, `locations.anchor` becomes `locations.country`,
 0.15.3 or earlier still reads: its anchor is its one city, and saving the
 place on the dashboard writes the new keys. A radius with no city is no
 longer refused.
+## Fixed — 2026-10-28 — The secret scan, failing on two made-up keys
+
+The security check's secret scan (gitleaks) reads every branch, and two
+made-up keys in the Ollama-key tests of #78 matched its "generic API key"
+rule, so the check failed on main and on every pull request opened after.
+Both findings are listed in `.gitleaksignore`, the way an earlier test key
+is, and #78's tests now name the key once as `_FAKE_KEY`, marked
+`gitleaks:allow`, so no new finding comes from them.
+
 ## Added — 2026-10-27 — A progress bar when a resume is uploaded
 
 Uploading a resume showed only "Uploading…" or "Reading…" until the answer
