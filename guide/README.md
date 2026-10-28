@@ -34,6 +34,8 @@ add to the demo when a picture needs something it lacks.
 
 ```bash
 python -m venv .venv-guide && .venv-guide/bin/pip install -r guide/requirements.txt
+# or, exactly what CI builds it with, every package checked by hash:
+#   .venv-guide/bin/pip install --require-hashes -r requirements-ci.lock
 .venv-guide/bin/mkdocs serve -f guide/mkdocs.yml     # http://127.0.0.1:8000
 ```
 

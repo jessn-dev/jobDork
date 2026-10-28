@@ -57,8 +57,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # Every package from requirements-ci.lock, checked by hash; jobdork
+      # itself on top, with nothing more fetched.
       - name: Install
-        run: pip install -e '.[dev,pdf,ai]'
+        run: |
+          pip install --require-hashes -r requirements-ci.lock
+          pip install --no-deps --no-build-isolation -e .
 
       - name: Lint
         run: ruff check jobdork tests scripts
@@ -81,11 +85,13 @@ jobs:
           python-version: '3.14'
 
       - name: Install the scanners
-        run: pip install pip-audit==2.10.1 bandit==1.9.4
+        run: pip install --require-hashes -r requirements-ci.lock
 
       # Every dependency the image installs, against the public advisories.
       - name: Dependencies have no known vulnerabilities
-        run: pip-audit -r requirements.lock --require-hashes --disable-pip --strict
+        run: |
+          pip-audit -r requirements.lock --require-hashes --disable-pip --strict
+          pip-audit -r requirements-ci.lock --require-hashes --disable-pip --strict
 
       # And every one the desktop installers are built from. Platform markers
       # are dropped first: pip-audit skips a package whose marker does not
