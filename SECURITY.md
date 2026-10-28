@@ -215,8 +215,11 @@ links. The app treats them as hostile.
   else (its Content-Security-Policy). `tests/test_page_safety.py` fails on
   the two patterns that once let a link run script.
 - **In the AI model's prompt** it sits between markers it cannot close,
-  labelled as data. The model's answers are text shown to you; nothing it
-  says is run.
+  labelled as data, and without the characters a reader cannot see
+  (zero-width spaces, direction overrides, the tag characters that can
+  spell out a hidden instruction), so the model reads only what a person
+  reading the post could. The model's answers are text shown to you;
+  nothing it says is run.
 - **For a draft by Claude Code** (`claude -p`, `jobdork/writing/generate.py`)
   the agent works in that one job's folder with file tools only: no shell,
   no web, none of your MCP servers, whatever your own Claude Code settings
