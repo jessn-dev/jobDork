@@ -75,6 +75,27 @@ DEFAULT_OLLAMA_URL = "http://localhost:11434"
 # Ollama on the same computer, as a container reaches it (Docker Desktop).
 OLLAMA_FROM_DOCKER = "http://host.docker.internal:11434"
 
+
+def ollama_is_here(url: str) -> bool:
+    """Is this Ollama address this computer's own (or, from a container,
+    the computer it runs on)?"""
+    from urllib.parse import urlparse
+
+    host = (urlparse(url or DEFAULT_OLLAMA_URL).hostname or "").lower()
+    return host in ("localhost", "127.0.0.1", "::1", "host.docker.internal")
+
+
+def ollama_silent(url: str) -> str:
+    """Why nothing answered, said for where the address points. Someone
+    using another computer's Ollama, kept on this computer's address, read
+    "Is it running?" about an Ollama they never installed (2026-10-27)."""
+    if ollama_is_here(url):
+        return (f"Ollama is not answering at {url}, this computer's own address. "
+                "Start Ollama on this computer, or, if it runs on another one, type "
+                "that computer's address in the box (such as http://100.101.102.103:11434)")
+    return (f"Ollama is not answering at {url}. Is it running on that computer, "
+            "and does it accept connections from others (OLLAMA_HOST=0.0.0.0)?")
+
 # What each side of a prompt may carry. A local 3B model has a real context
 # budget, and an advert past this length is almost always boilerplate
 # (benefits, EEO statements). Cut text is marked as cut, never silently.
@@ -775,8 +796,7 @@ def list_models(settings: Settings) -> list[str]:
                                "that Ollama asks for a key: tick Send the Ollama key")
             resp.raise_for_status()
         except requests.RequestException:
-            raise LLMError(f"Ollama is not answering at {settings.ollama_url} "
-                           "Is it running?") from None
+            raise LLMError(ollama_silent(settings.ollama_url)) from None
         return sorted(m.get("name", "") for m in resp.json().get("models", [])
                       if m.get("name"))
 

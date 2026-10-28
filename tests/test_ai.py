@@ -639,3 +639,16 @@ def test_a_pasted_code_holds_its_key_and_the_page_never_gets_it_back():
         assert "connection code" in str(exc)
     else:
         raise AssertionError("a bad code must be refused")
+
+
+def test_an_ollama_that_does_not_answer_is_described_by_where_it_is():
+    """This computer's own address says start it here or type another;
+    another computer's says check that one. Both stay "not answering", the
+    words the error kinds and the judge's fallback look for."""
+    here = llm.ollama_silent("http://localhost:11434")
+    assert "this computer's own address" in here and "another one" in here
+    there = llm.ollama_silent("http://100.103.11.109:11434")
+    assert "on that computer" in there and "OLLAMA_HOST" in there
+    assert "not answering" in here and "not answering" in there
+    assert llm.ollama_is_here("http://host.docker.internal:11434")
+    assert not llm.ollama_is_here("http://ollama-pc:11434")

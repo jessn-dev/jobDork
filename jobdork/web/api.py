@@ -1843,6 +1843,9 @@ def llm_state(cfg) -> dict:
         "provider": cfg.llm.provider,
         "model": cfg.llm.model,
         "ollama_url": cfg.llm.ollama_url,
+        # Only the built-in default: not shown in a line's box as if chosen.
+        "ollama_url_default": cfg.llm.ollama_url in (llm.DEFAULT_OLLAMA_URL,
+                                                     llm.OLLAMA_FROM_DOCKER),
         "judge_on_scan": cfg.llm.judge_on_scan,
         "judge_top": cfg.llm.judge_top,
         "read_pages": cfg.llm.read_pages,
