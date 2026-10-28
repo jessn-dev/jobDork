@@ -135,6 +135,27 @@ try a bigger model, or add a checker). The method follows
 [HalluLens](https://arxiv.org/abs/2504.17550), a published way of measuring
 hallucination.
 
+## Free Gemini and Groq keys {#free-keys}
+
+A free key allows so many requests a minute and a day, set per model by
+the provider; once a day's are spent, the key answers nothing until the
+next day. jobdork keeps under the limits, so a free key lasts:
+
+- It spaces its requests to stay under the per-minute limit, and waits
+  when the provider says to.
+- A scan's AI reading stops **5 requests short** of the day's limit,
+  keeping those for what you ask yourself (a letter, a review, **Save and
+  test**). The next reader in your list answers instead: put Ollama after
+  a free key, and nothing stops.
+- When a model is stopped, the AI page says why and when it is asked again.
+
+**Free Gemini and Groq keys: today's allowance** on the AI page shows each
+model's requests used and left today. Groq sends its numbers with every
+answer. Gemini says its limits only when it refuses, so jobdork learns them
+then; to stop sooner, type the daily limit Google AI Studio shows you in
+**Gemini, requests a day**. Gemini's day starts at midnight Pacific time
+(2 am in Chicago; 3 pm in Manila, or 4 pm in the US winter).
+
 ## Save and test
 
 **Save** keeps your choices. **Save and test** also asks every reader and
