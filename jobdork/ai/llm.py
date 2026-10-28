@@ -280,6 +280,8 @@ class Settings:
             return cls()
         url = llm.ollama_url or DEFAULT_OLLAMA_URL
         context = int(getattr(llm, "context", 0) or DEFAULT_CONTEXT)
+        from . import limits
+        limits.set_daily_limits(getattr(llm, "daily_limits", None) or {})
         checkers = [cls(provider=r.provider, model=r.model,
                         ollama_url=r.ollama_url or url, context=context,
                         ollama_key=getattr(r, "ollama_key", False))
@@ -415,6 +417,11 @@ def _used(prompt, answer) -> None:
     _usage.tokens = (int(prompt or 0), int(answer or 0))
 
 
+# The call in flight on this thread, (provider, model, label), for _post to
+# tell the free-tier limits what the provider answered (ai/limits.py).
+_gate = threading.local()
+
+
 # What kind of failure a call was, from its message, for the Dashboard's
 # errors chart. First match wins: "HTTP 429" is rate limited, not a 4xx.
 ERROR_KINDS = (
@@ -444,7 +451,14 @@ def _call_one(settings: Settings, system: str, user: str, schema: dict,
     call = {"ollama": _ollama, "anthropic": _anthropic,
             "gemini": _gemini, "openai": _openai, "groq": _groq}[settings.provider]
     from ..core import telemetry
+    from . import limits
 
+    # A free key's allowance, kept to: this waits out the minute or refuses
+    # for the day before anything is sent, so the next reader is asked.
+    # About four characters a token, and the answer's own budget on top.
+    limits.before(settings.provider, settings.model, settings.label, purpose,
+                  need_tokens=(len(system) + len(user)) // 4 + max_tokens)
+    _gate.who = (settings.provider, settings.model, settings.label)
     started = time.time()
     _usage.tokens = (0, 0)
     try:
@@ -464,6 +478,8 @@ def _call_one(settings: Settings, system: str, user: str, schema: dict,
         log.warning("AI call failed (%s, %s): %s", settings.label,
                     purpose or "unnamed", exc)
         raise
+    finally:
+        _gate.who = None
     telemetry.llm(settings.label, time.time() - started, ok=True,
                   purpose=purpose, tokens=_usage.tokens)
     log.debug("%s answered in %.1fs", settings.label, time.time() - started)
@@ -520,8 +536,13 @@ def _said(resp) -> str:
 
 def _post(url: str, body: dict, headers: dict, timeout: int) -> dict:
     """POST JSON. Errors name the status, never the headers carrying a key."""
-    tries = 0
-    for wait in (*RETRY_WAITS, None):
+    from . import limits
+
+    who = getattr(_gate, "who", None)
+    tries, waited_minute = 0, False
+    waits = [*RETRY_WAITS, None]
+    while waits:
+        wait = waits.pop(0)
         tries += 1
         try:
             resp = requests.post(url, json=body, headers=headers, timeout=timeout)
@@ -530,6 +551,17 @@ def _post(url: str, body: dict, headers: dict, timeout: int) -> dict:
         except requests.RequestException as exc:
             raise LLMError(f"could not reach {url.split('/')[2]}: "
                            f"{type(exc).__name__}") from None
+        if who and resp.status_code == 429:
+            # A free key over its minute: waited out, and asked once more.
+            # Over its day: limits remembers, and the refusal says until when.
+            pause = limits.refused(*who, resp)
+            if pause and not waited_minute:
+                waited_minute = True
+                waits.insert(0, wait)
+                _sleep(pause)
+                continue
+        if who and resp.ok:
+            limits.answered(*who, resp.headers)
         if resp.status_code not in RETRY_STATUS or wait is None:
             break
         _sleep(_retry_after(resp) or wait)
@@ -540,7 +572,8 @@ def _post(url: str, body: dict, headers: dict, timeout: int) -> dict:
     if resp.status_code == 404:
         raise LLMError("model not found. Pick one from the list")
     if resp.status_code == 429:
-        raise LLMError("rate limited or out of quota")
+        why = limits.stopped(*who[:2]) if who else ""
+        raise LLMError(f"rate limited: {why}" if why else "rate limited or out of quota")
     if not resp.ok:
         raise LLMError(f"HTTP {resp.status_code}: {_said(resp)}")
     try:

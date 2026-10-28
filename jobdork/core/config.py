@@ -494,6 +494,10 @@ class Llm:
     checkers: list[Reader] = field(default_factory=list)
     checker_provider: str = ""
     checker_model: str = ""
+    # A free key's daily limit, as AI Studio or the Groq console shows it:
+    # {gemini: 250}. Background work stops short of it (ai/limits.py). None
+    # set: jobdork learns it from the provider's own refusal, or Groq's count.
+    daily_limits: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -722,6 +726,31 @@ def apply_overrides(cfg: Config, **overrides: Any) -> Config:
     return cfg
 
 
+def _daily_limits(raw) -> dict[str, int]:
+    """llm.daily_limits: {provider: requests a day}, each a whole number."""
+    from ..ai.limits import FREE_TIER
+
+    if raw in (None, ""):
+        return {}
+    if not isinstance(raw, dict):
+        raise ConfigError("llm.daily_limits must be a mapping, e.g. {gemini: 250}")
+    out = {}
+    for provider, n in raw.items():
+        provider = str(provider).strip().lower()
+        if provider not in FREE_TIER:
+            raise ConfigError(f"llm.daily_limits: {provider!r} has no free tier to "
+                              f"keep to; it takes {', '.join(FREE_TIER)}")
+        try:
+            n = int(n or 0)
+        except (TypeError, ValueError):
+            raise ConfigError(f"llm.daily_limits.{provider} must be a whole number") from None
+        if n < 0:
+            raise ConfigError(f"llm.daily_limits.{provider} cannot be negative")
+        if n:
+            out[provider] = n
+    return out
+
+
 def _build(raw: dict[str, Any]) -> Config:
     cfg = Config()
 
@@ -854,6 +883,7 @@ def _build(raw: dict[str, Any]) -> Config:
         checker_model=str(ai.get("checker_model") or "").strip(),
         readers=_readers(ai),
         checkers=_readers(ai, "checkers"),
+        daily_limits=_daily_limits(ai.get("daily_limits")),
     )
     if cfg.llm.readers:
         # The first reader is `provider` and `model`, whatever they said.
