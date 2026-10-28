@@ -6871,27 +6871,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   its claim check, a tailored letter); or a demo build of the dashboard
   itself on the website, the real page on fixed demo data with no server.
   The recording is done in the maintainer's own browser and account.
-- **The first scan's two parts, told apart** (asked 2026-10-27). Setup's
-  last step runs a quick scan ("first scan": the keyword job sites, your own
-  boards and 8 built-in ones) and then a "full scan" of every other
-  built-in board, in the background. The Dashboard should say which is
-  running and that it started: "Quick scan: reading job sites and 8
-  employer boards" then "Full scan started: reading the other N employer
-  boards; job posts keep arriving". When the full scan ends, tell the
-  person their job posts are ready to view: a notice on the page with a
-  **View job posts** button, and the computer's notification when
-  notifications are on, including when the window was closed meanwhile.
-- **A scan queue you can see and cancel** (asked 2026-10-27). A change to
-  Search, Projects, Education or Sources starts a scan or re-screen; one
-  that arrives while another runs waits (web/live.py `Runner.queue`), but
-  only one of each kind, the newest replacing the one waiting, and the page
-  never shows it. Instead: first in, first out, every request kept, with
-  what started it ("Search: added Nurse Practitioner"); the number waiting
-  on the Dashboard; a list where any waiting one can be cancelled; and
-  **Stop** for the scan running now, keeping what it found so far. Shown in
-  the Dashboard panel now titled "Feedback on AI output, per day", renamed
-  for it (where the feedback chart goes instead is decided when it is
-  built).
 - **Hosted models measured before recommending them** (asked 2026-10-27):
   run scripts/hallucination_benchmark.py with Gemini and Groq models as
   reader and as checker, as was done for Ollama, and count requests and
