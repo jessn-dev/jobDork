@@ -83,6 +83,29 @@ it is a 2.0, planned, not a reason to drop the promise), or something not
 on the list turns out to be what people build on (then it joins the list in
 a minor release).
 
+## The tailored resume follows Indeed's template and length — 2026-10-28
+
+**Decided.** A tailored resume is laid out like Indeed's free resume
+template (summary, experience, skills, education, certifications, awards and
+volunteer work; dates at the right margin; Arial 11, 0.7 inch margins) and
+comes as Markdown, PDF and Word. The layout is rebuilt in code: the
+template's `.docx` is not in the repository. Its length is held in code to
+Indeed's advice: one page up to ten years of experience, two after, three
+only past 25 years or for academic and medical work; jobs from the last 15
+years; three to seven bullets a job by recency. Over its pages, an older
+job's last bullets go first, then extra projects, awards and the end of the
+skills list, and every cut is listed.
+
+**Why.** The user asked for that template and that guidance. A model asked
+for "one page" still writes two, so the pages are counted from the PDF the
+person gets, not estimated. The Word file is written as XML rather than with
+a library, as the PDF is, so the installers lock and scan nothing new. The
+template's file stays out because its licence is unknown and this repository
+is public.
+
+**Revisit when** people outside the US want an A4 page or a CV's length, or
+a cut takes a bullet someone needed and they ask to choose.
+
 ## Your own projects are always in a tailored resume — 2026-10-23
 
 **Decided.** Every project added on the Resume page goes into a tailored

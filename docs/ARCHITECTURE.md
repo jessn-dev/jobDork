@@ -57,9 +57,9 @@ nothing below imports from `web/`.
 | `fetch/` | `http` (pacing, retries, circuit breaker — the only networking), `robots` (robots.txt, RFC 9309), one adapter per source (keyword searches: Workable, Himalayas, Kalibrr, Germany's employment agency, Arbeitnow, and with keys Adzuna and USAJOBS; employer boards on Greenhouse, Ashby, Lever, SmartRecruiters, Breezy, Workday, Oracle, Eightfold and Taleo; and an employer's own careers site, SuccessFactors career sites included), shared board helpers |
 | `search/` | `scan` (orchestration, rescreen), `screen` (every filter and the score), `dealbreakers` (plain words into patterns), `directory` (the built-in employer boards), `freshness` (how old a post is), `enrich` (full adverts), `discover` (an employer's board), `listing` (is it still open), `ownboard` (an Adzuna post the employer's board does not carry), `agency` (employer or recruiter), `credentials` (certifications a post asks for), `geo` (gazetteer, distance), `resume` (skills, fit) |
 | `ai/` | `llm` (providers, keys in memory), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, resume review), `tools` (the model as an editor for resume and letter), `suggest` (job titles from the resume, in setup) |
-| `writing/` | `generate` (`claude -p` drafts), `resume_doc` (the tailored resume's template), `gates` (scripted checks), `humanize` (signs of AI writing) |
+| `writing/` | `generate` (`claude -p` drafts), `resume_doc` (the tailored resume's template), `length` (its page budget, after Indeed), `gates` (scripted checks), `humanize` (signs of AI writing) |
 | `web/` | `serve` (HTTP), `api` (every command for the page, metrics), `live` (runs and events), `session` (token, port), `app` (the desktop window and its bridge) |
-| `output/` | `render` (static HTML and JSON), `pdf` (a resume as a PDF), `digest` (email) |
+| `output/` | `render` (static HTML and JSON), `pdf` (a resume as a PDF), `docx` (the same as a Word file), `digest` (email) |
 | `dork/` | The original Google query generator, moved not rewritten |
 | `data/` | `boards.csv` (the built-in employer boards), `cities.csv` (places, with each one's region), `regions.csv` (region and country names), `dashboard.html`, the humanizer rules, `attestation-check.json` (a real build attestation, for the desktop app's self-test) |
 

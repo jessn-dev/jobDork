@@ -2394,6 +2394,7 @@ function drawDetail(tab) {
         (PDF_KINDS.includes(tab) ? `<div class="bar">
             <button data-icon="external-link" class="act" onclick="artifactPdf(${doc.id}, false)">Open PDF</button>
             <button data-icon="download" class="act primary" onclick="artifactPdf(${doc.id}, true)">Download PDF</button>
+            <button data-icon="download" class="act" onclick="artifactWord(${doc.id})" title="The same resume as a Word file, to edit before you send it">Download Word</button>
             <span class="hint">Read it through before you send it.</span></div>` : '') +
         (tab === 'resume_review' || PDF_KINDS.includes(tab)
           ? `<div class="advert md-doc">${mdLite(tab === 'resume_review' ? untitled(doc.text) : doc.text)}</div>`
@@ -2422,6 +2423,15 @@ async function artifactPdf(id, save) {
   if (tab) tab.location.href = url;
   else toast('The browser blocked the new tab; use Download PDF', 'err');
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// The same document as a Word file (.docx), to edit in Word, Pages or
+// Google Docs before sending. Saved, never opened: a browser cannot show one.
+async function artifactWord(id) {
+  const r = await api('/api/artifact/docx?id=' + id);
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  const name = ((r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/) || [])[1] || 'Resume.docx';
+  await saveFile(new Blob([await r.blob()], {type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}), name);
 }
 
 async function generate(uid, kind) {

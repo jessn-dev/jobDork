@@ -19,13 +19,14 @@ becomes "Lodz"), and a character with no near letter becomes "?". A resume
 in another script needs a different tool.
 
 Input is the small Markdown the resume template is written in
-(writing/resume_doc.py):
+(writing/resume_doc.py), laid out as the template is (Arial's equal at 11
+points, the name at 18, 0.7 inch margins):
 
-    # Name
-    contact line
-    ## SECTION
-    ### Job title                 bold line
-    Company | City | dates        plain line
+    # Name                        centred, bold
+    Phone | Email | Location      centred, and the line after it too
+    ## SECTION                    bold capitals, space above and below
+    ### Job title<TAB>dates       bold, the dates at the right margin
+    Company, City                 plain line
     - bullet
     anything else                 a paragraph
 """
@@ -37,7 +38,8 @@ import unicodedata
 import zlib
 
 PAGE_W, PAGE_H = 612.0, 792.0            # US Letter, in points
-MARGIN = 54.0                             # three quarters of an inch
+MARGIN = 50.4                             # 0.7 inch, the template's
+BODY = 11.0                               # points, as the template (Indeed: 10 to 12)
 WIDTH = PAGE_W - 2 * MARGIN
 
 # Advance widths from the Helvetica AFM files, per 1000 units, for 32..126.
@@ -138,11 +140,20 @@ class _Pages:
             b"BT %s %.1f Tf %.2f %.2f Td (%s) Tj ET" % (font, size, x, self.y + size * 0.25,
                                                          _escape(data)))
 
-    def rule(self) -> None:
-        self.y -= 3
-        self.pages[-1].append(b"0.5 w %.2f %.2f m %.2f %.2f l S"
-                              % (MARGIN, self.y, PAGE_W - MARGIN, self.y))
-        self.y -= 4
+    def dated(self, heading: str, size: float) -> None:
+        """A bold heading with its dates (after a tab) at the right margin;
+        the dates go on a line of their own when the heading fills it."""
+        left, _, right = heading.partition("\t")
+        left_b, right_b = to_winansi(left.strip()), to_winansi(right.strip())
+        room = WIDTH - (text_width(right_b, size, True) + 12 if right_b else 0)
+        lines = wrap(left_b, size, room, bold=True) or [b""]
+        for n, line in enumerate(lines):
+            self.text(line, size, bold=True)
+            if n == 0 and right_b:
+                self.pages[-1].append(
+                    b"BT /F2 %.1f Tf %.2f %.2f Td (%s) Tj ET"
+                    % (size, PAGE_W - MARGIN - text_width(right_b, size, True),
+                       self.y + size * 0.25, _escape(right_b)))
 
     def paragraph(self, data: bytes, size: float, bold: bool = False,
                   indent: float = 0.0, bullet: bool = False) -> None:
@@ -161,36 +172,42 @@ _BOLD_MARKS = re.compile(r"\*\*(.+?)\*\*")
 def render(markdown: str, title: str = "Resume") -> bytes:
     """The resume template's Markdown as PDF bytes."""
     pages = _Pages()
-    contact_next = False
+    header = False
     for raw in markdown.splitlines():
         line = _BOLD_MARKS.sub(r"\1", raw.rstrip())
         if not line.strip():
             continue
         if line.startswith("# "):
             pages.text(to_winansi(line[2:].strip()), 18, bold=True, centre=True)
-            contact_next = True
+            header = True
             continue
-        if contact_next and not line.startswith("#"):
-            for part in wrap(to_winansi(line.strip()), 10, WIDTH):
-                pages.text(part, 10, centre=True)
-            contact_next = False
+        if header and not line.startswith("#"):
+            # The contact line and the website line, centred, as the template.
+            for part in wrap(to_winansi(line.strip()), BODY, WIDTH):
+                pages.text(part, BODY, centre=True)
             continue
-        contact_next = False
+        header = False
         if line.startswith("## "):
-            pages.gap(8)
-            pages.keep(11 * 1.25 + 7 + 10.5 * 1.25 + 2 * 10 * 1.25)
-            pages.text(to_winansi(line[3:].strip().upper()), 11, bold=True)
-            pages.rule()
+            pages.gap(9)
+            pages.keep(3 * BODY * 1.25 + 9)
+            pages.text(to_winansi(line[3:].strip().upper()), BODY, bold=True)
+            pages.gap(4)
         elif line.startswith("### "):
-            pages.gap(3)
-            pages.keep(10.5 * 1.25 + 2 * 10 * 1.25)
-            pages.paragraph(to_winansi(line[4:].strip()), 10.5, bold=True)
+            pages.gap(4)
+            pages.keep(3 * BODY * 1.25)
+            pages.dated(line[4:].strip(), BODY)
         elif re.match(r"^\s*[-*] ", line):
-            pages.paragraph(to_winansi(re.sub(r"^\s*[-*] ", "", line)), 10,
-                            indent=14, bullet=True)
+            pages.paragraph(to_winansi(re.sub(r"^\s*[-*] ", "", line)), BODY,
+                            indent=18, bullet=True)
         else:
-            pages.paragraph(to_winansi(line.strip()), 10)
+            pages.paragraph(to_winansi(line.strip()), BODY)
     return _assemble(pages.pages, title)
+
+
+def page_count(data: bytes) -> int:
+    """How many pages a PDF this module wrote has."""
+    found = re.search(rb"/Type /Pages /Kids \[[^\]]*\] /Count (\d+)", data)
+    return int(found.group(1)) if found else 0
 
 
 def _assemble(pages: list[list[bytes]], title: str) -> bytes:
