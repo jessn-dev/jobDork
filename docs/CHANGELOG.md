@@ -8,7 +8,7 @@ it and into an entry when the work is done.
 
 ## Changed — 2026-10-28 — version 0.15.4
 
-0.15.4 carries the 20 entries below, everything since 0.15.3 (27 October).
+0.15.4 carries the 21 entries below, everything since 0.15.3 (27 October).
 For you:
 
 - **Where you would work, your way.** Setup's Where step needs only your
@@ -35,11 +35,26 @@ And for security: CI installs only hash-checked packages; a connection goes
 to the address that was checked (DNS rebinding); hidden characters are
 removed from what the AI reads; and three more checks run on every change
 (zizmor, Dependency Review, OpenSSF Scorecard, with its score as a
-badge in the README).
+badge in the README); and each installer's signed attestation is on the
+release page beside it, to check a download offline.
 
 Updating from 0.15.3 uses the update window, as from 0.15.2. A config from
 0.15.3 keeps working: its one city (`anchor`) reads as one city of the new
 list, and saving the place on the Search page writes the new keys.
+
+## Added — 2026-10-28 — Signed attestations on the release page
+
+Every installer has been attested since 0.14.4, but the signed attestation
+stayed with GitHub: checking a download meant asking GitHub for it, and
+OpenSSF Scorecard, which looks at the files on a release page, scored
+"Signed-Releases" 0. From 0.15.4 each installer's Sigstore bundle is on the
+release page beside it, `jobdork-0.15.4-macos-arm64.dmg.sigstore.json` and
+the rest, and the page's **Verify Build Package** section shows checking it
+offline: `gh attestation verify <file> --bundle <file>.sigstore.json --repo
+jessn-dev/jobDork`. `SHA256SUMS.txt` still lists the installers only. The
+update window, the Mac install command and the WinGet manifest pick their
+files by exact name, so the bundles are never taken for an installer.
+Releases before 0.15.4 cannot gain them: their files are immutable.
 
 ## Added — 2026-10-28 — The OpenSSF Scorecard badge in the README
 

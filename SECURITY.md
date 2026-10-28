@@ -92,7 +92,9 @@ only after the owner approves it in the `release` environment. A push to
    (`scripts/release_notes.py`), not a list of pull request titles. The installers are not signed, but each carries a build
    provenance attestation: `gh attestation verify <file> --repo
    jessn-dev/jobDork` shows this repository's workflow built it from the
-   tagged commit.
+   tagged commit. From 0.15.4 the attestation's signed Sigstore bundle is on
+   the release page beside each installer, as `<file>.sigstore.json`, so
+   `--bundle <file>.sigstore.json` checks it without asking GitHub.
 
 ---
 

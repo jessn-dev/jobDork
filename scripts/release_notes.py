@@ -161,6 +161,12 @@ def page(tag: str, image: str, digest: str, previous: str = "") -> str:
         "```bash",
         f"gh attestation verify {mac} --repo {REPO.removeprefix('https://github.com/')}",
         "```", "",
+        "Each installer's signed attestation is here too, as `<installer>.sigstore.json`, "
+        "to check it without asking GitHub:", "",
+        "```bash",
+        f"gh attestation verify {mac} --bundle {mac}.sigstore.json "
+        f"--repo {REPO.removeprefix('https://github.com/')}",
+        "```", "",
         f"The image `{image}:{version}` is exactly:", "",
         "```", f"{image}@{digest}", "```", "",
         "Built, scanned, checked and signed by this repository's workflow after approval.",
