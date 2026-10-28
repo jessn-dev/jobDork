@@ -45,8 +45,9 @@ next one does, so a second reader keeps things going when the first is down.
 **Earlier** moves one up the order; **Remove** takes it out. The same
 provider can be listed twice with different models.
 
-Each reader card has the **Provider**, the **Ollama address** (for Ollama on
-another computer), the **API key** (for paid providers) and the **Model**
+Each reader card has the **Provider**, the **Ollama address** (empty uses
+Ollama on this computer; for Ollama on another computer, type its address,
+such as `http://100.101.102.103:11434`), the **API key** (for paid providers) and the **Model**
 (**Load models** lists what is available; for a model the list does not
 have, choose **Other: type a model name** and type it).
 
