@@ -50,7 +50,7 @@ class _Fetcher:
 
 def _cfg(anchor="Baguio City", countries=("PH",), modes=()):
     return Config(titles_include=["software engineer"],
-                  locations=Locations(anchor=anchor, countries=list(countries),
+                  locations=Locations(cities=[anchor] if anchor else [], countries=list(countries),
                                       work_modes=list(modes)))
 
 

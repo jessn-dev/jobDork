@@ -199,7 +199,7 @@ def to_markdown(rows: list[sqlite3.Row], path: Path, cfg=None,
         radius = (cfg.locations.radius if cfg.locations.radius == "exact"
                   else f"{cfg.locations.radius} {units}")
         lines += [
-            f"- Anchor: {cfg.locations.anchor or 'anywhere'}",
+            f"- Where: {cfg.locations.where_text() or 'anywhere'}",
             f"- Radius: {radius}",
             f"- Countries: {', '.join(cfg.locations.countries) or 'any'}",
             f"- Work modes: {', '.join(cfg.locations.work_modes) or 'all'}",
@@ -298,7 +298,7 @@ def to_html(rows: list[sqlite3.Row], path: Path, cfg=None,
 
     stats = []
     if cfg:
-        stats.append(f"Anchor <b>{_e(cfg.locations.anchor or 'anywhere')}</b>")
+        stats.append(f"Where <b>{_e(cfg.locations.where_text() or 'anywhere')}</b>")
         # The reader's units: this said "mi" to a reader in kilometres.
         stats.append(f"Radius <b>{_e(cfg.locations.radius)}</b>"
                      + (f" {_e(units)}" if cfg.locations.radius != "exact" else ""))

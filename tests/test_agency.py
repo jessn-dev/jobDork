@@ -149,7 +149,7 @@ def test_a_re_screen_that_removes_a_post_remembers_it_as_dropped():
     from jobdork.core.config import Locations
     with tempfile.TemporaryDirectory() as tmp:
         cfg = Config(titles_include=["nurse"], db_path=str(Path(tmp) / "t.db"),
-                     locations=Locations(anchor="", radius="any", countries=[]))
+                     locations=Locations(cities=[], radius="any", countries=[]))
         with Store(cfg.db_path) as store:
             gone = Role(platform="greenhouse", company="Acme", title="Welder",
                         url="https://x.test/w", location_raw="Remote", work_mode="remote")
