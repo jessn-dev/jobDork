@@ -23,6 +23,19 @@ was; that chart moved to the panel after it):
   being read finish, and every job post found so far is screened and kept.
   The AI reading after the scan is skipped; the queue goes on. The scan's
   summary says how many sources were left unread.
+## Added — 2026-10-28 — The first scan's two parts, told apart
+
+Setup's last step runs a quick scan and then a full scan of every other
+employer board, in the background; the Dashboard said only that "the rest
+of the employer boards are being read". Now its note names each part with
+what it reads, "Quick scan: reading the job sites and 8 employer boards",
+then "Full scan started: reading the other 412 employer boards; job posts
+keep arriving", and when the full scan ends it says **Your job posts are
+ready**, with how many, a **View job posts** button and **Dismiss**. The
+computer says so too, with notifications on, whether anything was new or
+not and whether the window is open or closed: that is the scan someone
+closed the window to wait for. It is the full scan's only notice; the
+ordinary "N new job posts" is not sent for it as well.
 ## Added — 2026-10-28 — Add a job post from any link
 
 **Add a job post** (and `jobdork add`) knew five systems by their addresses
@@ -6868,6 +6881,17 @@ open; a digest arrives, and what arrived with it is what was not there before.
   person their job posts are ready to view: a notice on the page with a
   **View job posts** button, and the computer's notification when
   notifications are on, including when the window was closed meanwhile.
+- **A scan queue you can see and cancel** (asked 2026-10-27). A change to
+  Search, Projects, Education or Sources starts a scan or re-screen; one
+  that arrives while another runs waits (web/live.py `Runner.queue`), but
+  only one of each kind, the newest replacing the one waiting, and the page
+  never shows it. Instead: first in, first out, every request kept, with
+  what started it ("Search: added Nurse Practitioner"); the number waiting
+  on the Dashboard; a list where any waiting one can be cancelled; and
+  **Stop** for the scan running now, keeping what it found so far. Shown in
+  the Dashboard panel now titled "Feedback on AI output, per day", renamed
+  for it (where the feedback chart goes instead is decided when it is
+  built).
 - **Hosted models measured before recommending them** (asked 2026-10-27):
   run scripts/hallucination_benchmark.py with Gemini and Groq models as
   reader and as checker, as was done for Ollama, and count requests and

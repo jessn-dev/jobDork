@@ -496,6 +496,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     "busy": runner.busy,
                     "job": runner.current,
                     "last_summary": runner.last_summary,
+                    "first_scan": api_mod.FIRST_SCAN,
                     # First in, first out, each with what started it.
                     "waiting": runner.waiting(),
                     "claude": bool(__import__("shutil").which("claude")),
@@ -720,6 +721,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 if not started:
                     return self._reject(409, why)
                 return self._json(202, {"started": True, "job": name})
+            if path == "/api/first-scan/seen":
+                return self._json(200, api_mod.first_scan_seen())
             if path == "/api/stop":
                 if not runner.stop():
                     return self._reject(409, "nothing is running")
