@@ -8,7 +8,7 @@ it and into an entry when the work is done.
 
 ## Changed — 2026-10-28 — version 0.15.4
 
-0.15.4 carries the 19 entries below, everything since 0.15.3 (27 October).
+0.15.4 carries the 20 entries below, everything since 0.15.3 (27 October).
 For you:
 
 - **Where you would work, your way.** Setup's Where step needs only your
@@ -34,11 +34,19 @@ For you:
 And for security: CI installs only hash-checked packages; a connection goes
 to the address that was checked (DNS rebinding); hidden characters are
 removed from what the AI reads; and three more checks run on every change
-(zizmor, Dependency Review, OpenSSF Scorecard).
+(zizmor, Dependency Review, OpenSSF Scorecard, with its score as a
+badge in the README).
 
 Updating from 0.15.3 uses the update window, as from 0.15.2. A config from
 0.15.3 keeps working: its one city (`anchor`) reads as one city of the new
 list, and saving the place on the Search page writes the new keys.
+
+## Added — 2026-10-28 — The OpenSSF Scorecard badge in the README
+
+Beside the build, coverage and vulnerability badges: the project's OpenSSF
+Scorecard score (7.1 out of 10 on its first run), read live from
+scorecard.dev and linked to the full report, check by check. The Scorecard
+workflow runs weekly and on every push to `main`.
 
 ## Fixed — 2026-10-28 — The Windows uninstaller's window, at any screen scaling
 
