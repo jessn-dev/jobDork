@@ -19,6 +19,7 @@ only after the owner approves it in the `release` environment. A push to
 | Check | What it catches |
 |---|---|
 | Tests and lint, Python 3.10 and 3.14 | Broken behaviour, including the dashboard's Host, token and CSRF guards |
+| Every CI install from `requirements-ci.lock`, with `--require-hashes` | A package changed on PyPI, or one not listed, entering a test, a scan or the guide build: the run stops. The lock is audited with pip-audit too |
 | `pip-audit` on `requirements.lock` | A dependency with a published vulnerability |
 | `pip-audit` on `requirements-desktop.lock`, every platform's packages | The same, for what the desktop installers are built from (pyobjc on macOS, pythonnet on Windows included) |
 | `bandit` over the code | Injection, unsafe calls and similar in jobdork's own code. A finding judged safe is marked in the code with its reason |
