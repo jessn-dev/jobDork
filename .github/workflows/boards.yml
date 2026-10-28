@@ -1,4 +1,4 @@
-name: Re-verify employer boards
+name: "Boards: weekly re-check of the built-in employer boards"
 
 # Weekly: asks every board in jobdork/data/boards.csv again, refreshes the
 # ones that answer with jobs, drops the ones that have not for three weeks,
@@ -34,6 +34,7 @@ concurrency:
 
 jobs:
   reverify:
+    name: "Re-check every employer board; open a PR with the changes"
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:

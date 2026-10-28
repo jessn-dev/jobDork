@@ -6,6 +6,29 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-28 — Workflow names that say what each one does
+
+The Actions page listed "Test, scan and publish", "Desktop app", "guide",
+"Scorecard" and job names like `build` and `analysis`, which said little
+about what a run was for. Every workflow now says what it does and when, and
+every job what it checks:
+
+- **CI: test, scan and build every change; release on a tag** (docker.yml),
+  with "Installers: needed for this change?", "Release: publish the Docker
+  image (after your approval)" and "Release: create the GitHub Release page".
+- **Installers: build and self-test the Mac and Windows apps** (desktop.yml):
+  "Build the Mac (Apple Silicon) installer", "... Mac (Intel) ...",
+  "... Windows ...", "WinGet: install and uninstall the Windows build for
+  real" and "Windows: photograph the installer and uninstaller".
+- **Guide: build the user guide website; publish it from main**.
+- **Boards: weekly re-check of the built-in employer boards**.
+- **PR check: no vulnerable new dependencies**.
+- **Scorecard: weekly supply-chain security score**.
+
+The four checks `main` requires keep their names (`test (3.10)`,
+`test (3.14)`, `security`, `image`): `main`'s ruleset names them, and a
+renamed one would never report, blocking every pull request.
+
 ## Changed — 2026-10-28 — The installers built when they need to be
 
 The Mac (Apple Silicon and Intel) and Windows installers were built on every
