@@ -405,36 +405,16 @@ def _read_url_file(path: str) -> list[str]:
 def _add_one(cfg, fetcher, url: str, token: str, company: str,
              store, home, quiet: bool = False) -> str:
     """Returns one of: added, updated, failed."""
-    from . import fetch
+    from .fetch import link
     from .search import screen
 
     url = canonical_url(url)
-    platform, found_token = _platform_for(url)
-    token = token or found_token
-    if not platform:
+    try:
+        wanted = link.read(fetcher, cfg, url, token, company)
+    except link.LinkError as exc:
         if not quiet:
-            print(f"  ? {url}\n      cannot tell which platform this is on")
-        return "failed"
-    if not token:
-        if not quiet:
-            print(f"  ? {url}\n      {platform} posting on the employer's own "
-                  "domain; the board token is not in the URL. "
-                  "Re-run that one with --token")
-        return "failed"
-
-    adapter = fetch.get(platform)
-    result = adapter(fetcher, cfg, token=token, company=company or token)
-    if result.skipped:
-        if not quiet:
-            print(f"  ! {platform}: {result.skipped}")
-        return "failed"
-
-    wanted = next((r for r in result.roles if canonical_url(r.url) == url), None)
-    if wanted is None:
-        if not quiet:
-            print(f"  - {url}\n      read {token!r} on {platform} "
-                  f"({len(result.roles)} job posts) but none is that URL; "
-                  "it may already be filled")
+            print(f"  ? {url}\n      {exc}. The dashboard's Add a job post can take "
+                  "the advert's text pasted in instead")
         return "failed"
 
     verdict = screen.screen(wanted, cfg, home)
@@ -488,35 +468,6 @@ def cmd_add(args) -> int:
         print(f"\n{tally['added']} added, {tally['updated']} updated, "
               f"{tally['failed']} could not be read")
     return 0 if tally["added"] or tally["updated"] else 1
-
-
-def _platform_for(url: str) -> tuple[str, str]:
-    """Work out the platform and board token from a posting URL.
-
-    Returns ("greenhouse", "") for a `?gh_jid=` link on an employer's own
-    domain: the platform is certain but the board token is not in the URL,
-    so the caller has to be told to supply it rather than shown a guess.
-    """
-    import re
-    patterns = (
-        (r"(?:job-)?boards\.greenhouse\.io/([^/?]+)", "greenhouse"),
-        (r"jobs\.ashbyhq\.com/([^/?]+)", "ashby"),
-        (r"jobs\.lever\.co/([^/?]+)", "lever"),
-        (r"([a-z0-9-]+)\.breezy\.hr", "breezy"),
-        (r"jobs\.smartrecruiters\.com/([^/?]+)", "smartrecruiters"),
-        (r"api\.smartrecruiters\.com/v1/companies/([^/?]+)", "smartrecruiters"),
-    )
-    for pattern, platform in patterns:
-        match = re.search(pattern, url, re.IGNORECASE)
-        if match:
-            return platform, match.group(1)
-
-    # Greenhouse boards are frequently served from the employer's own domain
-    # with the job id in the query string. The platform is unambiguous; the
-    # board token is not present at all.
-    if re.search(r"[?&]gh_jid=", url, re.IGNORECASE):
-        return "greenhouse", ""
-    return "", ""
 
 
 def cmd_ollama_code(args) -> int:

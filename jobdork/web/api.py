@@ -851,38 +851,45 @@ def save_resume(cfg, filename: str, payload: bytes) -> dict:
 
 def add_by_url(cfg, url: str, token: str = "", company: str = "") -> dict:
     """`jobdork add` — pull one posting in from a link you clicked."""
-    from ..cli import _platform_for
-    from ..db.store import Store, canonical_url
-    from ..fetch import get as get_adapter
+    from ..fetch import link
     from ..fetch.http import Fetcher
-    from ..search import screen
+
+    if not (url or "").strip():
+        raise ApiError("give a posting URL")
+    fetcher = Fetcher(cfg.fetch.user_agent, cfg.fetch.timeout, cfg.fetch.retries)
+    try:
+        wanted = link.read(fetcher, cfg, url, token, company)
+    except link.LinkError as exc:
+        # 422: the page offers to take the advert's text pasted in instead.
+        raise ApiError(f"{exc}. Paste the advert's text below to add it anyway.", 422) from exc
+    return _store_added(cfg, wanted)
+
+
+def add_by_text(cfg, url: str, title: str, company: str, location: str,
+                text: str) -> dict:
+    """A job post whose page jobdork could not read, added from its pasted
+    advert: screened and stored like any other, under its link."""
+    from ..db.store import Role, canonical_url
 
     url = canonical_url((url or "").strip())
-    if not url:
-        raise ApiError("give a posting URL")
+    text = (text or "").replace("\r\n", "\n").strip()
+    if not url.startswith(("http://", "https://")):
+        raise ApiError("give the job post's link too, so you can open it again")
+    if not (title or "").strip():
+        raise ApiError("give the job title")
+    if len(text) < 200:
+        raise ApiError("paste the whole advert: that is too short to score against")
+    if len(text) > MAX_ADVERT_CHARS:
+        raise ApiError(f"longer than {MAX_ADVERT_CHARS:,} characters")
+    role = Role(platform="site", company=(company or "").strip(), title=title.strip(),
+                url=url, location_raw=(location or "").strip(), description=text)
+    role.flags.append("advert pasted in")
+    return _store_added(cfg, role)
 
-    platform, found = _platform_for(url)
-    token = token or found
-    if not platform:
-        raise ApiError(
-            "cannot tell which platform that URL is on. Supported: "
-            "greenhouse, ashby, lever, breezy, smartrecruiters.")
-    if not token:
-        raise ApiError(
-            f"that is a {platform} posting on the employer's own domain, so "
-            "the board token is not in the URL. Supply it alongside.")
 
-    fetcher = Fetcher(cfg.fetch.user_agent, cfg.fetch.timeout, cfg.fetch.retries)
-    result = get_adapter(platform)(fetcher, cfg, token=token,
-                                   company=company or token)
-    if result.skipped:
-        raise ApiError(f"{platform}: {result.skipped}")
-
-    wanted = next((r for r in result.roles if canonical_url(r.url) == url), None)
-    if wanted is None:
-        raise ApiError(
-            f"read {token!r} on {platform} ({len(result.roles)} job posts) but none "
-            "of them is that URL. It may already be filled.")
+def _store_added(cfg, wanted) -> dict:
+    from ..db.store import Store
+    from ..search import screen
 
     home = screen.home_of(cfg)
     verdict = screen.screen(wanted, cfg, home)
