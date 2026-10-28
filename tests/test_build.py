@@ -30,7 +30,9 @@ def _build():
 
 
 def _answers(build, *results):
-    """subprocess.run answering each call in turn; the waits recorded."""
+    """The script's commands answered in turn, its waits recorded. Only the
+    script's own view of `subprocess` is replaced: patching the module itself
+    reached every later test that runs a real command."""
     calls, waits = [], []
     answers = list(results)
 
@@ -39,7 +41,9 @@ def _answers(build, *results):
         code, err = answers.pop(0)
         return subprocess.CompletedProcess(cmd, code, "", err)
 
-    build.subprocess.run, build._sleep = run, waits.append
+    build.subprocess = type("Subprocess", (), {
+        "run": staticmethod(run), "CalledProcessError": subprocess.CalledProcessError})
+    build._sleep = waits.append
     return calls, waits
 
 
