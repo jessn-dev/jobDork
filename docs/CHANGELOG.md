@@ -6,6 +6,40 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-28 — version 0.15.4
+
+0.15.4 carries the 19 entries below, everything since 0.15.3 (27 October).
+For you:
+
+- **Where you would work, your way.** Setup's Where step needs only your
+  country; add as many states and cities as you like, or none for the whole
+  country.
+- **Add a job post from any link**, Taleo Enterprise included, or paste its
+  advert when the page cannot be read.
+- **Free Gemini and Groq keys that do not run out**: jobdork keeps under
+  their limits, stops a scan's AI reading short of the day's, and shows
+  today's allowance on the AI page.
+- **A scan queue you can see**: what runs and what waits on the Dashboard,
+  with Cancel, and Stop for a running scan that keeps what it found.
+- **The first scan's two parts told apart**, and "Your job posts are ready"
+  when it ends, on the page and from your computer.
+- **An Ollama behind a gatekeeper**, with one connection code to paste.
+- **The hallucination rate in colour** against its 2-5% target.
+- **A resume with any file name uploads**, with a progress bar (a curly
+  apostrophe in the name stopped it before).
+- **Fixed:** the Windows uninstaller's window at high screen scaling; the
+  Ollama address box pre-filled with this computer's; the error log
+  naming only an HTTP status.
+
+And for security: CI installs only hash-checked packages; a connection goes
+to the address that was checked (DNS rebinding); hidden characters are
+removed from what the AI reads; and three more checks run on every change
+(zizmor, Dependency Review, OpenSSF Scorecard).
+
+Updating from 0.15.3 uses the update window, as from 0.15.2. A config from
+0.15.3 keeps working: its one city (`anchor`) reads as one city of the new
+list, and saving the place on the Search page writes the new keys.
+
 ## Fixed — 2026-10-28 — The Windows uninstaller's window, at any screen scaling
 
 On a screen at 150-200% scaling, 0.15.2's uninstaller window ("Remove
