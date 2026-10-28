@@ -21,6 +21,22 @@ each pull request's Windows build, photographs three installer pages and the
 uninstaller's window, and keeps the pictures with the run for seven days, as
 no test of the files can show how they draw.
 
+## Security — 2026-10-28 — CI installs nothing unchecked
+
+The image and the installers were built from locks with every package's
+SHA-256 checked, but CI itself was not: the tests installed `pip install -e
+'.[dev,pdf,ai]'`, the security job its scanners, the guide its builder and
+the weekly boards check jobdork, each taking whatever PyPI served that day.
+A package swapped on PyPI could have run inside CI, where the release is
+built. Now every workflow installs `requirements-ci.lock` with
+`--require-hashes` (jobdork's dependencies with its dev, pdf and ai extras,
+and the tools in `packaging/ci.in`: setuptools, coverage, pip-audit, bandit,
+zizmor, MkDocs and Material), then jobdork itself with `--no-deps`, so a
+package that changed or is not listed stops the run. The security job audits
+the new lock with pip-audit as well. tests/test_ci_lock.py checks that every
+install in the workflows takes a lock, that the lock carries each tool at
+its pinned version, and that `guide/requirements.txt` (for building the guide
+by hand) agrees.
 ## Changed — 2026-10-28 — The release page's check section, named for what it does
 
 A release page's section on making sure a download is genuine was headed

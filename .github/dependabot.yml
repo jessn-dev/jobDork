@@ -22,8 +22,9 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
-  # Python dependencies. requirements.lock carries their checksums; after an
-  # update, regenerate it inside the base image (the command is at its top).
+  # Python dependencies. requirements.lock, requirements-desktop.lock and
+  # requirements-ci.lock carry their checksums; after an update, regenerate
+  # each (the command is at its top; requirements.lock inside the base image).
   - package-ecosystem: pip
     directory: /
     schedule:

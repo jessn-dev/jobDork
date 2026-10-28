@@ -43,7 +43,7 @@ jobs:
 
       - name: Build the guide (strict)
         run: |
-          python -m pip install --quiet -r guide/requirements.txt
+          python -m pip install --quiet --require-hashes -r requirements-ci.lock
           mkdocs build -f guide/mkdocs.yml -d "$RUNNER_TEMP/site"
 
       # The badges: test coverage, and known vulnerabilities in exactly the
@@ -51,7 +51,7 @@ jobs:
       - name: Measure coverage and audit the dependencies
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: |
-          python -m pip install --quiet -e '.[dev,pdf,ai]' coverage==7.16.2 pip-audit==2.10.1
+          python -m pip install --quiet --no-deps --no-build-isolation -e .
           python -m coverage run --source=jobdork -m pytest -q
           python -m coverage json -o "$RUNNER_TEMP/coverage.json"
           # pip-audit exits 1 when it finds something; the badge says what.
