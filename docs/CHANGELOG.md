@@ -16,6 +16,15 @@ reporting that another service it asked (Ollama, an AI provider) did not
 answer, so it is logged as a warning about that service, "another service
 did not answer", not as an error in jobdork. A resume upload's server
 error goes the same way.
+## Added — 2026-10-28 — The hallucination rate in colour
+
+The Dashboard's Hallucination tile and its "Hallucination, over time" chart
+are measured against the 2-5% target in docs/AI-MODELS.md: green at 5% or
+under, amber above 5% up to 10%, red above 10%, where every other local
+model measured. The tile says it in words beside the colour (*within
+target*, *watch it*, *too high: try a bigger model or a checker*), the
+chart shades those three ranges behind its lines with a key under it, and
+each day's tooltip names the range.
 ## Changed — 2026-10-28 — Where you would work: any states and cities, or the whole country
 
 Setup's Where step required one city, and every distance was measured from
@@ -6775,11 +6784,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   person their job posts are ready to view: a notice on the page with a
   **View job posts** button, and the computer's notification when
   notifications are on, including when the window was closed meanwhile.
-- **The hallucination rate in colour** (asked 2026-10-27): the Dashboard
-  tile and the "Hallucination, over time" chart green at 5% or below (the
-  2-5% target in docs/AI-MODELS.md), amber above 5% up to 10%, red above
-  10% (where every other local model measured). Said in words too, not by
-  colour alone ("within target", "watch it", "too high: see AI-MODELS.md").
 - **A scan queue you can see and cancel** (asked 2026-10-27). A change to
   Search, Projects, Education or Sources starts a scan or re-screen; one
   that arrives while another runs waits (web/live.py `Runner.queue`), but
