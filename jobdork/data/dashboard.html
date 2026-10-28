@@ -3194,8 +3194,7 @@ function sendResume(file, bar, msg) {
     };
     x.onload = () => {
       bar.innerHTML = '';
-      if (x.status >= 500) pageProblem('error', `${what} failed (HTTP ${x.status})${
-        x.responseText ? ': ' + String(x.responseText).slice(0, 300) : ''}`);
+      if (x.status >= 500) serverProblem(what, x.status, x.responseText);
       done(new Response(x.responseText, {status: x.status}));
     };
     x.onerror = () => {

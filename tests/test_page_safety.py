@@ -42,7 +42,7 @@ def test_a_server_error_is_logged_with_its_reason():
     assert "failed on the server (HTTP" not in page.replace(
         "`${what} failed on the server (HTTP ${status})`", ""), \
         "a 5xx logged without its reason"
-    assert page.count("serverProblem(what,") >= 3   # fetch, its fallback, the upload
+    assert page.count("serverProblem(what,") >= 4   # its definition, fetch, its fallback, the upload
     assert "pageProblem(status === 502 ? 'warning' : 'error'" in page
 def test_a_resume_file_name_is_sent_encoded():
     """A header takes Latin-1 only: "Maria’s Resume.pdf", with a

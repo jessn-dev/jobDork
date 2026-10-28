@@ -14,7 +14,8 @@ the server had said why ("Ollama is not answering at …"). The log now
 carries the server's own words after the status. A 502 is jobdork
 reporting that another service it asked (Ollama, an AI provider) did not
 answer, so it is logged as a warning about that service, "another service
-did not answer", not as an error in jobdork.
+did not answer", not as an error in jobdork. A resume upload's server
+error goes the same way.
 ## Added — 2026-10-27 — A progress bar when a resume is uploaded
 
 Uploading a resume showed only "Uploading…" or "Reading…" until the answer
