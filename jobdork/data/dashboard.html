@@ -1572,10 +1572,22 @@ function pageProblem(level, text) {
   fetch('/api/page-problem', {method: 'POST', headers: {'X-Jobdork-Token': TOKEN},
     body: new URLSearchParams({level, text})}).catch(() => {});   // the server is gone
 }
+// A server error logged with the server's own reason, not only its status:
+// "GET /api/llm/models failed (HTTP 502)" hid "Ollama is not answering at …".
+// A 502 is jobdork saying another service it asked (Ollama, an AI provider)
+// did not answer: a warning about that service, not an error in jobdork.
+function serverProblem(what, status, body) {
+  const why = String(body || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  pageProblem(status === 502 ? 'warning' : 'error', (status === 502
+    ? `${what}: another service did not answer (HTTP 502)`
+    : `${what} failed on the server (HTTP ${status})`) + (why ? `: ${why}` : ''));
+}
 const api = (p, o = {}) => {
   const what = `${o.method || 'GET'} ${String(p).split('?')[0]}`;
   return fetch(p, {...o, headers: {...(o.headers || {}), 'X-Jobdork-Token': TOKEN}}).then(r => {
-    if (r.status >= 500) pageProblem('error', `${what} failed on the server (HTTP ${r.status})`);
+    // A copy is read, so the caller still reads the answer itself.
+    if (r.status >= 500) r.clone().text().then(t => serverProblem(what, r.status, t),
+                                               () => serverProblem(what, r.status, ''));
     return r;
   }, e => {
     pageProblem('error', `${what} got no answer from the server: ${e.message || e}`);
@@ -3241,8 +3253,7 @@ function sendResume(file, bar, msg) {
     };
     x.onload = () => {
       bar.innerHTML = '';
-      if (x.status >= 500) pageProblem('error', `${what} failed (HTTP ${x.status})${
-        x.responseText ? ': ' + String(x.responseText).slice(0, 300) : ''}`);
+      if (x.status >= 500) serverProblem(what, x.status, x.responseText);
       done(new Response(x.responseText, {status: x.status}));
     };
     x.onerror = () => {
