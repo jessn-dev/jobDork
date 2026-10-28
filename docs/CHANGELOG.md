@@ -6791,22 +6791,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   person their job posts are ready to view: a notice on the page with a
   **View job posts** button, and the computer's notification when
   notifications are on, including when the window was closed meanwhile.
-- **The hallucination rate in colour** (asked 2026-10-27): the Dashboard
-  tile and the "Hallucination, over time" chart green at 5% or below (the
-  2-5% target in docs/AI-MODELS.md), amber above 5% up to 10%, red above
-  10% (where every other local model measured). Said in words too, not by
-  colour alone ("within target", "watch it", "too high: see AI-MODELS.md").
-- **A scan queue you can see and cancel** (asked 2026-10-27). A change to
-  Search, Projects, Education or Sources starts a scan or re-screen; one
-  that arrives while another runs waits (web/live.py `Runner.queue`), but
-  only one of each kind, the newest replacing the one waiting, and the page
-  never shows it. Instead: first in, first out, every request kept, with
-  what started it ("Search: added Nurse Practitioner"); the number waiting
-  on the Dashboard; a list where any waiting one can be cancelled; and
-  **Stop** for the scan running now, keeping what it found so far. Shown in
-  the Dashboard panel now titled "Feedback on AI output, per day", renamed
-  for it (where the feedback chart goes instead is decided when it is
-  built).
 - **Hosted models measured before recommending them** (asked 2026-10-27):
   run scripts/hallucination_benchmark.py with Gemini and Groq models as
   reader and as checker, as was done for Ollama, and count requests and
