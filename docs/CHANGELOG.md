@@ -6,6 +6,13 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-28 — The OpenSSF Scorecard badge in the README
+
+Beside the build, coverage and vulnerability badges: the project's OpenSSF
+Scorecard score (7.1 out of 10 on its first run), read live from
+scorecard.dev and linked to the full report, check by check. The Scorecard
+workflow (added in #80) runs weekly and on every push to `main`.
+
 ## Fixed — 2026-10-28 — The Windows uninstaller's window, at any screen scaling
 
 On a screen at 150-200% scaling, 0.15.2's uninstaller window ("Remove
