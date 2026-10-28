@@ -11,6 +11,7 @@
   <a href="https://github.com/jessn-dev/jobDork/actions/workflows/docker.yml"><img alt="Build" src="https://github.com/jessn-dev/jobDork/actions/workflows/docker.yml/badge.svg?branch=main"></a>
   <a href="https://github.com/jessn-dev/jobDork/actions/workflows/guide.yml"><img alt="Coverage" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fjessn-dev.github.io%2FjobDork%2Fbadges%2Fcoverage.json"></a>
   <a href="SECURITY.md"><img alt="Known vulnerabilities" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fjessn-dev.github.io%2FjobDork%2Fbadges%2Fvulnerabilities.json"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/jessn-dev/jobDork"><img alt="OpenSSF Scorecard" src="https://api.scorecard.dev/projects/github.com/jessn-dev/jobDork/badge"></a>
   <br>
   <a href="https://github.com/jessn-dev/jobDork/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/jessn-dev/jobDork"></a>
   <a href="https://hub.docker.com/r/jessengolab/jobdork"><img alt="Docker image" src="https://img.shields.io/docker/v/jessengolab/jobdork?sort=semver&label=docker"></a>

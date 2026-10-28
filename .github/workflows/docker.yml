@@ -352,7 +352,9 @@ jobs:
 
       - name: Checksums for the installers
         working-directory: installers
-        run: sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt
+        # The installers only: their .sigstore.json bundles are checked by
+        # their signature, not listed as downloads.
+        run: sha256sum -- *.dmg *.exe > SHA256SUMS.txt && cat SHA256SUMS.txt
 
       - name: Create the GitHub Release
         env:

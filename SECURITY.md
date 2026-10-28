@@ -75,7 +75,7 @@ only after the owner approves it in the `release` environment. A push to
 2. **After the merge**, bring `main` up to date, then tag it and push the tag:
    `git checkout main && git pull`, then check that `main` now says the new
    version, `grep -m1 '^version' pyproject.toml`, and only then
-   `git tag v0.15.3 && git push origin v0.15.3`. Only an admin can create a
+   `git tag v0.15.4 && git push origin v0.15.4`. Only an admin can create a
    `v*` tag, and once pushed it can never be moved or deleted, so a tag made
    before the pull lands on the old commit for good (as `v0.14.0`,
    `v0.14.1` and `v0.14.2` did). Pushing a branch or opening a pull request does not put
@@ -92,7 +92,9 @@ only after the owner approves it in the `release` environment. A push to
    (`scripts/release_notes.py`), not a list of pull request titles. The installers are not signed, but each carries a build
    provenance attestation: `gh attestation verify <file> --repo
    jessn-dev/jobDork` shows this repository's workflow built it from the
-   tagged commit.
+   tagged commit. From 0.15.4 the attestation's signed Sigstore bundle is on
+   the release page beside each installer, as `<file>.sigstore.json`, so
+   `--bundle <file>.sigstore.json` checks it without asking GitHub.
 
 ---
 
@@ -130,7 +132,7 @@ swapped later.
 Check that it was built by this repository's workflow and not altered since:
 
 ```bash
-cosign verify jessengolab/jobdork:0.15.3 \
+cosign verify jessengolab/jobdork:0.15.4 \
   --certificate-identity-regexp '^https://github.com/jessn-dev/jobDork/\.github/workflows/docker\.yml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

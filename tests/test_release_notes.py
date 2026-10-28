@@ -69,6 +69,9 @@ def test_the_page_opens_with_the_downloads_and_folds_the_changes():
     assert text.index("## Download") < text.index("## Verify Build Package") \
         < text.index("<details>") < text.index("Two") < text.index("</details>")
     assert "1 change in this release" in text and "— One" not in text
+    # The signed attestation beside each installer, checked offline.
+    assert ("--bundle jobdork-2.0.0-macos-arm64.dmg.sigstore.json" in text
+            and text.index("--bundle") < text.index("<details>"))
 
 
 def test_the_link_is_the_one_github_makes_for_the_heading():
