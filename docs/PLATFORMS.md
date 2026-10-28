@@ -352,7 +352,7 @@ A federal posting is routinely open in 20 or more cities at once. Taking
 failed a radius it was never outside.
 
 USAJOBS carries `Latitude` and `Longitude` on every location, so the nearest to
-your anchor is chosen directly and the gazetteer is not needed. The role is
+any of your cities is chosen directly and the gazetteer is not needed. The role is
 flagged `open in N locations; nearest shown`.
 
 ### Vocabulary
@@ -455,8 +455,8 @@ stored link is the Himalayas page, and the source shows as Himalayas.
   country is what keeps those out. One search per title per country.
 - **Working hours:** `timezoneRestrictions` lists the UTC offsets a job
   accepts. One more than an hour from yours is left out. Your offset comes
-  from the anchor's longitude (Baguio, 120.6° east: UTC+8); with no anchor,
-  hours are not checked.
+  from your first city's longitude (Baguio, 120.6° east: UTC+8); with no
+  city, hours are not checked.
 - 20 jobs a request at most, three pages a title, newest first.
 - `pubDate` / `expiryDate` are Unix seconds. Past expiry, a post is not
   returned, and a stored one is closed by the "still open" check.

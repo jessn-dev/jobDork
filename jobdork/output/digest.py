@@ -134,7 +134,7 @@ def build(rows: list[sqlite3.Row], cfg, new_only: bool = True) -> Digest:
         radius = (cfg.locations.radius if cfg.locations.radius == "exact"
                   else f"{cfg.locations.radius} {units}")
         lines += [
-            f"{cfg.locations.anchor or 'Anywhere'} · within {radius} · "
+            f"{cfg.locations.where_text() or 'Anywhere'} · within {radius} · "
             f"{', '.join(cfg.locations.countries) or 'any country'}",
             "",
         ]
@@ -172,7 +172,7 @@ def build(rows: list[sqlite3.Row], cfg, new_only: bool = True) -> Digest:
                   else f"{cfg.locations.radius} {units}")
         parts.append(
             f"<p style='color:#71717a;margin:0 0 20px;font-size:13px'>"
-            f"{esc(cfg.locations.anchor or 'anywhere')} · within {esc(radius)} · "
+            f"{esc(cfg.locations.where_text() or 'anywhere')} · within {esc(radius)} · "
             f"{esc(', '.join(cfg.locations.countries) or 'any country')}</p>"
         )
     if not rows:
