@@ -552,12 +552,15 @@ def test_the_measured_total_is_never_given_to_one_field():
 
 # ── an Ollama behind a gatekeeper (llm.OLLAMA_KEY) ───────────────────────────
 
+# Made up, for the tests below; marked so the secret scan knows it is one.
+_FAKE_KEY = "sk-tester-1234567890"  # gitleaks:allow
+
 def test_a_connection_code_carries_address_models_and_key_and_nothing_else_reads():
-    code = llm.connection_code("https://ollama.example.org/", "sk-tester-1234567890",
+    code = llm.connection_code("https://ollama.example.org/", _FAKE_KEY,
                                "gemma4:26b", "qwen3.8:27b")
     assert code.startswith(llm.CODE_PREFIX) and "sk-tester" not in code
     assert llm.read_connection_code(f"  {code[:30]}\n{code[30:]} ") == {
-        "url": "https://ollama.example.org", "key": "sk-tester-1234567890",
+        "url": "https://ollama.example.org", "key": _FAKE_KEY,
         "reader": "gemma4:26b", "checker": "qwen3.8:27b"}
     for bad, said in (("hello", "not a jobdork connection code"),
                       (code[:-6], "cut short"),
@@ -568,8 +571,8 @@ def test_a_connection_code_carries_address_models_and_key_and_nothing_else_reads
             assert said in str(exc), exc
         else:
             raise AssertionError(f"{bad!r} must be refused")
-    for url, key in (("ollama.example.org", "sk-tester-1234567890"),
-                     ("https://x.org/path", "sk-tester-1234567890"),
+    for url, key in (("ollama.example.org", _FAKE_KEY),
+                     ("https://x.org/path", _FAKE_KEY),
                      ("https://x.org", "has a space in it")):
         try:
             llm.connection_code(url, key, "gemma4:26b")
@@ -592,7 +595,7 @@ def test_the_ollama_key_goes_only_to_lines_marked_to_send_it():
         marked = llm.Settings(provider="ollama", model="m", ollama_url="https://o.example.org",
                               ollama_key=True)
         assert "no Ollama key held" in marked.problem()
-        llm.VAULT.put(llm.OLLAMA_KEY, "sk-tester-1234567890")
+        llm.VAULT.put(llm.OLLAMA_KEY, _FAKE_KEY)
         assert marked.problem() == ""
         llm._call_one(marked, "sys", "user", {"type": "object"}, 50, "", None)
         plain = llm.Settings(provider="ollama", model="m", ollama_url="http://localhost:11434")
@@ -600,7 +603,7 @@ def test_the_ollama_key_goes_only_to_lines_marked_to_send_it():
     finally:
         llm._post = saved
         llm.VAULT.forget(llm.OLLAMA_KEY)
-    assert sent == [{"Authorization": "Bearer sk-tester-1234567890"}, {}]
+    assert sent == [{"Authorization": f"Bearer {_FAKE_KEY}"}, {}]
 
 
 def test_an_ollama_line_s_key_mark_is_read_and_written_for_ollama_only():
@@ -622,10 +625,10 @@ def test_an_ollama_line_s_key_mark_is_read_and_written_for_ollama_only():
 
 def test_a_pasted_code_holds_its_key_and_the_page_never_gets_it_back():
     from jobdork.web import api
-    code = llm.connection_code("https://ollama.example.org", "sk-tester-1234567890", "gemma4:26b")
+    code = llm.connection_code("https://ollama.example.org", _FAKE_KEY, "gemma4:26b")
     try:
         got = api.llm_connection(code)
-        assert llm.VAULT.get(llm.OLLAMA_KEY) == "sk-tester-1234567890"
+        assert llm.VAULT.get(llm.OLLAMA_KEY) == _FAKE_KEY
     finally:
         llm.VAULT.forget(llm.OLLAMA_KEY)
     assert got["url"] == "https://ollama.example.org" and got["reader"] == "gemma4:26b"
