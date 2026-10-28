@@ -30,6 +30,16 @@ is read the best way its system allows (fetch/link.py):
 
 A Greenhouse post on the employer's own site (`?gh_jid=`) is now read from
 its page when it has no board token, instead of being refused.
+## Added — 2026-10-28 — Download badges in the README
+
+Two more badges under the title: **downloads**, every file downloaded from
+every GitHub Release since the first (0.14.3), counted by GitHub; and
+**docker pulls**, every pull of `jessengolab/jobdork` from Docker Hub since
+the image was first pushed. Both are read live by shields.io. The download
+count includes each release's `SHA256SUMS.txt`, which the in-app update and
+anyone checking a download also fetch, so it runs a little above the number
+of installers downloaded (21 of 29 on 28 October). 0.14.0 to 0.14.2 were
+tags with no release files, so there is nothing earlier to count.
 ## Added — 2026-10-28 — Free Gemini and Groq keys that do not run out
 
 Not everyone can pay for a plan, and a free Gemini or Groq key has limits
