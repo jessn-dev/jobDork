@@ -30,6 +30,18 @@ is read the best way its system allows (fetch/link.py):
 
 A Greenhouse post on the employer's own site (`?gh_jid=`) is now read from
 its page when it has no board token, instead of being refused.
+## Fixed — 2026-10-28 — An Ollama on another computer, on the AI page
+
+A reader line with no address of its own showed the page-wide one in its
+box, `http://localhost:11434` by default, as if it had been typed. A tester
+using someone else's Ollama kept it, and every **Load models** failed with
+"Is it running?" about an Ollama they had never installed. Now the box is
+empty unless an address was chosen, its grey placeholder names the one
+used ("http://localhost:11434 (this computer)"), and a line under it says
+what to type for another computer. When nothing answers, the reason says
+which case it is: on this computer's own address, start Ollama here or
+type the other computer's; on another computer's, check that Ollama is
+running there and accepts connections from others (`OLLAMA_HOST=0.0.0.0`).
 ## Added — 2026-10-28 — The hallucination rate in colour
 
 The Dashboard's Hallucination tile and its "Hallucination, over time" chart
@@ -6781,13 +6793,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   its claim check, a tailored letter); or a demo build of the dashboard
   itself on the website, the real page on fixed demo data with no server.
   The recording is done in the maintainer's own browser and account.
-- **AI page, an Ollama address on another computer** (found 2026-10-27, a
-  tester using the owner's Ollama over Tailscale). A line with no address of
-  its own shows the page-wide one, `http://localhost:11434` by default, in
-  its box, so someone without Ollama of their own keeps an address that
-  cannot work, and every **Load models** fails. Say when the address is
-  this computer's own and nothing answers there, and leave the box empty
-  rather than pre-filled when the page-wide address is only the default.
 - **The first scan's two parts, told apart** (asked 2026-10-27). Setup's
   last step runs a quick scan ("first scan": the keyword job sites, your own
   boards and 8 built-in ones) and then a "full scan" of every other
