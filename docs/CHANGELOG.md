@@ -22,6 +22,12 @@ the new lock with pip-audit as well. tests/test_ci_lock.py checks that every
 install in the workflows takes a lock, that the lock carries each tool at
 its pinned version, and that `guide/requirements.txt` (for building the guide
 by hand) agrees.
+## Changed — 2026-10-28 — The release page's check section, named for what it does
+
+A release page's section on making sure a download is genuine was headed
+"Check it is the real one"; it is now **Verify Build Package**, over the
+same checksum, attestation and image signature steps
+(scripts/release_notes.py). Pages already published keep their heading.
 ## Fixed — 2026-10-28 — A Mac build that fails on "Resource busy"
 
 GitHub's macOS machines now and then refuse to make the disk image,
