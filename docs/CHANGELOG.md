@@ -20,6 +20,21 @@ the installer draws its controls itself in the Windows 11 style
 each pull request's Windows build, photographs three installer pages and the
 uninstaller's window, and keeps the pictures with the run for seven days, as
 no test of the files can show how they draw.
+## Security — 2026-10-28 — DNS rebinding, closed
+
+jobdork fetches only public addresses: a job post's link, or a redirect,
+that names this machine or its network is refused. But the name was looked
+up twice, once for the check and again to connect, so a server built for it
+could answer the check with a public address and the connection with a
+private one (DNS rebinding) and reach your router or NAS through jobdork.
+Now the name is looked up once: every address it gives must be public, and
+the connection goes to the first of those (`fetch/http.py`, `checked` and
+`_Pinned`), while TLS still checks the certificate against the name, so the
+address cannot be swapped for another site's either. Through a proxy the
+proxy looks the name up, as before. tests/test_fetch_guard.py serves a page
+on a name only the check can resolve, which loads only when the connection
+used the checked address; tried by hand, a site pinned to another site's
+address fails its certificate.
 
 ## Security — 2026-10-28 — CI installs nothing unchecked
 
