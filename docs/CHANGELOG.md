@@ -6836,25 +6836,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   keychain, never a file), so jobdork can use an Ollama behind a
   gatekeeper that checks keys; and one pasted connection code that fills
   the AI page.
-- **The error log names the reason, not only the status.** A model list
-  that could not be loaded is recorded as "GET /api/llm/models failed on
-  the server (HTTP 502)", although jobdork knows the reason ("Ollama is not
-  answering at …"). Record the server's own message; and treat a 502 that
-  only reports another service not answering as a warning about that
-  service, not as an error in jobdork.
-- **Add a job post from any link** (found 2026-10-27, a UnitedHealth Group
-  post on `uhg.taleo.net/careersection/10000/jobdetail.ftl?job=2389918`
-  refused with "cannot tell which platform that URL is on. Supported:
-  greenhouse, ashby, lever, breezy, smartrecruiters"). Adding by link
-  (`add_by_url`, `cli._platform_for`) knows 5 systems, fewer than a scan
-  reads, and nothing else. Recognise every system jobdork reads (Workday,
-  Oracle, Taleo Business Edition, Eightfold and the rest); for any other
-  link, read the page itself (schema.org `JobPosting`, as fetch/site.py
-  does); and a reader for **Taleo Enterprise** (`*.taleo.net/careersection/`):
-  its job page carries the title, job number, place, department, type,
-  posting date and description in the page's `initialHistory` field, with
-  no `JobPosting` data. When nothing can be read, say so and offer to paste
-  the advert's text instead.
 - **Linux installers: an AppImage and a .deb** (chosen 2026-10-27, both),
   built and attested by the release workflow beside the Mac and Windows
   ones, with removal (`jobdork uninstall`, Settings) and Update for each.
