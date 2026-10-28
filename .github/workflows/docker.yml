@@ -206,12 +206,53 @@ jobs:
       - name: Check what is in the image and how it behaves
         run: scripts/check_image.sh jobdork:check
 
-  # The macOS and Windows installers, built and self-tested on every run so a
-  # broken build shows on the pull request, not on release day. Only after
-  # the tests and the security scans pass: on a tag the build is attested,
-  # and an attestation should never vouch for code that failed a scan.
+  # Whether the installers need building: always for a release tag, and for a
+  # push or pull request only when it touches what they are built from. They
+  # take five runners (two Macs, Windows twice and its pictures), which ran
+  # on every change and kept the queue full. desktop.yml's Run workflow
+  # button builds any branch by hand, before a tag.
+  packaging:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - name: Checkout repository (the history, to compare with)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Does this change what the installers are built from?
+        id: diff
+        env:
+          REF: ${{ github.ref }}
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [[ "$REF" == refs/tags/v* ]]; then echo "changed=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$EVENT" = pull_request ]; then from="$BASE"; else from="$BEFORE"; fi
+          # A new branch, or a base not in this history: build, to be sure.
+          if ! git cat-file -e "$from^{commit}" 2>/dev/null; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          files=$(git diff --name-only "$from" HEAD)
+          printf '%s\n' "$files"
+          # The build's own files, its locked dependencies and the version,
+          # the two workflows, and the code only the installed app runs.
+          if printf '%s\n' "$files" | grep -qE '^(packaging/|requirements-desktop\.lock$|pyproject\.toml$|\.github/workflows/(desktop|docker)\.yml$|jobdork/web/app\.py$|jobdork/core/(updates|notify|keystore|uninstall)\.py$)'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The macOS and Windows installers, built and self-tested when packaging
+  # needs it (above), so a broken build shows on its pull request, not on
+  # release day. Only after the tests and the security scans pass: on a tag
+  # the build is attested, and an attestation should never vouch for code
+  # that failed a scan.
   desktop:
-    needs: [test, security]
+    needs: [test, security, packaging]
+    if: needs.packaging.outputs.changed == 'true'
     uses: ./.github/workflows/desktop.yml
     permissions:
       contents: read
