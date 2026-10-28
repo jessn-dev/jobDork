@@ -27,7 +27,7 @@ ADVERT = "We build payments software. " * 20
 
 def _cfg() -> Config:
     return Config(titles_include=["software engineer"],
-                  locations=Locations(anchor="", work_modes=[]))
+                  locations=Locations(cities=[], work_modes=[]))
 
 
 def _role(posted: str, description: str = ADVERT) -> Role:

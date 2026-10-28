@@ -39,7 +39,7 @@ this list and your resume.
 ## Countries to keep job posts from
 
 Every country you would work in **or for**. This is separate from where
-you live, which is only the centre of your radius: someone living in Baguio
+you would work in person, which is only about distance: someone living in Baguio
 who wants remote work for US employers lists the Philippines *and* the
 United States. A post from any other country is dropped. These also choose
 which sources search (USAJOBS only runs for the United States). None listed
@@ -75,10 +75,16 @@ it.
 
 ## Location, work arrangement and pay
 
-- **Country**, **Region** and **City**: where you are. Start typing the
-  city and pick it from the list.
-- **Radius**: how far from your city a job's office may be, in miles or
-  kilometres (*mi* or *km*). A remote job is kept wherever it is.
+- **Country**, **State** (or Province, Region) and **City**: where you would
+  work. Only the country is required. **Add** as many states and cities as
+  you like; each shows below the picker, with **×** to take it out.
+  - A post anywhere in a state you added is kept.
+  - A post within the radius of a city you added is kept. Start typing the
+    city and pick it from the list; choosing a state first narrows the list.
+  - Add neither, and posts from the whole country are kept.
+- **Radius**: how far from one of your cities a job's office may be, in
+  miles or kilometres (*mi* or *km*), or *exact* for those cities only. Not
+  used when you chose no city. A remote job is kept wherever it is.
 - **Arrangements to keep**: remote, hybrid, on-site. None ticked keeps all
   three. A post that says nothing about it is always kept, tagged
   *Arrangement not stated*.
