@@ -789,6 +789,21 @@ def test_an_uploaded_resume_is_deleted_but_your_own_file_is_only_unset():
     _with_server(check)
 
 
+def test_a_resume_with_an_encoded_name_is_saved_by_its_extension():
+    """The page sends the name encoded (a header takes Latin-1 only);
+    only the extension matters, and it survives the encoding."""
+    def check(run):
+        request = urllib.request.Request(
+            f"{run.base}/api/resume", data=b"# Me\n\nPython, SQL, Docker, AWS, Linux, Git\n" * 20,
+            headers={"X-Filename": urllib.parse.quote("Maria’s Resume – 2026.md"),
+                     "X-Jobdork-Token": run.token,
+                     "Content-Type": "application/octet-stream"})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            uploaded = Path(json.loads(response.read())["path"])
+        assert uploaded.is_file() and uploaded.name == "resume.md"
+    _with_server(check)
+
+
 def test_in_a_container_the_resume_and_letters_are_kept_unless_asked_otherwise():
     """JOBDORK_DOCS_DIR keeps them in the volume; JOBDORK_TEMP_DOCS, opt-in, wins."""
     import os
