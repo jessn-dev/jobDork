@@ -6887,12 +6887,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   tokens per verdict against each free tier's daily and per-minute limits,
   so the guide can say which free models to pick and how many job posts a
   day a free key covers before it is capped.
-- **An Ollama address with a key** (for beta testers using someone else's
-  Ollama without Tailscale, 2026-10-27): an optional key on an Ollama line,
-  sent as `Authorization: Bearer`, kept like every other key (memory or the
-  keychain, never a file), so jobdork can use an Ollama behind a
-  gatekeeper that checks keys; and one pasted connection code that fills
-  the AI page.
 - **Linux installers: an AppImage and a .deb** (chosen 2026-10-27, both),
   built and attested by the release workflow beside the Mac and Windows
   ones, with removal (`jobdork uninstall`, Settings) and Update for each.
