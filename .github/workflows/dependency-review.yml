@@ -1,0 +1,26 @@
+# Every pull request: a dependency it adds or upgrades with a known
+# vulnerability fails the check, and the pull request gets a comment naming
+# it. It reads GitHub's dependency graph, which takes pyproject.toml; the
+# hash-pinned locks (requirements.lock, requirements-desktop.lock) are
+# checked by pip-audit in docker.yml's security job instead.
+name: Dependency review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write          # the comment, when it fails
+    steps:
+      - name: New dependencies have no known vulnerabilities
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure

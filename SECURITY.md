@@ -23,9 +23,12 @@ only after the owner approves it in the `release` environment. A push to
 | `pip-audit` on `requirements-desktop.lock`, every platform's packages | The same, for what the desktop installers are built from (pyobjc on macOS, pythonnet on Windows included) |
 | `bandit` over the code | Injection, unsafe calls and similar in jobdork's own code. A finding judged safe is marked in the code with its reason |
 | `gitleaks` over **the whole git history** | A key, token or password ever committed, even if deleted since |
+| `zizmor` over the workflows | Template injection, credentials left in a checkout, over-broad token permissions and risky triggers in `.github/workflows`; and, online, that every pinned commit is really its action's and not a known-vulnerable version. Medium and above fail |
 | `hadolint` | Dockerfile mistakes |
 | Trivy on the built image | High and critical vulnerabilities in every package in the image, fixed or not, plus secrets and misconfiguration |
 | `scripts/check_image.sh` | That the image runs as user 1000, has no pip, contains no `.env`, config or database, cannot rewrite its own code, and that the dashboard starts and refuses a missing token and an address not named |
+| Dependency Review, on every pull request (`dependency-review.yml`) | A dependency the pull request adds or upgrades with a known vulnerability of moderate severity or above; it fails, and comments which. It reads `pyproject.toml`; the locks are pip-audit's |
+| OpenSSF Scorecard, weekly and on every push to `main` (`scorecard.yml`) | How the supply chain is guarded: pinned actions, branch protection, signed releases, reviews, token permissions. Findings go to Security, Code scanning; the score is published to scorecard.dev |
 | Desktop app build (`desktop.yml`), macOS (Apple Silicon and Intel) and Windows, after the tests and scans pass | That every installer still build from the hash-pinned `requirements-desktop.lock`, and that the built app carries every module and data file it needs and can verify a build attestation (its `--self-test`) |
 
 **How the image is built to be hard to tamper with:**
@@ -187,6 +190,12 @@ got into the GitHub or Docker Hub account could get around everything above.
 - [x] `BOARDS_PR_TOKEN`, for the weekly boards re-check: a fine-grained
       personal access token for this repository only, with Contents and Pull
       requests set to Read and write and nothing else. Rotate it yearly.
+
+**To set (2026-10-28), by the owner:**
+- [ ] Actions, allowed actions: add `ossf/scorecard-action@*`, so the
+      Scorecard workflow may run (every other action it uses is GitHub's).
+- [ ] Code scanning, CodeQL: query suite **Extended**, for more security
+      queries on the scan that already runs.
 
 **Not available on this account:** secret scanning's generic patterns and
 validity checks need GitHub's paid Secret Protection; provider patterns and
