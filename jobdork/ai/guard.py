@@ -32,6 +32,7 @@ import difflib
 import re
 from dataclasses import dataclass, field, replace
 
+from ..core.textutil import visible
 from .llm import LLMError, Settings, complete_json
 
 MAX_CLAIMS = 25
@@ -156,13 +157,15 @@ def advert_source(row, posting: str = "") -> str:
 
 
 def _norm(text: str) -> str:
-    return re.sub(r"\s+", " ", (text or "").lower()).strip()
+    # Without hidden characters: the model read the advert without them, so
+    # its quotes have none (core/textutil.py visible).
+    return re.sub(r"\s+", " ", visible(text).lower()).strip()
 
 
 def _loose(text: str) -> str:
     """Words only: a quote that differs from its source in punctuation, a
     bullet, a curly quote or a line break is still the same words."""
-    return " ".join(re.findall(r"[a-z0-9+#]+", (text or "").lower()))
+    return " ".join(re.findall(r"[a-z0-9+#]+", visible(text).lower()))
 
 
 # A claim that something is missing, in the words a gap is written in: "not"

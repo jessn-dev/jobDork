@@ -46,6 +46,7 @@ from dataclasses import dataclass, field, replace
 
 import requests
 
+from ..core import textutil
 from ..writing.humanize import RULES, clean
 
 log = logging.getLogger("jobdork.ai.llm")
@@ -446,6 +447,14 @@ def error_kind(message: str) -> str:
 def _call_one(settings: Settings, system: str, user: str, schema: dict,
               max_tokens: int, purpose: str, on_text) -> dict:
     """One reader, one call. Raises LLMError."""
+    # Hidden characters out first: what the model reads is what a person
+    # reading the advert could see.
+    hidden, tags = textutil.hidden_count(user)
+    if hidden:
+        (log.warning if tags or hidden >= 20 else log.debug)(
+            "removed %s hidden characters%s from what the AI reads", hidden,
+            f" ({tags} of them spelling out text)" if tags else "")
+        user = textutil.visible(user)
     if settings.provider in KEYED:
         user = redact(user)
     call = {"ollama": _ollama, "anthropic": _anthropic,
