@@ -55,7 +55,7 @@ class _Fetcher:
 
 def _cfg(countries=("PH",)):
     return Config(titles_include=["devops engineer"],
-                  locations=Locations(anchor="", countries=list(countries)))
+                  locations=Locations(cities=[], countries=list(countries)))
 
 
 def test_jobs_become_posts_with_dates_pay_and_arrangement():

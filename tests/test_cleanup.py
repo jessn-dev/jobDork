@@ -22,7 +22,7 @@ from jobdork.web import api
 
 def _setup(tmp: str) -> tuple[Config, dict[str, str]]:
     cfg = Config(titles_include=["software engineer"],
-                 locations=Locations(anchor="", radius="any", countries=[]),
+                 locations=Locations(cities=[], radius="any", countries=[]),
                  salary=Salary(), db_path=str(Path(tmp) / "t.db"))
     uids = {}
     with Store(cfg.db_path) as store:
@@ -106,7 +106,7 @@ def _aged_setup(tmp: str) -> tuple[Config, dict[str, str]]:
     from datetime import date, timedelta
 
     cfg = Config(titles_include=["software engineer"],
-                 locations=Locations(anchor="", radius="any", countries=[]),
+                 locations=Locations(cities=[], radius="any", countries=[]),
                  salary=Salary(), db_path=str(Path(tmp) / "t.db"))
     uids = {}
     with Store(cfg.db_path) as store:
