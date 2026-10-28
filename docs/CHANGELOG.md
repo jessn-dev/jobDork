@@ -30,6 +30,25 @@ public repository:
   the allowed actions first; SECURITY.md lists that, and the CodeQL
   Extended query suite, as settings for the owner.
 
+## Added — 2026-10-28 — An Ollama behind a gatekeeper, and a connection code
+
+For a beta tester using someone else's Ollama without joining their
+Tailscale: an Ollama line can be marked **Send the Ollama key**, and jobdork
+then sends one Ollama key as `Authorization: Bearer` to that line's address,
+for a gatekeeper (a reverse proxy or tunnel) that checks it. The key is held
+like every other key, in memory or in this computer's keychain when you
+chose that, never in a file, and goes only to the lines marked to send it,
+never to an address nobody chose to trust. A refused key says "the key was
+refused"; an Ollama that asks for a key on a line not marked says to tick
+the box. `JOBDORK_OLLAMA_KEY` works too, and **Enter your keys** asks for it
+after a restart when a line needs it.
+
+The Ollama's owner makes a **connection code** with `jobdork ollama-code
+--url … --reader … [--checker …]`, which asks for the key unseen. The tester
+pastes it on the AI page and clicks **Use this code**: their address and
+models fill an Ollama line (and a checker), the key is held, and **Save**
+keeps the lines. The code carries the key, so it is sent privately; the page
+never sends the key back.
 ## Added — 2026-10-28 — A scan queue you can see, cancel and stop
 
 A change to your search, Projects or Education starts a scan or a
@@ -6901,12 +6920,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   tokens per verdict against each free tier's daily and per-minute limits,
   so the guide can say which free models to pick and how many job posts a
   day a free key covers before it is capped.
-- **An Ollama address with a key** (for beta testers using someone else's
-  Ollama without Tailscale, 2026-10-27): an optional key on an Ollama line,
-  sent as `Authorization: Bearer`, kept like every other key (memory or the
-  keychain, never a file), so jobdork can use an Ollama behind a
-  gatekeeper that checks keys; and one pasted connection code that fills
-  the AI page.
 - **Linux installers: an AppImage and a .deb** (chosen 2026-10-27, both),
   built and attested by the release workflow beside the Mac and Windows
   ones, with removal (`jobdork uninstall`, Settings) and Update for each.

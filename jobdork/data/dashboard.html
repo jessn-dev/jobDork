@@ -1158,6 +1158,16 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       do not say plainly whether the job is still open. It never hides a job post.
       Local models cost nothing; the others spend tokens on your key.</p>
 
+    <form class="bar" id="ai-code" style="margin:0 0 .5rem">
+      <input id="ai-code-text" type="password" autocomplete="off" spellcheck="false"
+        placeholder="A connection code, if someone gave you one" style="flex:1;min-width:20rem"
+        aria-label="Connection code">
+      <button data-icon="key-round" class="act" type="submit">Use this code</button>
+      <span id="ai-code-msg" class="hint"></span>
+    </form>
+    <p class="hint" style="margin-top:-.2rem">Using someone else's Ollama? They can give you
+      a connection code: it fills in their address and models, and holds the key their
+      Ollama asks for. Keep it private, like a password.</p>
     <div id="ai-readers"></div>
     <div class="bar" style="margin:-.2rem 0 .3rem">
       <button data-icon="plus" class="act" id="ai-add">Add another reader</button>
@@ -4557,6 +4567,7 @@ const blankReader = () => ({provider: '', model: '', ollama_url: ''});
 
 async function drawAI() {
   ai = await (await api('/api/llm')).json();
+  ai.keys.ollama = ai.ollama_key || '';     // the one key Ollama lines may send
   ai.readers = ai.readers && ai.readers.length ? ai.readers : [blankReader()];
   $('ai-on-scan').checked = ai.judge_on_scan;
   $('ai-top').value = ai.judge_top;
@@ -4582,9 +4593,17 @@ function syncReaders() {
     const r = ai[card.dataset.list][Number(card.dataset.i)];
     if (!r) return;
     r.model = card.querySelector('.r-model').value.trim();
-    if (r.provider === 'ollama') r.ollama_url = card.querySelector('.r-url').value.trim();
+    if (r.provider === 'ollama') {
+      r.ollama_url = card.querySelector('.r-url').value.trim();
+      r.ollama_key = card.querySelector('.r-okey').checked;
+    }
   });
 }
+
+// Which key a line uses, and whether it needs one: an Ollama line only
+// when marked to send the Ollama key.
+const keyOf = r => r.provider === 'ollama' ? 'ollama' : r.provider;
+const needsKey = r => r.provider === 'ollama' ? !!r.ollama_key : r.provider in ai.keys;
 
 function keyState(p) {
   const where = ai.keys[p];
@@ -4616,13 +4635,17 @@ function drawList(list, loadAll) {
       <input class="r-url" style="width:20rem" spellcheck="false" value="${esc(readerUrlShown(r))}"
         placeholder="${esc(ai.ollama_url || '')} (this computer)">
       <div class="hint">Empty uses Ollama on this computer. For Ollama on another computer, its
-        address, such as <code>${esc(String(ai.ollama_url || '').replace(/\/\/[^:/]+/, '//100.101.102.103'))}</code>.</div></div>
-    <div class="field r-key-row" ${r.provider in ai.keys ? '' : 'hidden'}><label>API key for ${esc(ai.providers[r.provider] || '')}</label>
+        address, such as <code>${esc(String(ai.ollama_url || '').replace(/\/\/[^:/]+/, '//100.101.102.103'))}</code>.</div>
+      <label class="check"><input type="checkbox" class="r-okey"${r.ollama_key ? ' checked' : ''}>
+        Send the Ollama key: this Ollama is behind a gatekeeper that asks for one</label></div>
+    <div class="field r-key-row" ${needsKey(r) ? '' : 'hidden'}><label>${r.provider === 'ollama'
+      ? 'Key for this Ollama, one for every Ollama line that sends it'
+      : `API key for ${esc(ai.providers[r.provider] || '')}`}</label>
       <div class="bar" style="margin:0">
         <input class="r-key" type="password" autocomplete="off" spellcheck="false"
           placeholder="Paste the key" style="width:22rem">
         <button data-icon="key-round" class="act r-hold" type="button">Hold in memory</button>
-        <span class="r-key-state">${r.provider in ai.keys ? keyState(r.provider) : ''}</span></div></div>
+        <span class="r-key-state">${needsKey(r) ? keyState(keyOf(r)) : ''}</span></div></div>
     <div class="field r-model-row" ${r.provider ? '' : 'hidden'}><label>Model</label>
       <div class="bar" style="margin:0">
         <select class="r-models" aria-label="Model" style="width:22rem" hidden></select>
@@ -4666,21 +4689,23 @@ function wireReader(card, load) {
     drawReaders(true);
   };
   card.querySelector('.r-load').onclick = () => loadReaderModels(card, false);
+  // Ticking it shows the key box; the line's models are read with the key.
+  card.querySelector('.r-okey').onchange = () => { syncReaders(); drawReaders(true); };
   card.querySelector('.r-hold').onclick = async () => {
     const box = card.querySelector('.r-key'), key = box.value;
-    const res = await api('/api/llm/key', {method: 'POST', body: form({provider: r.provider, key})});
+    const res = await api('/api/llm/key', {method: 'POST', body: form({provider: keyOf(r), key})});
     box.value = '';                   // the page does not keep it either
     if (!res.ok) {
       card.querySelector('.r-key-state').innerHTML = `<span class="err">${esc(await res.text())}</span>`;
       return;
     }
-    ai.keys[r.provider] = 'memory';
+    ai.keys[keyOf(r)] = 'memory';
     syncReaders(); drawReaders(true); refreshState();
   };
   const forget = card.querySelector('.r-forget');
   if (forget) forget.onclick = async () => {
-    await api('/api/llm/forget', {method: 'POST', body: form({provider: r.provider})});
-    ai.keys[r.provider] = '';
+    await api('/api/llm/forget', {method: 'POST', body: form({provider: keyOf(r)})});
+    ai.keys[keyOf(r)] = '';
     syncReaders(); drawReaders(false);
   };
   if (load) loadReaderModels(card, true);
@@ -4690,10 +4715,12 @@ async function loadReaderModels(card, quiet) {
   const r = ai[card.dataset.list][Number(card.dataset.i)], msg = card.querySelector('.r-msg');
   const sel = card.querySelector('.r-models'), input = card.querySelector('.r-model');
   fillModelsEl(sel, input, []);
-  if (!r || !r.provider || (r.provider in ai.keys && !ai.keys[r.provider])) { msg.textContent = ''; return; }
+  if (!r || !r.provider || (needsKey(r) && !ai.keys[keyOf(r)])) { msg.textContent = ''; return; }
   msg.textContent = 'loading…';
   const url = card.querySelector('.r-url').value.trim() || readerUrl(r);
-  const res = await api(`/api/llm/models?provider=${r.provider}&url=${encodeURIComponent(url)}`);
+  const sendKey = r.provider === 'ollama' && card.querySelector('.r-okey').checked;
+  const res = await api(`/api/llm/models?provider=${r.provider}&url=${encodeURIComponent(url)}${
+    sendKey ? '&key=1' : ''}`);
   if (!res.ok) { msg.textContent = await res.text(); return; }
   const models = (await res.json()).models;
   msg.textContent = `${models.length} available`;
@@ -4735,7 +4762,8 @@ function fillModelsEl(sel, input, models) {
 // A list's chosen models, as saved; null (and a message) when one is listed twice.
 function listToSave(list) {
   const out = ai[list].filter(r => r.provider).map(r => ({provider: r.provider, model: r.model,
-    ollama_url: r.provider === 'ollama' ? (r.ollama_url || '') : ''}));
+    ollama_url: r.provider === 'ollama' ? (r.ollama_url || '') : '',
+    ollama_key: r.provider === 'ollama' && !!r.ollama_key}));
   const seen = new Set();
   for (const r of out) {
     const k = `${r.provider}|${r.model}|${r.ollama_url}`;
@@ -4748,6 +4776,33 @@ function listToSave(list) {
   }
   return out;
 }
+
+// A connection code fills an Ollama line (the first, if no reader is chosen
+// yet, else a new one) and a checker when it names one; its key is held at
+// once. Save keeps the lines.
+$('ai-code').onsubmit = async ev => {
+  ev.preventDefault();
+  const box = $('ai-code-text'), msg = $('ai-code-msg');
+  const r = await api('/api/llm/connection', {method: 'POST', body: form({code: box.value})});
+  box.value = '';                   // it carries the key: not kept on the page
+  if (!r.ok) { msg.className = 'err'; msg.textContent = cap(await r.text()); return; }
+  const d = await r.json();
+  syncReaders();
+  ai.keys.ollama = 'memory';
+  const line = model => ({provider: 'ollama', model, ollama_url: d.url, ollama_key: true});
+  const put = (list, model) => {
+    if (!model) return;
+    const items = ai[list];
+    if (items.some(x => x.provider === 'ollama' && x.model === model && x.ollama_url === d.url)) return;
+    if (!items[0].provider) items[0] = line(model);
+    else if (items.length < (ai.max_readers || 6)) items.push(line(model));
+  };
+  put('readers', d.reader); put('checkers', d.checker);
+  drawReaders(true);
+  msg.className = 'saved';
+  msg.textContent = `Filled in ${d.url}${d.note ? `; key ${d.note}` : '; key held in memory'}. Click Save to keep it.`;
+};
+
 
 // Each free-tier model's day so far, and the limits you set.
 function drawAllowance() {

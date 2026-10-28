@@ -102,10 +102,10 @@ def delete(name: str) -> None:
 
 def names() -> list[str]:
     """Every name jobdork may keep a key under."""
-    from ..ai.llm import KEYED
+    from ..ai.llm import KEYED, OLLAMA_KEY
     from .config import SOURCE_KEY_NAMES
 
-    return [AI_PREFIX + p for p in KEYED] + list(SOURCE_KEY_NAMES)
+    return [AI_PREFIX + p for p in (*KEYED, OLLAMA_KEY)] + list(SOURCE_KEY_NAMES)
 
 
 def load_into_memory() -> list[str]:
