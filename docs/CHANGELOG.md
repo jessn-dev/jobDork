@@ -22,6 +22,15 @@ the new lock with pip-audit as well. tests/test_ci_lock.py checks that every
 install in the workflows takes a lock, that the lock carries each tool at
 its pinned version, and that `guide/requirements.txt` (for building the guide
 by hand) agrees.
+## Fixed — 2026-10-28 — A Mac build that fails on "Resource busy"
+
+GitHub's macOS machines now and then refuse to make the disk image,
+"hdiutil: create failed - Resource busy", while Spotlight or the malware
+scan holds the folder a moment; it broke the Apple Silicon build on #71 and
+the Intel one on #77, and a re-run passed each time. The build script now
+asks again itself, after 5, 15 and 30 seconds, and only for that error:
+anything else still stops the build at once, and four refusals in a row
+still fail it (packaging/build.py, `run_retrying_busy`).
 ## Added — 2026-10-28 — Three more security checks
 
 The scans already covered jobdork's code (CodeQL, bandit), its
