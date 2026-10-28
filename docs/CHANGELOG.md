@@ -23,6 +23,15 @@ was; that chart moved to the panel after it):
   being read finish, and every job post found so far is screened and kept.
   The AI reading after the scan is skipped; the queue goes on. The scan's
   summary says how many sources were left unread.
+## Added — 2026-10-28 — The hallucination rate in colour
+
+The Dashboard's Hallucination tile and its "Hallucination, over time" chart
+are measured against the 2-5% target in docs/AI-MODELS.md: green at 5% or
+under, amber above 5% up to 10%, red above 10%, where every other local
+model measured. The tile says it in words beside the colour (*within
+target*, *watch it*, *too high: try a bigger model or a checker*), the
+chart shades those three ranges behind its lines with a key under it, and
+each day's tooltip names the range.
 ## Changed — 2026-10-28 — Where you would work: any states and cities, or the whole country
 
 Setup's Where step required one city, and every distance was measured from
@@ -6787,6 +6796,17 @@ open; a digest arrives, and what arrived with it is what was not there before.
   2-5% target in docs/AI-MODELS.md), amber above 5% up to 10%, red above
   10% (where every other local model measured). Said in words too, not by
   colour alone ("within target", "watch it", "too high: see AI-MODELS.md").
+- **A scan queue you can see and cancel** (asked 2026-10-27). A change to
+  Search, Projects, Education or Sources starts a scan or re-screen; one
+  that arrives while another runs waits (web/live.py `Runner.queue`), but
+  only one of each kind, the newest replacing the one waiting, and the page
+  never shows it. Instead: first in, first out, every request kept, with
+  what started it ("Search: added Nurse Practitioner"); the number waiting
+  on the Dashboard; a list where any waiting one can be cancelled; and
+  **Stop** for the scan running now, keeping what it found so far. Shown in
+  the Dashboard panel now titled "Feedback on AI output, per day", renamed
+  for it (where the feedback chart goes instead is decided when it is
+  built).
 - **Hosted models measured before recommending them** (asked 2026-10-27):
   run scripts/hallucination_benchmark.py with Gemini and Groq models as
   reader and as checker, as was done for Ollama, and count requests and
