@@ -9,8 +9,9 @@ letter and tailored resume is built from. It stays on your computer.
 ## Your resume
 
 **Choose File**, then **Upload**: a PDF, Word (`.docx`), Markdown (`.md`) or
-text file. Uploading a new one replaces the old, and every job post is
-re-scored.
+text file. A bar under the button shows the file going up, then keeps
+moving while jobdork reads it; a long PDF can take a few seconds. Uploading
+a new one replaces the old, and every job post is re-scored.
 
 - **View resume** shows it, and under *The text the fit score and the AI
   read*, exactly what jobdork could read from it, with the skills it found.
