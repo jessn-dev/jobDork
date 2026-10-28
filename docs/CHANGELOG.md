@@ -34,6 +34,16 @@ and change), so nothing is hardcoded: jobdork reads what each says.
 What is learned is held in memory: after a restart the provider's next
 refusal teaches it again. Measuring how many job posts a day a free key
 covers (the "Hosted models measured" item below) still needs real keys.
+## Fixed — 2026-10-28 — The error log names the reason, not only the status
+
+A request the server could not answer was logged by the page as, for
+example, "GET /api/llm/models failed on the server (HTTP 502)", although
+the server had said why ("Ollama is not answering at …"). The log now
+carries the server's own words after the status. A 502 is jobdork
+reporting that another service it asked (Ollama, an AI provider) did not
+answer, so it is logged as a warning about that service, "another service
+did not answer", not as an error in jobdork. A resume upload's server
+error goes the same way.
 ## Fixed — 2026-10-28 — An Ollama on another computer, on the AI page
 
 A reader line with no address of its own showed the page-wide one in its
@@ -6843,12 +6853,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   posting date and description in the page's `initialHistory` field, with
   no `JobPosting` data. When nothing can be read, say so and offer to paste
   the advert's text instead.
-- **The error log names the reason, not only the status.** A model list
-  that could not be loaded is recorded as "GET /api/llm/models failed on
-  the server (HTTP 502)", although jobdork knows the reason ("Ollama is not
-  answering at …"). Record the server's own message; and treat a 502 that
-  only reports another service not answering as a warning about that
-  service, not as an error in jobdork.
 - **Linux installers: an AppImage and a .deb** (chosen 2026-10-27, both),
   built and attested by the release workflow beside the Mac and Windows
   ones, with removal (`jobdork uninstall`, Settings) and Update for each.
