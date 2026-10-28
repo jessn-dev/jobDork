@@ -55,14 +55,15 @@ Below the run, the weeks behind it. Pick **7 days**, **30 days** or **90 days** 
 | **Errored runs** | How many failed, died or were stopped |
 | **AI calls** | How many times the AI was asked, and how many of those failed |
 | **P50 AI latency** | How long an AI answer usually takes (P50 is the middle; P95 is a slow one) |
-| **Hallucination** | Of the facts the AI wrote, the share it could not back up from your resume or the advert. Lower is better. *Coverage* is how much of the AI's writing was checked ([why](ai.md#the-hallucination-check)) |
+| **Hallucination** | Of the facts the AI wrote, the share it could not back up from your resume or the advert. Lower is better: green at 5% or under, amber to 10%, red above, with the words beside it. *Coverage* is how much of the AI's writing was checked ([why](ai.md#the-hallucination-check)) |
 
 The charts below them:
 
 - **Runs by tool, over time**: scans, checks, AI judging, AI writing and the
   rest, day by day.
 - **Hallucination, over time**: claims not supported, by kind of writing
-  (**By kind**) or by AI model (**By model**).
+  (**By kind**) or by AI model (**By model**), over the same green, amber
+  and red bands.
 - **Feedback on AI output, per day**: your thumbs up and down on AI
   writing ([how to rate it](job-window.md#rate-the-ai)).
 
