@@ -6777,21 +6777,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   cannot work, and every **Load models** fails. Say when the address is
   this computer's own and nothing answers there, and leave the box empty
   rather than pre-filled when the page-wide address is only the default.
-- **The hallucination rate in colour** (asked 2026-10-27): the Dashboard
-  tile and the "Hallucination, over time" chart green at 5% or below (the
-  2-5% target in docs/AI-MODELS.md), amber above 5% up to 10%, red above
-  10% (where every other local model measured). Said in words too, not by
-  colour alone ("within target", "watch it", "too high: see AI-MODELS.md").
-- **The first scan's two parts, told apart** (asked 2026-10-27). Setup's
-  last step runs a quick scan ("first scan": the keyword job sites, your own
-  boards and 8 built-in ones) and then a "full scan" of every other
-  built-in board, in the background. The Dashboard should say which is
-  running and that it started: "Quick scan: reading job sites and 8
-  employer boards" then "Full scan started: reading the other N employer
-  boards; job posts keep arriving". When the full scan ends, tell the
-  person their job posts are ready to view: a notice on the page with a
-  **View job posts** button, and the computer's notification when
-  notifications are on, including when the window was closed meanwhile.
 - **A scan queue you can see and cancel** (asked 2026-10-27). A change to
   Search, Projects, Education or Sources starts a scan or re-screen; one
   that arrives while another runs waits (web/live.py `Runner.queue`), but
