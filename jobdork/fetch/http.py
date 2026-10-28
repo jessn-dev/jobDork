@@ -49,6 +49,10 @@ from dataclasses import dataclass, field
 
 import requests
 from requests.adapters import HTTPAdapter
+from urllib3.connection import HTTPConnection, HTTPSConnection
+from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
+from urllib3.exceptions import ConnectTimeoutError, NewConnectionError
+from urllib3.util import connection as _connection
 
 log = logging.getLogger("jobdork.fetch")
 
@@ -124,49 +128,125 @@ def _public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     return ip.is_global and not ip.is_multicast
 
 
-def refusal(url: str, resolve=socket.getaddrinfo) -> str:
-    """Why `url` is not fetched, or "" when its host is public.
+def checked(url: str, resolve=None) -> tuple[str, str]:
+    """(why `url` is not fetched, or ""; the address to connect to, or "").
 
     Every address the name resolves to must be public: a name with one
-    public and one private address could be connected to either. A name
-    that does not resolve is let through, to fail as the request would.
-    The name is resolved again when connecting, so a server that answers
-    with a different address the second time (DNS rebinding) is not caught
-    here; that takes a server built for it, not just a job post.
+    public and one private address could be connected to either. The
+    connection then goes to the first of the addresses checked (_Pinned),
+    so a server that answers with a public address for the check and a
+    private one for the connection (DNS rebinding) reaches nothing. A name
+    that does not resolve is let through with no address, to fail as the
+    request would.
     """
     parts = urllib.parse.urlsplit(url)
     host = (parts.hostname or "").rstrip(".")
     if not host:
-        return f"no host in {url!r}"
+        return f"no host in {url!r}", ""
     try:
         literal = ipaddress.ip_address(host)
     except ValueError:
         literal = None
     if literal is not None:
-        return "" if _public(literal) else f"{host} is not a public address"
+        return ("", host) if _public(literal) else (f"{host} is not a public address", "")
     try:
-        found = resolve(host, parts.port or 443, proto=socket.IPPROTO_TCP)
+        found = (resolve or _getaddrinfo)(host, parts.port or 443, proto=socket.IPPROTO_TCP)
     except (OSError, UnicodeError):
-        return ""
+        return "", ""
+    first = ""
     for *_, sockaddr in found:
         try:
             ip = ipaddress.ip_address(str(sockaddr[0]).split("%", 1)[0])
         except ValueError:
             continue
         if not _public(ip):
-            return f"{host} is in this machine or its network ({ip})"
-    return ""
+            return f"{host} is in this machine or its network ({ip})", ""
+        first = first or str(ip)
+    return "", first
+
+
+def refusal(url: str, resolve=None) -> str:
+    """Why `url` is not fetched, or "" when its host is public."""
+    return checked(url, resolve)[0]
+
+
+# The name lookup the check uses, here so a test can answer it.
+_getaddrinfo = socket.getaddrinfo
+
+# The address checked for each host, for the connection this thread is
+# about to open: {host: address}. Set by _PublicOnly.send around one
+# request, read by _Pinned._new_conn.
+_pins = threading.local()
+
+
+def _pinned() -> dict[str, str]:
+    if not hasattr(_pins, "hosts"):
+        _pins.hosts = {}
+    return _pins.hosts
+
+
+class _Pinned:
+    """A connection that goes to the address the check found, not to a
+    second lookup of the name. TLS still checks the certificate against the
+    name (urllib3 takes `self.host` for that), so a pinned address that is
+    not the site's fails its certificate rather than being trusted. Through
+    a proxy nothing is pinned: the proxy looks the name up itself."""
+
+    def _new_conn(self):
+        address = _pinned().get(self.host)
+        if not address or self._tunnel_host or getattr(self, "proxy", None):
+            return super()._new_conn()
+        try:
+            sock = _connection.create_connection(
+                (address, self.port), self.timeout,
+                source_address=self.source_address, socket_options=self.socket_options)
+        except TimeoutError as exc:
+            raise ConnectTimeoutError(
+                self, f"Connection to {self.host} timed out. (connect timeout={self.timeout})",
+            ) from exc
+        except OSError as exc:
+            raise NewConnectionError(self, f"Failed to establish a new connection: {exc}") from exc
+        return sock
+
+
+class _PinnedHTTP(_Pinned, HTTPConnection):
+    pass
+
+
+class _PinnedHTTPS(_Pinned, HTTPSConnection):
+    pass
+
+
+class _PinnedHTTPPool(HTTPConnectionPool):
+    ConnectionCls = _PinnedHTTP
+
+
+class _PinnedHTTPSPool(HTTPSConnectionPool):
+    ConnectionCls = _PinnedHTTPS
 
 
 class _PublicOnly(HTTPAdapter):
     """Checks each request it sends, so a redirect is checked too: requests
-    sends every hop of one through the adapter again."""
+    sends every hop of one through the adapter again. The connection goes
+    to the address checked (_Pinned)."""
+
+    def init_poolmanager(self, *args, **kwargs):
+        super().init_poolmanager(*args, **kwargs)
+        self.poolmanager.pool_classes_by_scheme = {"http": _PinnedHTTPPool,
+                                                   "https": _PinnedHTTPSPool}
 
     def send(self, request, *args, **kwargs):
-        why = refusal(request.url)
+        why, address = checked(request.url)
         if why:
             raise PrivateAddress(f"refused: {why}")
-        return super().send(request, *args, **kwargs)
+        host = (urllib.parse.urlsplit(request.url).hostname or "").rstrip(".")
+        pins = _pinned()
+        if address and host:
+            pins[host] = address
+        try:
+            return super().send(request, *args, **kwargs)
+        finally:
+            pins.pop(host, None)
 
 
 @dataclass

@@ -81,16 +81,63 @@ def test_a_redirect_into_the_network_is_refused_too():
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Redirect)
     start = f"http://127.0.0.1:{server.server_address[1]}/job"
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    real = http.refusal
+    real = http.checked
     # lambda: lets the stand-in public page through and checks every other hop.
-    http.refusal = lambda url, resolve=_fails: "" if url == start else real(url, resolve)
+    http.checked = lambda url, resolve=_fails: ("", "") if url == start else real(url, resolve)
     try:
         resp = http.Fetcher("jobdork-test", timeout=2, retries=0).get(start, expect_json=False)
     finally:
-        http.refusal = real
+        http.checked = real
         server.shutdown()
         server.server_close()
     assert resp.status == 0 and "10.0.0.1" in resp.error, resp.error
+
+
+def test_the_connection_goes_to_the_address_that_was_checked():
+    """DNS rebinding: a name that answers the check with one address and the
+    connection with another. Here the check is told rebind.test is the local
+    server (let through as if public), and the name resolves nowhere else:
+    the page loads only if the connection went to the checked address
+    instead of looking the name up again. The server still sees the name."""
+    seen = {}
+
+    class _Page(BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen["host"] = self.headers.get("Host")
+            body = b"ok"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _Page)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    saved = http._getaddrinfo, http._public
+    http._getaddrinfo = _resolves_to("127.0.0.1")
+    # lambda: the local server stands in for a public one, for the check only.
+    http._public = lambda ip: True
+    try:
+        resp = http.Fetcher("jobdork-test", timeout=2, retries=0).get(
+            f"http://rebind.test:{port}/job", expect_json=False)
+    finally:
+        http._getaddrinfo, http._public = saved
+        server.shutdown()
+        server.server_close()
+    assert resp.status == 200 and resp.body == "ok", resp.error
+    assert seen["host"] == f"rebind.test:{port}", "the name is kept for Host (and TLS)"
+    assert http._pinned() == {}, "the pin goes with the request"
+
+
+def test_the_check_names_the_first_address_or_refuses():
+    assert http.checked("https://a.test/", _resolves_to("8.8.8.8", "1.1.1.1")) == ("", "8.8.8.8")
+    why, address = http.checked("https://a.test/", _resolves_to("8.8.8.8", "10.0.0.1"))
+    assert "10.0.0.1" in why and address == ""
+    assert http.checked("https://8.8.4.4/") == ("", "8.8.4.4")
+    assert http.checked("https://a.test/", _fails) == ("", ""), "left to fail by itself"
 
 
 # ── keep this block LAST ───────────────────────────────────────────────────────

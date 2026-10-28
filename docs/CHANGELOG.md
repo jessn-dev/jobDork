@@ -19,6 +19,21 @@ model's quotes against the advert the same way (`ai/guard.py`), so a true
 quote is not counted as made up because the advert hid a character inside
 a word. Kept: the zero-width non-joiner and joiner (U+200C, U+200D), which
 Persian, Hindi and other scripts need to be spelled right.
+## Security — 2026-10-28 — DNS rebinding, closed
+
+jobdork fetches only public addresses: a job post's link, or a redirect,
+that names this machine or its network is refused. But the name was looked
+up twice, once for the check and again to connect, so a server built for it
+could answer the check with a public address and the connection with a
+private one (DNS rebinding) and reach your router or NAS through jobdork.
+Now the name is looked up once: every address it gives must be public, and
+the connection goes to the first of those (`fetch/http.py`, `checked` and
+`_Pinned`), while TLS still checks the certificate against the name, so the
+address cannot be swapped for another site's either. Through a proxy the
+proxy looks the name up, as before. tests/test_fetch_guard.py serves a page
+on a name only the check can resolve, which loads only when the connection
+used the checked address; tried by hand, a site pinned to another site's
+address fails its certificate.
 
 ## Security — 2026-10-28 — CI installs nothing unchecked
 
