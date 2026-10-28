@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import base64
 import urllib.parse
+from itertools import product
 
 from ..core.textutil import to_text
 from ..db.store import Role
@@ -59,12 +60,10 @@ GERMAN_NAMES = {"munich": "München", "cologne": "Köln", "nuremberg": "Nürnber
                 "brunswick": "Braunschweig", "hanover": "Hannover"}
 
 
-def _where(cfg) -> tuple[str, int | None]:
-    """(place to search from, radius in km); ("", None) for all of Germany."""
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs()) \
-        if cfg.locations.anchor.strip() else None
-    if not anchor or not anchor.located or anchor.country != "DE":
-        return "", None
+def _where(cfg) -> list[tuple[str, int | None]]:
+    """(place to search from, radius in km) for each of your German cities;
+    [("", None)], all of Germany, when there is none or a region is chosen
+    (the search takes a place and a distance, not a Land)."""
     radius = str(cfg.locations.radius or "").strip()
     try:
         km = float(radius)
@@ -72,8 +71,16 @@ def _where(cfg) -> tuple[str, int | None]:
         km = 0.0 if radius == "exact" else 25.0
     if (cfg.locations.units or "km") == "mi":
         km *= KM_PER_MILE
-    city = anchor.city or cfg.locations.anchor.split(",")[0].strip()
-    return GERMAN_NAMES.get(city.casefold(), city), max(0, round(km))
+    out: list[tuple[str, int | None]] = []
+    for text in cfg.locations.cities:
+        anchor = geo.resolve_anchor(text, cfg.country_prefs())
+        if not anchor.located or anchor.country != "DE":
+            continue
+        city = anchor.city or text.split(",")[0].strip()
+        out.append((GERMAN_NAMES.get(city.casefold(), city), max(0, round(km))))
+    if not out or cfg.locations.regions:
+        return [("", None)]
+    return out
 
 
 def _location(job: dict) -> str:
@@ -151,9 +158,8 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
                             skipped="German jobs only, and Germany is not in "
                                     "locations.countries")
     result = SourceResult(source="arbeitsagentur")
-    place, km = _where(cfg)
     found: dict[str, dict] = {}
-    for title in cfg.titles_include:
+    for (place, km), title in product(_where(cfg), cfg.titles_include):
         for page in range(1, MAX_PAGES + 1):
             params = {"was": title, "angebotsart": 1, "size": PAGE_SIZE, "page": page}
             if place:
@@ -161,7 +167,7 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
             resp = fetcher.get(SEARCH, params=params, headers=HEADERS)
             result.requests_made += 1
             if not resp.ok:
-                result.errors.append(f"{title!r}: {resp.error}")
+                result.errors.append(f"{place or 'Germany'}/{title!r}: {resp.error}")
                 break
             payload = resp.json if isinstance(resp.json, dict) else {}
             jobs = payload.get("ergebnisliste") or []
