@@ -224,11 +224,11 @@ def enrich(cfg, store: Store, fetcher, limit: int = 0, platform: str = "",
            thin: int = THIN, dry_run: bool = False,
            progress=None) -> EnrichReport:
     """Fetch fuller adverts for thin roles and re-screen what changes."""
-    from . import geo, screen
+    from . import screen
     from .scan import _load_resume
 
     report = EnrichReport()
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
+    home = screen.home_of(cfg)
     cv = _load_resume(cfg)
 
     sql = [
@@ -317,7 +317,7 @@ def enrich(cfg, store: Store, fetcher, limit: int = 0, platform: str = "",
         # Re-screened on the fuller text. A dealbreaker that could not match a
         # 200-character teaser may match 7,000 characters, and keeping the old
         # verdict would be worse than never having fetched.
-        verdict = screen.screen(role, cfg, anchor, cv,
+        verdict = screen.screen(role, cfg, home, cv,
                                 first_seen=grouping.earliest_seen(store.conn, uid=row["uid"]))
         store.upsert(role, seen=False)
         store.conn.commit()                  # each fetch is slow; do not hold a write
