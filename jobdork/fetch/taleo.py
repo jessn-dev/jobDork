@@ -17,8 +17,9 @@ The token is four parts, `host/path/org/cws`
 (`phf.tbe.taleo.net/phf02/COSTCO/41`), read off the employer's careers page by
 `discover`. Only titles your title rules keep are opened, one page each.
 
-Taleo Enterprise (`*.taleo.net/careersection/…`) is a different product, and
-has no reader here.
+Taleo Enterprise (`*.taleo.net/careersection/…`) is a different product, with
+no board reader here; one of its job posts can be added by its link
+(fetch/link.py).
 """
 
 from __future__ import annotations
