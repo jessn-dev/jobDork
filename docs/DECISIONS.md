@@ -244,7 +244,7 @@ ship with the app, so nobody has to?
    Docker and NAS users give keys in the environment.
 
 4. **AI keys follow the burn rules, unless kept by choice.** Keys for hosted
-   models (Claude, Gemini, ChatGPT, Groq) are held in memory and wiped when
+   models (Anthropic, Gemini, OpenAI, Groq) are held in memory and wiped when
    the server stops; they are re-entered after a restart, which the page asks
    for (2026-10-27), or kept in the OS keychain when the user chose it. Ollama, run locally, needs no key and
    is the way to an AI that survives restarts. This is separate from job

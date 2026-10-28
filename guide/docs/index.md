@@ -42,7 +42,7 @@ hide:
 
     ---
 
-    Optional. Ollama on your own computer, or Claude, Gemini, ChatGPT or
+    Optional. Ollama on your own computer, or Anthropic, Gemini, OpenAI or
     Groq with your key. It judges posts and drafts cover letters; a second
     model checks every claim against your resume and the advert. It never
     applies for you. [The AI page](ai.md)
@@ -100,7 +100,7 @@ say how many.
 
 **Is it free?**
 Yes. jobdork is open source under the GNU GPL v3. If you choose a hosted AI
-such as Claude or ChatGPT, that provider charges for its use; Ollama on your
+such as Anthropic or OpenAI, that provider charges for its use; Ollama on your
 own computer costs nothing.
 
 **Does it apply for jobs for me?**

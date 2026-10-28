@@ -40,7 +40,7 @@ permission; in Docker, the page rings a bell while it is open instead.)
 
 ## Your keys
 
-Where AI keys (Claude, Gemini, ChatGPT, Groq) and job-source keys (Adzuna,
+Where AI keys (Anthropic, Gemini, OpenAI, Groq) and job-source keys (Adzuna,
 USAJOBS) go. Never into a file or the settings.
 
 - **Ask for them each time jobdork starts**: held in memory only. When
