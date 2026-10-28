@@ -1,0 +1,39 @@
+# OpenSSF Scorecard: how the project guards its supply chain (pinned
+# actions, branch protection, signed releases, reviews, token permissions),
+# weekly and on every push to main. Its findings go to Security, Code
+# scanning, and the score to scorecard.dev for the README badge.
+#
+# publish_results requires this shape: read-all at the top, the two write
+# permissions on the job only, and no steps but these.
+name: Scorecard
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: "23 6 * * 1"            # Mondays, 06:23 UTC
+  push:
+    branches: [main]
+
+permissions: read-all
+
+jobs:
+  analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write        # the findings, to Code scanning
+      id-token: write               # publishing the score
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Score the repository
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+      - name: Send the findings to Code scanning
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: results.sarif

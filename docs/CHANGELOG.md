@@ -15,6 +15,29 @@ the Intel one on #77, and a re-run passed each time. The build script now
 asks again itself, after 5, 15 and 30 seconds, and only for that error:
 anything else still stops the build at once, and four refusals in a row
 still fail it (packaging/build.py, `run_retrying_busy`).
+## Added — 2026-10-28 — Three more security checks
+
+The scans already covered jobdork's code (CodeQL, bandit), its
+dependencies (pip-audit), secrets (gitleaks, GitHub's secret scanning), the
+Dockerfile (hadolint) and the image (Trivy). Three more, each free for a
+public repository:
+
+- **zizmor**, in the security job: the workflows themselves, for template
+  injection, credentials left in a checkout, over-broad token permissions
+  and risky triggers, and online, that every pinned commit is really its
+  action's and not a known-vulnerable version. Medium and above fail. Its
+  two notes on today's workflows were fixed: the image digest is written
+  to the summary through the environment, not expanded into the script.
+- **Dependency Review**, on every pull request: a dependency it adds or
+  upgrades with a known vulnerability of moderate severity or above fails
+  the check, with a comment naming it. It reads `pyproject.toml`; the
+  hash-pinned locks stay pip-audit's.
+- **OpenSSF Scorecard**, weekly and on every push to `main`: how the supply
+  chain is guarded (pinned actions, branch protection, signed releases,
+  reviews, token permissions), its findings under Security, Code scanning,
+  and its score on scorecard.dev. It needs `ossf/scorecard-action` added to
+  the allowed actions first; SECURITY.md lists that, and the CodeQL
+  Extended query suite, as settings for the owner.
 
 ## Added — 2026-10-28 — An Ollama behind a gatekeeper, and a connection code
 
