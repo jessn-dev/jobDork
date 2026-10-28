@@ -47,9 +47,14 @@ class ScanReport:
     previously_deleted: int = 0
     per_source: list[fetch.SourceResult] = field(default_factory=list)
     blocked_hosts: list[str] = field(default_factory=list)
+    # Sources left unread because Stop was pressed; what was read is kept.
+    stopped: int = 0
 
     def lines(self) -> list[str]:
         out = self.source_lines()
+        if self.stopped:
+            out.append(f"stopped: {self.stopped} source{'' if self.stopped == 1 else 's'} "
+                       "not read; what was found before is kept")
         out.append(
             f"fetched {self.fetched}, kept {self.kept}, "
             f"stored {self.stored} ({self.newly_seen} new)"
@@ -223,17 +228,20 @@ def scan_lock(db_path: str) -> Iterator[None]:
 
 
 def run(cfg: Config, store: Store, limit: int = 0,
-        progress=None, part: str = "all") -> ScanReport:
+        progress=None, part: str = "all", stop=None) -> ScanReport:
     """Fetch, screen and store. `limit` caps roles kept, for a quick look.
 
     `part` is "all", or a first scan's "quick" part and the "rest" after it.
+    `stop`, a threading.Event: once set, no more sources are started, the
+    ones being read finish, and what was found is screened and stored.
     Raises ScanBusy when another scan of the same database is running.
     """
     with scan_lock(cfg.db_path):
-        return _run(cfg, store, limit, progress, part)
+        return _run(cfg, store, limit, progress, part, stop)
 
 
-def _run(cfg: Config, store: Store, limit: int, progress, part: str) -> ScanReport:
+def _run(cfg: Config, store: Store, limit: int, progress, part: str,
+         stop=None) -> ScanReport:
     report = ScanReport()
     fetcher = Fetcher(
         user_agent=cfg.fetch.user_agent,
@@ -266,6 +274,14 @@ def _run(cfg: Config, store: Store, limit: int, progress, part: str) -> ScanRepo
             futures[pool.submit(adapter, fetcher, cfg, **kwargs)] = (name, kwargs)
 
         for future in as_completed(futures):
+            if stop is not None and stop.is_set() and not report.stopped:
+                # Stop: what has not started is cancelled; what is being read
+                # finishes as the pool closes, and is not waited on here.
+                report.stopped = sum(1 for f in futures if f.cancel())
+                if progress:
+                    progress(f"stopped: {report.stopped} sources left unread")
+            if future.cancelled():
+                continue                                   # left unread by Stop
             name, kwargs = futures[future]
             try:
                 result = future.result()
@@ -353,6 +369,7 @@ def _run(cfg: Config, store: Store, limit: int, progress, part: str) -> ScanRepo
         "failed": sorted({r.source for r in report.per_source if r.errors}),
         # A first scan's two parts, which the Dashboard reads as one scan.
         "part": part,
+        "stopped": report.stopped,
     })
     return report
 

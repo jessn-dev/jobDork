@@ -232,6 +232,33 @@ def _screen_key(cfg) -> str:
     }, sort_keys=True, default=str)
 
 
+def change_words(old, fresh) -> str:
+    """What a save changed, in a few words, for the queue on the Dashboard:
+    "Search: added Nurse Practitioner"."""
+    def diff(a, b) -> list[str]:
+        have = {x.casefold() for x in a}
+        return [x for x in b if x.casefold() not in have]
+
+    def few(items) -> str:
+        return ", ".join(items[:3]) + (f" and {len(items) - 3} more" if len(items) > 3 else "")
+
+    said = []
+    for label, a, b in (
+            ("Search", old.titles_include, fresh.titles_include),
+            ("Never show", old.titles_exclude, fresh.titles_exclude),
+            ("Countries", old.locations.countries, fresh.locations.countries),
+            ("Dealbreakers", [d.name for d in old.dealbreakers], [d.name for d in fresh.dealbreakers])):
+        added, gone = diff(a, b), diff(b, a)
+        if added or gone:
+            said.append(f"{label}: " + "; ".join(
+                ([f"added {few(added)}"] if added else []) + ([f"removed {few(gone)}"] if gone else [])))
+    if old.locations != fresh.locations and not any(s.startswith("Countries") for s in said):
+        said.append("Location or work arrangement changed")
+    if old.salary != fresh.salary:
+        said.append("Pay changed")
+    return "; ".join(said) or "Search settings changed"
+
+
 def search_changes(old, fresh) -> tuple[bool, bool]:
     """(widened, rescreen) for a config save.
 
@@ -470,6 +497,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     "job": runner.current,
                     "last_summary": runner.last_summary,
                     "first_scan": api_mod.FIRST_SCAN,
+                    # First in, first out, each with what started it.
+                    "waiting": runner.waiting(),
                     "claude": bool(__import__("shutil").which("claude")),
                     "ai": ai["label"],
                     "ai_problem": ai["problem"],
@@ -695,6 +724,19 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._json(202, {"started": True, "job": name})
             if path == "/api/first-scan/seen":
                 return self._json(200, api_mod.first_scan_seen())
+            if path == "/api/stop":
+                if not runner.stop():
+                    return self._reject(409, "nothing is running")
+                return self._json(202, {"stopping": runner.current})
+            if path == "/api/queue/cancel":
+                form = self._body() or {}
+                try:
+                    job_id = int(form.get("id") or 0)
+                except (TypeError, ValueError):
+                    return self._reject(400, "not a queued job id")
+                if not runner.cancel(job_id):
+                    return self._reject(404, "that job is not waiting; it may have started")
+                return self._json(200, {"cancelled": job_id, "waiting": runner.waiting()})
             if path == "/api/setup/keys":
                 return self._source_keys()
             if path == "/api/setup/suggest":
@@ -909,7 +951,13 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             done["rescore"] = ""
             if cfg.resume_path and cfg.titles_include:
                 # lambda: built when its turn comes, from the newest settings.
-                now = runner.queue("re-score", lambda: api_mod.rescreen_job(cfg_holder["cfg"]))
+                saved = path.endswith("/save")
+                given = form if saved else {}
+                named = str(given.get("name") or given.get("credential") or "")
+                verb = "saved" if saved else "deleted"
+                now = runner.queue("re-score", lambda: api_mod.rescreen_job(cfg_holder["cfg"]),
+                                   why=f"{'Projects' if what == 'project' else 'Education'}: "
+                                       f"{verb}{f' {named}' if named else ''}")
                 done["rescore"] = ("Re-scoring your job posts with it." if now else
                                    f"Your job posts are re-scored with it after {runner.current}.")
             return self._json(200, done)
@@ -1190,12 +1238,13 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if rescreen:
                 # lambda: built when its turn comes, from the newest settings.
                 now = runner.queue("rescreen", lambda: api_mod.rescreen_job(
-                    cfg_holder["cfg"], remove=True))
+                    cfg_holder["cfg"], remove=True), why=change_words(old, fresh))
                 said.append("Re-applying your search to the job posts"
                             + ("" if now else f" after {runner.current}"))
             if widened:
                 # lambda: as above; a scan reads every title, old and new.
-                now = runner.queue("scan", lambda: api_mod.scan_job(cfg_holder["cfg"]))
+                now = runner.queue("scan", lambda: api_mod.scan_job(cfg_holder["cfg"]),
+                                   why=change_words(old, fresh))
                 said.append(("Scanning" if now else "Then scanning")
                             + " for what you added")
             return (". ".join(said) + ".") if said else ""
