@@ -27,7 +27,7 @@ from jobdork.web import api
 
 def _cfg(tmp: str) -> Config:
     return Config(titles_include=["software engineer"],
-                  locations=Locations(anchor="", radius="any", countries=[]),
+                  locations=Locations(cities=[], radius="any", countries=[]),
                   salary=Salary(), db_path=str(Path(tmp) / "t.db"))
 
 

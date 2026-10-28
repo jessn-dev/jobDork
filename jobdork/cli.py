@@ -403,7 +403,7 @@ def _read_url_file(path: str) -> list[str]:
 
 
 def _add_one(cfg, fetcher, url: str, token: str, company: str,
-             store, anchor, quiet: bool = False) -> str:
+             store, home, quiet: bool = False) -> str:
     """Returns one of: added, updated, failed."""
     from . import fetch
     from .search import screen
@@ -437,7 +437,7 @@ def _add_one(cfg, fetcher, url: str, token: str, company: str,
                   "it may already be filled")
         return "failed"
 
-    verdict = screen.screen(wanted, cfg, anchor)
+    verdict = screen.screen(wanted, cfg, home)
     is_new = store.upsert(wanted)
     if not quiet:
         mark = "+" if is_new else "="
@@ -455,7 +455,7 @@ def _add_one(cfg, fetcher, url: str, token: str, company: str,
 def cmd_add(args) -> int:
     """Fetch postings by URL — the bridge from a Google result to the database."""
     from .fetch.http import Fetcher
-    from .search import geo
+    from .search import screen
 
     cfg = _load(args)
     urls = list(args.url or [])
@@ -475,13 +475,13 @@ def cmd_add(args) -> int:
         return 1
 
     fetcher = Fetcher(cfg.fetch.user_agent, cfg.fetch.timeout, cfg.fetch.retries)
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
+    home = screen.home_of(cfg)
     tally = {"added": 0, "updated": 0, "failed": 0}
 
     with Store(cfg.db_path) as store:
         for url in urls:
             tally[_add_one(cfg, fetcher, url, args.token, args.company,
-                           store, anchor)] += 1
+                           store, home)] += 1
         store.conn.commit()
 
     if len(urls) > 1:
@@ -1075,30 +1075,39 @@ def _setup_search(cfg):
 
 
 def _setup_where(cfg):
-    """Country, region, city; radius; work arrangements; countries to keep."""
+    """Country; any regions and cities; radius; work arrangements; countries."""
     from .core import setup
     from .search import geo
 
     print(f"\n── {setup.title('where')} ──")
-    print("Where you are, how far you would travel to an office, and which kinds "
-          "of work to keep.\nRemote jobs are kept whatever the distance.")
+    print("Where you would work, how far you would travel to an office, and which "
+          "kinds of work to keep.\nRemote jobs are kept whatever the distance. "
+          "Only the country is required: with no\nregion and no city, job posts "
+          "from the whole country are kept.")
     countries = geo.picker_countries()
     country = _match_place("Country (name or code): ", countries)
     if country is None:
         return None
     regions = geo.picker_regions(country["code"])
-    region = {"code": "", "name": ""}
+    chosen_regions: list[dict] = []
     if regions["regions"]:
         label = regions["label"].lower()
-        region = _match_place(f"{regions['label']} (name or code, blank for any "
-                              f"{label}): ", regions["regions"], optional=True) or region
-    city = ""
-    while not city:
-        typed = _ask("City (start of its name): ")
+        print(f"Job posts anywhere in a {label} you add are kept. Blank when done.")
+        while True:
+            region = _match_place(f"{regions['label']} (name or code, blank for no "
+                                  f"more): ", regions["regions"], optional=True)
+            if not region:
+                break
+            chosen_regions.append(region)
+    print("Job posts within your radius of a city you add are kept. Blank when done.")
+    cities: list[str] = []
+    while True:
+        typed = _ask("City (start of its name, blank for no more): ")
         if not typed:
-            return None
-        found = geo.picker_cities(country["code"], region["code"], typed, limit=10)
+            break
+        found = geo.picker_cities(country["code"], "", typed, limit=10)
         exact = [c for c in found if c.lower() == typed.lower()]
+        city = ""
         if exact or len(found) == 1:
             city = (exact or found)[0]
         elif found:
@@ -1108,10 +1117,12 @@ def _setup_where(cfg):
             city = found[pick] if pick is not None else ""
         else:
             print("Not in the place list; try a bigger city nearby.")
+        if city:
+            cities.append(city)
 
     units = geo.default_units([country["code"]])
-    radius = _ask(f"How far would you travel, in {units}? A number, or 'exact' for "
-                  "your city only [25]: ").lower() or "25"
+    radius = _ask(f"How far from a city would you travel, in {units}? A number, or "
+                  "'exact' for the city only [25]: ").lower() or "25"
     while radius != "exact" and not re.fullmatch(r"\d+(\.\d+)?", radius):
         radius = _ask("A number, or 'exact': ").lower() or "25"
     modes = [m for m in re.split(r"[,\s]+", _ask(
@@ -1131,8 +1142,9 @@ def _setup_where(cfg):
     keep = list(dict.fromkeys([country["code"], *(c for c in extra if c in codes)]))
 
     return setup.write(cfg.path, {
-        "anchor_pick": {"country": country["code"], "region": region["code"],
-                        "city": city},
+        "places_pick": {"country": country["code"],
+                        "regions": [r["code"] for r in chosen_regions],
+                        "cities": [{"city": c} for c in cities]},
         "radius": radius if radius == "exact" else float(radius), "units": units,
         "work_modes": modes, "countries": keep,
         # Pay is asked next, in the country's currency where a floor can use it.
@@ -1409,7 +1421,7 @@ def _overrides_parser() -> argparse.ArgumentParser:
     group.add_argument("--exclude-title", action="append", metavar="TEXT",
                        help="replace titles.exclude; repeat for several")
     group.add_argument("--anchor", metavar="PLACE",
-                       help='e.g. "Berlin, Germany" or "Chicago, IL"')
+                       help='one city in place of locations.cities and regions, e.g. "Berlin, Germany"')
     group.add_argument("--country", action="append", metavar="ISO2",
                        help="replace locations.countries; repeat for several")
     group.add_argument("--radius", metavar="N", help="'exact', or a distance")
