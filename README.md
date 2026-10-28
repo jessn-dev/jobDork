@@ -14,6 +14,8 @@
   <br>
   <a href="https://github.com/jessn-dev/jobDork/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/jessn-dev/jobDork"></a>
   <a href="https://hub.docker.com/r/jessengolab/jobdork"><img alt="Docker image" src="https://img.shields.io/docker/v/jessengolab/jobdork?sort=semver&label=docker"></a>
+  <a href="https://github.com/jessn-dev/jobDork/releases"><img alt="Downloads from every release" src="https://img.shields.io/github/downloads/jessn-dev/jobDork/total?label=downloads"></a>
+  <a href="https://hub.docker.com/r/jessengolab/jobdork"><img alt="Docker pulls" src="https://img.shields.io/docker/pulls/jessengolab/jobdork?label=docker%20pulls"></a>
   <a href="https://www.python.org/downloads/"><img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue.svg"></a>
   <a href="LICENSE"><img alt="License: GPL v3" src="https://img.shields.io/badge/license-GPLv3-blue.svg"></a>
   <br>
