@@ -644,6 +644,8 @@ main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
 #view-prefs h3.psec{margin:1.5rem 0 .4rem}
 #view-prefs .said-line{font-size:.88rem;margin-right:auto}
 #view-prefs #theme .switch{margin-left:0;background:var(--card);color:var(--fg)}
+.bgscan.ready{border-color:var(--ok)}
+.bgscan .act,.bgscan .linkbtn{margin-left:.4rem;vertical-align:middle}
 .bgscan{border:1px solid var(--accent);border-radius:8px;padding:.6rem .8rem;
   color:var(--fg);background:var(--card);font-size:.88rem}
 .keycard{border:1px solid var(--line);border-radius:8px;
@@ -2929,6 +2931,7 @@ function connect() {
       if (!noteCfg.native) {
         const fresh = e.kind === 'done' && /\((\d+) new\)/.exec(e.text || '');
         if (e.kind === 'error') inPageNotice('Scan failed', e.text);
+        else if (e.job === 'full scan') inPageNotice('Your job posts are ready', 'Every employer board has been read. View job posts on the Dashboard.');
         else if (fresh && Number(fresh[1]) > 0) inPageNotice(`${fresh[1]} new job post${fresh[1] === '1' ? '' : 's'}`, 'Open Job posts to see them.');
       }
     }
@@ -2975,13 +2978,33 @@ async function refreshState() {
   $('run').textContent = busy && s.job === 'scan' ? 'Scanning…' : 'Run a scan';
   $('btn-fresh').textContent = busy && s.job === 'fresh scan' ? 'Fresh scan running…' : 'Run fresh scan';
   $('scanstate').textContent = busy ? `${s.job} running` : '';
-  // Setup's scan, watched here: what is running and what comes next.
-  const first = {
-    'first scan': 'Setup is done, and your first scan is running: the job boards that search by title and a few employers\' own boards. Job posts appear under Job posts within a few minutes.',
-    'full scan': 'The first job posts are in. The rest of the employer boards are being read now; more job posts appear as it finishes.',
-  }[busy ? s.job : ''];
-  $('bgscan').hidden = !first;
-  if (first) $('bgscan').textContent = first;
+  drawFirstScan(s);
+}
+
+// Setup's scan, watched here in its two parts, each named with what it
+// reads; then, once the second ends, a notice that stays until it is seen.
+// The computer says the same, the window open or not (core/notify.py).
+function drawFirstScan(s) {
+  const fs = s.first_scan || {}, job = s.busy ? s.job : '';
+  const boards = k => `${n(k)} employer board${k === 1 ? '' : 's'}`;
+  const box = $('bgscan');
+  box.classList.toggle('ready', !job && !!fs.ready);
+  if (job === 'first scan') {
+    box.innerHTML = `<b>Quick scan:</b> reading the job sites and ${boards(fs.quick || 0)}. The first
+      job posts appear under Job posts within a few minutes.`;
+  } else if (job === 'full scan') {
+    box.innerHTML = `<b>Full scan started:</b> reading the other ${boards(fs.rest || 0)}. Job posts
+      keep arriving while it runs, and you can use everything else meanwhile.`;
+  } else if (fs.ready) {
+    box.innerHTML = `<b>Your job posts are ready.</b> Every employer board has been read:
+      ${n(fs.kept)} job post${fs.kept === 1 ? '' : 's'} to look at.
+      <button data-icon="eye" class="act primary" id="bg-view" type="button">View job posts</button>
+      <button class="linkbtn" id="bg-seen" type="button">Dismiss</button>`;
+    const seen = () => api('/api/first-scan/seen', {method: 'POST'}).then(refreshState);
+    $('bg-view').onclick = () => { seen(); document.querySelector('nav .item[data-view="roles"]').click(); };
+    $('bg-seen').onclick = seen;
+  }
+  box.hidden = !job.match(/^(first|full) scan$/) && !fs.ready;
 }
 
 // ── first-run setup ──────────────────────────────────────────────────────────
