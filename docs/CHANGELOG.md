@@ -6,6 +6,20 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-28 — The installers built when they need to be
+
+The Mac (Apple Silicon and Intel) and Windows installers were built on every
+pull request and every push to `main`, with the WinGet test and the Windows
+pictures: five runners each time, which kept GitHub's queue full and every
+other check waiting. Now a small `packaging` job in docker.yml decides: a
+release tag always builds them; a pull request or push builds them only when
+it touches what they are built from, `packaging/`,
+`requirements-desktop.lock`, `pyproject.toml` (so a release pull request,
+which sets the version there, builds them before the tag), the two
+workflows, or the code only the installed app runs (the window, the update
+check, notifications, the keychain, uninstalling). desktop.yml's **Run
+workflow** button builds any branch by hand.
+
 ## Changed — 2026-10-28 — version 0.15.4
 
 0.15.4 carries the 21 entries below, everything since 0.15.3 (27 October).
