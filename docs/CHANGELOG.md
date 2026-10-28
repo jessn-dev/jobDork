@@ -21,6 +21,12 @@ each pull request's Windows build, photographs three installer pages and the
 uninstaller's window, and keeps the pictures with the run for seven days, as
 no test of the files can show how they draw.
 
+## Changed — 2026-10-28 — The release page's check section, named for what it does
+
+A release page's section on making sure a download is genuine was headed
+"Check it is the real one"; it is now **Verify Build Package**, over the
+same checksum, attestation and image signature steps
+(scripts/release_notes.py). Pages already published keep their heading.
 ## Fixed — 2026-10-28 — A Mac build that fails on "Resource busy"
 
 GitHub's macOS machines now and then refuse to make the disk image,
