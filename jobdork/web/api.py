@@ -2208,27 +2208,49 @@ def setup_suggest(cfg, progress=None) -> dict:
 # ── long jobs, run through the Runner ─────────────────────────────────────────
 
 
+# Setup's first scan as the Dashboard tells its two parts apart: the employer
+# boards each reads, and whether the second has ended unseen. Held in memory:
+# after a restart the computer's notification has said it already.
+FIRST_SCAN: dict = {}
+
+
 def first_scan_jobs(cfg) -> list[tuple[str, object]]:
     """Setup's last step: a quick scan, which finishes setup, then the rest.
 
     The quick part reads the keyword sources and a sample of the built-in
     boards, so job posts are there within a minute or two; setup is marked
     done when it ends, and the page opens on the Dashboard while the rest of
-    the boards are read as a background scan of their own.
+    the boards are read as a background scan of their own. When that ends,
+    the page offers View job posts, and the computer says so too, the window
+    open or not.
     """
     from ..core import setup
+    from ..search import scan as scan_mod
 
+    quick_boards = sum(1 for _, how in scan_mod._jobs_for(cfg, "quick") if how.get("token"))
+    rest_boards = len(scan_mod._jobs_for(cfg, "rest"))
+    FIRST_SCAN.clear()
+    FIRST_SCAN.update(quick=quick_boards, rest=rest_boards, ready=False, kept=0)
     quick = scan_job(cfg, part="quick")
 
     def first(progress):
+        progress(f"quick scan: the job sites and {quick_boards} employer boards")
         summary = quick(progress)
         setup.write(cfg.path, {"setup_step": setup.DONE})
-        progress("setup finished; reading the rest of the employer boards next")
+        progress(f"setup finished; the other {rest_boards} employer boards are read next")
         return summary
-    return [("first scan", first), ("full scan", scan_job(cfg, part="rest"))]
+    return [("first scan", first), ("full scan", scan_job(cfg, part="rest", ready=True))]
 
 
-def scan_job(cfg, part: str = "all"):
+def first_scan_seen() -> dict:
+    """The ready notice dismissed, or its View job posts clicked."""
+    FIRST_SCAN["ready"] = False
+    return {"seen": True}
+
+
+def scan_job(cfg, part: str = "all", ready: bool = False):
+    """A scan as a background job. `ready`: the end of setup's first scan,
+    told as "your job posts are ready" whether anything was new or not."""
     def work(progress):
         from ..core import notify
         from ..db.store import Store
@@ -2242,7 +2264,12 @@ def scan_job(cfg, part: str = "all"):
                 notify.scan_failed(cfg, f"{type(exc).__name__}: {exc}")
                 raise
             summary = " · ".join(report.lines())
-            notify.scan_finished(cfg, report.newly_seen, report.kept)
+            if ready:
+                kept = len(store.list_roles())
+                FIRST_SCAN.update(ready=True, kept=kept)
+                notify.first_scan_ready(cfg, kept)
+            else:
+                notify.scan_finished(cfg, report.newly_seen, report.kept)
             if cfg.llm.judge_on_scan:
                 summary += " · " + _judge_after_scan(cfg, store, progress)
             render.write_all(store.list_roles(), cfg, report)

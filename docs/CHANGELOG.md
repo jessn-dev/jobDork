@@ -6,6 +6,19 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-28 — The first scan's two parts, told apart
+
+Setup's last step runs a quick scan and then a full scan of every other
+employer board, in the background; the Dashboard said only that "the rest
+of the employer boards are being read". Now its note names each part with
+what it reads, "Quick scan: reading the job sites and 8 employer boards",
+then "Full scan started: reading the other 412 employer boards; job posts
+keep arriving", and when the full scan ends it says **Your job posts are
+ready**, with how many, a **View job posts** button and **Dismiss**. The
+computer says so too, with notifications on, whether anything was new or
+not and whether the window is open or closed: that is the scan someone
+closed the window to wait for. It is the full scan's only notice; the
+ordinary "N new job posts" is not sent for it as well.
 ## Added — 2026-10-28 — Add a job post from any link
 
 **Add a job post** (and `jobdork add`) knew five systems by their addresses
@@ -6841,16 +6854,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   its claim check, a tailored letter); or a demo build of the dashboard
   itself on the website, the real page on fixed demo data with no server.
   The recording is done in the maintainer's own browser and account.
-- **The first scan's two parts, told apart** (asked 2026-10-27). Setup's
-  last step runs a quick scan ("first scan": the keyword job sites, your own
-  boards and 8 built-in ones) and then a "full scan" of every other
-  built-in board, in the background. The Dashboard should say which is
-  running and that it started: "Quick scan: reading job sites and 8
-  employer boards" then "Full scan started: reading the other N employer
-  boards; job posts keep arriving". When the full scan ends, tell the
-  person their job posts are ready to view: a notice on the page with a
-  **View job posts** button, and the computer's notification when
-  notifications are on, including when the window was closed meanwhile.
 - **A scan queue you can see and cancel** (asked 2026-10-27). A change to
   Search, Projects, Education or Sources starts a scan or re-screen; one
   that arrives while another runs waits (web/live.py `Runner.queue`), but

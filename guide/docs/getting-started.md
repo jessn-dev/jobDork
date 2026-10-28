@@ -58,9 +58,18 @@ keychain so you enter each once ([Your keys](settings.md#your-keys)).
    want to see?** (older posts are hidden, never deleted; change it any time
    in [Job posts](job-posts.md#finding-a-post)).
 
-Setup ends with **Start the first scan**. A quick scan fills your
-[Job posts](job-posts.md) in about a minute; the rest of the employers'
-boards are read in the background.
+Setup ends with **Start the first scan**, and the [Dashboard](dashboard.md)
+opens. A note at the top says which part is running:
+
+- **Quick scan**: the job sites and a few employer boards. The first job
+  posts arrive under [Job posts](job-posts.md) within a few minutes.
+- **Full scan started**: the rest of the employer boards, read in the
+  background. Job posts keep arriving, and you can use everything else
+  meanwhile.
+
+When the full scan ends, the note says **Your job posts are ready**, with
+**View job posts**, and **Dismiss** to close the note. Your computer says so too, with notifications on, even
+if you closed the jobdork window while it ran.
 
 !!! tip "Change anything later"
     Every answer can be changed later on the [Search](search.md),
