@@ -137,7 +137,10 @@ fact: no source could support it.
 
 The [Dashboard](dashboard.md#the-numbers) shows the share of unsupported
 facts over time (the *hallucination rate*), by kind of writing and by
-model, so you can see which model to trust. The method follows
+model, so you can see which model to trust. It is coloured against
+jobdork's target of 2 to 5%: **green** at 5% or under (*within target*),
+**amber** above 5% up to 10% (*watch it*), **red** above 10% (*too high*;
+try a bigger model, or add a checker). The method follows
 [HalluLens](https://arxiv.org/abs/2504.17550), a published way of measuring
 hallucination.
 
