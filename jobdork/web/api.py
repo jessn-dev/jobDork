@@ -1834,10 +1834,11 @@ def llm_state(cfg) -> dict:
         out = []
         for r in models:
             one = llm.Settings(provider=r.provider, model=r.model,
-                               ollama_url=r.ollama_url or cfg.llm.ollama_url)
+                               ollama_url=r.ollama_url or cfg.llm.ollama_url,
+                               ollama_key=r.ollama_key)
             out.append({"provider": r.provider, "model": r.model,
-                        "ollama_url": r.ollama_url, "label": one.label,
-                        "problem": one.problem()})
+                        "ollama_url": r.ollama_url, "ollama_key": r.ollama_key,
+                        "label": one.label, "problem": one.problem()})
         return out
 
     return {
@@ -1860,18 +1861,20 @@ def llm_state(cfg) -> dict:
         "read_pages": cfg.llm.read_pages,
         "guard": cfg.llm.guard,
         "keys": {p: llm.key_for(p)[1] for p in llm.KEYED},
+        # Where the Ollama key is held from, for lines that send it.
+        "ollama_key": llm.key_for(llm.OLLAMA_KEY)[1],
         "problem": settings.problem(),
         "label": settings.label if cfg.llm.provider else "",
     }
 
 
-def llm_models(cfg, provider: str, ollama_url: str = "") -> dict:
+def llm_models(cfg, provider: str, ollama_url: str = "", ollama_key: bool = False) -> dict:
     from ..ai import llm
 
     if provider not in llm.PROVIDERS:
         raise ApiError("unknown provider")
     settings = llm.Settings(provider=provider,
-                            ollama_url=ollama_url or cfg.llm.ollama_url)
+                            ollama_url=ollama_url or cfg.llm.ollama_url, ollama_key=ollama_key)
     if not re.match(r"https?://[^\s/]+$", settings.ollama_url.rstrip("/")):
         raise ApiError("the Ollama address must look like http://host:port")
     try:
@@ -1930,6 +1933,9 @@ def keys_state(cfg) -> dict:
         if not llm.VAULT.get(provider) and not any(
                 os.environ.get(n) for n in llm.ENV_KEYS[provider]):
             missing.append({"kind": "ai", "name": provider, "label": llm.PROVIDERS[provider]})
+    if any(r.provider == "ollama" and r.ollama_key for r in [*cfg.llm.readers, *cfg.llm.checkers]) \
+            and not llm.VAULT.get(llm.OLLAMA_KEY) and not os.environ.get(llm.ENV_KEYS["ollama"][0]):
+        missing.append({"kind": "ai", "name": llm.OLLAMA_KEY, "label": "Ollama"})
     ready = {"adzuna": cfg.sources.adzuna_ready(), "usajobs": cfg.sources.usajobs_ready()}
     for source in cfg.key_sources:
         if not ready.get(source, True):
@@ -1997,12 +2003,27 @@ def remember_keys_changed(on: bool) -> str:
             else "Keys you enter from now on are kept in this computer's keychain.")
 
 
+def llm_connection(code: str) -> dict:
+    """A pasted connection code: its key held (and kept in the keychain when
+    you chose that), and its address and models handed to the page to fill
+    an Ollama line. The key is never sent back."""
+    from ..ai import llm
+
+    try:
+        found = llm.read_connection_code(code)
+    except llm.LLMError as exc:
+        raise ApiError(str(exc)) from exc
+    held = llm_key(llm.OLLAMA_KEY, found["key"])
+    return {"url": found["url"], "reader": found["reader"], "checker": found["checker"],
+            "note": held["note"]}
+
+
 def llm_forget(provider: str) -> dict:
     """Stop holding a key, and remove any copy kept in the keychain."""
     from ..ai import llm
     from ..core import keystore
 
-    for one in (llm.KEYED if provider == "all" else (provider,)):
+    for one in ((*llm.KEYED, llm.OLLAMA_KEY) if provider == "all" else (provider,)):
         llm.VAULT.forget(one)
         keystore.delete(keystore.AI_PREFIX + one)
     return {"held": llm.VAULT.held()}

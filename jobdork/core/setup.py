@@ -179,6 +179,8 @@ def _models(given: list) -> list[dict]:
         url = str(r.get("ollama_url") or "").strip()
         if url and row["provider"] == "ollama":
             row["ollama_url"] = url
+        if row["provider"] == "ollama" and str(r.get("ollama_key")).lower() in ("1", "true", "yes", "on"):
+            row["ollama_key"] = True
         out.append(row)
     return out
 
