@@ -46,6 +46,10 @@ USAJOBS) go. Never into a file or the settings.
 - **Ask for them each time jobdork starts**: held in memory only. When
   jobdork closes or updates they are gone, and when it starts again a window,
   **Enter your keys**, asks for the ones your AI page and job sources use.
+  A key already set in your computer's environment, outside jobdork (such
+  as `OPENAI_API_KEY` in a shell profile, or with `launchctl setenv` on a
+  Mac), is not asked for: the window names it and the variable, and lets
+  you paste another to use instead until jobdork closes.
   **Not now** leaves it until the next start; the AI page and the Sources
   page take them too.
 - **Keep them in this computer's keychain** (macOS Keychain, Windows

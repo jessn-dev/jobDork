@@ -6,6 +6,24 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-28 — The resume's full path, and keys from the environment named
+
+The Resume page said "Stored at data/resume.pdf" (or "Currently:" on a
+later visit): the setting as written, relative to wherever jobdork started.
+It now shows the full path of jobdork's copy on disk, and right after an
+upload the name of the file you chose with it.
+
+**Enter your keys**, on a start with keys held in memory only, asked for
+some keys and silently skipped others. A key set in the computer's
+environment outside jobdork (`OPENAI_API_KEY` in a shell profile, or
+`launchctl setenv` on a Mac, which every app opened afterwards inherits)
+counts as held, so it was never asked for, and nothing said so. The window
+now lists each such key with its variable and a box to paste another for
+this run; the AI page names the variable too ("using OPENAI_API_KEY from
+your computer's environment").
+
+---
+
 ## Changed — 2026-10-28 — version 0.15.4
 
 0.15.4 carries the 21 entries below, everything since 0.15.3 (27 October).
