@@ -2,7 +2,7 @@
 
 The dashboard in your browser (or in its own window), from a clone of this
 repository. Works on macOS, Windows and Linux, and is the way to run it on
-Linux or an Intel Mac. For the terminal commands without a dashboard, see
+Linux. For the terminal commands without a dashboard, see
 [cli.md](cli.md); for the other ways in, [README.md](README.md).
 
 ## What you need

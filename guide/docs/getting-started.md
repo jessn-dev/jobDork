@@ -4,8 +4,8 @@
 
 | Your computer | How |
 |---|---|
-| Mac with Apple Silicon (M1 or later) and macOS 12 or newer, Windows 10 or 11 | Download the installer from the [Releases page](https://github.com/jessn-dev/jobDork/releases/latest) and open it. Step by step, including the one-time security warning: [desktop app guide](https://github.com/jessn-dev/jobDork/blob/main/docs/run/desktop.md) |
-| Linux, an Intel Mac, or if you prefer Python | [Run it from source](https://github.com/jessn-dev/jobDork/blob/main/docs/run/source.md) |
+| A Mac (Apple Silicon or Intel) with macOS 12 or newer, Windows 10 or 11 | Download the installer from the [Releases page](https://github.com/jessn-dev/jobDork/releases/latest) and open it. Step by step, including the one-time security warning: [desktop app guide](https://github.com/jessn-dev/jobDork/blob/main/docs/run/desktop.md) |
+| Linux, or if you prefer Python | [Run it from source](https://github.com/jessn-dev/jobDork/blob/main/docs/run/source.md) |
 | A NAS or home server, always on | [Docker](https://github.com/jessn-dev/jobDork/blob/main/docs/run/docker.md) or the [NAS guide](https://github.com/jessn-dev/jobDork/blob/main/docs/run/nas.md) |
 
 On a Mac you can also install it with one command in Terminal, which
@@ -43,9 +43,11 @@ keychain so you enter each once ([Your keys](settings.md#your-keys)).
    for**, the titles to find, and any to leave out. With AI set up, it
    suggests titles from your resume. You can also pick the kinds of
    employers and add dealbreakers.
-4. **Where** (required). Your country and city are required; the state
-   can stay at **Any**. Then how far you would travel, and whether you want
-   remote, hybrid or on-site work. **Continue** names the field still empty.
+4. **Where** (required). Only your country is required. Then, if you
+   like, **Add** states and cities, as many as you want: posts anywhere in a
+   state you add are kept, and posts within your radius of a city you add.
+   Add none and posts from the whole country are kept. Then how far you
+   would travel, and whether you want remote, hybrid or on-site work.
 5. **Pay and job sources** (optional). The lowest yearly pay you would
    take: only a post that *states* lower pay is hidden (see
    [the salary floor](search.md#location-work-arrangement-and-pay)). Two
@@ -56,9 +58,18 @@ keychain so you enter each once ([Your keys](settings.md#your-keys)).
    want to see?** (older posts are hidden, never deleted; change it any time
    in [Job posts](job-posts.md#finding-a-post)).
 
-Setup ends with **Start the first scan**. A quick scan fills your
-[Job posts](job-posts.md) in about a minute; the rest of the employers'
-boards are read in the background.
+Setup ends with **Start the first scan**, and the [Dashboard](dashboard.md)
+opens. A note at the top says which part is running:
+
+- **Quick scan**: the job sites and a few employer boards. The first job
+  posts arrive under [Job posts](job-posts.md) within a few minutes.
+- **Full scan started**: the rest of the employer boards, read in the
+  background. Job posts keep arriving, and you can use everything else
+  meanwhile.
+
+When the full scan ends, the note says **Your job posts are ready**, with
+**View job posts**, and **Dismiss** to close the note. Your computer says so too, with notifications on, even
+if you closed the jobdork window while it ran.
 
 !!! tip "Change anything later"
     Every answer can be changed later on the [Search](search.md),

@@ -135,6 +135,24 @@ def test_a_scan_with_nothing_new_says_nothing():
     assert "3 new job posts" in first and "The scheduled scan found 3" in first
 
 
+def test_the_end_of_setup_s_first_scan_is_said_even_with_nothing_new():
+    """The one someone closed the window to wait for: said whatever was new."""
+    run = _Run()
+    saved = notify.native
+    # lambda: as on a desktop, whatever machine the tests run on.
+    notify.native = lambda: True
+    try:
+        with _env(JOBDORK_NOTIFY=None), _platform("linux"):
+            assert notify.first_scan_ready(Config(), 37, run=run)
+            assert not notify.first_scan_ready(
+                Config(notifications=Notifications(enabled=False)), 37, run=run)
+    finally:
+        notify.native = saved
+    said = " ".join(run.calls[0][0])
+    assert len(run.calls) == 1 and "Your job posts are ready" in said
+    assert "37 job posts" in said and "View job posts" in said
+
+
 def test_a_failing_command_never_breaks_a_scan():
     def broken(argv, **kw):
         raise OSError("no such command")
@@ -302,6 +320,15 @@ def test_only_the_desktop_app_on_a_known_system_gets_an_installer():
     assert updates.installer_name("9.0.0") == ""                    # not the desktop app
     with _platform("win32", frozen=True):
         assert updates.installer_name("9.0.0") == "jobdork-9.0.0-windows-x64-setup.exe"
+    saved = updates.platform.machine
+    try:
+        for machine, arch in (("arm64", "arm64"), ("x86_64", "x86_64")):
+            # lambda: the processor this Mac reports, Apple silicon or Intel.
+            updates.platform.machine = lambda m=machine: m
+            with _platform("darwin", frozen=True):
+                assert updates.installer_name("9.0.0") == f"jobdork-9.0.0-macos-{arch}.dmg"
+    finally:
+        updates.platform.machine = saved
     with _platform("linux", frozen=True):
         assert updates.installer_name("9.0.0") == ""
     try:

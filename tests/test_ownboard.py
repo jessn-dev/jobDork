@@ -179,7 +179,7 @@ def test_a_scan_records_each_employer_board_it_read_and_whether_in_full():
     saved = scan._jobs_for, fetch.get
     with tempfile.TemporaryDirectory() as tmp:
         cfg = Config(titles_include=["devops"], db_path=str(Path(tmp) / "t.db"),
-                     locations=Locations(anchor="", radius="any", countries=[]))
+                     locations=Locations(cities=[], radius="any", countries=[]))
         try:
             # lambda: these boards instead of the configured sources.
             scan._jobs_for = lambda _cfg, _part="all": jobs

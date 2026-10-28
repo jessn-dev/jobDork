@@ -667,7 +667,7 @@ def set_advert(cfg, uid: str, text: str) -> dict:
     """
     from ..db import grouping
     from ..db.store import Role, Store
-    from ..search import geo, screen
+    from ..search import screen
     from ..search.scan import _load_resume
 
     if not UID.match(uid or ""):
@@ -678,7 +678,7 @@ def set_advert(cfg, uid: str, text: str) -> dict:
     if len(text) > MAX_ADVERT_CHARS:
         raise ApiError(f"longer than {MAX_ADVERT_CHARS:,} characters")
 
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
+    home = screen.home_of(cfg)
     cv = _load_resume(cfg)
     with Store(cfg.db_path) as store:
         row = store.get(uid)
@@ -695,7 +695,7 @@ def set_advert(cfg, uid: str, text: str) -> dict:
             salary_period=row["salary_period"] or "",
             salary_stated=bool(row["salary_stated"]),
         )
-        verdict = screen.screen(role, cfg, anchor, cv,
+        verdict = screen.screen(role, cfg, home, cv,
                                 first_seen=grouping.earliest_seen(store.conn, uid=uid))
         if role.uid != uid:
             raise ApiError("stored url no longer maps to this job post", 409)
@@ -851,41 +851,48 @@ def save_resume(cfg, filename: str, payload: bytes) -> dict:
 
 def add_by_url(cfg, url: str, token: str = "", company: str = "") -> dict:
     """`jobdork add` — pull one posting in from a link you clicked."""
-    from ..cli import _platform_for
-    from ..db.store import Store, canonical_url
-    from ..fetch import get as get_adapter
+    from ..fetch import link
     from ..fetch.http import Fetcher
-    from ..search import geo, screen
+
+    if not (url or "").strip():
+        raise ApiError("give a posting URL")
+    fetcher = Fetcher(cfg.fetch.user_agent, cfg.fetch.timeout, cfg.fetch.retries)
+    try:
+        wanted = link.read(fetcher, cfg, url, token, company)
+    except link.LinkError as exc:
+        # 422: the page offers to take the advert's text pasted in instead.
+        raise ApiError(f"{exc}. Paste the advert's text below to add it anyway.", 422) from exc
+    return _store_added(cfg, wanted)
+
+
+def add_by_text(cfg, url: str, title: str, company: str, location: str,
+                text: str) -> dict:
+    """A job post whose page jobdork could not read, added from its pasted
+    advert: screened and stored like any other, under its link."""
+    from ..db.store import Role, canonical_url
 
     url = canonical_url((url or "").strip())
-    if not url:
-        raise ApiError("give a posting URL")
+    text = (text or "").replace("\r\n", "\n").strip()
+    if not url.startswith(("http://", "https://")):
+        raise ApiError("give the job post's link too, so you can open it again")
+    if not (title or "").strip():
+        raise ApiError("give the job title")
+    if len(text) < 200:
+        raise ApiError("paste the whole advert: that is too short to score against")
+    if len(text) > MAX_ADVERT_CHARS:
+        raise ApiError(f"longer than {MAX_ADVERT_CHARS:,} characters")
+    role = Role(platform="site", company=(company or "").strip(), title=title.strip(),
+                url=url, location_raw=(location or "").strip(), description=text)
+    role.flags.append("advert pasted in")
+    return _store_added(cfg, role)
 
-    platform, found = _platform_for(url)
-    token = token or found
-    if not platform:
-        raise ApiError(
-            "cannot tell which platform that URL is on. Supported: "
-            "greenhouse, ashby, lever, breezy, smartrecruiters.")
-    if not token:
-        raise ApiError(
-            f"that is a {platform} posting on the employer's own domain, so "
-            "the board token is not in the URL. Supply it alongside.")
 
-    fetcher = Fetcher(cfg.fetch.user_agent, cfg.fetch.timeout, cfg.fetch.retries)
-    result = get_adapter(platform)(fetcher, cfg, token=token,
-                                   company=company or token)
-    if result.skipped:
-        raise ApiError(f"{platform}: {result.skipped}")
+def _store_added(cfg, wanted) -> dict:
+    from ..db.store import Store
+    from ..search import screen
 
-    wanted = next((r for r in result.roles if canonical_url(r.url) == url), None)
-    if wanted is None:
-        raise ApiError(
-            f"read {token!r} on {platform} ({len(result.roles)} job posts) but none "
-            "of them is that URL. It may already be filled.")
-
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
-    verdict = screen.screen(wanted, cfg, anchor)
+    home = screen.home_of(cfg)
+    verdict = screen.screen(wanted, cfg, home)
     with Store(cfg.db_path) as store:
         is_new = store.upsert(wanted)
         store.conn.commit()
@@ -1818,7 +1825,7 @@ def fresh_scan_job(cfg, expect):
 
 def llm_state(cfg) -> dict:
     """AI settings for the page. Says which keys are held, never what they are."""
-    from ..ai import llm
+    from ..ai import limits, llm
     from ..core.config import MAX_READERS, SETUP_MAX_READERS
 
     settings = llm.Settings.from_config(cfg)
@@ -1827,10 +1834,11 @@ def llm_state(cfg) -> dict:
         out = []
         for r in models:
             one = llm.Settings(provider=r.provider, model=r.model,
-                               ollama_url=r.ollama_url or cfg.llm.ollama_url)
+                               ollama_url=r.ollama_url or cfg.llm.ollama_url,
+                               ollama_key=r.ollama_key)
             out.append({"provider": r.provider, "model": r.model,
-                        "ollama_url": r.ollama_url, "label": one.label,
-                        "problem": one.problem()})
+                        "ollama_url": r.ollama_url, "ollama_key": r.ollama_key,
+                        "label": one.label, "problem": one.problem()})
         return out
 
     return {
@@ -1842,23 +1850,31 @@ def llm_state(cfg) -> dict:
         "provider": cfg.llm.provider,
         "model": cfg.llm.model,
         "ollama_url": cfg.llm.ollama_url,
+        # Only the built-in default: not shown in a line's box as if chosen.
+        "ollama_url_default": cfg.llm.ollama_url in (llm.DEFAULT_OLLAMA_URL,
+                                                     llm.OLLAMA_FROM_DOCKER),
         "judge_on_scan": cfg.llm.judge_on_scan,
         "judge_top": cfg.llm.judge_top,
+        "daily_limits": cfg.llm.daily_limits,
+        # What each free-tier model has used today, and why one is stopped.
+        "allowance": limits.snapshot(),
         "read_pages": cfg.llm.read_pages,
         "guard": cfg.llm.guard,
         "keys": {p: llm.key_for(p)[1] for p in llm.KEYED},
+        # Where the Ollama key is held from, for lines that send it.
+        "ollama_key": llm.key_for(llm.OLLAMA_KEY)[1],
         "problem": settings.problem(),
         "label": settings.label if cfg.llm.provider else "",
     }
 
 
-def llm_models(cfg, provider: str, ollama_url: str = "") -> dict:
+def llm_models(cfg, provider: str, ollama_url: str = "", ollama_key: bool = False) -> dict:
     from ..ai import llm
 
     if provider not in llm.PROVIDERS:
         raise ApiError("unknown provider")
     settings = llm.Settings(provider=provider,
-                            ollama_url=ollama_url or cfg.llm.ollama_url)
+                            ollama_url=ollama_url or cfg.llm.ollama_url, ollama_key=ollama_key)
     if not re.match(r"https?://[^\s/]+$", settings.ollama_url.rstrip("/")):
         raise ApiError("the Ollama address must look like http://host:port")
     try:
@@ -1917,6 +1933,9 @@ def keys_state(cfg) -> dict:
         if not llm.VAULT.get(provider) and not any(
                 os.environ.get(n) for n in llm.ENV_KEYS[provider]):
             missing.append({"kind": "ai", "name": provider, "label": llm.PROVIDERS[provider]})
+    if any(r.provider == "ollama" and r.ollama_key for r in [*cfg.llm.readers, *cfg.llm.checkers]) \
+            and not llm.VAULT.get(llm.OLLAMA_KEY) and not os.environ.get(llm.ENV_KEYS["ollama"][0]):
+        missing.append({"kind": "ai", "name": llm.OLLAMA_KEY, "label": "Ollama"})
     ready = {"adzuna": cfg.sources.adzuna_ready(), "usajobs": cfg.sources.usajobs_ready()}
     for source in cfg.key_sources:
         if not ready.get(source, True):
@@ -1984,12 +2003,27 @@ def remember_keys_changed(on: bool) -> str:
             else "Keys you enter from now on are kept in this computer's keychain.")
 
 
+def llm_connection(code: str) -> dict:
+    """A pasted connection code: its key held (and kept in the keychain when
+    you chose that), and its address and models handed to the page to fill
+    an Ollama line. The key is never sent back."""
+    from ..ai import llm
+
+    try:
+        found = llm.read_connection_code(code)
+    except llm.LLMError as exc:
+        raise ApiError(str(exc)) from exc
+    held = llm_key(llm.OLLAMA_KEY, found["key"])
+    return {"url": found["url"], "reader": found["reader"], "checker": found["checker"],
+            "note": held["note"]}
+
+
 def llm_forget(provider: str) -> dict:
     """Stop holding a key, and remove any copy kept in the keychain."""
     from ..ai import llm
     from ..core import keystore
 
-    for one in (llm.KEYED if provider == "all" else (provider,)):
+    for one in ((*llm.KEYED, llm.OLLAMA_KEY) if provider == "all" else (provider,)):
         llm.VAULT.forget(one)
         keystore.delete(keystore.AI_PREFIX + one)
     return {"held": llm.VAULT.held()}
@@ -2195,28 +2229,51 @@ def setup_suggest(cfg, progress=None) -> dict:
 # ── long jobs, run through the Runner ─────────────────────────────────────────
 
 
+# Setup's first scan as the Dashboard tells its two parts apart: the employer
+# boards each reads, and whether the second has ended unseen. Held in memory:
+# after a restart the computer's notification has said it already.
+FIRST_SCAN: dict = {}
+
+
 def first_scan_jobs(cfg) -> list[tuple[str, object]]:
     """Setup's last step: a quick scan, which finishes setup, then the rest.
 
     The quick part reads the keyword sources and a sample of the built-in
     boards, so job posts are there within a minute or two; setup is marked
     done when it ends, and the page opens on the Dashboard while the rest of
-    the boards are read as a background scan of their own.
+    the boards are read as a background scan of their own. When that ends,
+    the page offers View job posts, and the computer says so too, the window
+    open or not.
     """
     from ..core import setup
+    from ..search import scan as scan_mod
 
+    quick_boards = sum(1 for _, how in scan_mod._jobs_for(cfg, "quick") if how.get("token"))
+    rest_boards = len(scan_mod._jobs_for(cfg, "rest"))
+    FIRST_SCAN.clear()
+    FIRST_SCAN.update(quick=quick_boards, rest=rest_boards, ready=False, kept=0)
     quick = scan_job(cfg, part="quick")
 
-    def first(progress):
-        summary = quick(progress)
+    def first(progress, stop=None):
+        progress(f"quick scan: the job sites and {quick_boards} employer boards")
+        summary = quick(progress, stop=stop)
         setup.write(cfg.path, {"setup_step": setup.DONE})
-        progress("setup finished; reading the rest of the employer boards next")
+        progress(f"setup finished; the other {rest_boards} employer boards are read next")
         return summary
-    return [("first scan", first), ("full scan", scan_job(cfg, part="rest"))]
+    return [("first scan", first), ("full scan", scan_job(cfg, part="rest", ready=True))]
 
 
-def scan_job(cfg, part: str = "all"):
-    def work(progress):
+def first_scan_seen() -> dict:
+    """The ready notice dismissed, or its View job posts clicked."""
+    FIRST_SCAN["ready"] = False
+    return {"seen": True}
+
+
+def scan_job(cfg, part: str = "all", ready: bool = False):
+    """A scan as a background job. `ready`: the end of setup's first scan,
+    told as "your job posts are ready" whether anything was new or not.
+    It takes `stop` (live.Runner.stop): a stopped scan keeps what it found."""
+    def work(progress, stop=None):
         from ..core import notify
         from ..db.store import Store
         from ..output import render
@@ -2224,13 +2281,19 @@ def scan_job(cfg, part: str = "all"):
 
         with Store(cfg.db_path) as store:
             try:
-                report = scan_mod.run(cfg, store, progress=progress, part=part)
+                report = scan_mod.run(cfg, store, progress=progress, part=part, stop=stop)
             except Exception as exc:
                 notify.scan_failed(cfg, f"{type(exc).__name__}: {exc}")
                 raise
             summary = " · ".join(report.lines())
-            notify.scan_finished(cfg, report.newly_seen, report.kept)
-            if cfg.llm.judge_on_scan:
+            if ready:
+                kept = len(store.list_roles())
+                FIRST_SCAN.update(ready=True, kept=kept)
+                notify.first_scan_ready(cfg, kept)
+            else:
+                notify.scan_finished(cfg, report.newly_seen, report.kept)
+            # Stopped: the AI reading after it waits for the next scan too.
+            if cfg.llm.judge_on_scan and not (stop and stop.is_set()):
                 summary += " · " + _judge_after_scan(cfg, store, progress)
             render.write_all(store.list_roles(), cfg, report)
         return summary

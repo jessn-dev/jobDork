@@ -49,7 +49,7 @@ class _Running:
         self.cfg = Config(
             path=str(config_file),
             titles_include=["software engineer"],
-            locations=Locations(anchor="Chicago, IL", radius="exact",
+            locations=Locations(cities=["Chicago, IL"], radius="exact",
                                 units="mi", countries=["US"]),
             salary=Salary(),
             db_path=str(Path(self.tmp.name) / "serve.db"),
@@ -70,6 +70,7 @@ class _Running:
         # and a scan here would go online. Recorded, not run; a test that
         # wants the real queue puts it back (real_queue).
         self.queued: list[str] = []
+        self.why: list[str] = []          # what started each queued job
         self.runner.queue = self._record
         self.holder = {"cfg": self.cfg}
 
@@ -122,8 +123,9 @@ class _Running:
         except urllib.error.HTTPError as exc:
             return exc.code, exc.read()
 
-    def _record(self, name, make) -> bool:
+    def _record(self, name, make, why="") -> bool:
         self.queued.append(name)
+        self.why.append(why)
         return True
 
     def real_queue(self) -> None:
@@ -505,7 +507,7 @@ def test_the_page_can_edit_the_config_and_it_is_validated():
         assert saved["titles_include"] == ["security analyst"]
         assert saved["countries"] == ["DE"]
         # Reloaded config replaced the live one, so the next request uses it.
-        assert run.cfg_now.locations.anchor == "Berlin, Germany"
+        assert run.cfg_now.locations.cities == ["Berlin, Germany"]
     _with_server(check)
 
 
@@ -706,15 +708,16 @@ def test_where_you_are_is_saved_from_the_picker_and_must_resolve():
     def check(run):
         code, body = run.get("/api/places/cities?country=PH&q=bagu")
         assert code == 200 and "Baguio" in json.loads(body)["cities"]
-        code, saved = _post_json(run, "/api/config", {"anchor_pick": {
-            "country": "PH", "region": "15", "city": "Baguio"}})
+        code, saved = _post_json(run, "/api/config", {"places_pick": {
+            "country": "PH", "cities": [{"region": "15", "city": "Baguio"}]}})
         assert code == 200, saved
-        assert saved["anchor"] == "Baguio, Cordillera, Philippines"
-        assert saved["anchor_place"]["located"] and saved["anchor_place"]["region"] == "15"
-        code, body = _post_json(run, "/api/config", {"anchor_pick": {
-            "country": "PH", "region": "", "city": "Atlantis"}})
+        city = saved["places"]["cities"][0]
+        assert city["text"] == "Baguio, Cordillera, Philippines"
+        assert city["located"] and city["region"] == "15"
+        code, body = _post_json(run, "/api/config", {"places_pick": {
+            "country": "PH", "cities": [{"region": "", "city": "Atlantis"}]}})
         assert code == 400 and "suggestions" in body, body
-        assert run.cfg_now.locations.anchor == "Baguio, Cordillera, Philippines"
+        assert run.cfg_now.locations.cities == ["Baguio, Cordillera, Philippines"]
     _with_server(check)
 
 
@@ -785,6 +788,21 @@ def test_an_uploaded_resume_is_deleted_but_your_own_file_is_only_unset():
         assert code == 200 and json.loads(body)["deleted"] is False, body
         assert mine.is_file(), "a file you chose must never be deleted"
         assert run.cfg_now.resume_path == ""
+    _with_server(check)
+
+
+def test_a_resume_with_an_encoded_name_is_saved_by_its_extension():
+    """The page sends the name encoded (a header takes Latin-1 only);
+    only the extension matters, and it survives the encoding."""
+    def check(run):
+        request = urllib.request.Request(
+            f"{run.base}/api/resume", data=b"# Me\n\nPython, SQL, Docker, AWS, Linux, Git\n" * 20,
+            headers={"X-Filename": urllib.parse.quote("Maria’s Resume – 2026.md"),
+                     "X-Jobdork-Token": run.token,
+                     "Content-Type": "application/octet-stream"})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            uploaded = Path(json.loads(response.read())["path"])
+        assert uploaded.is_file() and uploaded.name == "resume.md"
     _with_server(check)
 
 
@@ -912,7 +930,9 @@ def _idle(runner):
     raise AssertionError(f"still running {runner.current}")
 
 
-def test_a_queued_job_waits_and_runs_once_from_the_newest_settings():
+def test_queued_jobs_run_first_in_first_out_and_any_can_be_cancelled():
+    """Every request is kept, with what started it; each is built when its
+    turn comes, from the settings as they are then; a waiting one can go."""
     runner, ran, gate = Runner(), [], threading.Event()
 
     def blocking(progress):
@@ -921,18 +941,95 @@ def test_a_queued_job_waits_and_runs_once_from_the_newest_settings():
 
     assert runner.start("scan", blocking)[0]
     settings = {"v": 1}
-    # lambda: builds the work when its turn comes, reading the settings then.
-    make = lambda: (lambda progress: ran.append(("rescreen", settings["v"])))  # noqa: E731
-    assert runner.queue("rescreen", make) is False
+
+    def make(name):
+        # lambda: the work, reading the settings when it runs.
+        return lambda: (lambda progress: ran.append((name, settings["v"])))
+
+    assert runner.queue("rescreen", make("rescreen"), why="Search: added midwife") is False
+    assert runner.queue("scan", make("scan"), why="Countries: added PH") is False
+    assert runner.queue("rescreen", make("rescreen 2"), why="Pay changed") is False
+    waiting = runner.waiting()
+    assert [(w["name"], w["why"]) for w in waiting] == [
+        ("rescreen", "Search: added midwife"), ("scan", "Countries: added PH"),
+        ("rescreen", "Pay changed")]
+    assert runner.cancel(waiting[1]["id"]) and not runner.cancel(waiting[1]["id"])
     settings["v"] = 2
-    assert runner.queue("rescreen", make) is False      # still one waiting
-    assert runner.waiting() == ["rescreen"]
     gate.set()
     _idle(runner)
-    assert ran == ["scan", ("rescreen", 2)]
+    assert ran == ["scan", ("rescreen", 2), ("rescreen 2", 2)]
     # Idle: it starts at once.
-    assert runner.queue("rescreen", make) is True
+    assert runner.queue("rescreen", make("rescreen")) is True
     _idle(runner)
+
+
+def test_stop_asks_a_job_that_can_stop_and_the_queue_goes_on():
+    runner, ran = Runner(), []
+    started = threading.Event()
+
+    def scan(progress, stop=None):
+        started.set()
+        stop.wait(5)
+        ran.append(("scan stopped", stop.is_set()))
+        return "kept what it had"
+
+    assert not runner.stop(), "nothing running, nothing to stop"
+    assert runner.start("scan", scan)[0]
+    # lambda: a job after it, which must still run.
+    runner.queue("rescreen", lambda: (lambda progress: ran.append("rescreen")))
+    started.wait(5)
+    assert runner.stop()
+    _idle(runner)
+    assert ran == [("scan stopped", True), "rescreen"]
+    assert not runner.stopping.is_set(), "cleared for the next job"
+
+
+def test_a_stopped_scan_reads_no_more_sources_and_keeps_what_it_read():
+    import tempfile
+
+    from jobdork import fetch
+    from jobdork.search import scan as scan_mod
+
+    stop = threading.Event()
+    calls = []
+
+    def board(fetcher, cfg, token="", **_):
+        calls.append(token)
+        stop.set()                                  # Stop pressed while the first reads
+        return fetch.SourceResult(source="greenhouse", roles=[Role(
+            platform="greenhouse", company="Acme", title="Registered Nurse",
+            url=f"https://boards.greenhouse.io/acme/jobs/{token}", work_mode="remote")])
+
+    saved_jobs, saved_get = scan_mod._jobs_for, fetch.get
+    # lambda: twenty boards, one at a time, so the rest are still waiting.
+    scan_mod._jobs_for = lambda cfg, part="all": [("greenhouse", {"token": str(i)}) for i in range(20)]
+    # lambda: every source is the stub board above.
+    fetch.get = lambda name: board
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = Config(titles_include=["registered nurse"], db_path=str(Path(tmp) / "s.db"),
+                         locations=Locations(countries=["US"]))
+            cfg.fetch.concurrency = 1
+            with serve_mod.Store(cfg.db_path) as store:
+                report = scan_mod.run(cfg, store, stop=stop)
+                kept = store.conn.execute("SELECT COUNT(*) FROM roles").fetchone()[0]
+    finally:
+        scan_mod._jobs_for, fetch.get = saved_jobs, saved_get
+    assert len(calls) < 20 and report.stopped >= 1
+    assert report.stopped + len(calls) == 20, "every board read or left unread"
+    assert kept == report.kept >= 1, "what was read is screened and stored"
+    assert any("not read" in line for line in report.lines())
+
+
+def test_a_queued_job_says_what_started_it():
+    old = Config(titles_include=["nurse"], locations=Locations(countries=["US"]))
+    more = Config(titles_include=["nurse", "Nurse Practitioner"],
+                  locations=Locations(countries=["US", "PH"]))
+    assert serve_mod.change_words(old, more) == \
+        "Search: added Nurse Practitioner; Countries: added PH"
+    fewer = Config(titles_include=[], locations=Locations(countries=["US"]))
+    assert serve_mod.change_words(old, fewer) == "Search: removed nurse"
+    assert serve_mod.change_words(old, old) == "Search settings changed"
 
 
 def test_what_a_search_change_starts():
@@ -1026,6 +1123,47 @@ def test_the_first_scan_starts_only_at_setups_last_step():
         # Setup ends when the scan starts: the page goes to the Dashboard.
         assert run.holder["cfg"].setup_step == ""
         assert "setup:" not in target.read_text()
+    _with_server(check)
+
+
+def test_the_first_scan_names_its_two_parts_and_says_when_the_second_is_ready():
+    """The quick part's boards and the rest's are counted for the Dashboard,
+    and the end of the second is kept as ready until it is seen."""
+    from jobdork.core import notify
+    from jobdork.output import render
+    from jobdork.search import scan as scan_mod
+
+    def check(run):
+        saved = (scan_mod._jobs_for, scan_mod.run, notify.first_scan_ready,
+                 notify.scan_finished, render.write_all)
+        told = []
+        # lambda: two keyword sources and three boards in the quick part, five boards after.
+        scan_mod._jobs_for = lambda cfg, part="all": (
+            [("workable", {}), ("adzuna", {})] + [("greenhouse", {"token": f"q{i}"}) for i in range(3)]
+            if part == "quick" else [("greenhouse", {"token": f"r{i}"}) for i in range(5)])
+        # lambda: a scan that finds nothing, quickly.
+        scan_mod.run = lambda cfg, store, progress=None, part="all", stop=None: scan_mod.ScanReport()
+        # lambda: no report files: they would land in the folder the tests run from.
+        render.write_all = lambda *a, **kw: []
+        # lambda: record what the computer would have been told.
+        notify.first_scan_ready = lambda cfg, kept, **kw: told.append(("ready", kept))
+        # lambda: likewise for an ordinary scan's notice.
+        notify.scan_finished = lambda cfg, new, kept, **kw: told.append(("scan", new))
+        try:
+            jobs = serve_mod.api_mod.first_scan_jobs(run.cfg)
+            assert [name for name, _ in jobs] == ["first scan", "full scan"]
+            state = json.loads(run.get("/api/state")[1])["first_scan"]
+            assert (state["quick"], state["rest"], state["ready"]) == (3, 5, False)
+            lines = []
+            jobs[1][1](lines.append)
+        finally:
+            (scan_mod._jobs_for, scan_mod.run, notify.first_scan_ready,
+             notify.scan_finished, render.write_all) = saved
+        assert told and told[0][0] == "ready", "the full scan says ready, not 'nothing new'"
+        state = json.loads(run.get("/api/state")[1])["first_scan"]
+        assert state["ready"] and state["kept"] == told[0][1]
+        code, _ = run.post("/api/first-scan/seen", {})
+        assert code == 200 and not json.loads(run.get("/api/state")[1])["first_scan"]["ready"]
     _with_server(check)
 
 

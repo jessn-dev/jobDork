@@ -125,9 +125,10 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
             telemetry.tick(done=report.judged + len(report.failed), count="failed")
             if progress:
                 progress(f"  failed   {row['uid']}: {exc}")
-            # A refused key or a stopped Ollama fails every role the same way.
+            # A refused key, a stopped Ollama or a free allowance spent (by
+            # every reader) fails every role the same way.
             if "key was refused" in str(exc) or "not answering" in str(exc) \
-                    or "could not reach" in str(exc):
+                    or "could not reach" in str(exc) or "rate limited" in str(exc):
                 raise
             continue
         second_opinion(settings, role, resume_text, verdict, notes)

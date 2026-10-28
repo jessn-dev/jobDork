@@ -33,7 +33,8 @@ them into: put `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY` or `GROQ_
 | `jobdork list` | Print stored job posts. `--new` for what the last scan added, `--flags` for why each was flagged |
 | `jobdork show <uid>` | One job post in full, with the advert |
 | `jobdork applied <url\|company\|uid> -s <status>` | Record what you did: `interested`, `applied`, `interviewing`, `offer`, `rejected`… `--note` adds a note |
-| `jobdork add <url>` | Fetch a posting by its address into the database |
+| `jobdork ollama-code --url … --reader …` | A connection code for someone to use your Ollama behind a gatekeeper that checks a key ([two computers](ai-on-two-computers.md#someone-else-using-your-ollama)) |
+| `jobdork add <url>` | Fetch a posting by its address into the database: any board jobdork reads, Taleo Enterprise, or any page with schema.org job markup |
 | `jobdork rescreen` | Apply the current config to what is stored; `--remove` deletes what no longer matches, never a post you acted on |
 | `jobdork check` | Close the postings that are gone |
 | `jobdork enrich` | Fetch the full advert for posts stored as a summary |
@@ -53,7 +54,7 @@ them into: put `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY` or `GROQ_
 for one run, checked exactly as the file is:
 
 ```bash
-jobdork scan --anchor "Berlin, Germany" --country DE
+jobdork scan --anchor "Berlin, Germany" --country DE   # one city, in place of your list
 jobdork list --title "penetration tester" --work-mode remote --salary-floor 150000
 ```
 

@@ -270,6 +270,15 @@ button.armed:not(.del){color:var(--warn);border-color:var(--warn);font-weight:60
 .picker{display:flex;flex-wrap:wrap;gap:.6rem}
 .picker label{display:flex;flex-direction:column;gap:.2rem;font-size:.75rem;margin:0}
 .picker select,.picker input{width:14rem;max-width:100%}
+.padd{display:flex;gap:.4rem;align-items:flex-end}
+.padd label{flex:1;min-width:0}
+.pchips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.45rem 0 .2rem}
+.pchips:empty{display:none}
+.pchip{display:inline-flex;align-items:center;gap:.25rem;padding:.12rem .2rem .12rem .6rem;
+  border:1px solid var(--line);border-radius:999px;font-size:.8rem}
+.pchip.bad{border-color:var(--bad);color:var(--bad)}
+.pchip button{border:0;background:none;padding:0 .3rem;cursor:pointer;color:inherit;
+  font-size:1rem;line-height:1}
 .hint{color:var(--muted);font-size:.78rem;margin-top:.25rem}
 .saved{color:var(--ok);font-size:.85rem}.err{color:var(--bad);font-size:.85rem}
 .dot{width:.5rem;height:.5rem;border-radius:50%;display:inline-block;
@@ -418,6 +427,7 @@ h3{font-size:.9rem;margin:1.2rem 0 .45rem}
 .pbar > span{display:block;height:100%;background:var(--accent);border-radius:5px;
   transition:width .6s ease}
 .pbar.indet > span{width:30%;animation:slide 1.4s ease-in-out infinite}
+.upbar .pbar{max-width:28rem}
 @keyframes slide{0%{margin-left:-30%}100%{margin-left:100%}}
 .stack{display:flex;height:12px;gap:2px;margin:.3rem 0 .4rem}
 .stack > span{border-radius:3px;min-width:3px}
@@ -436,6 +446,10 @@ table.data tr.on td{background:var(--card)}
 table.data tr.on td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
 table.data td.n{white-space:nowrap}
 .warnc{color:var(--warn);font-weight:600} .badc{color:var(--bad);font-weight:600}
+.okc{color:var(--ok);font-weight:600}
+.chart .band{opacity:.09} .chart .band.ok{fill:var(--ok)} .chart .band.warn{fill:var(--warn)}
+.chart .band.bad{fill:var(--bad)}
+.legend .bands{color:var(--muted);font-size:.72rem}
 /* a modal dialog clips overflow by default, which would cut the tip off */
 dialog{overflow:visible}
 .paste{margin:.25rem 0 1rem}
@@ -630,6 +644,12 @@ main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
 #view-prefs h3.psec{margin:1.5rem 0 .4rem}
 #view-prefs .said-line{font-size:.88rem;margin-right:auto}
 #view-prefs #theme .switch{margin-left:0;background:var(--card);color:var(--fg)}
+.bgscan.ready{border-color:var(--ok)}
+.bgscan .act,.bgscan .linkbtn{margin-left:.4rem;vertical-align:middle}
+.q-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem;
+  padding:.35rem 0;border-bottom:1px solid var(--line);font-size:.86rem}
+.q-list{margin:.2rem 0 0;padding-left:1.2rem}
+.q-list .q-row .hint{margin-left:.35rem}
 .bgscan{border:1px solid var(--accent);border-radius:8px;padding:.6rem .8rem;
   color:var(--fg);background:var(--card);font-size:.88rem}
 .keycard{border:1px solid var(--line);border-radius:8px;
@@ -889,6 +909,11 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
           <div class="legend lines" id="m-hal-legend" style="margin-top:.35rem"></div>
           <div class="chart" id="m-hal"></div>
         </div>
+        <div class="panel" id="q-panel">
+          <div class="panel-head"><h3>Running and waiting</h3>
+            <span class="sub" id="q-sub"></span></div>
+          <div id="q-box"></div>
+        </div>
         <div class="panel">
           <div class="panel-head"><h3>Feedback on AI output, per day</h3>
             <span class="sub" id="m-fb-sub"></span>
@@ -1133,6 +1158,16 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       do not say plainly whether the job is still open. It never hides a job post.
       Local models cost nothing; the others spend tokens on your key.</p>
 
+    <form class="bar" id="ai-code" style="margin:0 0 .5rem">
+      <input id="ai-code-text" type="password" autocomplete="off" spellcheck="false"
+        placeholder="A connection code, if someone gave you one" style="flex:1;min-width:20rem"
+        aria-label="Connection code">
+      <button data-icon="key-round" class="act" type="submit">Use this code</button>
+      <span id="ai-code-msg" class="hint"></span>
+    </form>
+    <p class="hint" style="margin-top:-.2rem">Using someone else's Ollama? They can give you
+      a connection code: it fills in their address and models, and holds the key their
+      Ollama asks for. Keep it private, like a password.</p>
     <div id="ai-readers"></div>
     <div class="bar" style="margin:-.2rem 0 .3rem">
       <button data-icon="plus" class="act" id="ai-add">Add another reader</button>
@@ -1159,6 +1194,23 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <div class="hint">Judging needs a resume and at least 200 characters of
         advert. A 26B local model takes about a minute per job post, and the
         check adds two more calls to each.</div></div>
+
+    <div class="field" id="ai-free"><label>Free Gemini and Groq keys: today's allowance</label>
+      <div id="ai-allowance"></div>
+      <div class="picker">
+        <label>Gemini, requests a day<input id="ai-lim-gemini" type="number" min="0"
+          placeholder="Learned" style="width:8rem"></label>
+        <label>Groq, requests a day<input id="ai-lim-groq" type="number" min="0"
+          placeholder="Groq says" style="width:8rem"></label>
+      </div>
+      <div class="hint">A free key allows so many requests a minute and a day, set per
+        model by the provider. jobdork keeps under them so the key does not run out:
+        it spaces its requests, and stops scans' AI reading a few requests short of the
+        day's limit, keeping those for what you ask yourself; the next reader in your
+        list (Ollama, say) answers instead. Groq tells jobdork its numbers with every
+        answer; Gemini only when it refuses, so jobdork learns them then. To stop
+        sooner, type the daily limit Google AI Studio or the Groq console shows you.
+        Gemini's day starts at midnight Pacific time.</div></div>
 
     <div class="field" id="ai-check"><label>Second models, to check the readers</label>
       <div id="ai-checkers"></div>
@@ -1225,8 +1277,9 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       </div>
       <div class="sgroup">
       <h3>Countries to keep job posts from</h3>
-      <p class="hint">Separate from where you are, which is only the centre of the
-        radius. List every country you would work in or for: living in Baguio and
+      <p class="hint">Separate from the states and cities under Location, which
+        are only about where you would go to an office. List every country you
+        would work in or for: living in Baguio and
         open to remote work for US employers is the Philippines and the United
         States. A job post from anywhere else is dropped, and these also choose
         which sources search (USAJOBS only runs for the United States). None
@@ -1318,6 +1371,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <button data-icon="trash-2" class="act" id="btn-resume-del" hidden>Delete resume</button>
       <span id="resumemsg"></span>
     </div>
+    <div class="upbar" id="resume-bar"></div>
     <div id="resumeinfo"></div>
     <p class="hint temp-note" id="resume-temp" hidden>Running in a container: the resume
       and the documents below are kept in a temporary folder, emptied when jobdork
@@ -1430,15 +1484,28 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <div id="keyinfo"></div>
 
     <h2 style="margin-top:1.25rem">Add a Job Post</h2>
-    <p class="hint">A job post you found yourself, on an employer's board: paste its
-      link and it is read into Job posts like any scanned post, advert and all.</p>
+    <p class="hint">A job post you found yourself, anywhere: paste its link and it is
+      read into Job posts like any scanned post, advert and all. An employer's board
+      (Greenhouse, Lever, Workday, Oracle, Taleo Enterprise and others) gives the whole
+      post; any other page is read from what it publishes for search engines. When a
+      page cannot be read, paste the advert's text instead.</p>
     <div class="bar">
-      <input id="add-url" placeholder="https://job-boards.greenhouse.io/acme/jobs/1"
-        style="flex:1;min-width:22rem">
-      <input id="add-token" placeholder="Board token, if the URL has none" style="width:15rem">
+      <input id="add-url" placeholder="The job post's link" style="flex:1;min-width:22rem">
+      <input id="add-token" placeholder="Board token, if the link has none" style="width:15rem">
       <button data-icon="plus" class="act" id="btn-add">Add</button>
     </div>
     <div id="addmsg"></div>
+    <form class="field" id="add-paste" hidden>
+      <div class="picker">
+        <label>Job title<input id="add-p-title" required></label>
+        <label>Employer<input id="add-p-company"></label>
+        <label>Place<input id="add-p-place" placeholder="e.g. Austin, TX, or Remote"></label>
+      </div>
+      <label>The advert, pasted from the page<textarea id="add-p-text" rows="10"
+        style="width:100%" placeholder="Everything the post says: duties, requirements, pay"></textarea></label>
+      <div class="bar"><button data-icon="plus" class="act primary" type="submit">Add from the text</button>
+        <button class="act" type="button" id="add-p-cancel">Cancel</button></div>
+    </form>
 
     <h2 style="margin-top:1.25rem" id="boards-head">Employer boards</h2>
     <p class="hint">These give full advert text, which aggregators do not. A board
@@ -1547,10 +1614,22 @@ function pageProblem(level, text) {
   fetch('/api/page-problem', {method: 'POST', headers: {'X-Jobdork-Token': TOKEN},
     body: new URLSearchParams({level, text})}).catch(() => {});   // the server is gone
 }
+// A server error logged with the server's own reason, not only its status:
+// "GET /api/llm/models failed (HTTP 502)" hid "Ollama is not answering at …".
+// A 502 is jobdork saying another service it asked (Ollama, an AI provider)
+// did not answer: a warning about that service, not an error in jobdork.
+function serverProblem(what, status, body) {
+  const why = String(body || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  pageProblem(status === 502 ? 'warning' : 'error', (status === 502
+    ? `${what}: another service did not answer (HTTP 502)`
+    : `${what} failed on the server (HTTP ${status})`) + (why ? `: ${why}` : ''));
+}
 const api = (p, o = {}) => {
   const what = `${o.method || 'GET'} ${String(p).split('?')[0]}`;
   return fetch(p, {...o, headers: {...(o.headers || {}), 'X-Jobdork-Token': TOKEN}}).then(r => {
-    if (r.status >= 500) pageProblem('error', `${what} failed on the server (HTTP ${r.status})`);
+    // A copy is read, so the caller still reads the answer itself.
+    if (r.status >= 500) r.clone().text().then(t => serverProblem(what, r.status, t),
+                                               () => serverProblem(what, r.status, ''));
     return r;
   }, e => {
     pageProblem('error', `${what} got no answer from the server: ${e.message || e}`);
@@ -1589,8 +1668,12 @@ function openOut(url) {
 // does, when you click.
 function googleJobsUrl(title) {
   const modes = (cfg && cfg.work_modes) || [];
+  // Your first city, else your first region: one search, not one per place.
+  const at = (cfg && cfg.places) || {cities: [], regions: []};
+  const place = at.cities.length ? `near ${at.cities[0].text}`
+    : at.regions.length ? `in ${at.regions[0].name}` : '';
   const words = modes.length === 1 && modes[0] === 'remote' ? `${title} remote jobs`
-    : cfg && cfg.anchor ? `${title} jobs near ${cfg.anchor}` : `${title} jobs`;
+    : place ? `${title} jobs ${place}` : `${title} jobs`;
   return 'https://www.google.com/search?udm=8&q=' + encodeURIComponent(words);
 }
 // Above the list, not after its last post: it was a small grey line at the
@@ -2801,18 +2884,39 @@ $('fbk-save').onclick = () => {
            'jobdork-feedback.md');
 };
 
-$('btn-add').onclick = async () => {
-  const r = await api('/api/add', {method: 'POST',
-    body: form({url: $('add-url').value, token: $('add-token').value})});
-  const msg = $('addmsg');
-  if (!r.ok) { msg.innerHTML = `<span class="err">${esc(await r.text())}</span>`; return; }
-  const d = await r.json();
-  msg.innerHTML = `<span class="saved">${d.added ? 'added' : 'updated'}</span> ` +
+// A link jobdork could not read (422) opens the form for its pasted advert.
+function showAdded(d) {
+  $('addmsg').innerHTML = `<span class="saved">${d.added ? 'added' : 'updated'}</span> ` +
     `${esc(d.title)} at ${esc(d.company)}` +
     (d.passes_filters ? '' :
       `<div class="hint">Does not pass your filters (${esc(d.why_not)}). ` +
       `Stored anyway because you asked for it.</div>`);
   loadRoles();
+}
+$('btn-add').onclick = async () => {
+  const btn = $('btn-add'), msg = $('addmsg');
+  btn.disabled = true; msg.innerHTML = '<span class="hint">Reading the link…</span>';
+  const r = await api('/api/add', {method: 'POST',
+    body: form({url: $('add-url').value, token: $('add-token').value})});
+  btn.disabled = false;
+  if (!r.ok) {
+    msg.innerHTML = `<span class="err">${esc(cap(await r.text()))}</span>`;
+    $('add-paste').hidden = r.status !== 422;
+    if (r.status === 422) $('add-p-title').focus();
+    return;
+  }
+  $('add-paste').hidden = true;
+  showAdded(await r.json());
+};
+$('add-p-cancel').onclick = () => { $('add-paste').hidden = true; $('addmsg').innerHTML = ''; };
+$('add-paste').onsubmit = async ev => {
+  ev.preventDefault();
+  const r = await api('/api/add/text', {method: 'POST', body: form({url: $('add-url').value,
+    title: $('add-p-title').value, company: $('add-p-company').value,
+    location: $('add-p-place').value, text: $('add-p-text').value})});
+  if (!r.ok) { $('addmsg').innerHTML = `<span class="err">${esc(cap(await r.text()))}</span>`; return; }
+  $('add-paste').reset(); $('add-paste').hidden = true;
+  showAdded(await r.json());
 };
 
 function connect() {
@@ -2846,6 +2950,7 @@ function connect() {
       if (!noteCfg.native) {
         const fresh = e.kind === 'done' && /\((\d+) new\)/.exec(e.text || '');
         if (e.kind === 'error') inPageNotice('Scan failed', e.text);
+        else if (e.job === 'full scan') inPageNotice('Your job posts are ready', 'Every employer board has been read. View job posts on the Dashboard.');
         else if (fresh && Number(fresh[1]) > 0) inPageNotice(`${fresh[1]} new job post${fresh[1] === '1' ? '' : 's'}`, 'Open Job posts to see them.');
       }
     }
@@ -2892,14 +2997,67 @@ async function refreshState() {
   $('run').textContent = busy && s.job === 'scan' ? 'Scanning…' : 'Run a scan';
   $('btn-fresh').textContent = busy && s.job === 'fresh scan' ? 'Fresh scan running…' : 'Run fresh scan';
   $('scanstate').textContent = busy ? `${s.job} running` : '';
-  // Setup's scan, watched here: what is running and what comes next.
-  const first = {
-    'first scan': 'Setup is done, and your first scan is running: the job boards that search by title and a few employers\' own boards. Job posts appear under Job posts within a few minutes.',
-    'full scan': 'The first job posts are in. The rest of the employer boards are being read now; more job posts appear as it finishes.',
-  }[busy ? s.job : ''];
-  $('bgscan').hidden = !first;
-  if (first) $('bgscan').textContent = first;
+  drawFirstScan(s);
+  drawQueue(s);
 }
+
+// Setup's scan, watched here in its two parts, each named with what it
+// reads; then, once the second ends, a notice that stays until it is seen.
+// The computer says the same, the window open or not (core/notify.py).
+function drawFirstScan(s) {
+  const fs = s.first_scan || {}, job = s.busy ? s.job : '';
+  const boards = k => `${n(k)} employer board${k === 1 ? '' : 's'}`;
+  const box = $('bgscan');
+  box.classList.toggle('ready', !job && !!fs.ready);
+  if (job === 'first scan') {
+    box.innerHTML = `<b>Quick scan:</b> reading the job sites and ${boards(fs.quick || 0)}. The first
+      job posts appear under Job posts within a few minutes.`;
+  } else if (job === 'full scan') {
+    box.innerHTML = `<b>Full scan started:</b> reading the other ${boards(fs.rest || 0)}. Job posts
+      keep arriving while it runs, and you can use everything else meanwhile.`;
+  } else if (fs.ready) {
+    box.innerHTML = `<b>Your job posts are ready.</b> Every employer board has been read:
+      ${n(fs.kept)} job post${fs.kept === 1 ? '' : 's'} to look at.
+      <button data-icon="eye" class="act primary" id="bg-view" type="button">View job posts</button>
+      <button class="linkbtn" id="bg-seen" type="button">Dismiss</button>`;
+    const seen = () => api('/api/first-scan/seen', {method: 'POST'}).then(refreshState);
+    $('bg-view').onclick = () => { seen(); document.querySelector('nav .item[data-view="roles"]').click(); };
+    $('bg-seen').onclick = seen;
+  }
+  box.hidden = !job.match(/^(first|full) scan$/) && !fs.ready;
+}
+
+// What runs now, with Stop for a scan (it keeps what it has found), and
+// what waits, first in, first out, each with what started it and Cancel.
+// A change to the search, Projects or Education queues a job by itself.
+function drawQueue(s) {
+  const waiting = s.waiting || [];
+  const ago = t => { const m = Math.max(0, Math.round((Date.now() / 1000 - t) / 60));
+    return m < 1 ? 'just now' : m === 1 ? 'a minute ago' : `${m} minutes ago`; };
+  $('q-sub').textContent = waiting.length ? `${waiting.length} waiting` : '';
+  const now = s.busy ? `<div class="q-row q-now"><span><b>${esc(cap(s.job))}</b> running</span>${
+      /scan$/.test(s.job) ? `<button data-icon="circle-x" class="act danger" id="q-stop" type="button"
+        title="Stops reading more boards; the job posts found so far are kept">Stop</button>` : ''}</div>`
+    : '<p class="hint">Nothing running.</p>';
+  $('q-box').innerHTML = now + (waiting.length ? `<ol class="q-list">${waiting.map(w =>
+      `<li class="q-row"><span><b>${esc(cap(w.name))}</b>${w.why ? ` · ${esc(w.why)}` : ''}
+        <span class="hint">queued ${ago(w.at)}</span></span>
+        <button class="linkbtn" data-q-cancel="${w.id}" type="button">Cancel</button></li>`).join('')}</ol>`
+    : '<p class="hint">Nothing waiting. A change to your search, Projects or Education waits here while a job runs.</p>');
+  if ($('q-stop')) $('q-stop').onclick = async () => {
+    $('q-stop').disabled = true; $('q-stop').textContent = 'Stopping…';
+    const r = await api('/api/stop', {method: 'POST'});
+    if (!r.ok) toast(cap(await r.text()), 'err');
+  };
+}
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-q-cancel]');
+  if (!b) return;
+  b.disabled = true;
+  const r = await api('/api/queue/cancel', {method: 'POST', body: form({id: b.dataset.qCancel})});
+  if (!r.ok) toast(cap(await r.text()), 'err');
+  refreshState();
+});
 
 // ── first-run setup ──────────────────────────────────────────────────────────
 // While the config says setup is unfinished, the page is only this: one step
@@ -2930,6 +3088,7 @@ function drawSetup(st) {
       suggest what to search for. It stays on this computer.</p>
       <p><input type="file" id="setup-file" accept=".pdf,.docx,.md,.markdown,.txt"
         aria-label="Resume file"></p>
+      <div class="upbar" id="setup-bar"></div>
       <p class="hint">PDF, Word, Markdown or plain text.</p>
       <div id="setup-read"></div>`;
     $('setup-file').onchange = () => setupUpload($('setup-file').files[0], st);
@@ -2970,22 +3129,21 @@ function drawSetup(st) {
   } else if (st.step === 'where') {
     const next = st.steps[at + 1].name;
     $('setup-body').innerHTML = `<h2>Where</h2>
-      <p>Where you are, how far you would travel to an office, and which kinds of
-      work to keep. Remote jobs are kept whatever the distance.</p>
-      <p class="hint"><b>Required:</b> your country and your city, because the
-      distance to an office is measured from your city. The rest is optional:
-      the state or province can stay at "Any", and the radius and kinds of work
-      can stay as they are.</p>`;
+      <p>Where you would work, how far you would travel to an office, and which
+      kinds of work to keep. Remote jobs are kept whatever the distance.</p>
+      <p class="hint"><b>Required:</b> only your country. Then, if you like, add
+      as many states (or provinces, regions) and cities as you want: job posts
+      anywhere in a state you add are kept, and those within the radius of a
+      city you add. Add none and job posts from the whole country are kept.
+      The radius and kinds of work can stay as they are.</p>`;
     setupLocationForm();
     $('setup-nav').innerHTML =
       '<button type="button" class="act primary" id="setup-next">Continue</button>';
     $('setup-next').onclick = async () => {
-      // Each missing field by name, and the cursor put in it: "country and
-      // city" with a country chosen read as if the state were the problem.
-      const missing = !$('c_pcountry').value ? ['c_pcountry', 'Choose your country.']
-        : !$('c_pcity').value.trim() ? ['c_pcity', 'Type your city and pick it from the list. It is required; the state can stay at "Any".']
+      // The one required field by name, and the cursor put in it.
+      const missing = !$('c_pcountry').value ? ['c_pcountry', 'Choose your country. States and cities are optional.']
         : null;
-      ['c_pcountry', 'c_pcity'].forEach(id => $(id).removeAttribute('aria-invalid'));
+      $('c_pcountry').removeAttribute('aria-invalid');
       if (missing) {
         $(missing[0]).setAttribute('aria-invalid', 'true');
         $(missing[0]).focus();
@@ -3154,12 +3312,62 @@ function setupLocationForm() {
   drawConfig();
 }
 
+// Send a resume with a bar under it: the bytes going up, then a moving bar
+// while the server reads the file, so a long PDF does not look like a page
+// that stopped. XMLHttpRequest, as fetch says nothing of an upload's
+// progress. Answers as api() does, with a Response; no answer at all is one
+// too (503), so the caller shows a reason rather than "Reading…" for good.
+function sendResume(file, bar, msg) {
+  const what = 'POST /api/resume';
+  bar.innerHTML = `<div class="pbar" role="progressbar" aria-label="Resume upload"
+    aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span style="width:0%"></span></div>`;
+  const track = bar.firstChild, fill = track.firstChild;
+  msg.className = 'hint'; msg.textContent = 'Uploading…';
+  return new Promise(done => {
+    const x = new XMLHttpRequest();
+    x.upload.onprogress = e => {
+      if (!e.lengthComputable) return;
+      const pct = Math.round(e.loaded * 100 / e.total);
+      fill.style.width = `${pct}%`; track.setAttribute('aria-valuenow', pct);
+      msg.textContent = `Uploading… ${pct}%`;
+    };
+    x.upload.onload = () => {      // all sent: what is left is the reading
+      track.classList.add('indet'); track.removeAttribute('aria-valuenow');
+      fill.style.width = ''; msg.textContent = 'Reading your resume…';
+    };
+    x.onload = () => {
+      bar.innerHTML = '';
+      if (x.status >= 500) serverProblem(what, x.status, x.responseText);
+      done(new Response(x.responseText, {status: x.status}));
+    };
+    x.onerror = () => {
+      bar.innerHTML = '';
+      pageProblem('error', `${what} got no answer from the server`);
+      done(new Response('jobdork did not answer. Is it still running?', {status: 503}));
+    };
+    // A refusal before anything is sent is the page's, not the server's:
+    // 0.15.3 logged one as "got no answer from the server: Type error".
+    try {
+      x.open('POST', '/api/resume');
+      x.setRequestHeader('X-Jobdork-Token', TOKEN);
+      // Encoded: a header takes Latin-1 only, and "Maria’s Resume.pdf"
+      // stopped the upload here. The server reads nothing but the extension.
+      x.setRequestHeader('X-Filename', encodeURIComponent(file.name));
+      x.setRequestHeader('Content-Type', 'application/octet-stream');
+      x.send(file);
+    } catch (e) {
+      bar.innerHTML = '';
+      pageProblem('error', `${what} was not sent: the page refused it (${e.message || e})`);
+      done(new Response(`This file could not be sent: ${e.message || e}`, {status: 400}));
+    }
+  });
+}
+
 async function setupUpload(file, st) {
   if (!file) return;
-  $('setup-msg').className = 'hint'; $('setup-msg').textContent = 'Reading…';
-  const r = await api('/api/resume', {method: 'POST',
-    headers: {'X-Filename': file.name, 'Content-Type': 'application/octet-stream'},
-    body: file});
+  $('setup-file').disabled = true;
+  const r = await sendResume(file, $('setup-bar'), $('setup-msg'));
+  $('setup-file').disabled = false;
   if (!r.ok) {
     $('setup-msg').className = 'err'; $('setup-msg').textContent = cap(await r.text());
     return;
@@ -3596,6 +3804,8 @@ async function pollActivity() {
       $('act-dot').hidden = !d.running.length;
       $('act-dot').classList.toggle('live', d.running.length > 0);
       if (visible) drawActivity(d);
+      // While a job runs, the queue beside it can change with any save.
+      if (visible && d.running.length) refreshState();
     }
   } catch (e) { /* the server is restarting; try again next tick */ }
   actTimer = setTimeout(pollActivity, visible ? 2000 : 10000);
@@ -3748,6 +3958,13 @@ async function rate(btn, value) {
 let mDays = 30, mData = null, halBy = 'kind';
 const mTable = {};
 const pct = x => x == null ? '-' : `${(x * 100).toFixed(x > 0 && x < 0.1 ? 1 : 0)}%`;
+// The hallucination target is 2-5% (docs/AI-MODELS.md): at or under 5% is
+// green, to 10% amber, above that red, where every other local model
+// measured. In words as well as colour, for anyone who cannot tell them apart.
+const HAL_BANDS = [{to: 5, cls: 'ok', word: 'within target'},
+  {to: 10, cls: 'warn', word: 'watch it'},
+  {to: Infinity, cls: 'bad', word: 'too high: try a bigger model or a checker'}];
+const halBand = percent => HAL_BANDS.find(b => percent <= b.to);
 const toolInk = i => `var(--s${i + 1})`;
 const shortDate = d => d.slice(5).replace('-', '/');
 
@@ -3805,8 +4022,10 @@ function drawMetrics() {
          (calls.failed ? `<span class="badc">${n(calls.failed)} failed</span>` : 'none failed') + late(calls.recorded_since)) +
     tile('P50 AI latency', calls.p50 == null ? '-' : secs(calls.p50),
          calls.p95 == null ? 'no calls' : `P95 ${secs(calls.p95)}`) +
-    tile('Hallucination', h.rate == null ? '-' : pct(h.rate),
-         h.outputs ? `${h.unsupported} of ${n(h.claims)} claims · coverage ${pct(h.coverage)}${late(h.recorded_since)}`
+    tile('Hallucination', h.rate == null ? '-'
+           : `<span class="${halBand(h.rate * 100).cls}c">${pct(h.rate)}</span>`,
+         h.outputs ? `${h.rate == null ? '' : `<span class="${halBand(h.rate * 100).cls}c">${halBand(h.rate * 100).word}</span> · `}${
+           h.unsupported} of ${n(h.claims)} claims · coverage ${pct(h.coverage)}${late(h.recorded_since)}`
                    : 'no AI output yet', hTip);
 
   // Runs by tool
@@ -3840,7 +4059,9 @@ function drawMetrics() {
     return {...k, ink: toolInk(i), tot};
   });
   $('m-hal-legend').innerHTML = halKinds.map(k =>
-    `<span><i style="background:${k.ink}"></i>${esc(cap(k.label))} <b>${k.tot.c ? `${n(k.tot.u)} of ${n(k.tot.c)}` : '-'}</b></span>`).join('');
+    `<span><i style="background:${k.ink}"></i>${esc(cap(k.label))} <b>${k.tot.c ? `${n(k.tot.u)} of ${n(k.tot.c)}` : '-'}</b></span>`).join('') +
+    `<span class="bands">Background: <b class="okc">5% or under, within target</b> ·
+      <b class="warnc">to 10%, watch it</b> · <b class="badc">above 10%, too high</b></span>`;
   const pctOf = c => c ? +(100 * c.unsupported / c.claims).toFixed(1) : null;
   const dayTotal = x => Object.values(claimsOf(x)).reduce((a, c) => ({c: a.c + c.claims, u: a.u + c.unsupported}), {c: 0, u: 0});
   if (mTable['m-hal']) {
@@ -3856,10 +4077,12 @@ function drawMetrics() {
   } else {
     lines($('m-hal'), d.per_day,
       halKinds.map(k => ({label: cap(k.label), ink: k.ink, value: x => pctOf(claimsOf(x)[k.kind]),
-                       detail: x => `${claimsOf(x)[k.kind].unsupported} of ${claimsOf(x)[k.kind].claims} claims`})),
+                       detail: x => `${claimsOf(x)[k.kind].unsupported} of ${claimsOf(x)[k.kind].claims} claims, ${
+                         halBand(pctOf(claimsOf(x)[k.kind])).word}`})),
       x => { const t = dayTotal(x); return `${t.u} of ${t.c} claims unsupported that day`; },
       {fmt: v => `${+v.toFixed(1)}%`, dots: true, max: 100, floor: 10,
-       empty: 'Nothing checked this day', label: `Share of claims not supported, per day and ${byModel ? 'model' : 'kind'}`});
+       empty: 'Nothing checked this day', label: `Share of claims not supported, per day and ${byModel ? 'model' : 'kind'}`,
+       bands: HAL_BANDS});
   }
 
   // Feedback
@@ -4035,6 +4258,12 @@ function lines(el, days, series, foot, opts = {}) {
   const Y = v => T + ph - v / top * ph;
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
     aria-label="${esc(opts.label || 'Per-day chart')}; use Show as table for the numbers">`;
+  // Shaded ranges behind the lines, each up to its `to` value (as the values).
+  (opts.bands || []).reduce((from, b) => {
+    if (from < top) svg += `<rect class="band ${b.cls}" x="${L}" width="${pw}"
+      y="${Y(Math.min(b.to, top)).toFixed(1)}" height="${(Y(from) - Y(Math.min(b.to, top))).toFixed(1)}"/>`;
+    return b.to;
+  }, 0);
   [0, top / 2, top].filter(t => opts.fmt || Number.isInteger(t)).forEach(t => {
     const y = Y(t) + .5;
     svg += `<line class="${t ? 'grid' : 'base'}" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/>
@@ -4338,11 +4567,13 @@ const blankReader = () => ({provider: '', model: '', ollama_url: ''});
 
 async function drawAI() {
   ai = await (await api('/api/llm')).json();
+  ai.keys.ollama = ai.ollama_key || '';     // the one key Ollama lines may send
   ai.readers = ai.readers && ai.readers.length ? ai.readers : [blankReader()];
   $('ai-on-scan').checked = ai.judge_on_scan;
   $('ai-top').value = ai.judge_top;
   $('ai-pages').checked = ai.read_pages;
   $('ai-guard').checked = ai.guard;
+  drawAllowance();
   $('ai-msg').textContent = ai.problem ? ai.problem : `Ready: ${ai.label}`;
   $('ai-msg').className = ai.problem ? 'hint' : 'saved';
   ai.checkers = ai.checkers && ai.checkers.length ? ai.checkers : [blankReader()];
@@ -4351,6 +4582,10 @@ async function drawAI() {
 
 // The Ollama address a reader uses: its own, or the one saved for all.
 const readerUrl = r => r.ollama_url || ai.ollama_url || '';
+// What its box shows: the page-wide address only when someone chose it. The
+// built-in localhost one, shown as if typed, stayed in place for a tester
+// whose Ollama was on another computer, and every Load models failed.
+const readerUrlShown = r => r.ollama_url || (ai.ollama_url_default ? '' : ai.ollama_url || '');
 
 // What the cards hold now, read back before anything redraws them.
 function syncReaders() {
@@ -4358,9 +4593,17 @@ function syncReaders() {
     const r = ai[card.dataset.list][Number(card.dataset.i)];
     if (!r) return;
     r.model = card.querySelector('.r-model').value.trim();
-    if (r.provider === 'ollama') r.ollama_url = card.querySelector('.r-url').value.trim();
+    if (r.provider === 'ollama') {
+      r.ollama_url = card.querySelector('.r-url').value.trim();
+      r.ollama_key = card.querySelector('.r-okey').checked;
+    }
   });
 }
+
+// Which key a line uses, and whether it needs one: an Ollama line only
+// when marked to send the Ollama key.
+const keyOf = r => r.provider === 'ollama' ? 'ollama' : r.provider;
+const needsKey = r => r.provider === 'ollama' ? !!r.ollama_key : r.provider in ai.keys;
 
 function keyState(p) {
   const where = ai.keys[p];
@@ -4389,13 +4632,20 @@ function drawList(list, loadAll) {
         `<button type="button" data-p="${p}" ${p ? '' : 'data-icon="power" '}class="${p === r.provider ? 'on' : ''}">${
           providerIcon(p)}${p ? esc(ai.providers[p]) : (list === 'readers' ? 'Off' : 'None')}</button>`).join('')}</div></div>
     <div class="field r-url-row" ${r.provider === 'ollama' ? '' : 'hidden'}><label>Ollama address</label>
-      <input class="r-url" style="width:20rem" spellcheck="false" value="${esc(readerUrl(r))}"></div>
-    <div class="field r-key-row" ${r.provider in ai.keys ? '' : 'hidden'}><label>API key for ${esc(ai.providers[r.provider] || '')}</label>
+      <input class="r-url" style="width:20rem" spellcheck="false" value="${esc(readerUrlShown(r))}"
+        placeholder="${esc(ai.ollama_url || '')} (this computer)">
+      <div class="hint">Empty uses Ollama on this computer. For Ollama on another computer, its
+        address, such as <code>${esc(String(ai.ollama_url || '').replace(/\/\/[^:/]+/, '//100.101.102.103'))}</code>.</div>
+      <label class="check"><input type="checkbox" class="r-okey"${r.ollama_key ? ' checked' : ''}>
+        Send the Ollama key: this Ollama is behind a gatekeeper that asks for one</label></div>
+    <div class="field r-key-row" ${needsKey(r) ? '' : 'hidden'}><label>${r.provider === 'ollama'
+      ? 'Key for this Ollama, one for every Ollama line that sends it'
+      : `API key for ${esc(ai.providers[r.provider] || '')}`}</label>
       <div class="bar" style="margin:0">
         <input class="r-key" type="password" autocomplete="off" spellcheck="false"
           placeholder="Paste the key" style="width:22rem">
         <button data-icon="key-round" class="act r-hold" type="button">Hold in memory</button>
-        <span class="r-key-state">${r.provider in ai.keys ? keyState(r.provider) : ''}</span></div></div>
+        <span class="r-key-state">${needsKey(r) ? keyState(keyOf(r)) : ''}</span></div></div>
     <div class="field r-model-row" ${r.provider ? '' : 'hidden'}><label>Model</label>
       <div class="bar" style="margin:0">
         <select class="r-models" aria-label="Model" style="width:22rem" hidden></select>
@@ -4439,21 +4689,23 @@ function wireReader(card, load) {
     drawReaders(true);
   };
   card.querySelector('.r-load').onclick = () => loadReaderModels(card, false);
+  // Ticking it shows the key box; the line's models are read with the key.
+  card.querySelector('.r-okey').onchange = () => { syncReaders(); drawReaders(true); };
   card.querySelector('.r-hold').onclick = async () => {
     const box = card.querySelector('.r-key'), key = box.value;
-    const res = await api('/api/llm/key', {method: 'POST', body: form({provider: r.provider, key})});
+    const res = await api('/api/llm/key', {method: 'POST', body: form({provider: keyOf(r), key})});
     box.value = '';                   // the page does not keep it either
     if (!res.ok) {
       card.querySelector('.r-key-state').innerHTML = `<span class="err">${esc(await res.text())}</span>`;
       return;
     }
-    ai.keys[r.provider] = 'memory';
+    ai.keys[keyOf(r)] = 'memory';
     syncReaders(); drawReaders(true); refreshState();
   };
   const forget = card.querySelector('.r-forget');
   if (forget) forget.onclick = async () => {
-    await api('/api/llm/forget', {method: 'POST', body: form({provider: r.provider})});
-    ai.keys[r.provider] = '';
+    await api('/api/llm/forget', {method: 'POST', body: form({provider: keyOf(r)})});
+    ai.keys[keyOf(r)] = '';
     syncReaders(); drawReaders(false);
   };
   if (load) loadReaderModels(card, true);
@@ -4463,10 +4715,12 @@ async function loadReaderModels(card, quiet) {
   const r = ai[card.dataset.list][Number(card.dataset.i)], msg = card.querySelector('.r-msg');
   const sel = card.querySelector('.r-models'), input = card.querySelector('.r-model');
   fillModelsEl(sel, input, []);
-  if (!r || !r.provider || (r.provider in ai.keys && !ai.keys[r.provider])) { msg.textContent = ''; return; }
+  if (!r || !r.provider || (needsKey(r) && !ai.keys[keyOf(r)])) { msg.textContent = ''; return; }
   msg.textContent = 'loading…';
   const url = card.querySelector('.r-url').value.trim() || readerUrl(r);
-  const res = await api(`/api/llm/models?provider=${r.provider}&url=${encodeURIComponent(url)}`);
+  const sendKey = r.provider === 'ollama' && card.querySelector('.r-okey').checked;
+  const res = await api(`/api/llm/models?provider=${r.provider}&url=${encodeURIComponent(url)}${
+    sendKey ? '&key=1' : ''}`);
   if (!res.ok) { msg.textContent = await res.text(); return; }
   const models = (await res.json()).models;
   msg.textContent = `${models.length} available`;
@@ -4508,7 +4762,8 @@ function fillModelsEl(sel, input, models) {
 // A list's chosen models, as saved; null (and a message) when one is listed twice.
 function listToSave(list) {
   const out = ai[list].filter(r => r.provider).map(r => ({provider: r.provider, model: r.model,
-    ollama_url: r.provider === 'ollama' ? (r.ollama_url || '') : ''}));
+    ollama_url: r.provider === 'ollama' ? (r.ollama_url || '') : '',
+    ollama_key: r.provider === 'ollama' && !!r.ollama_key}));
   const seen = new Set();
   for (const r of out) {
     const k = `${r.provider}|${r.model}|${r.ollama_url}`;
@@ -4522,6 +4777,46 @@ function listToSave(list) {
   return out;
 }
 
+// A connection code fills an Ollama line (the first, if no reader is chosen
+// yet, else a new one) and a checker when it names one; its key is held at
+// once. Save keeps the lines.
+$('ai-code').onsubmit = async ev => {
+  ev.preventDefault();
+  const box = $('ai-code-text'), msg = $('ai-code-msg');
+  const r = await api('/api/llm/connection', {method: 'POST', body: form({code: box.value})});
+  box.value = '';                   // it carries the key: not kept on the page
+  if (!r.ok) { msg.className = 'err'; msg.textContent = cap(await r.text()); return; }
+  const d = await r.json();
+  syncReaders();
+  ai.keys.ollama = 'memory';
+  const line = model => ({provider: 'ollama', model, ollama_url: d.url, ollama_key: true});
+  const put = (list, model) => {
+    if (!model) return;
+    const items = ai[list];
+    if (items.some(x => x.provider === 'ollama' && x.model === model && x.ollama_url === d.url)) return;
+    if (!items[0].provider) items[0] = line(model);
+    else if (items.length < (ai.max_readers || 6)) items.push(line(model));
+  };
+  put('readers', d.reader); put('checkers', d.checker);
+  drawReaders(true);
+  msg.className = 'saved';
+  msg.textContent = `Filled in ${d.url}${d.note ? `; key ${d.note}` : '; key held in memory'}. Click Save to keep it.`;
+};
+
+
+// Each free-tier model's day so far, and the limits you set.
+function drawAllowance() {
+  const lim = ai.daily_limits || {};
+  $('ai-lim-gemini').value = lim.gemini || '';
+  $('ai-lim-groq').value = lim.groq || '';
+  const rows = ai.allowance || [];
+  $('ai-allowance').innerHTML = rows.length ? rows.map(m => `<p class="${m.stopped ? 'warnc' : ''}">
+      <b>${esc(m.label)}</b>: ${n(m.calls_today)} used today${m.left_today != null
+        ? `, ${n(m.left_today)} left${m.per_day ? ` of ${n(m.per_day)}` : ''}` : ''}${
+        m.per_minute ? ` · ${n(m.per_minute)} a minute` : ''}${m.stopped ? ` · ${esc(cap(m.stopped))}` : ''}</p>`).join('')
+    : '<p class="hint">No free Gemini or Groq model asked since jobdork started.</p>';
+}
+
 async function saveAI() {
   syncReaders();
   const readers = listToSave('readers'), checkers = listToSave('checkers');
@@ -4533,7 +4828,9 @@ async function saveAI() {
       ollama_url: firstOllama && firstOllama.ollama_url ? firstOllama.ollama_url : (ai.ollama_url || ''),
       judge_on_scan: $('ai-on-scan').checked,
       judge_top: Number($('ai-top').value) || 25, read_pages: $('ai-pages').checked,
-      guard: $('ai-guard').checked, checkers})});
+      guard: $('ai-guard').checked, checkers,
+      daily_limits: {gemini: Number($('ai-lim-gemini').value) || 0,
+                     groq: Number($('ai-lim-groq').value) || 0}})});
   if (!r.ok) { $('ai-msg').className = 'err'; $('ai-msg').textContent = await r.text(); return false; }
   const fresh = await r.json();
   ai = {...ai, ...fresh, readers: fresh.readers.length ? fresh.readers : [blankReader()],
@@ -4877,51 +5174,65 @@ wireAdd('f-deal-re', 'msg-deal-re', () => {
   return {name, pattern, hard: $('add-deal-re-hard').value === '1'};
 }, 'dealbreakers');
 
-// ── Where you are: country, then region, then city ──────────────────────────
-// Every choice comes from the bundled place list, so a saved location always
-// resolves; a free-text one that did not quietly turned the radius off.
+// ── Where you would work: a country, then any regions and cities ────────────
+// Every choice comes from the bundled place list, so a saved city always
+// resolves; a free-text one that did not quietly turned the radius off. Only
+// the country is needed: no region and no city keeps the whole country.
+// The chosen ones are kept here until Save, like the rest of the form.
 let placeCountries = null, placeCurrencies = [], pickStart = '';
+let pickRegs = [], pickCits = [];
 const placeGet = async (what, params) =>
   (await api(`/api/places/${what}?` + new URLSearchParams(params))).json();
-const pickKey = () => [$('c_pcountry').value, $('c_pregion').value, $('c_pcity').value.trim()].join('|');
-const pickChanged = () => $('c_pcity') && $('c_pcity').value.trim() && pickKey() !== pickStart;
-
-// Nothing saved yet: Naperville, Illinois, United States, shown but not saved
-// until Save, like config.DEFAULT_ANCHOR for a config that leaves it out.
-const PICK_FALLBACK = {country: 'US', region: 'IL', city: 'Naperville'};
+const pickKey = () => JSON.stringify([$('c_pcountry').value, pickRegs.map(r => r.code),
+  pickCits.map(c => c.label)]);
+const pickChanged = () => !!$('c_pcountry') && pickKey() !== pickStart;
 
 async function drawPicker() {
-  const at = cfg.anchor_place || {};
+  const at = cfg.places || {country: '', regions: [], cities: []};
   await loadPlaceCountries();
-  const fresh = !cfg.anchor;
-  // In setup nothing is filled in for you: a new user chooses.
-  const setup = document.querySelector('.shell').classList.contains('setup');
-  const PICK_DEFAULT = setup ? {country: '', region: '', city: ''} : PICK_FALLBACK;
-  const country = at.located ? at.country : fresh ? PICK_DEFAULT.country
-    : ((cfg.countries || [])[0] || '');
   $('c_pcountry').innerHTML = '<option value="">Choose a country</option>' + placeCountries.map(c =>
-    `<option value="${c.code}"${c.code === country ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
-  await pickRegions(at.located ? at.region : fresh ? PICK_DEFAULT.region : '');
-  $('c_pcity').value = at.located ? at.city : fresh ? PICK_DEFAULT.city : '';
-  if (fresh && !setup) $('c_currency').value = 'USD';   // the default's own currency
+    `<option value="${c.code}"${c.code === at.country ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
+  await pickRegions();
+  pickRegs = at.regions.map(r => ({code: r.code, name: r.name}));
+  pickCits = at.cities.map(c => ({city: c.located ? c.city : c.text, region: c.region,
+    label: c.text, located: c.located}));
+  $('c_pcity').value = '';
   await pickCities();
-  pickStart = fresh ? '' : pickKey();
-  $('c_pwhere').className = at.located || setup ? 'hint' : 'err';
-  $('c_pwhere').textContent = at.located
-    ? 'The radius is measured from the centre of this city.'
-    : cfg.anchor
-      ? `Your saved location, "${cfg.anchor}", is not in the place list, so the radius is off. Choose it here and Save.`
-      : setup ? 'Required: choose your country, then start typing your city and pick it from the list.'
-      : 'No location saved yet, so the radius is off. Naperville is filled in; change it or Save it.';
+  pickStart = pickKey();
+  drawPickChips();
 }
 
-async function pickRegions(selected) {
+// What is chosen, each with a remove button, and in words what it keeps.
+function drawPickChips() {
+  const chip = (label, kind, i, bad) => `<span class="pchip${bad ? ' bad' : ''}"${bad
+    ? ' title="Not in the place list: remove it, then add the city again from the suggestions"' : ''}>${
+    esc(label)}<button type="button" data-drop-${kind}="${i}" aria-label="Remove ${esc(label)}">×</button></span>`;
+  $('c_pchips').innerHTML = pickRegs.map((r, i) => chip(`All of ${r.name}`, 'region', i))
+    .concat(pickCits.map((c, i) => chip(c.label, 'city', i, !c.located))).join('');
+  const sel = $('c_pcountry').selectedOptions[0];
+  const country = $('c_pcountry').value ? sel.textContent : '';
+  const bad = pickCits.filter(c => !c.located);
+  const box = $('c_pwhere');
+  box.className = bad.length ? 'err' : 'hint';
+  box.textContent = !country
+    ? 'Required: choose your country. States and cities are optional.'
+    : bad.length ? `${bad.map(c => `"${c.label}"`).join(', ')} is not in the place list, so no distance is measured from it. Remove it and add the city again from the suggestions.`
+    : !pickRegs.length && !pickCits.length
+      ? `No ${$('c_pregion-label').textContent.toLowerCase()} or city chosen: job posts from the whole country (${country}) are kept.`
+    : [pickRegs.length && `Job posts anywhere in ${pickRegs.map(r => r.name).join(' or ')} are kept.`,
+       pickCits.length && `${pickRegs.length ? 'So are job posts' : 'Job posts are kept'} within the radius of ${
+         pickCits.length === 1 ? 'this city' : 'any of these cities'}, measured from the centre.`]
+      .filter(Boolean).join(' ');
+  if (saveBase) paintSave(formDirty() ? 'dirty' : 'clean');
+}
+
+async function pickRegions() {
   const country = $('c_pcountry').value;
   const r = country ? await placeGet('regions', {country}) : {label: 'Region', regions: []};
   $('c_pregion-label').textContent = r.label;
   $('c_pregion-wrap').hidden = !r.regions.length;
   $('c_pregion').innerHTML = `<option value="">Any ${esc(r.label.toLowerCase())}</option>` +
-    r.regions.map(x => `<option value="${x.code}"${x.code === selected ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
+    r.regions.map(x => `<option value="${x.code}">${esc(x.name)}</option>`).join('');
 }
 
 let pickTimer = 0;
@@ -4931,9 +5242,31 @@ async function pickCities() {
   const d = await placeGet('cities', {country, region: $('c_pregion').value, q: $('c_pcity').value.trim()});
   $('c_pcities').innerHTML = d.cities.map(c => `<option value="${esc(c)}">`).join('');
 }
+
+function pickAddRegion() {
+  const sel = $('c_pregion'), code = sel.value;
+  if (!code) return;
+  if (!pickRegs.some(r => r.code === code)) pickRegs.push({code, name: sel.selectedOptions[0].textContent});
+  sel.value = ''; pickCities(); drawPickChips();
+}
+// A city typed but not added is added on Save or Continue too: leaving it
+// in the box and losing it was the easy mistake.
+function pickAddCity() {
+  const city = $('c_pcity').value.trim();
+  if (!city) return;
+  const region = $('c_pregion-wrap').hidden ? '' : $('c_pregion').value;
+  const named = region ? $('c_pregion').selectedOptions[0].textContent : '';
+  const label = named ? `${city}, ${named}` : city;
+  if (!pickCits.some(c => c.label.toLowerCase() === label.toLowerCase()))
+    pickCits.push({city, region, label, located: true});
+  $('c_pcity').value = ''; pickCities(); drawPickChips();
+}
+
 document.addEventListener('change', async ev => {
   if (ev.target.id === 'c_pcountry') {
-    await pickRegions(''); $('c_pcity').value = ''; pickCities();
+    // Regions and cities are in a country: another country starts afresh.
+    pickRegs = []; pickCits = [];
+    await pickRegions(); $('c_pcity').value = ''; pickCities(); drawPickChips();
     // The salary floor follows the country, in its own currency, where a
     // floor can use that currency; otherwise it is left as it was.
     const c = placeCountries.find(x => x.code === ev.target.value) || {};
@@ -4946,10 +5279,22 @@ document.addEventListener('change', async ev => {
     }
     if (c.units) $('c_units').value = c.units;      // miles or kilometres, as there
   }
-  if (ev.target.id === 'c_pregion') { $('c_pcity').value = ''; pickCities(); }
+  if (ev.target.id === 'c_pregion') pickCities();
 });
 document.addEventListener('input', ev => {
   if (ev.target.id === 'c_pcity') { clearTimeout(pickTimer); pickTimer = setTimeout(pickCities, 150); }
+});
+document.addEventListener('keydown', ev => {
+  if (ev.target.id === 'c_pcity' && ev.key === 'Enter') { ev.preventDefault(); pickAddCity(); }
+});
+document.addEventListener('click', ev => {
+  if (ev.target.id === 'c_addregion') return pickAddRegion();
+  if (ev.target.id === 'c_addcity') return pickAddCity();
+  const drop = ev.target.closest('[data-drop-region],[data-drop-city]');
+  if (!drop || !drop.closest('#c_pchips')) return;
+  if (drop.dataset.dropRegion != null) pickRegs.splice(+drop.dataset.dropRegion, 1);
+  else pickCits.splice(+drop.dataset.dropCity, 1);
+  drawPickChips();
 });
 
 async function loadPlaceCountries() {
@@ -4967,19 +5312,27 @@ async function drawConfig() {
     <div class="field">
       <div class="picker">
         <label>Country<select id="c_pcountry"></select></label>
-        <label id="c_pregion-wrap" hidden><span id="c_pregion-label">Region</span>
-          <select id="c_pregion"></select></label>
-        <label>City<input id="c_pcity" list="c_pcities" autocomplete="off"
-          spellcheck="false" placeholder="Start typing"></label>
+        <div class="padd" id="c_pregion-wrap" hidden>
+          <label><span id="c_pregion-label">Region</span><select id="c_pregion"></select></label>
+          <button type="button" class="act" id="c_addregion">Add</button></div>
+        <div class="padd">
+          <label>City<input id="c_pcity" list="c_pcities" autocomplete="off"
+            spellcheck="false" placeholder="Start typing"></label>
+          <button type="button" class="act" id="c_addcity">Add</button></div>
         <datalist id="c_pcities"></datalist>
       </div>
-      <div class="hint" id="c_pwhere"></div></div>
+      <div class="pchips" id="c_pchips" aria-live="polite"></div>
+      <div class="hint" id="c_pwhere"></div>
+      <div class="hint">Optional, as many as you like: <b>Add</b> a state to keep job
+        posts anywhere in it, and a city to keep those within the radius below. Choosing
+        a state first narrows the city suggestions.</div></div>
     <div class="field"><label>Radius</label>
       <input id="c_radius" value="${esc(cfg.radius)}" style="width:6rem">
       <select id="c_units">${['mi','km'].map(u =>
         `<option${u === cfg.units ? ' selected' : ''}>${u}</option>`).join('')}</select>
-      <div class="hint">How far from your city a job's office may be. Type a number,
-        or <b>exact</b> for jobs in your city only. Remote jobs are always kept, since
+      <div class="hint">How far from one of your cities a job's office may be. Type a
+        number, or <b>exact</b> for jobs in those cities only. With no city chosen it
+        is not used. Remote jobs are always kept, since
         there is no office to travel to, and so is a post whose location cannot be
         read.</div></div>
 
@@ -5009,8 +5362,7 @@ async function drawConfig() {
 // back; drawConfig() only redraws the form when there are none.
 let saveBase = '';
 const formState = () => JSON.stringify([
-  $('c_pcountry').value, $('c_pregion').value, $('c_pcity').value.trim(),
-  $('c_radius').value.trim(), $('c_units').value,
+  pickKey(), $('c_radius').value.trim(), $('c_units').value,
   [...document.querySelectorAll('.c_mode:checked')].map(c => c.value),
   $('c_floor').value.trim(), $('c_currency').value]);
 const formDirty = () => !!$('c_radius') && saveBase !== '' && formState() !== saveBase;
@@ -5042,14 +5394,15 @@ $('save').onclick = () => saveLocation();
 
 // Also setup's Where step, which shows this form: true once saved.
 async function saveLocation() {
+  pickAddCity();
   paintSave('saving');
   // The lists above save themselves; Save sends only the fields in this form.
   const r = await api('/api/config', {method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
-      ...(pickChanged() ? {anchor_pick: {country: $('c_pcountry').value,
-        region: $('c_pregion-wrap').hidden ? '' : $('c_pregion').value,
-        city: $('c_pcity').value.trim()}} : {}),
+      ...(pickChanged() ? {places_pick: {country: $('c_pcountry').value,
+        regions: pickRegs.map(r => r.code),
+        cities: pickCits.map(c => ({city: c.city, region: c.region}))}} : {}),
       radius: $('c_radius').value.trim(),
       units: $('c_units').value,
       work_modes: [...document.querySelectorAll('.c_mode:checked')].map(c => c.value),
@@ -5065,8 +5418,8 @@ async function saveLocation() {
   let note = 'Location, work arrangement and pay saved', rescan = cfg.rescan || '';
   // No countries listed means every country; a place just chosen is
   // almost always the first one meant, so it is listed for you.
-  const picked = cfg.anchor_place || {};
-  if (picked.located && !(cfg.countries || []).length) {
+  const picked = cfg.places || {};
+  if (picked.country && !(cfg.countries || []).length) {
     const r2 = await api('/api/config', {method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({countries: [picked.country]})});
@@ -5350,10 +5703,9 @@ $('btn-upload').onclick = async () => {
   const file = $('resume-file').files[0];
   const msg = $('resumemsg');
   if (!file) { msg.className = 'err'; msg.textContent = 'Choose a file first.'; return; }
-  msg.className = 'hint'; msg.textContent = 'Uploading…';
-  const r = await api('/api/resume', {method: 'POST',
-    headers: {'X-Filename': file.name, 'Content-Type': 'application/octet-stream'},
-    body: file});
+  $('btn-upload').disabled = true;
+  const r = await sendResume(file, $('resume-bar'), msg);
+  $('btn-upload').disabled = false;
   if (!r.ok) { const why = cap(await r.text()); msg.className = 'err'; msg.textContent = why; toast(why, 'err'); return; }
   const d = await r.json();
   cfg = null;

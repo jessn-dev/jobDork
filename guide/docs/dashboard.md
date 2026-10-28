@@ -55,14 +55,23 @@ Below the run, the weeks behind it. Pick **7 days**, **30 days** or **90 days** 
 | **Errored runs** | How many failed, died or were stopped |
 | **AI calls** | How many times the AI was asked, and how many of those failed |
 | **P50 AI latency** | How long an AI answer usually takes (P50 is the middle; P95 is a slow one) |
-| **Hallucination** | Of the facts the AI wrote, the share it could not back up from your resume or the advert. Lower is better. *Coverage* is how much of the AI's writing was checked ([why](ai.md#the-hallucination-check)) |
+| **Hallucination** | Of the facts the AI wrote, the share it could not back up from your resume or the advert. Lower is better: green at 5% or under, amber to 10%, red above, with the words beside it. *Coverage* is how much of the AI's writing was checked ([why](ai.md#the-hallucination-check)) |
 
 The charts below them:
 
 - **Runs by tool, over time**: scans, checks, AI judging, AI writing and the
   rest, day by day.
 - **Hallucination, over time**: claims not supported, by kind of writing
-  (**By kind**) or by AI model (**By model**).
+  (**By kind**) or by AI model (**By model**), over the same green, amber
+  and red bands.
+- **Running and waiting**: the job running now, and the ones waiting
+  their turn, first in first out, each with what started it ("Search: added
+  Nurse Practitioner"). A change to your search, Projects or Education
+  starts a scan or a re-scoring by itself, and waits here while another job
+  runs. **Cancel** takes a waiting one off. **Stop**, beside a running scan,
+  stops it reading more boards: the boards being read at that moment
+  finish, and every job post found so far is kept. The AI reading after a
+  scan is skipped when it is stopped.
 - **Feedback on AI output, per day**: your thumbs up and down on AI
   writing ([how to rate it](job-window.md#rate-the-ai)).
 

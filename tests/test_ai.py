@@ -41,9 +41,12 @@ def test_wipe_burns_every_key_and_says_which():
     assert vault.held() == []
 
 
-def test_a_local_provider_takes_no_key_and_junk_is_refused():
+def test_an_unknown_provider_takes_no_key_and_junk_is_refused():
+    """Ollama takes one since 2026-10-28, sent only by the lines marked to
+    send it (test_the_ollama_key_goes_only_to_lines_marked_to_send_it)."""
     vault = llm.KeyVault()
-    for provider, key in (("ollama", "sk-test-1234567890"),
+    vault.put("ollama", "sk-test-1234567890")
+    for provider, key in (("lmstudio", "sk-test-1234567890"),
                           ("openai", "short"), ("openai", "has a space in it")):
         try:
             vault.put(provider, key)
@@ -545,3 +548,235 @@ def test_the_measured_total_is_never_given_to_one_field():
         "Has 7 years 8 months of work in all."
     assert total_only("Has 7 years 8 months of work in all.", work) == \
         "Has 7 years 8 months of work in all."
+
+
+# ── an Ollama behind a gatekeeper (llm.OLLAMA_KEY) ───────────────────────────
+
+# Made up, for the tests below; marked so the secret scan knows it is one.
+_FAKE_KEY = "sk-tester-1234567890"  # gitleaks:allow
+
+def test_a_connection_code_carries_address_models_and_key_and_nothing_else_reads():
+    code = llm.connection_code("https://ollama.example.org/", _FAKE_KEY,
+                               "gemma4:26b", "qwen3.8:27b")
+    assert code.startswith(llm.CODE_PREFIX) and "sk-tester" not in code
+    assert llm.read_connection_code(f"  {code[:30]}\n{code[30:]} ") == {
+        "url": "https://ollama.example.org", "key": _FAKE_KEY,
+        "reader": "gemma4:26b", "checker": "qwen3.8:27b"}
+    for bad, said in (("hello", "not a jobdork connection code"),
+                      (code[:-6], "cut short"),
+                      (llm.CODE_PREFIX + "e30", "missing")):
+        try:
+            llm.read_connection_code(bad)
+        except llm.LLMError as exc:
+            assert said in str(exc), exc
+        else:
+            raise AssertionError(f"{bad!r} must be refused")
+    for url, key in (("ollama.example.org", _FAKE_KEY),
+                     ("https://x.org/path", _FAKE_KEY),
+                     ("https://x.org", "has a space in it")):
+        try:
+            llm.connection_code(url, key, "gemma4:26b")
+        except llm.LLMError:
+            pass
+        else:
+            raise AssertionError(f"{url} / {key!r} must be refused")
+
+
+def test_the_ollama_key_goes_only_to_lines_marked_to_send_it():
+    sent = []
+
+    def fake(url, body, headers, timeout):
+        sent.append(headers)
+        return {"message": {"content": '{"ok": true}'}}
+
+    saved = llm._post
+    llm._post = fake
+    try:
+        marked = llm.Settings(provider="ollama", model="m", ollama_url="https://o.example.org",
+                              ollama_key=True)
+        assert "no Ollama key held" in marked.problem()
+        llm.VAULT.put(llm.OLLAMA_KEY, _FAKE_KEY)
+        assert marked.problem() == ""
+        llm._call_one(marked, "sys", "user", {"type": "object"}, 50, "", None)
+        plain = llm.Settings(provider="ollama", model="m", ollama_url="http://localhost:11434")
+        llm._call_one(plain, "sys", "user", {"type": "object"}, 50, "", None)
+    finally:
+        llm._post = saved
+        llm.VAULT.forget(llm.OLLAMA_KEY)
+    assert sent == [{"Authorization": f"Bearer {_FAKE_KEY}"}, {}]
+
+
+def test_an_ollama_line_s_key_mark_is_read_and_written_for_ollama_only():
+    from jobdork.core import keystore, setup
+    from jobdork.core.config import _readers
+
+    readers = _readers({"readers": [
+        {"provider": "ollama", "model": "gemma4:26b", "ollama_url": "https://o.example.org",
+         "ollama_key": True},
+        {"provider": "groq", "model": "openai/gpt-oss-20b", "ollama_key": True}]})
+    assert [r.ollama_key for r in readers] == [True, False]
+    rows = setup._models([{"provider": "ollama", "model": "m", "ollama_key": True},
+                          {"provider": "gemini", "model": "g", "ollama_key": True},
+                          {"provider": "ollama", "model": "n"}])
+    assert [r.get("ollama_key") for r in rows] == [True, None, None]
+    assert keystore.AI_PREFIX + llm.OLLAMA_KEY in keystore.names(), \
+        "kept and forgotten with the other keys"
+
+
+def test_a_pasted_code_holds_its_key_and_the_page_never_gets_it_back():
+    from jobdork.web import api
+    code = llm.connection_code("https://ollama.example.org", _FAKE_KEY, "gemma4:26b")
+    try:
+        got = api.llm_connection(code)
+        assert llm.VAULT.get(llm.OLLAMA_KEY) == _FAKE_KEY
+    finally:
+        llm.VAULT.forget(llm.OLLAMA_KEY)
+    assert got["url"] == "https://ollama.example.org" and got["reader"] == "gemma4:26b"
+    assert "sk-tester" not in str(got)
+    try:
+        api.llm_connection("not a code")
+    except api.ApiError as exc:
+        assert "connection code" in str(exc)
+    else:
+        raise AssertionError("a bad code must be refused")
+
+
+# ── free-tier limits (ai/limits.py) ──────────────────────────────────────────
+
+_GEMINI_OK = ('{"candidates": [{"content": {"parts": [{"text": "{\\"ok\\": true}"}]}}],'
+              ' "usageMetadata": {"promptTokenCount": 10, "candidatesTokenCount": 2}}')
+_GROQ_OK = '{"choices": [{"message": {"content": "{\\"ok\\": true}"}}]}'
+
+
+def _gemini_refusal(per: str, size: int, delay: str) -> str:
+    import json
+    return json.dumps({"error": {"code": 429, "message": "You exceeded your current quota",
+        "status": "RESOURCE_EXHAUSTED", "details": [
+            {"@type": "type.googleapis.com/google.rpc.QuotaFailure", "violations": [
+                {"quotaId": f"GenerateRequestsPer{per}PerProjectPerModel-FreeTier",
+                 "quotaValue": str(size)}]},
+            {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": delay}]}})
+
+
+def _ask(provider: str, purpose: str = "") -> dict:
+    return llm._call_one(llm.Settings(provider=provider, model="m"), "sys", "user",
+                         {"type": "object"}, 100, purpose, None)
+
+
+def _with_key(provider, answers, test):
+    from jobdork.ai import limits
+    limits.forget()
+    waited = []
+    saved_sleep = limits._sleep
+    limits._sleep = waited.append
+    llm.VAULT.put(provider, "test-key-1234567890abcdef")
+    posts, slept, undo = _posting(answers)
+    try:
+        test(posts, slept, waited)
+    finally:
+        undo()
+        limits._sleep = saved_sleep
+        llm.VAULT.forget(provider)
+        limits.forget()
+
+
+def test_groq_s_own_count_keeps_scans_off_the_last_requests_of_the_day():
+    """Groq says how many requests are left today; a scan stops with a few
+    still left, and what you ask yourself may use them."""
+    headers = {"x-ratelimit-remaining-requests": "5", "x-ratelimit-limit-requests": "1000",
+               "x-ratelimit-reset-requests": "2h3m", "x-ratelimit-remaining-tokens": "7000",
+               "x-ratelimit-reset-tokens": "7.5s"}
+
+    def test(posts, slept, waited):
+        assert _ask("groq", "judge") == {"ok": True}
+        try:
+            _ask("groq", "judge")
+        except llm.LLMError as exc:
+            assert "5 free requests left today" in str(exc), exc
+            assert llm.error_kind(str(exc)) == "rate_limited"
+        else:
+            raise AssertionError("a scan must stop short of the day's last requests")
+        assert len(posts) == 1, "nothing is sent once it stops"
+        assert _ask("groq", "") == {"ok": True}, "what you ask yourself still goes"
+        from jobdork.ai import limits
+        row = limits.snapshot()[0]
+        assert (row["calls_today"], row["left_today"], row["per_day"]) == (2, 5, 1000)
+    _with_key("groq", [_Answer(200, _GROQ_OK, headers), _Answer(200, _GROQ_OK, headers)], test)
+
+
+def test_groq_waits_for_the_minute_when_its_tokens_would_run_short():
+    headers = {"x-ratelimit-remaining-requests": "900",
+               "x-ratelimit-remaining-tokens": "50", "x-ratelimit-reset-tokens": "12s"}
+
+    def test(posts, slept, waited):
+        _ask("groq")
+        _ask("groq")              # needs about 100 tokens: 50 are left this minute
+        assert len(waited) == 1 and 11 < waited[0] <= 12, waited
+    _with_key("groq", [_Answer(200, _GROQ_OK, headers), _Answer(200, _GROQ_OK, headers)], test)
+
+
+def test_gemini_s_minute_refusal_is_waited_out_and_learned():
+    def test(posts, slept, waited):
+        assert _ask("gemini") == {"ok": True}
+        assert len(posts) == 2 and slept == [3.0], "asked again after its own delay"
+        _ask("gemini")
+        assert waited and 5 < waited[0] <= 6, "10 a minute: one every 6 seconds"
+    _with_key("gemini", [_Answer(429, _gemini_refusal("Minute", 10, "3s")),
+                         _Answer(200, _GEMINI_OK), _Answer(200, _GEMINI_OK)], test)
+
+
+def test_gemini_s_day_refusal_stops_that_model_until_it_resets():
+    def test(posts, slept, waited):
+        for _ in range(2):
+            try:
+                _ask("gemini", "judge")
+            except llm.LLMError as exc:
+                assert "free daily limit of 250 requests" in str(exc), exc
+                assert "asked again" in str(exc) and llm.error_kind(str(exc)) == "rate_limited"
+            else:
+                raise AssertionError("a spent day must stop the model")
+        assert len(posts) == 1, "the second is not sent at all"
+        from jobdork.ai import limits
+        assert limits.snapshot()[0]["per_day"] == 250
+    _with_key("gemini", [_Answer(429, _gemini_refusal("Day", 250, "50000s"))], test)
+
+
+def test_your_own_daily_limit_stops_background_work_short_of_it():
+    from jobdork.ai import limits
+
+    def test(posts, slept, waited):
+        limits.set_daily_limits({"gemini": 7})
+        _ask("gemini", "judge")
+        _ask("gemini", "judge")
+        try:
+            _ask("gemini", "judge")       # 7 - 2 = 5 left: the reserve
+        except llm.LLMError as exc:
+            assert "kept back for what you ask yourself" in str(exc)
+        else:
+            raise AssertionError("background work must keep the reserve")
+    _with_key("gemini", [_Answer(200, _GEMINI_OK), _Answer(200, _GEMINI_OK)], test)
+
+
+def test_daily_limits_are_read_and_checked_in_the_config():
+    from jobdork.core.config import _daily_limits
+    assert _daily_limits({"Gemini": "250", "groq": 0}) == {"gemini": 250}
+    for bad in ({"anthropic": 10}, {"gemini": "lots"}, {"gemini": -1}, [1]):
+        try:
+            _daily_limits(bad)
+        except ConfigError:
+            pass
+        else:
+            raise AssertionError(f"{bad!r} must be refused")
+
+
+def test_an_ollama_that_does_not_answer_is_described_by_where_it_is():
+    """This computer's own address says start it here or type another;
+    another computer's says check that one. Both stay "not answering", the
+    words the error kinds and the judge's fallback look for."""
+    here = llm.ollama_silent("http://localhost:11434")
+    assert "this computer's own address" in here and "another one" in here
+    there = llm.ollama_silent("http://100.103.11.109:11434")
+    assert "on that computer" in there and "OLLAMA_HOST" in there
+    assert "not answering" in here and "not answering" in there
+    assert llm.ollama_is_here("http://host.docker.internal:11434")
+    assert not llm.ollama_is_here("http://ollama-pc:11434")

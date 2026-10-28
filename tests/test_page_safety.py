@@ -34,6 +34,28 @@ def test_no_escaped_text_is_put_inside_a_handlers_quotes():
     assert not bad, bad
 
 
+def test_a_server_error_is_logged_with_its_reason():
+    """"failed on the server (HTTP 502)" hid "Ollama is not answering at
+    ...": every 5xx the page meets goes through serverProblem, which adds
+    the server's own words, and a 502 (another service) is a warning."""
+    page = _page()
+    assert "failed on the server (HTTP" not in page.replace(
+        "`${what} failed on the server (HTTP ${status})`", ""), \
+        "a 5xx logged without its reason"
+    assert page.count("serverProblem(what,") >= 4   # its definition, fetch, its fallback, the upload
+    assert "pageProblem(status === 502 ? 'warning' : 'error'" in page
+def test_a_resume_file_name_is_sent_encoded():
+    """A header takes Latin-1 only: "Maria’s Resume.pdf", with a
+    curly apostrophe, made Safari refuse the upload ("Type error") and the
+    setup wizard sat on "Reading..." (Intel Mac, 0.15.3). Every X-Filename
+    the page sets is encoded first."""
+    page = _page()
+    sent = re.findall(r"""['"]X-Filename['"]\s*[:,]\s*([^)}\n]+)""", page)
+    assert sent, "expected the resume upload to set X-Filename"
+    for expr in sent:
+        assert expr.strip().startswith("encodeURIComponent("), expr
+
+
 def test_every_built_link_is_a_web_address():
     """A posting's address could be javascript: or data:, which runs in the
     page when clicked. Every href built from data goes through webHref."""

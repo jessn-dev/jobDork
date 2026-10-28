@@ -403,41 +403,21 @@ def _read_url_file(path: str) -> list[str]:
 
 
 def _add_one(cfg, fetcher, url: str, token: str, company: str,
-             store, anchor, quiet: bool = False) -> str:
+             store, home, quiet: bool = False) -> str:
     """Returns one of: added, updated, failed."""
-    from . import fetch
+    from .fetch import link
     from .search import screen
 
     url = canonical_url(url)
-    platform, found_token = _platform_for(url)
-    token = token or found_token
-    if not platform:
+    try:
+        wanted = link.read(fetcher, cfg, url, token, company)
+    except link.LinkError as exc:
         if not quiet:
-            print(f"  ? {url}\n      cannot tell which platform this is on")
-        return "failed"
-    if not token:
-        if not quiet:
-            print(f"  ? {url}\n      {platform} posting on the employer's own "
-                  "domain; the board token is not in the URL. "
-                  "Re-run that one with --token")
+            print(f"  ? {url}\n      {exc}. The dashboard's Add a job post can take "
+                  "the advert's text pasted in instead")
         return "failed"
 
-    adapter = fetch.get(platform)
-    result = adapter(fetcher, cfg, token=token, company=company or token)
-    if result.skipped:
-        if not quiet:
-            print(f"  ! {platform}: {result.skipped}")
-        return "failed"
-
-    wanted = next((r for r in result.roles if canonical_url(r.url) == url), None)
-    if wanted is None:
-        if not quiet:
-            print(f"  - {url}\n      read {token!r} on {platform} "
-                  f"({len(result.roles)} job posts) but none is that URL; "
-                  "it may already be filled")
-        return "failed"
-
-    verdict = screen.screen(wanted, cfg, anchor)
+    verdict = screen.screen(wanted, cfg, home)
     is_new = store.upsert(wanted)
     if not quiet:
         mark = "+" if is_new else "="
@@ -455,7 +435,7 @@ def _add_one(cfg, fetcher, url: str, token: str, company: str,
 def cmd_add(args) -> int:
     """Fetch postings by URL — the bridge from a Google result to the database."""
     from .fetch.http import Fetcher
-    from .search import geo
+    from .search import screen
 
     cfg = _load(args)
     urls = list(args.url or [])
@@ -475,13 +455,13 @@ def cmd_add(args) -> int:
         return 1
 
     fetcher = Fetcher(cfg.fetch.user_agent, cfg.fetch.timeout, cfg.fetch.retries)
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
+    home = screen.home_of(cfg)
     tally = {"added": 0, "updated": 0, "failed": 0}
 
     with Store(cfg.db_path) as store:
         for url in urls:
             tally[_add_one(cfg, fetcher, url, args.token, args.company,
-                           store, anchor)] += 1
+                           store, home)] += 1
         store.conn.commit()
 
     if len(urls) > 1:
@@ -490,33 +470,25 @@ def cmd_add(args) -> int:
     return 0 if tally["added"] or tally["updated"] else 1
 
 
-def _platform_for(url: str) -> tuple[str, str]:
-    """Work out the platform and board token from a posting URL.
+def cmd_ollama_code(args) -> int:
+    """For someone to use your Ollama behind a gatekeeper that checks a key:
+    the address, the models and the key in one string, pasted on their AI
+    page. The key is asked for here, unseen, never taken from the command
+    line, where it would stay in the shell's history."""
+    import getpass
 
-    Returns ("greenhouse", "") for a `?gh_jid=` link on an employer's own
-    domain: the platform is certain but the board token is not in the URL,
-    so the caller has to be told to supply it rather than shown a guess.
-    """
-    import re
-    patterns = (
-        (r"(?:job-)?boards\.greenhouse\.io/([^/?]+)", "greenhouse"),
-        (r"jobs\.ashbyhq\.com/([^/?]+)", "ashby"),
-        (r"jobs\.lever\.co/([^/?]+)", "lever"),
-        (r"([a-z0-9-]+)\.breezy\.hr", "breezy"),
-        (r"jobs\.smartrecruiters\.com/([^/?]+)", "smartrecruiters"),
-        (r"api\.smartrecruiters\.com/v1/companies/([^/?]+)", "smartrecruiters"),
-    )
-    for pattern, platform in patterns:
-        match = re.search(pattern, url, re.IGNORECASE)
-        if match:
-            return platform, match.group(1)
+    from .ai import llm
 
-    # Greenhouse boards are frequently served from the employer's own domain
-    # with the job id in the query string. The platform is unambiguous; the
-    # board token is not present at all.
-    if re.search(r"[?&]gh_jid=", url, re.IGNORECASE):
-        return "greenhouse", ""
-    return "", ""
+    key = getpass.getpass("The key your gatekeeper checks (not shown): ")
+    try:
+        code = llm.connection_code(args.url, key, args.reader, args.checker)
+    except llm.LLMError as exc:
+        print(f"ollama-code: {exc}", file=sys.stderr)
+        return 1
+    print("\nSend this privately, as you would a password. It carries the key:\n")
+    print(code)
+    print("\nThey paste it on jobdork's AI page, under Use this code, and click Save.")
+    return 0
 
 
 def cmd_discover(args) -> int:
@@ -1075,30 +1047,39 @@ def _setup_search(cfg):
 
 
 def _setup_where(cfg):
-    """Country, region, city; radius; work arrangements; countries to keep."""
+    """Country; any regions and cities; radius; work arrangements; countries."""
     from .core import setup
     from .search import geo
 
     print(f"\n── {setup.title('where')} ──")
-    print("Where you are, how far you would travel to an office, and which kinds "
-          "of work to keep.\nRemote jobs are kept whatever the distance.")
+    print("Where you would work, how far you would travel to an office, and which "
+          "kinds of work to keep.\nRemote jobs are kept whatever the distance. "
+          "Only the country is required: with no\nregion and no city, job posts "
+          "from the whole country are kept.")
     countries = geo.picker_countries()
     country = _match_place("Country (name or code): ", countries)
     if country is None:
         return None
     regions = geo.picker_regions(country["code"])
-    region = {"code": "", "name": ""}
+    chosen_regions: list[dict] = []
     if regions["regions"]:
         label = regions["label"].lower()
-        region = _match_place(f"{regions['label']} (name or code, blank for any "
-                              f"{label}): ", regions["regions"], optional=True) or region
-    city = ""
-    while not city:
-        typed = _ask("City (start of its name): ")
+        print(f"Job posts anywhere in a {label} you add are kept. Blank when done.")
+        while True:
+            region = _match_place(f"{regions['label']} (name or code, blank for no "
+                                  f"more): ", regions["regions"], optional=True)
+            if not region:
+                break
+            chosen_regions.append(region)
+    print("Job posts within your radius of a city you add are kept. Blank when done.")
+    cities: list[str] = []
+    while True:
+        typed = _ask("City (start of its name, blank for no more): ")
         if not typed:
-            return None
-        found = geo.picker_cities(country["code"], region["code"], typed, limit=10)
+            break
+        found = geo.picker_cities(country["code"], "", typed, limit=10)
         exact = [c for c in found if c.lower() == typed.lower()]
+        city = ""
         if exact or len(found) == 1:
             city = (exact or found)[0]
         elif found:
@@ -1108,10 +1089,12 @@ def _setup_where(cfg):
             city = found[pick] if pick is not None else ""
         else:
             print("Not in the place list; try a bigger city nearby.")
+        if city:
+            cities.append(city)
 
     units = geo.default_units([country["code"]])
-    radius = _ask(f"How far would you travel, in {units}? A number, or 'exact' for "
-                  "your city only [25]: ").lower() or "25"
+    radius = _ask(f"How far from a city would you travel, in {units}? A number, or "
+                  "'exact' for the city only [25]: ").lower() or "25"
     while radius != "exact" and not re.fullmatch(r"\d+(\.\d+)?", radius):
         radius = _ask("A number, or 'exact': ").lower() or "25"
     modes = [m for m in re.split(r"[,\s]+", _ask(
@@ -1131,8 +1114,9 @@ def _setup_where(cfg):
     keep = list(dict.fromkeys([country["code"], *(c for c in extra if c in codes)]))
 
     return setup.write(cfg.path, {
-        "anchor_pick": {"country": country["code"], "region": region["code"],
-                        "city": city},
+        "places_pick": {"country": country["code"],
+                        "regions": [r["code"] for r in chosen_regions],
+                        "cities": [{"city": c} for c in cities]},
         "radius": radius if radius == "exact" else float(radius), "units": units,
         "work_modes": modes, "countries": keep,
         # Pay is asked next, in the country's currency where a floor can use it.
@@ -1409,7 +1393,7 @@ def _overrides_parser() -> argparse.ArgumentParser:
     group.add_argument("--exclude-title", action="append", metavar="TEXT",
                        help="replace titles.exclude; repeat for several")
     group.add_argument("--anchor", metavar="PLACE",
-                       help='e.g. "Berlin, Germany" or "Chicago, IL"')
+                       help='one city in place of locations.cities and regions, e.g. "Berlin, Germany"')
     group.add_argument("--country", action="append", metavar="ISO2",
                        help="replace locations.countries; repeat for several")
     group.add_argument("--radius", metavar="N", help="'exact', or a distance")
@@ -1632,6 +1616,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = subs.add_parser("sources", parents=[over], help="what will run, and what is dormant")
     p.set_defaults(func=cmd_sources)
+
+    p = subs.add_parser("ollama-code",
+                        help="a connection code for someone to use your Ollama")
+    p.add_argument("--url", required=True,
+                   help="the address they reach your Ollama at, e.g. https://ollama.example.org")
+    p.add_argument("--reader", required=True, help="the model they read with, e.g. gemma4:26b")
+    p.add_argument("--checker", default="", help="a model to check with (optional)")
+    p.set_defaults(func=cmd_ollama_code)
 
     p = subs.add_parser("dork", help="the original Google query generator")
     p.add_argument("rest", nargs=argparse.REMAINDER)

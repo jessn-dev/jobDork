@@ -6,6 +6,265 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-28 — Three more security checks
+
+The scans already covered jobdork's code (CodeQL, bandit), its
+dependencies (pip-audit), secrets (gitleaks, GitHub's secret scanning), the
+Dockerfile (hadolint) and the image (Trivy). Three more, each free for a
+public repository:
+
+- **zizmor**, in the security job: the workflows themselves, for template
+  injection, credentials left in a checkout, over-broad token permissions
+  and risky triggers, and online, that every pinned commit is really its
+  action's and not a known-vulnerable version. Medium and above fail. Its
+  two notes on today's workflows were fixed: the image digest is written
+  to the summary through the environment, not expanded into the script.
+- **Dependency Review**, on every pull request: a dependency it adds or
+  upgrades with a known vulnerability of moderate severity or above fails
+  the check, with a comment naming it. It reads `pyproject.toml`; the
+  hash-pinned locks stay pip-audit's.
+- **OpenSSF Scorecard**, weekly and on every push to `main`: how the supply
+  chain is guarded (pinned actions, branch protection, signed releases,
+  reviews, token permissions), its findings under Security, Code scanning,
+  and its score on scorecard.dev. It needs `ossf/scorecard-action` added to
+  the allowed actions first; SECURITY.md lists that, and the CodeQL
+  Extended query suite, as settings for the owner.
+
+## Added — 2026-10-28 — An Ollama behind a gatekeeper, and a connection code
+
+For a beta tester using someone else's Ollama without joining their
+Tailscale: an Ollama line can be marked **Send the Ollama key**, and jobdork
+then sends one Ollama key as `Authorization: Bearer` to that line's address,
+for a gatekeeper (a reverse proxy or tunnel) that checks it. The key is held
+like every other key, in memory or in this computer's keychain when you
+chose that, never in a file, and goes only to the lines marked to send it,
+never to an address nobody chose to trust. A refused key says "the key was
+refused"; an Ollama that asks for a key on a line not marked says to tick
+the box. `JOBDORK_OLLAMA_KEY` works too, and **Enter your keys** asks for it
+after a restart when a line needs it.
+
+The Ollama's owner makes a **connection code** with `jobdork ollama-code
+--url … --reader … [--checker …]`, which asks for the key unseen. The tester
+pastes it on the AI page and clicks **Use this code**: their address and
+models fill an Ollama line (and a checker), the key is held, and **Save**
+keeps the lines. The code carries the key, so it is sent privately; the page
+never sends the key back.
+## Added — 2026-10-28 — A scan queue you can see, cancel and stop
+
+A change to your search, Projects or Education starts a scan or a
+re-scoring by itself, and one that came while another job ran waited out of
+sight: one of each kind, the newest replacing the one waiting. Now the
+Dashboard has a **Running and waiting** panel (where the AI feedback chart
+was; that chart moved to the panel after it):
+
+- What runs now, and what waits, **first in, first out**. Every request is
+  kept, each with what started it ("Search: added Nurse Practitioner;
+  Countries: added PH", "Projects: saved Clinic app"), how long it has
+  waited, and **Cancel**. Each is still built from the settings as they are
+  when its turn comes.
+- **Stop**, beside a running scan: no more boards are started, the ones
+  being read finish, and every job post found so far is screened and kept.
+  The AI reading after the scan is skipped; the queue goes on. The scan's
+  summary says how many sources were left unread.
+## Added — 2026-10-28 — The first scan's two parts, told apart
+
+Setup's last step runs a quick scan and then a full scan of every other
+employer board, in the background; the Dashboard said only that "the rest
+of the employer boards are being read". Now its note names each part with
+what it reads, "Quick scan: reading the job sites and 8 employer boards",
+then "Full scan started: reading the other 412 employer boards; job posts
+keep arriving", and when the full scan ends it says **Your job posts are
+ready**, with how many, a **View job posts** button and **Dismiss**. The
+computer says so too, with notifications on, whether anything was new or
+not and whether the window is open or closed: that is the scan someone
+closed the window to wait for. It is the full scan's only notice; the
+ordinary "N new job posts" is not sent for it as well.
+## Added — 2026-10-28 — Add a job post from any link
+
+**Add a job post** (and `jobdork add`) knew five systems by their addresses
+and refused the rest: a UnitedHealth Group post on Taleo Enterprise came
+back "cannot tell which platform that URL is on" (2026-10-27). Now a link
+is read the best way its system allows (fetch/link.py):
+
+- **A board in the address** (Greenhouse, Ashby, Lever, Breezy,
+  SmartRecruiters): the board is read and the post found on it, as before.
+- **Workday, Oracle Recruiting and Eightfold**, whose pages are drawn by
+  script: the post's own record, as a scan reads its advert.
+- **Taleo Enterprise** (`*.taleo.net/careersection/…`): its job page has no
+  schema.org markup, but keeps the title, job number, place, department,
+  job type, posting date and advert in a hidden `initialHistory` field,
+  which is read; the employer's name comes from the page's title.
+- **Any other page**: its schema.org `JobPosting`, as an employer's careers
+  site is read. robots.txt is honoured.
+- **Nothing readable**: the reason says what was tried, and the page opens a
+  form to paste the advert's text, with its title, employer and place.
+  **Add from the text** stores it under its link, screened like any post
+  and marked "advert pasted in".
+
+A Greenhouse post on the employer's own site (`?gh_jid=`) is now read from
+its page when it has no board token, instead of being refused.
+## Added — 2026-10-28 — Download badges in the README
+
+Two more badges under the title: **downloads**, every file downloaded from
+every GitHub Release since the first (0.14.3), counted by GitHub; and
+**docker pulls**, every pull of `jessengolab/jobdork` from Docker Hub since
+the image was first pushed. Both are read live by shields.io. The download
+count includes each release's `SHA256SUMS.txt`, which the in-app update and
+anyone checking a download also fetch, so it runs a little above the number
+of installers downloaded (21 of 29 on 28 October). 0.14.0 to 0.14.2 were
+tags with no release files, so there is nothing earlier to count.
+## Added — 2026-10-28 — Free Gemini and Groq keys that do not run out
+
+Not everyone can pay for a plan, and a free Gemini or Groq key has limits
+a minute and a day; once a day's are spent the key answers nothing until
+the next. jobdork now keeps under them (ai/limits.py). Neither provider
+publishes one table of free limits (they are per account and per model,
+and change), so nothing is hardcoded: jobdork reads what each says.
+
+- **Groq** sends, with every answer, the requests left today and the tokens
+  left this minute. A call waits out the minute when those tokens would not
+  cover it.
+- **Gemini** says nothing until it refuses, and its refusal names the
+  quota, its size and how long to wait. A per-minute refusal is waited out
+  and asked once more, and its size learned, so later calls are spaced
+  under it; a per-day one stops that model until midnight Pacific time,
+  with its size learned for the next day.
+- **Background work stops 5 requests short** of the day's limit (a scan's
+  judging, page reading, the claim checks), keeping those for what you ask
+  yourself. The stop is worded as rate limited, so the next reader in your
+  list answers, and a scan's judging ends rather than failing post after
+  post.
+- **The AI page shows today's allowance** for each free model, used and
+  left, and why one is stopped and until when; and takes the daily limit
+  AI Studio or the Groq console shows you, for each (`llm.daily_limits`).
+
+What is learned is held in memory: after a restart the provider's next
+refusal teaches it again. Measuring how many job posts a day a free key
+covers (the "Hosted models measured" item below) still needs real keys.
+## Fixed — 2026-10-28 — The error log names the reason, not only the status
+
+A request the server could not answer was logged by the page as, for
+example, "GET /api/llm/models failed on the server (HTTP 502)", although
+the server had said why ("Ollama is not answering at …"). The log now
+carries the server's own words after the status. A 502 is jobdork
+reporting that another service it asked (Ollama, an AI provider) did not
+answer, so it is logged as a warning about that service, "another service
+did not answer", not as an error in jobdork. A resume upload's server
+error goes the same way.
+## Fixed — 2026-10-28 — An Ollama on another computer, on the AI page
+
+A reader line with no address of its own showed the page-wide one in its
+box, `http://localhost:11434` by default, as if it had been typed. A tester
+using someone else's Ollama kept it, and every **Load models** failed with
+"Is it running?" about an Ollama they had never installed. Now the box is
+empty unless an address was chosen, its grey placeholder names the one
+used ("http://localhost:11434 (this computer)"), and a line under it says
+what to type for another computer. When nothing answers, the reason says
+which case it is: on this computer's own address, start Ollama here or
+type the other computer's; on another computer's, check that Ollama is
+running there and accepts connections from others (`OLLAMA_HOST=0.0.0.0`).
+## Added — 2026-10-28 — The hallucination rate in colour
+
+The Dashboard's Hallucination tile and its "Hallucination, over time" chart
+are measured against the 2-5% target in docs/AI-MODELS.md: green at 5% or
+under, amber above 5% up to 10%, red above 10%, where every other local
+model measured. The tile says it in words beside the colour (*within
+target*, *watch it*, *too high: try a bigger model or a checker*), the
+chart shades those three ranges behind its lines with a key under it, and
+each day's tooltip names the range.
+## Changed — 2026-10-28 — Where you would work: any states and cities, or the whole country
+
+Setup's Where step required one city, and every distance was measured from
+it. Someone who would work in two cities, or anywhere in a state, or
+anywhere in the country, could not say so. Now only the country is
+required, and **Add** puts as many states (provinces, regions) and cities
+as you like in a list under the picker, each with × to take it out, in
+setup and on the Search page alike:
+
+- A job post anywhere in a state you added is kept.
+- A job post within the radius of a city you added is kept; the distance
+  is to the nearest of your cities, and the score's explanation names it.
+- Neither: job posts from the whole country are kept, and the radius is
+  not used.
+- Remote jobs are kept wherever they are, as before.
+
+The job sources that search near a place (Adzuna, USAJOBS, Workable, the
+German employment agency) search each city and state once; Himalayas reads
+your hours from your first city. A city chosen without a state is saved
+with the state it was found in, so "Austin" reads back as the same Austin.
+The terminal's `jobdork setup` asks the same way: states, then cities,
+blank when done.
+
+In the config, `locations.anchor` becomes `locations.country`,
+`locations.regions` and `locations.cities` (docs/CONFIG.md). A config from
+0.15.3 or earlier still reads: its anchor is its one city, and saving the
+place on the dashboard writes the new keys. A radius with no city is no
+longer refused.
+## Fixed — 2026-10-28 — The secret scan, failing on two made-up keys
+
+The security check's secret scan (gitleaks) reads every branch, and two
+made-up keys in the Ollama-key tests of #78 matched its "generic API key"
+rule, so the check failed on main and on every pull request opened after.
+Both findings are listed in `.gitleaksignore`, the way an earlier test key
+is, and #78's tests now name the key once as `_FAKE_KEY`, marked
+`gitleaks:allow`, so no new finding comes from them.
+
+## Added — 2026-10-27 — A progress bar when a resume is uploaded
+
+Uploading a resume showed only "Uploading…" or "Reading…" until the answer
+came, so a slow upload or a long PDF looked the same as a page that had
+stopped. Now a bar under the file picker, on the Resume page and in the
+setup wizard, fills as the file goes up, then moves while jobdork reads it,
+and goes when the answer arrives. The button (or file picker) waits while
+it runs, so the same file is not sent twice, and no answer at all from
+jobdork is said, rather than leaving "Reading…" on screen for good.
+
+**Fixed:** a resume whose file name had a character outside Latin-1, such
+as a curly apostrophe (`Maria’s Resume.pdf`), an en dash or `履歴書.pdf`,
+was never sent: the browser refused it, the error log said "got no answer
+from the server: Type error", and setup sat on "Reading…". Found in a
+0.15.3 test on an Intel Mac. The name is now sent encoded (the server reads
+only its extension), and a refusal by the page is logged as one.
+
+## Changed — 2026-10-27 — version 0.15.3
+
+0.15.3 carries the 3 entries below, everything since 0.15.2 (27 October):
+
+- **A desktop app for Intel Macs**, `jobdork-0.15.3-macos-x86_64.dmg`,
+  beside the Apple Silicon one: download, open, drag into Applications.
+- **Install on a Mac with one command** in Terminal, which checks the
+  download itself and skips the first-open warning; and a WinGet manifest
+  written for every release and installed for real on every pull request.
+- **What 1.0 promises**, written down in docs/DECISIONS.md.
+
+Updating from 0.15.2 uses the update window 0.15.2 brought. An Intel Mac
+has no earlier jobdork to update: it starts at 0.15.3.
+
+## Added — 2026-10-27 — A desktop app for Intel Macs
+
+The desktop app was built for Apple Silicon Macs only; on an Intel Mac the
+only ways in were Docker or running from source, too much for someone who
+just wants to download and install. From 0.15.3 every release has
+`jobdork-X.Y.Z-macos-x86_64.dmg` beside the Apple Silicon one, built and
+self-tested on GitHub's Intel Mac machines (`macos-15-intel`) and attested
+the same way. macOS 12 or newer.
+
+- The app's **Update** button takes the installer for the Mac it runs on,
+  and the one-command install for Macs does too.
+- The release page lists it, with how to tell which Mac you have (Apple
+  menu → About This Mac).
+- **One library is older on the Intel app:** `cryptography` 48.0.1, the
+  last version built for Intel Macs; every other build has 50.0.2. Three
+  advisories are fixed after 48.0.1: in PKCS#7 decryption (not used), in
+  slow certificate-chain building (the update check builds chains only from
+  Sigstore's own verified trusted root), and in DNS-name constraints (the
+  update check's certificates name a workflow, not a host). CI's dependency
+  audit accepts those three for that entry alone, audited separately from
+  the rest, which still allows none; the reasons are beside it in
+  `.github/workflows/docker.yml`.
+- Docs: the desktop guide, run guides, README, SECURITY.md, DECISIONS, and
+  the user guide's home page and Getting started.
+
 ## Added — 2026-10-27 — Install on a Mac with one command, and a WinGet manifest for Windows
 
 - **One command installs or updates jobdork on a Mac**
@@ -6601,6 +6860,28 @@ open; a digest arrives, and what arrived with it is what was not there before.
 
 ## Still outstanding
 
+- **The app in your own language** (asked 2026-10-28). A language chosen on
+  setup's first screen, before anything else, and changeable in Settings:
+  every page, setup step, message and the guide in it. The most-used
+  languages first (Spanish, Chinese, Hindi, Arabic, Portuguese, French,
+  Filipino, among others), and a way to ask for one that is missing (a
+  feedback kind). With it, a **resume written in another language**: its
+  skills read (today the skill list is English), and the AI asked to read
+  and answer in it. A resume's file name in any script already works
+  (0.15.4).
+- **More job boards** (asked 2026-10-28, the big US list). Indeed, LinkedIn,
+  ZipRecruiter, Monster, SimplyHired, CareerBuilder, Dice, Built In and
+  FlexJobs are out for the reason in PLATFORMS.md (no public API; their
+  terms and robots.txt refuse scripts) and stay reachable through
+  `jobdork dork` and **Search Google Jobs**. Stack Overflow Jobs closed in
+  2022; USAJOBS is read already. Worth checking, each against its terms and
+  robots.txt before anything is built: **We Work Remotely** (a public RSS
+  feed; already planned in REGIONS.md), **Idealist** (nonprofits),
+  **Snagajob** (hourly work) and **Handshake** (students; behind a school
+  login, so likely out). The licensed way to the big boards is a keyed
+  reseller of Google's job results (JSearch, SerpApi), a decision in
+  DECISIONS.md.
+
 - **Europe outside Germany, the Gulf, and New Zealand** stay thin (measured
   2026-10-23): their large employers mostly name no board, and their job
   sites are closed to scripts or need a key (Reed, France Travail). What is
@@ -6633,70 +6914,12 @@ open; a digest arrives, and what arrived with it is what was not there before.
   its claim check, a tailored letter); or a demo build of the dashboard
   itself on the website, the real page on fixed demo data with no server.
   The recording is done in the maintainer's own browser and account.
-- **AI page, an Ollama address on another computer** (found 2026-10-27, a
-  tester using the owner's Ollama over Tailscale). A line with no address of
-  its own shows the page-wide one, `http://localhost:11434` by default, in
-  its box, so someone without Ollama of their own keeps an address that
-  cannot work, and every **Load models** fails. Say when the address is
-  this computer's own and nothing answers there, and leave the box empty
-  rather than pre-filled when the page-wide address is only the default.
-- **The first scan's two parts, told apart** (asked 2026-10-27). Setup's
-  last step runs a quick scan ("first scan": the keyword job sites, your own
-  boards and 8 built-in ones) and then a "full scan" of every other
-  built-in board, in the background. The Dashboard should say which is
-  running and that it started: "Quick scan: reading job sites and 8
-  employer boards" then "Full scan started: reading the other N employer
-  boards; job posts keep arriving". When the full scan ends, tell the
-  person their job posts are ready to view: a notice on the page with a
-  **View job posts** button, and the computer's notification when
-  notifications are on, including when the window was closed meanwhile.
-- **The hallucination rate in colour** (asked 2026-10-27): the Dashboard
-  tile and the "Hallucination, over time" chart green at 5% or below (the
-  2-5% target in docs/AI-MODELS.md), amber above 5% up to 10%, red above
-  10% (where every other local model measured). Said in words too, not by
-  colour alone ("within target", "watch it", "too high: see AI-MODELS.md").
-- **A scan queue you can see and cancel** (asked 2026-10-27). A change to
-  Search, Projects, Education or Sources starts a scan or re-screen; one
-  that arrives while another runs waits (web/live.py `Runner.queue`), but
-  only one of each kind, the newest replacing the one waiting, and the page
-  never shows it. Instead: first in, first out, every request kept, with
-  what started it ("Search: added Nurse Practitioner"); the number waiting
-  on the Dashboard; a list where any waiting one can be cancelled; and
-  **Stop** for the scan running now, keeping what it found so far. Shown in
-  the Dashboard panel now titled "Feedback on AI output, per day", renamed
-  for it (where the feedback chart goes instead is decided when it is
-  built).
 - **Hosted models measured before recommending them** (asked 2026-10-27):
   run scripts/hallucination_benchmark.py with Gemini and Groq models as
   reader and as checker, as was done for Ollama, and count requests and
   tokens per verdict against each free tier's daily and per-minute limits,
   so the guide can say which free models to pick and how many job posts a
   day a free key covers before it is capped.
-- **An Ollama address with a key** (for beta testers using someone else's
-  Ollama without Tailscale, 2026-10-27): an optional key on an Ollama line,
-  sent as `Authorization: Bearer`, kept like every other key (memory or the
-  keychain, never a file), so jobdork can use an Ollama behind a
-  gatekeeper that checks keys; and one pasted connection code that fills
-  the AI page.
-- **Add a job post from any link** (found 2026-10-27, a UnitedHealth Group
-  post on `uhg.taleo.net/careersection/10000/jobdetail.ftl?job=2389918`
-  refused with "cannot tell which platform that URL is on. Supported:
-  greenhouse, ashby, lever, breezy, smartrecruiters"). Adding by link
-  (`add_by_url`, `cli._platform_for`) knows 5 systems, fewer than a scan
-  reads, and nothing else. Recognise every system jobdork reads (Workday,
-  Oracle, Taleo Business Edition, Eightfold and the rest); for any other
-  link, read the page itself (schema.org `JobPosting`, as fetch/site.py
-  does); and a reader for **Taleo Enterprise** (`*.taleo.net/careersection/`):
-  its job page carries the title, job number, place, department, type,
-  posting date and description in the page's `initialHistory` field, with
-  no `JobPosting` data. When nothing can be read, say so and offer to paste
-  the advert's text instead.
-- **The error log names the reason, not only the status.** A model list
-  that could not be loaded is recorded as "GET /api/llm/models failed on
-  the server (HTTP 502)", although jobdork knows the reason ("Ollama is not
-  answering at …"). Record the server's own message; and treat a 502 that
-  only reports another service not answering as a warning about that
-  service, not as an error in jobdork.
 - **Linux installers: an AppImage and a .deb** (chosen 2026-10-27, both),
   built and attested by the release workflow beside the Mac and Windows
   ones, with removal (`jobdork uninstall`, Settings) and Update for each.

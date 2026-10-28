@@ -74,7 +74,9 @@ Pass one is worth 30 points, pass two 18. Everything else adds to that; see
 
 ```yaml
 locations:
-  anchor: "Naperville, IL"    # or "Makati, Philippines", "Berlin, Germany"
+  country: US                 # the country you live in
+  regions: []                 # e.g. [TX, CA]: anywhere in these is kept
+  cities: ["Naperville, IL"]  # e.g. ["Austin, TX", "Denver, CO"]: within the radius of one
   radius: 25
   units: mi                   # blank picks by country
   countries: [US]
@@ -84,31 +86,44 @@ locations:
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `locations.anchor` | string | `"Naperville, IL"` | `City, ST`, `City, Region, Country`, `City, Country`, or a bare region |
-| `locations.radius` | `exact` or a number | `25` | Distance in `locations.units` |
+| `locations.country` | ISO code | blank | The country you live in; the regions are in it, and it picks the units |
+| `locations.regions` | list of codes | `[]` | A post anywhere in one is kept: `TX` in the US, `15` (Cordillera) in the Philippines |
+| `locations.cities` | list of strings | `["Naperville, IL"]` | A post within the radius of one is kept. `City, ST`, `City, Region, Country` or `City, Country` |
+| `locations.radius` | `exact` or a number | `25` | Distance from a city, in `locations.units` |
 | `locations.units` | `mi` \| `km` | by country | Blank picks miles for US/UK, km elsewhere |
 | `locations.countries` | list | `[US]` | Any ISO 3166-1 alpha-2 code; `[]` accepts everywhere |
 | `locations.work_modes` | list | `[]` | Allow-list of `remote`, `hybrid`, `office` |
 | `locations.exclude` | list of strings | `[]` | Region, country, city, metro name, or a substring |
 
-On the dashboard, **Where you are** is a picker: a country, then its first
-level of region under that country's own name for it (State in the US,
-Province in Canada, Region in the Philippines, Prefecture in Japan, hidden
-where there is none, such as Singapore), then a city suggested from the
-bundled place list as you type. It saves the anchor as `City, Region,
-Country` (`Baguio, Cordillera, Philippines`; `Austin, TX, United States`), and
-refuses a city that is not in the list, because an anchor that cannot be
-placed turns the radius off. A region named in the anchor picks between
-same-named cities in a country: `San Fernando, Ilocos` and `San Fernando,
-Central Luzon` are 180 km apart. A trailing "City" is tried without it, so
-`Baguio City` finds Baguio.
+**Which posts are kept.** A remote job is kept wherever it is. Any other is
+kept when it is anywhere in one of your `regions`, **or** within the radius
+of one of your `cities`. With neither, every post from the country is kept:
+there is nothing to measure from, so the radius is not used. Only the
+country is required; add as many regions and cities as you like. Distance
+is measured to the nearest of your cities, and that is the one the score's
+explanation names.
 
-The defaults apply only to a key that is missing: `anchor: ""` is no anchor,
-and `countries: []` keeps job posts from every country.
+On the dashboard, **Location** is a picker: a country, then its first level
+of region under that country's own name for it (State in the US, Province
+in Canada, Region in the Philippines, Prefecture in Japan, hidden where there
+is none, such as Singapore), and a city suggested from the bundled place
+list as you type. **Add** puts a region or a city in the list below the
+picker; a region chosen first narrows the city suggestions. A city is saved
+as `City, Region, Country` (`Baguio, Cordillera, Philippines`; `Austin, TX,
+United States`), and one that is not in the list is refused, because a city
+that cannot be placed has no radius. The region saved with a city picks
+between same-named cities in a country: `San Fernando, Ilocos` and `San
+Fernando, Central Luzon` are 180 km apart. A trailing "City" is tried without
+it, so `Baguio City` finds Baguio.
 
-A numeric `radius` with no `anchor` is refused — a radius needs somewhere to
-measure from. A country code the geocoder does not know is refused by name
+The defaults apply only to a key that is missing: `cities: []` is no city,
+and `countries: []` keeps job posts from every country. `regions` needs
+`country`. A country code the geocoder does not know is refused by name
 rather than quietly matching nothing.
+
+A config from 0.15.3 or earlier has one city as `anchor: "Chicago, IL"`. It
+still reads, as that one city; the dashboard writes `cities` the next time
+the place is saved. When both are written, `cities` wins.
 
 **There is no built-in region.** Out of scope means "not in **your**
 `countries`", and the rule runs in every direction: a Berlin posting is dropped
@@ -126,9 +141,10 @@ for anything you read.
 
 ### radius
 
-`exact` means the posting's city and state must match the anchor after
-normalisation. A posting that states only a state matches an anchor in that
-state, because the state is the most precise thing the employer said.
+`exact` means the posting's city and state must match one of your cities
+after normalisation. A posting that states only a state matches a city in
+that state, because the state is the most precise thing the employer said.
+With no city, the radius is not used.
 
 Any positive number is measured with the bundled gazetteer, in your units.
 See [SOURCES.md](SOURCES.md#the-gazetteer).
@@ -556,7 +572,7 @@ it off a resume you use with a hosted model if that matters to you.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `llm.readers` | list | empty (off) | The AI readers, in the order they are asked, up to 6: each `{provider, model}`, and for Ollama an optional `ollama_url`. The first does the work; when it cannot answer (no key held, not reachable, rate limited, an error) the next one does. The same provider may be listed again with another model, but not the same model twice. Setup offers up to 3; the AI page the rest |
+| `llm.readers` | list | empty (off) | The AI readers, in the order they are asked, up to 6: each `{provider, model}`, and for Ollama an optional `ollama_url` and `ollama_key: true` (send the Ollama key, held in memory or the keychain like the other keys, never in this file, to an Ollama behind a gatekeeper). The first does the work; when it cannot answer (no key held, not reachable, rate limited, an error) the next one does. The same provider may be listed again with another model, but not the same model twice. Setup offers up to 3; the AI page the rest |
 | `llm.provider` | string | empty (off) | The first reader's provider: `ollama`, `anthropic` (Claude), `gemini`, `openai` (ChatGPT) or `groq`. A config with no `readers` has this one reader |
 | `llm.model` | string | empty | The first reader's model, e.g. `gemma4:26b`; the AI page lists what is available |
 | `llm.ollama_url` | URL | `http://localhost:11434` | Where Ollama answers. Must be `http(s)://host:port` |
@@ -567,6 +583,7 @@ it off a resume you use with a hosted model if that matters to you.
 | `llm.guard` | bool | `true` | Check each verdict and draft for claims the resume and the advert do not support. Two more model calls per output |
 | `llm.checkers` | list | empty (none) | Second models that check the readers' work, in the order they are tried, up to 6, written like `readers`. They run the `guard` checks on everything a reader judges or writes, and score each judged job post themselves; scores 20 or more points apart are marked "models disagree". When one cannot answer, the next is asked. Of eight local models measured in October 2026, `qwen3.8:27b` checked best ([guide](https://jessn-dev.github.io/jobDork/ai/#checkers)). A checker that is the model that wrote an output is passed over for that output. With none chosen or none ready, the claim checks go to another reader, and to the writer itself only when no other is ready. Never blocks or hides anything. A key, if one is needed, is held in memory like a reader's |
 | `llm.checker_provider`, `llm.checker_model` | string | empty | The first checker's provider and model. A config with no `checkers` list has this one checker, as configs did before the list |
+| `llm.daily_limits` | mapping | empty | A free key's requests a day, as Google AI Studio or the Groq console shows it: `{gemini: 250, groq: 1000}`. Optional: background work (a scan's judging, page reading) stops 5 requests short of it and the next reader answers. With none set, Groq's own count (sent with every answer) is used, and Gemini's limit is learned from its first refusal. Per-minute limits are kept to without a setting: Groq's tokens left this minute are waited for, and Gemini's per-minute refusal is waited out and its size learned. Gemini's day starts at midnight Pacific time. See ai/limits.py |
 
 ```yaml
 llm:
@@ -721,7 +738,8 @@ true; the environment and `.env` win over both. A key written into
 titles:
   include: [software engineer]
 locations:
-  anchor: "Chicago, IL"
+  country: US
+  cities: ["Chicago, IL"]
 ```
 
 Everything else has a default.

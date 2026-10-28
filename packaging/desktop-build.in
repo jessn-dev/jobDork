@@ -1,3 +1,9 @@
 # What installing jobdork itself needs (pyproject [build-system]), pinned with
 # the desktop dependencies so the build fetches nothing unchecked.
 setuptools>=77
+# Intel Macs: cryptography published its last Intel macOS wheels in 48.0.1
+# (June 2026); 49 and later ship Apple silicon only, and building one from
+# source needs Rust and fetches unchecked build tools. So the Intel build
+# keeps 48.x; every other platform takes the newest.
+cryptography<49 ; sys_platform == 'darwin' and platform_machine == 'x86_64'
+cryptography>=50.0.2 ; sys_platform != 'darwin' or platform_machine != 'x86_64'

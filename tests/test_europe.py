@@ -43,7 +43,7 @@ def _ba_job(ref, title, city="Berlin", **extra):
 
 def _cfg(*titles, countries=("DE",), anchor="Berlin, Germany", radius="25"):
     return Config(titles_include=list(titles),
-                  locations=Locations(anchor=anchor, radius=radius, units="km",
+                  locations=Locations(cities=[anchor] if anchor else [], radius=radius, units="km",
                                       countries=list(countries)))
 
 
@@ -88,8 +88,8 @@ def test_bundesagentur_runs_only_for_germany_and_searches_all_of_it_from_abroad(
 
 
 def test_the_agency_is_asked_for_a_city_by_its_german_name():
-    assert arbeitsagentur._where(_cfg("x", anchor="Munich, Germany"))[0] == "München"
-    assert arbeitsagentur._where(_cfg("x", anchor="Berlin, Germany"))[0] == "Berlin"
+    assert arbeitsagentur._where(_cfg("x", anchor="Munich, Germany"))[0][0] == "München"
+    assert arbeitsagentur._where(_cfg("x", anchor="Berlin, Germany"))[0][0] == "Berlin"
 
 
 def test_the_bundesagenturs_own_agency_marks_make_it_a_recruiters_post():

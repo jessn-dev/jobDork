@@ -14,6 +14,8 @@
   <br>
   <a href="https://github.com/jessn-dev/jobDork/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/jessn-dev/jobDork"></a>
   <a href="https://hub.docker.com/r/jessengolab/jobdork"><img alt="Docker image" src="https://img.shields.io/docker/v/jessengolab/jobdork?sort=semver&label=docker"></a>
+  <a href="https://github.com/jessn-dev/jobDork/releases"><img alt="Downloads from every release" src="https://img.shields.io/github/downloads/jessn-dev/jobDork/total?label=downloads"></a>
+  <a href="https://hub.docker.com/r/jessengolab/jobdork"><img alt="Docker pulls" src="https://img.shields.io/docker/pulls/jessengolab/jobdork?label=docker%20pulls"></a>
   <a href="https://www.python.org/downloads/"><img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue.svg"></a>
   <a href="LICENSE"><img alt="License: GPL v3" src="https://img.shields.io/badge/license-GPLv3-blue.svg"></a>
   <br>
@@ -118,8 +120,8 @@ fully. [Limits](#limits) has the list.
 
 | | For | Guide |
 |---|---|---|
-| **Desktop app** | macOS (Apple Silicon) and Windows: an installer, its own window, scheduled scans, notifications, and updates from inside the app | [docs/run/desktop.md](docs/run/desktop.md) |
-| **From source** | Any system with Python 3.10 or newer, Linux and Intel Macs included | [docs/run/source.md](docs/run/source.md) |
+| **Desktop app** | macOS (Apple Silicon or Intel) and Windows: an installer, its own window, scheduled scans, notifications, and updates from inside the app | [docs/run/desktop.md](docs/run/desktop.md) |
+| **From source** | Any system with Python 3.10 or newer, Linux included | [docs/run/source.md](docs/run/source.md) |
 | **In the terminal** | Every command without the dashboard: scripts, cron jobs, servers with no screen | [docs/run/cli.md](docs/run/cli.md) |
 | **Docker** | The published image on your computer, or always on a NAS | [docs/run/docker.md](docs/run/docker.md), [docs/run/nas.md](docs/run/nas.md) |
 

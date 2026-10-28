@@ -281,20 +281,32 @@ class Dealbreaker:
 
 
 # Where a config that does not say is taken to be. Only a missing key takes
-# these: an anchor written as "" is no anchor, and countries written as [] is
-# every country, as the docs promise.
+# these: cities written as [] (or the older anchor as "") is no city, and
+# countries written as [] is every country, as the docs promise.
 DEFAULT_ANCHOR = "Naperville, IL"
 DEFAULT_COUNTRIES = ("US",)
 
 
 @dataclass
 class Locations:
-    anchor: str = ""                                # "Chicago, IL", "Makati, Philippines"
+    # Where you would work: any of these cities, within the radius of one,
+    # or anywhere in one of these regions. Neither is the whole country.
+    # 0.15.3 and earlier had one city, `anchor`, which still reads as one.
+    cities: list[str] = field(default_factory=list)     # "Austin, TX, United States"
+    regions: list[str] = field(default_factory=list)    # codes in `country`: "TX", "15"
+    country: str = ""                               # the one you live in: "US", "PH"
     radius: str | float = 25                        # "exact" or a distance
     units: str = ""                                 # mi | km; blank picks by country
     countries: list[str] = field(default_factory=list)
     work_modes: list[str] = field(default_factory=list)   # empty means all three
     exclude: list[str] = field(default_factory=list)
+
+    def where_text(self) -> str:
+        """The places in words, for a report: "" when there are none."""
+        from ..search import geo
+
+        named = [geo.region_label(self.country, r) for r in self.regions]
+        return "; ".join([*self.cities, *named])
 
 
 @dataclass
@@ -442,6 +454,8 @@ class Reader:
     provider: str
     model: str = ""
     ollama_url: str = ""
+    # For Ollama behind a gatekeeper: send it the Ollama key (llm.OLLAMA_KEY).
+    ollama_key: bool = False
 
     def key(self) -> tuple[str, str, str]:
         return (self.provider, self.model, self.ollama_url)
@@ -480,6 +494,10 @@ class Llm:
     checkers: list[Reader] = field(default_factory=list)
     checker_provider: str = ""
     checker_model: str = ""
+    # A free key's daily limit, as AI Studio or the Groq console shows it:
+    # {gemini: 250}. Background work stops short of it (ai/limits.py). None
+    # set: jobdork learns it from the provider's own refusal, or Groq's count.
+    daily_limits: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -537,7 +555,8 @@ class Config:
         WA is Washington to a reader in Seattle and Western Australia to one
         in Perth, and only this can tell them apart.
         """
-        return tuple(self.locations.countries)
+        home = self.locations.country.upper()
+        return tuple(dict.fromkeys([*([home] if home else []), *self.locations.countries]))
 
     def usajobs_in_scope(self) -> bool:
         """US federal postings only, so it is off outside the US."""
@@ -674,7 +693,9 @@ def apply_overrides(cfg: Config, **overrides: Any) -> Config:
     if overrides.get("exclude_titles"):
         cfg.titles_exclude = list(overrides["exclude_titles"])
     if overrides.get("anchor") is not None:
-        cfg.locations.anchor = overrides["anchor"]
+        # One place to measure from, the CLI's --anchor, replaces them all.
+        cfg.locations.cities = [overrides["anchor"]] if overrides["anchor"].strip() else []
+        cfg.locations.regions = []
     if overrides.get("countries"):
         cfg.locations.countries = [c.upper() for c in overrides["countries"]]
         if not overrides.get("units"):
@@ -705,6 +726,31 @@ def apply_overrides(cfg: Config, **overrides: Any) -> Config:
     return cfg
 
 
+def _daily_limits(raw) -> dict[str, int]:
+    """llm.daily_limits: {provider: requests a day}, each a whole number."""
+    from ..ai.limits import FREE_TIER
+
+    if raw in (None, ""):
+        return {}
+    if not isinstance(raw, dict):
+        raise ConfigError("llm.daily_limits must be a mapping, e.g. {gemini: 250}")
+    out = {}
+    for provider, n in raw.items():
+        provider = str(provider).strip().lower()
+        if provider not in FREE_TIER:
+            raise ConfigError(f"llm.daily_limits: {provider!r} has no free tier to "
+                              f"keep to; it takes {', '.join(FREE_TIER)}")
+        try:
+            n = int(n or 0)
+        except (TypeError, ValueError):
+            raise ConfigError(f"llm.daily_limits.{provider} must be a whole number") from None
+        if n < 0:
+            raise ConfigError(f"llm.daily_limits.{provider} cannot be negative")
+        if n:
+            out[provider] = n
+    return out
+
+
 def _build(raw: dict[str, Any]) -> Config:
     cfg = Config()
 
@@ -716,9 +762,17 @@ def _build(raw: dict[str, Any]) -> Config:
     countries = ([c.upper() for c in
                   _str_list(loc.get("countries"), "locations.countries")]
                  if "countries" in loc else list(DEFAULT_COUNTRIES))
+    if "cities" in loc or "regions" in loc:
+        cities = _str_list(loc.get("cities"), "locations.cities")
+    elif "anchor" in loc:                           # 0.15.3 and earlier: one city
+        cities = [a for a in [str(loc.get("anchor") or "").strip()] if a]
+    else:
+        cities = [DEFAULT_ANCHOR]
     cfg.locations = Locations(
-        anchor=(str(loc.get("anchor") or "").strip()
-                if "anchor" in loc else DEFAULT_ANCHOR),
+        cities=[c.strip() for c in cities if c.strip()],
+        regions=[r.strip().upper() for r in
+                 _str_list(loc.get("regions"), "locations.regions") if r.strip()],
+        country=str(loc.get("country") or "").strip().upper(),
         radius=loc.get("radius", 25),
         units=str(loc.get("units") or "").strip().lower(),
         countries=countries,
@@ -829,6 +883,7 @@ def _build(raw: dict[str, Any]) -> Config:
         checker_model=str(ai.get("checker_model") or "").strip(),
         readers=_readers(ai),
         checkers=_readers(ai, "checkers"),
+        daily_limits=_daily_limits(ai.get("daily_limits")),
     )
     if cfg.llm.readers:
         # The first reader is `provider` and `model`, whatever they said.
@@ -937,13 +992,12 @@ def _validate(cfg: Config) -> None:
             ) from None
     if loc.radius != RADIUS_EXACT and float(loc.radius) <= 0:
         raise ConfigError("locations.radius must be positive")
-    # A new config has no place until setup's Where step gives one.
-    if loc.radius != RADIUS_EXACT and not loc.anchor and not cfg.setup_step:
+    # No city is allowed: the radius then has nothing to measure from, and
+    # the regions (or, with none, the whole country) are where you would work.
+    if loc.regions and not loc.country:
         raise ConfigError(
-            f"locations.radius is {loc.radius} but locations.anchor is empty. "
-            "A radius needs somewhere to measure from, e.g. "
-            "anchor: \"Chicago, IL\" or anchor: \"Makati, Philippines\"."
-        )
+            "locations.regions needs locations.country, the country they are "
+            "in, e.g. country: US with regions: [TX, CA].")
 
     known = _known_countries()
     for country in loc.countries:
@@ -960,7 +1014,7 @@ def _validate(cfg: Config) -> None:
         )
     if not loc.units:
         from ..search.geo import default_units
-        loc.units = default_units(loc.countries)
+        loc.units = default_units([loc.country] if loc.country else loc.countries)
     for mode in loc.work_modes:
         if mode not in WORK_MODES:
             raise ConfigError(
@@ -969,6 +1023,10 @@ def _validate(cfg: Config) -> None:
                 "'unstated' is refused: a posting that names no arrangement is "
                 "always kept and flagged, because about half of them name none."
             )
+    if loc.country and loc.country not in known:
+        raise ConfigError(
+            f"locations.country is {loc.country!r}, which is not an ISO "
+            "3166-1 alpha-2 code the geocoder knows.")
 
     if cfg.salary.currency not in CURRENCIES:
         raise ConfigError(
@@ -1150,7 +1208,9 @@ def _readers(ai: dict, name: str = "readers") -> list[Reader]:
             raise ConfigError(f"llm.{name} entry {i} must be a mapping with provider and model")
         reader = Reader(provider=str(entry.get("provider") or "").strip().lower(),
                         model=str(entry.get("model") or "").strip(),
-                        ollama_url=str(entry.get("ollama_url") or "").strip().rstrip("/"))
+                        ollama_url=str(entry.get("ollama_url") or "").strip().rstrip("/"),
+                        ollama_key=bool(entry.get("ollama_key")) and
+                        str(entry.get("provider") or "").strip().lower() == "ollama")
         if not reader.provider:
             raise ConfigError(f"llm.{name} entry {i} has no provider")
         if any(r.key() == reader.key() for r in readers):

@@ -203,13 +203,21 @@ def _row_to_dict(row, units: str, fresh=None) -> dict:
     }
 
 
-def _anchor_place(cfg) -> dict:
-    """The anchor as the picker shows it: country, region and city, if placed."""
-    where = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
-    if not where.located:
-        return {"located": False, "note": where.note}
-    return {"located": True, "country": where.country, "city": where.city,
-            "region": geo.region_at(where)}
+def _places(cfg) -> dict:
+    """Where you would work, as the picker shows it: the country, each region
+    by code and name, each city with whether it could be placed."""
+    country = cfg.locations.country
+    cities = []
+    for text in cfg.locations.cities:
+        where = geo.resolve_anchor(text, cfg.country_prefs())
+        country = country or where.country
+        cities.append({"text": text, "located": where.located, "note": where.note,
+                       "city": where.city, "region": geo.region_at(where),
+                       "country": where.country})
+    return {"country": country or (cfg.locations.countries or [""])[0],
+            "regions": [{"code": r, "name": geo.region_label(country, r)}
+                        for r in cfg.locations.regions],
+            "cities": cities}
 
 
 def _screen_key(cfg) -> str:
@@ -222,6 +230,33 @@ def _screen_key(cfg) -> str:
         "locations": asdict(cfg.locations), "salary": asdict(cfg.salary),
         "screening": asdict(cfg.screening), "ghost_days": cfg.freshness.ghost_days,
     }, sort_keys=True, default=str)
+
+
+def change_words(old, fresh) -> str:
+    """What a save changed, in a few words, for the queue on the Dashboard:
+    "Search: added Nurse Practitioner"."""
+    def diff(a, b) -> list[str]:
+        have = {x.casefold() for x in a}
+        return [x for x in b if x.casefold() not in have]
+
+    def few(items) -> str:
+        return ", ".join(items[:3]) + (f" and {len(items) - 3} more" if len(items) > 3 else "")
+
+    said = []
+    for label, a, b in (
+            ("Search", old.titles_include, fresh.titles_include),
+            ("Never show", old.titles_exclude, fresh.titles_exclude),
+            ("Countries", old.locations.countries, fresh.locations.countries),
+            ("Dealbreakers", [d.name for d in old.dealbreakers], [d.name for d in fresh.dealbreakers])):
+        added, gone = diff(a, b), diff(b, a)
+        if added or gone:
+            said.append(f"{label}: " + "; ".join(
+                ([f"added {few(added)}"] if added else []) + ([f"removed {few(gone)}"] if gone else [])))
+    if old.locations != fresh.locations and not any(s.startswith("Countries") for s in said):
+        said.append("Location or work arrangement changed")
+    if old.salary != fresh.salary:
+        said.append("Pay changed")
+    return "; ".join(said) or "Search settings changed"
 
 
 def search_changes(old, fresh) -> tuple[bool, bool]:
@@ -243,7 +278,9 @@ def search_changes(old, fresh) -> tuple[bool, bool]:
     widened = (added(old.titles_include, fresh.titles_include)
                or added(old.locations.countries, fresh.locations.countries)
                or bool(boards)
-               or old.locations.anchor != fresh.locations.anchor)
+               or added(old.locations.cities, fresh.locations.cities)
+               or added(old.locations.regions, fresh.locations.regions)
+               or old.locations.country != fresh.locations.country)
     return widened, _screen_key(old) != _screen_key(fresh)
 
 
@@ -252,8 +289,7 @@ def _config_payload(cfg) -> dict:
     return {
         "titles_include": cfg.titles_include,
         "titles_exclude": cfg.titles_exclude,
-        "anchor": cfg.locations.anchor,
-        "anchor_place": _anchor_place(cfg),
+        "places": _places(cfg),
         "radius": cfg.locations.radius,
         "units": cfg.locations.units,
         "countries": cfg.locations.countries,
@@ -460,6 +496,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     "busy": runner.busy,
                     "job": runner.current,
                     "last_summary": runner.last_summary,
+                    "first_scan": api_mod.FIRST_SCAN,
+                    # First in, first out, each with what started it.
+                    "waiting": runner.waiting(),
                     "claude": bool(__import__("shutil").which("claude")),
                     "ai": ai["label"],
                     "ai_problem": ai["problem"],
@@ -483,7 +522,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 query = parse_qs(urlsplit(self.path).query)
                 return self._wrap(api_mod.llm_models, cfg_holder["cfg"],
                                   query.get("provider", [""])[0],
-                                  query.get("url", [""])[0])
+                                  query.get("url", [""])[0],
+                                  query.get("key", [""])[0] == "1")
             if path == "/api/sources":
                 return self._wrap(api_mod.sources_report, cfg_holder["cfg"])
             if path == "/api/directory":
@@ -682,12 +722,29 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 if not started:
                     return self._reject(409, why)
                 return self._json(202, {"started": True, "job": name})
+            if path == "/api/first-scan/seen":
+                return self._json(200, api_mod.first_scan_seen())
+            if path == "/api/stop":
+                if not runner.stop():
+                    return self._reject(409, "nothing is running")
+                return self._json(202, {"stopping": runner.current})
+            if path == "/api/queue/cancel":
+                form = self._body() or {}
+                try:
+                    job_id = int(form.get("id") or 0)
+                except (TypeError, ValueError):
+                    return self._reject(400, "not a queued job id")
+                if not runner.cancel(job_id):
+                    return self._reject(404, "that job is not waiting; it may have started")
+                return self._json(200, {"cancelled": job_id, "waiting": runner.waiting()})
             if path == "/api/setup/keys":
                 return self._source_keys()
             if path == "/api/setup/suggest":
                 return self._wrap(api_mod.setup_suggest, cfg_holder["cfg"])
             if path == "/api/add":
                 return self._add()
+            if path == "/api/add/text":
+                return self._add_text()
             if path == "/api/advert":
                 return self._advert()
             if path.startswith("/api/llm"):
@@ -818,6 +875,15 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                        str(form.get("url") or ""), str(form.get("token") or ""),
                        str(form.get("company") or ""))
 
+        def _add_text(self) -> None:
+            # Sized for a pasted advert, as _advert below is.
+            form = self._body(limit=api_mod.MAX_ADVERT_CHARS * 12)
+            if form is None:
+                return self._reject(400, "bad request body")
+            self._wrap(api_mod.add_by_text, cfg_holder["cfg"],
+                       *(str(form.get(k) or "") for k in
+                         ("url", "title", "company", "location", "text")))
+
         def _advert(self) -> None:
             # Sized for the advert, not the 8 KB an action gets: a pasted
             # advert is routinely longer than that. UTF-8 can be 4 bytes a
@@ -838,6 +904,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if path == "/api/llm/key":
                 return self._wrap(api_mod.llm_key, str(form.get("provider") or ""),
                                   str(form.get("key") or ""))
+            if path == "/api/llm/connection":
+                return self._wrap(api_mod.llm_connection, str(form.get("code") or ""))
             if path == "/api/llm/forget":
                 return self._wrap(api_mod.llm_forget,
                                   str(form.get("provider") or ""))
@@ -883,7 +951,13 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             done["rescore"] = ""
             if cfg.resume_path and cfg.titles_include:
                 # lambda: built when its turn comes, from the newest settings.
-                now = runner.queue("re-score", lambda: api_mod.rescreen_job(cfg_holder["cfg"]))
+                saved = path.endswith("/save")
+                given = form if saved else {}
+                named = str(given.get("name") or given.get("credential") or "")
+                verb = "saved" if saved else "deleted"
+                now = runner.queue("re-score", lambda: api_mod.rescreen_job(cfg_holder["cfg"]),
+                                   why=f"{'Projects' if what == 'project' else 'Education'}: "
+                                       f"{verb}{f' {named}' if named else ''}")
                 done["rescore"] = ("Re-scoring your job posts with it." if now else
                                    f"Your job posts are re-scored with it after {runner.current}.")
             return self._json(200, done)
@@ -1164,12 +1238,13 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if rescreen:
                 # lambda: built when its turn comes, from the newest settings.
                 now = runner.queue("rescreen", lambda: api_mod.rescreen_job(
-                    cfg_holder["cfg"], remove=True))
+                    cfg_holder["cfg"], remove=True), why=change_words(old, fresh))
                 said.append("Re-applying your search to the job posts"
                             + ("" if now else f" after {runner.current}"))
             if widened:
                 # lambda: as above; a scan reads every title, old and new.
-                now = runner.queue("scan", lambda: api_mod.scan_job(cfg_holder["cfg"]))
+                now = runner.queue("scan", lambda: api_mod.scan_job(cfg_holder["cfg"]),
+                                   why=change_words(old, fresh))
                 said.append(("Scanning" if now else "Then scanning")
                             + " for what you added")
             return (". ".join(said) + ".") if said else ""
