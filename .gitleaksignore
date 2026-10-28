@@ -3,3 +3,8 @@
 #
 # A fake API key a test sends, to prove the dashboard never echoes a key back.
 b3f5f87170b43b98f9b8cb8c9c505ec266e846f8:tests/test_serve.py:generic-api-key:415
+
+# Made-up keys in the Ollama-key tests (PR #78), before they were named
+# _FAKE_KEY and marked gitleaks:allow. Still in that branch's history.
+8153228c4690f4c67d3e3dd93b5b14a7a0e15468:tests/test_ai.py:generic-api-key:560
+8153228c4690f4c67d3e3dd93b5b14a7a0e15468:tests/test_ai.py:generic-api-key:595
