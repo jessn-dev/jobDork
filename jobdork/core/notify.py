@@ -93,6 +93,15 @@ def scan_finished(cfg, new: int, kept: int, origin: str = "", run=subprocess.run
                   "Open jobdork to see them.", run=run)
 
 
+def first_scan_ready(cfg, kept: int, run=subprocess.run) -> bool:
+    """The end of setup's first scan: said whatever was new, since this is
+    the one someone closed the window to wait for."""
+    what = "job post" if kept == 1 else "job posts"
+    return notify(cfg, "Your job posts are ready",
+                  f"jobdork has read every employer board: {kept} {what} to look at. "
+                  "Open jobdork and choose View job posts.", run=run)
+
+
 def scan_failed(cfg, why: str, origin: str = "", run=subprocess.run) -> bool:
     where = "The scheduled scan" if origin == "schedule" else "The scan"
     return notify(cfg, "Scan failed", f"{where} stopped: {why}", run=run)
