@@ -4464,6 +4464,10 @@ async function drawAI() {
 
 // The Ollama address a reader uses: its own, or the one saved for all.
 const readerUrl = r => r.ollama_url || ai.ollama_url || '';
+// What its box shows: the page-wide address only when someone chose it. The
+// built-in localhost one, shown as if typed, stayed in place for a tester
+// whose Ollama was on another computer, and every Load models failed.
+const readerUrlShown = r => r.ollama_url || (ai.ollama_url_default ? '' : ai.ollama_url || '');
 
 // What the cards hold now, read back before anything redraws them.
 function syncReaders() {
@@ -4502,7 +4506,10 @@ function drawList(list, loadAll) {
         `<button type="button" data-p="${p}" ${p ? '' : 'data-icon="power" '}class="${p === r.provider ? 'on' : ''}">${
           providerIcon(p)}${p ? esc(ai.providers[p]) : (list === 'readers' ? 'Off' : 'None')}</button>`).join('')}</div></div>
     <div class="field r-url-row" ${r.provider === 'ollama' ? '' : 'hidden'}><label>Ollama address</label>
-      <input class="r-url" style="width:20rem" spellcheck="false" value="${esc(readerUrl(r))}"></div>
+      <input class="r-url" style="width:20rem" spellcheck="false" value="${esc(readerUrlShown(r))}"
+        placeholder="${esc(ai.ollama_url || '')} (this computer)">
+      <div class="hint">Empty uses Ollama on this computer. For Ollama on another computer, its
+        address, such as <code>${esc(String(ai.ollama_url || '').replace(/\/\/[^:/]+/, '//100.101.102.103'))}</code>.</div></div>
     <div class="field r-key-row" ${r.provider in ai.keys ? '' : 'hidden'}><label>API key for ${esc(ai.providers[r.provider] || '')}</label>
       <div class="bar" style="margin:0">
         <input class="r-key" type="password" autocomplete="off" spellcheck="false"

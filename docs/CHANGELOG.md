@@ -19,6 +19,18 @@ computer says so too, with notifications on, whether anything was new or
 not and whether the window is open or closed: that is the scan someone
 closed the window to wait for. It is the full scan's only notice; the
 ordinary "N new job posts" is not sent for it as well.
+## Fixed — 2026-10-28 — An Ollama on another computer, on the AI page
+
+A reader line with no address of its own showed the page-wide one in its
+box, `http://localhost:11434` by default, as if it had been typed. A tester
+using someone else's Ollama kept it, and every **Load models** failed with
+"Is it running?" about an Ollama they had never installed. Now the box is
+empty unless an address was chosen, its grey placeholder names the one
+used ("http://localhost:11434 (this computer)"), and a line under it says
+what to type for another computer. When nothing answers, the reason says
+which case it is: on this computer's own address, start Ollama here or
+type the other computer's; on another computer's, check that Ollama is
+running there and accepts connections from others (`OLLAMA_HOST=0.0.0.0`).
 ## Added — 2026-10-28 — The hallucination rate in colour
 
 The Dashboard's Hallucination tile and its "Hallucination, over time" chart
@@ -6777,6 +6789,16 @@ open; a digest arrives, and what arrived with it is what was not there before.
   cannot work, and every **Load models** fails. Say when the address is
   this computer's own and nothing answers there, and leave the box empty
   rather than pre-filled when the page-wide address is only the default.
+- **The first scan's two parts, told apart** (asked 2026-10-27). Setup's
+  last step runs a quick scan ("first scan": the keyword job sites, your own
+  boards and 8 built-in ones) and then a "full scan" of every other
+  built-in board, in the background. The Dashboard should say which is
+  running and that it started: "Quick scan: reading job sites and 8
+  employer boards" then "Full scan started: reading the other N employer
+  boards; job posts keep arriving". When the full scan ends, tell the
+  person their job posts are ready to view: a notice on the page with a
+  **View job posts** button, and the computer's notification when
+  notifications are on, including when the window was closed meanwhile.
 - **A scan queue you can see and cancel** (asked 2026-10-27). A change to
   Search, Projects, Education or Sources starts a scan or re-screen; one
   that arrives while another runs waits (web/live.py `Runner.queue`), but
