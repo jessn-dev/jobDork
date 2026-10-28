@@ -125,9 +125,17 @@ supplied:
 jobdork add "https://stripe.com/jobs/search?gh_jid=7532733" --token stripe
 ```
 
-`jobdork add` detects the platform from the domain, fetches that one posting,
-and stores it as a full row. This is the bridge from a Google result to the
-database: Google does the finding, the adapter does the reading.
+`jobdork add` reads that one posting and stores it as a full row: from its
+board when the address names one (Greenhouse, Ashby, Lever, Breezy,
+SmartRecruiters), from its system's own record for Workday, Oracle Recruiting
+and Eightfold, from the hidden `initialHistory` field of a Taleo Enterprise
+page, and otherwise from the page's schema.org `JobPosting`, as an employer's
+careers site is read (fetch/link.py). A Greenhouse post on the employer's own
+site is read from its page, or from its board with `--token`. This is the
+bridge from a Google result to the database: Google does the finding, the
+adapter does the reading. A page with none of these, or closed by its
+robots.txt, is said so; the dashboard's **Add a job post** then takes the
+advert's text pasted in.
 
 It takes several at once:
 

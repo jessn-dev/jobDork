@@ -697,6 +697,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._wrap(api_mod.setup_suggest, cfg_holder["cfg"])
             if path == "/api/add":
                 return self._add()
+            if path == "/api/add/text":
+                return self._add_text()
             if path == "/api/advert":
                 return self._advert()
             if path.startswith("/api/llm"):
@@ -826,6 +828,15 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             self._wrap(api_mod.add_by_url, cfg_holder["cfg"],
                        str(form.get("url") or ""), str(form.get("token") or ""),
                        str(form.get("company") or ""))
+
+        def _add_text(self) -> None:
+            # Sized for a pasted advert, as _advert below is.
+            form = self._body(limit=api_mod.MAX_ADVERT_CHARS * 12)
+            if form is None:
+                return self._reject(400, "bad request body")
+            self._wrap(api_mod.add_by_text, cfg_holder["cfg"],
+                       *(str(form.get(k) or "") for k in
+                         ("url", "title", "company", "location", "text")))
 
         def _advert(self) -> None:
             # Sized for the advert, not the 8 KB an action gets: a pasted
