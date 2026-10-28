@@ -66,7 +66,7 @@ def test_the_page_opens_with_the_downloads_and_folds_the_changes():
                  "SHA256SUMS.txt"):
         assert f"]({base}{name})" in text
     assert "`docker pull someone/jobdork:2.0.0`" in text and "someone/jobdork@sha256:abc" in text
-    assert text.index("## Download") < text.index("## Check it is the real one") \
+    assert text.index("## Download") < text.index("## Verify Build Package") \
         < text.index("<details>") < text.index("Two") < text.index("</details>")
     assert "1 change in this release" in text and "— One" not in text
 

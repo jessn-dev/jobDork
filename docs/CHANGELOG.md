@@ -20,6 +20,12 @@ quote is not counted as made up because the advert hid a character inside
 a word. Kept: the zero-width non-joiner and joiner (U+200C, U+200D), which
 Persian, Hindi and other scripts need to be spelled right.
 
+## Changed — 2026-10-28 — The release page's check section, named for what it does
+
+A release page's section on making sure a download is genuine was headed
+"Check it is the real one"; it is now **Verify Build Package**, over the
+same checksum, attestation and image signature steps
+(scripts/release_notes.py). Pages already published keep their heading.
 ## Fixed — 2026-10-28 — A Mac build that fails on "Resource busy"
 
 GitHub's macOS machines now and then refuse to make the disk image,
