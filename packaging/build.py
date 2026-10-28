@@ -25,6 +25,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import tomllib
@@ -44,6 +45,31 @@ def version() -> str:
 def run(*cmd: str | Path) -> None:
     print("$", " ".join(str(c) for c in cmd), flush=True)
     subprocess.run([str(c) for c in cmd], check=True, cwd=ROOT)
+
+
+# GitHub's macOS machines now and then answer "hdiutil: create failed -
+# Resource busy" (#71 and #77, 2026-10-28): the folder or the new image is
+# held a moment by Spotlight or the malware scan. The same command a little
+# later works, so it is tried again; anything else fails at once.
+BUSY = "Resource busy"
+BUSY_WAITS = (5, 15, 30)            # seconds before the second, third and fourth try
+_sleep = time.sleep
+
+
+def run_retrying_busy(*cmd: str | Path) -> None:
+    """`run`, asked again after a pause when macOS says the disk is busy."""
+    for wait in (*BUSY_WAITS, None):
+        print("$", " ".join(str(c) for c in cmd), flush=True)
+        done = subprocess.run([str(c) for c in cmd], cwd=ROOT, capture_output=True, text=True)
+        sys.stdout.write(done.stdout)
+        sys.stderr.write(done.stderr)
+        if done.returncode == 0:
+            return
+        if wait is None or BUSY not in done.stdout + done.stderr:
+            raise subprocess.CalledProcessError(done.returncode, done.args,
+                                                done.stdout, done.stderr)
+        print(f"{BUSY}: trying again in {wait}s", flush=True)
+        _sleep(wait)
 
 
 def pyinstaller(ver: str) -> None:
@@ -89,11 +115,11 @@ def dmg(ver: str) -> Path:
         # macOS 27 warns that `hdiutil create -volname -format` is deprecated
         # for this. The image is APFS (it takes no filesystem), which every
         # macOS the app runs on (12 and later) reads.
-        run("diskutil", "image", "create", "from", "--format", "UDZO",
-            "--volumeName", "jobdork", stage, out)
+        run_retrying_busy("diskutil", "image", "create", "from", "--format", "UDZO",
+                          "--volumeName", "jobdork", stage, out)
     else:
-        run("hdiutil", "create", "-volname", "jobdork", "-srcfolder", stage,
-            "-fs", "HFS+", "-format", "UDZO", "-ov", out)
+        run_retrying_busy("hdiutil", "create", "-volname", "jobdork", "-srcfolder", stage,
+                          "-fs", "HFS+", "-format", "UDZO", "-ov", out)
     return out
 
 
