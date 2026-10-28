@@ -19,6 +19,34 @@ computer says so too, with notifications on, whether anything was new or
 not and whether the window is open or closed: that is the scan someone
 closed the window to wait for. It is the full scan's only notice; the
 ordinary "N new job posts" is not sent for it as well.
+## Added — 2026-10-28 — Free Gemini and Groq keys that do not run out
+
+Not everyone can pay for a plan, and a free Gemini or Groq key has limits
+a minute and a day; once a day's are spent the key answers nothing until
+the next. jobdork now keeps under them (ai/limits.py). Neither provider
+publishes one table of free limits (they are per account and per model,
+and change), so nothing is hardcoded: jobdork reads what each says.
+
+- **Groq** sends, with every answer, the requests left today and the tokens
+  left this minute. A call waits out the minute when those tokens would not
+  cover it.
+- **Gemini** says nothing until it refuses, and its refusal names the
+  quota, its size and how long to wait. A per-minute refusal is waited out
+  and asked once more, and its size learned, so later calls are spaced
+  under it; a per-day one stops that model until midnight Pacific time,
+  with its size learned for the next day.
+- **Background work stops 5 requests short** of the day's limit (a scan's
+  judging, page reading, the claim checks), keeping those for what you ask
+  yourself. The stop is worded as rate limited, so the next reader in your
+  list answers, and a scan's judging ends rather than failing post after
+  post.
+- **The AI page shows today's allowance** for each free model, used and
+  left, and why one is stopped and until when; and takes the daily limit
+  AI Studio or the Groq console shows you, for each (`llm.daily_limits`).
+
+What is learned is held in memory: after a restart the provider's next
+refusal teaches it again. Measuring how many job posts a day a free key
+covers (the "Hosted models measured" item below) still needs real keys.
 ## Fixed — 2026-10-28 — The error log names the reason, not only the status
 
 A request the server could not answer was logged by the page as, for
