@@ -6,6 +6,23 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-28 — Settings no longer makes the Mac ask for Documents and Downloads
+
+Opening Settings in the Mac app made macOS ask to let jobdork into the
+Downloads folder and then the Documents folder. Two sections looked there
+as the page opened: **Remove jobdork from this computer** listed the
+installers Update had left in Downloads and the letters in
+Documents/job-applications, with their sizes, and **Folders** checked that
+the documents folder exists to enable its **Open** button. On a Mac, both
+now wait for you: the remove section shows those two items as *not looked
+at yet* with an **Also look in Documents and Downloads** button (they can
+be ticked without it), and **Open** checks the folder when clicked. macOS
+still asks the first time jobdork writes a letter into Documents, or saves
+an update into Downloads: that is when it needs them. Windows and Linux,
+which do not ask, are unchanged.
+
+---
+
 ## Changed — 2026-10-28 — version 0.15.4
 
 0.15.4 carries the 21 entries below, everything since 0.15.3 (27 October).

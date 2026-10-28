@@ -1339,6 +1339,9 @@ def test_the_folders_are_listed_and_only_opened_on_this_machine():
         assert code == 200 and set(report["folders"]) == {"settings", "backups", "logs",
                                                           "documents"}
         assert report["folders"]["settings"]["path"] == str(Path(run.tmp.name).resolve())
+        # On a Mac, Documents is not looked at for the list: that look asks
+        # for permission. Open looks, when asked.
+        assert (report["folders"]["documents"]["exists"] is None) == (sys.platform == "darwin")
         saved = app_mod.open_with_system
         app_mod.open_with_system = opened.append
         try:

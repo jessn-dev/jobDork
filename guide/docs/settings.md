@@ -133,6 +133,12 @@ reinstall finds it:
 - **Logs**.
 - **Downloaded installers** the Update button left in Downloads.
 
+On a Mac, the last two say *not looked at yet* until you click **Also look
+in Documents and Downloads**: macOS asks once to let an app into those
+folders, and opening Settings should not be what asks. You can tick them
+without looking; whatever jobdork put there goes. The **Folders** list
+likewise leaves the documents folder alone until you click its **Open**.
+
 Click **Remove jobdork…**, check the list it shows, then **Yes, remove**. Last,
 remove the program itself, as the page says:
 

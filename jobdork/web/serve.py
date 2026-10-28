@@ -588,7 +588,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if path == "/api/update/progress":
                 return self._wrap(api_mod.update_progress)
             if path == "/api/uninstall":
-                return self._wrap(api_mod.uninstall_items)
+                look = parse_qs(urlsplit(self.path).query).get("look", [""])[0] == "1"
+                return self._wrap(api_mod.uninstall_items, look)
             return self._reject(404, "no such path")
 
         def do_POST(self) -> None:

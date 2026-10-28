@@ -42,6 +42,9 @@ ITEMS = (
     ("downloads", "Downloaded installers", "installers the Update button left in Downloads"),
 )
 CHOICES = tuple(key for key, _, _ in ITEMS)
+# Items in folders macOS guards: the first look into Documents or Downloads
+# asks the person to allow it, so opening Settings must not be that look.
+GUARDED = ("documents", "downloads")
 
 # jobdork's installers, as the release names them, and Update's leftovers.
 _INSTALLER_GLOBS = ("jobdork-*-macos-*.dmg", "jobdork-*-windows-*-setup.exe",
@@ -55,6 +58,7 @@ class Item:
     label: str
     what: str
     paths: list[Path]
+    unchecked: bool = False      # not looked at yet (see GUARDED)
 
     @property
     def present(self) -> bool:
@@ -80,23 +84,28 @@ def downloads() -> Path:
 
 
 def inventory(home: Path | None = None, docs: Path | None = None,
-              dl: Path | None = None) -> list[Item]:
-    """What there is to remove, item by item: only paths that exist."""
+              dl: Path | None = None, guarded: bool = True) -> list[Item]:
+    """What there is to remove, item by item: only paths that exist.
+
+    `guarded=False` does not look into Documents or Downloads: those items
+    come back `unchecked`, with only what lies in the app's own folder.
+    """
     home = Path(home or app_home())
+    data = home / "data"
     docs = Path(docs or documents_root())
     dl = Path(dl or downloads())
-    data = home / "data"
     found = {
         "settings": [home / "config.yaml", home / "config.local.yaml"],
         # The backups are copies of the job posts, made before every delete.
         "jobs": [data / f"jobdork.db{end}" for end in ("", "-wal", "-shm", "-journal")]
         + [data / "backups", data / "version-check.json", data / "scan.lock"],
         "resume": sorted(data.glob("resume.*")),
-        "documents": [docs, home / "out"],
+        "documents": [docs, home / "out"] if guarded else [home / "out"],
         "logs": [home / "logs"],
-        "downloads": sorted({p for g in _INSTALLER_GLOBS for p in dl.glob(g)}),
+        "downloads": sorted({p for g in _INSTALLER_GLOBS for p in dl.glob(g)}) if guarded else [],
     }
-    return [Item(key, label, what, [p for p in found[key] if p.exists()])
+    return [Item(key, label, what, [p for p in found[key] if p.exists()],
+                 unchecked=not guarded and key in GUARDED)
             for key, label, what in ITEMS]
 
 
