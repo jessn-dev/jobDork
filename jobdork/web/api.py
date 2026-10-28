@@ -667,7 +667,7 @@ def set_advert(cfg, uid: str, text: str) -> dict:
     """
     from ..db import grouping
     from ..db.store import Role, Store
-    from ..search import geo, screen
+    from ..search import screen
     from ..search.scan import _load_resume
 
     if not UID.match(uid or ""):
@@ -678,7 +678,7 @@ def set_advert(cfg, uid: str, text: str) -> dict:
     if len(text) > MAX_ADVERT_CHARS:
         raise ApiError(f"longer than {MAX_ADVERT_CHARS:,} characters")
 
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
+    home = screen.home_of(cfg)
     cv = _load_resume(cfg)
     with Store(cfg.db_path) as store:
         row = store.get(uid)
@@ -695,7 +695,7 @@ def set_advert(cfg, uid: str, text: str) -> dict:
             salary_period=row["salary_period"] or "",
             salary_stated=bool(row["salary_stated"]),
         )
-        verdict = screen.screen(role, cfg, anchor, cv,
+        verdict = screen.screen(role, cfg, home, cv,
                                 first_seen=grouping.earliest_seen(store.conn, uid=uid))
         if role.uid != uid:
             raise ApiError("stored url no longer maps to this job post", 409)
@@ -889,10 +889,10 @@ def add_by_text(cfg, url: str, title: str, company: str, location: str,
 
 def _store_added(cfg, wanted) -> dict:
     from ..db.store import Store
-    from ..search import geo, screen
+    from ..search import screen
 
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
-    verdict = screen.screen(wanted, cfg, anchor)
+    home = screen.home_of(cfg)
+    verdict = screen.screen(wanted, cfg, home)
     with Store(cfg.db_path) as store:
         is_new = store.upsert(wanted)
         store.conn.commit()

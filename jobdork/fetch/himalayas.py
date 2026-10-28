@@ -52,12 +52,14 @@ TZ_SLACK = 1.0           # hours either side of the job's accepted offsets
 
 
 def utc_offset(cfg) -> float | None:
-    """Your UTC offset, from the anchor's longitude; None if it has no place."""
-    if not cfg.locations.anchor.strip():
-        return None
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
-    lon = getattr(anchor, "lon", None)
-    return round(lon / 15) if anchor.located and lon is not None else None
+    """Your UTC offset, from your first placed city's longitude; None if
+    there is none. Cities far apart in time zones are rare enough that the
+    first stands for all."""
+    for text in cfg.locations.cities:
+        anchor = geo.resolve_anchor(text, cfg.country_prefs())
+        if anchor.located:
+            return round(anchor.lon / 15)
+    return None
 
 
 def _day(seconds) -> date | None:

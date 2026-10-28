@@ -1111,6 +1111,21 @@ def region_at(where: Resolved) -> str:
     return ""
 
 
+def region_label(country: str, code: str) -> str:
+    """A chosen region in words: "Cordillera", "Texas"."""
+    return region_name(country, code) or state_name(code)
+
+
+def in_region(where: Resolved, country: str, code: str) -> bool:
+    """Is a resolved place in that region? By its coordinates when it has
+    them, else by the state it names: "Texas" with no city is in TX."""
+    country = (country or "").upper()
+    if where.country and where.country != country:
+        return False
+    found = region_at(where) or region_code(country, where.state) or where.state.upper()
+    return bool(found) and found == (code or "").upper()
+
+
 def picker_anchor(city: str, region: str, country: str) -> str:
     """The anchor text the picker saves, in a form resolve() reads back.
 

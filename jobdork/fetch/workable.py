@@ -45,25 +45,31 @@ WORKPLACE_TO_MODE = {"remote": "remote", "hybrid": "hybrid", "on_site": "office"
 
 
 def location_queries(cfg) -> list[str]:
-    """What to put in `location=`, given the config.
+    """What to put in `location=`, given the config: one query per place.
 
     Exact radius asks for the city. Any numeric radius asks for the whole
     state and lets the haversine do the rest, because a 25-mile circle around
     Austin includes Round Rock and Workable has never heard of a circle.
     """
-    anchor_text = cfg.locations.anchor.strip()
-    if anchor_text:
-        anchor = geo.resolve_anchor(anchor_text, cfg.country_prefs())
+    out: list[str] = []
+    for text in cfg.locations.cities:
+        anchor = geo.resolve_anchor(text, cfg.country_prefs())
         if cfg.locations.radius == "exact" and anchor.city and anchor.state:
-            return [f"{anchor.city}, {geo.state_name(anchor.state)}"]
-        if anchor.state:
-            return [geo.state_name(anchor.state)]
+            out.append(f"{anchor.city}, {geo.state_name(anchor.state)}")
+        elif anchor.state:
+            out.append(geo.state_name(anchor.state))
         # Most countries do not name a region in their postings. A city with
         # its country is the tightest query available there.
-        if anchor.city and anchor.country:
-            return [f"{anchor.city}, {geo.country_name(anchor.country)}"]
-        if anchor.country:
-            return [geo.country_name(anchor.country)]
+        elif anchor.city and anchor.country:
+            out.append(f"{anchor.city}, {geo.country_name(anchor.country)}")
+        elif anchor.country:
+            out.append(geo.country_name(anchor.country))
+    out += [geo.region_label(cfg.locations.country, r) for r in cfg.locations.regions]
+    if out:
+        # Two cities in one state are one query for the state.
+        return list(dict.fromkeys(out))
+    if cfg.locations.country:
+        return [geo.country_name(cfg.locations.country)]
     if cfg.locations.countries:
         return [geo.country_name(c) for c in cfg.locations.countries]
     # No anchor and no countries means no geographic constraint at all, and

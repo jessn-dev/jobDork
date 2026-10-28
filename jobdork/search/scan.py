@@ -30,7 +30,7 @@ from ..db import grouping
 from ..db.store import Role, Store
 from ..fetch.http import Fetcher
 from ..writing import resume_doc
-from . import directory, geo, ownboard, screen
+from . import directory, ownboard, screen
 from . import resume as resume_mod
 
 log = logging.getLogger("jobdork.search.scan")
@@ -240,12 +240,11 @@ def _run(cfg: Config, store: Store, limit: int, progress, part: str) -> ScanRepo
         timeout=cfg.fetch.timeout,
         retries=cfg.fetch.retries,
     )
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
-    if cfg.locations.anchor and not anchor.located:
-        log.warning(
-            "anchor %r could not be placed (%s), so distance filtering is off",
-            cfg.locations.anchor, anchor.note,
-        )
+    home = screen.home_of(cfg)
+    for text, at in home.cities:
+        if not at.located:
+            log.warning("city %r could not be placed (%s), so no distance is "
+                        "measured from it", text, at.note)
 
     cv = _load_resume(cfg, store)
     jobs = _jobs_for(cfg, part)
@@ -305,14 +304,14 @@ def _run(cfg: Config, store: Store, limit: int, progress, part: str) -> ScanRepo
                 if len(stored) > len(role.description or ""):
                     role.description = stored
                 seen = store.first_seen(role.uid)
-                verdict = screen.screen(role, cfg, anchor, cv, first_seen=seen)
+                verdict = screen.screen(role, cfg, home, cv, first_seen=seen)
                 # Screening resolved the place, so the job's other copies can
                 # now be found: one seen earlier means this is a repost, as old
                 # as that first sighting (freshness.age).
                 if verdict.keep:
                     earliest = grouping.earliest_seen(store.conn, role=role)
                     if earliest and (not seen or earliest < seen):
-                        verdict = screen.screen(role, cfg, anchor, cv, first_seen=earliest)
+                        verdict = screen.screen(role, cfg, home, cv, first_seen=earliest)
                 telemetry.tick(count="kept" if verdict.keep else "dropped")
                 if verdict.keep:
                     keepers.append(role)
@@ -369,7 +368,7 @@ def rescreen(cfg: Config, store: Store, remove: bool = False) -> tuple[int, int,
     scan's filters leave a post out: Job posts can show it and keep it, and
     a later scan that matches it again brings it back.
     """
-    anchor = geo.resolve_anchor(cfg.locations.anchor, cfg.country_prefs())
+    home = screen.home_of(cfg)
     cv = _load_resume(cfg, store)
     # Every copy, not just the one the list shows. Duplicates are collapsed
     # by score, so a hidden copy left on its old score can outrank the copy
@@ -398,7 +397,7 @@ def rescreen(cfg: Config, store: Store, remove: bool = False) -> tuple[int, int,
             salary_period=row["salary_period"] or "",
             salary_stated=bool(row["salary_stated"]),
         )
-        verdict = screen.screen(role, cfg, anchor, cv,
+        verdict = screen.screen(role, cfg, home, cv,
                                 first_seen=grouping.earliest_seen(store.conn, uid=row["uid"]))
         # Commit as it goes. One write held open over hundreds of posts kept
         # every other writer out, telemetry included, until the very end; and
