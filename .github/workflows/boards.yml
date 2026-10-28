@@ -48,7 +48,9 @@ jobs:
           python-version: '3.14'
 
       - name: Install
-        run: pip install -e .
+        run: |
+          pip install --require-hashes -r requirements-ci.lock
+          pip install --no-deps --no-build-isolation -e .
 
       - name: Re-verify boards
         env:

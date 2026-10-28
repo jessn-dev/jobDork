@@ -1,0 +1,13 @@
+# What CI installs besides jobdork's own dependencies (pyproject.toml, with
+# its dev, pdf and ai extras): the tools the workflows run, pinned with them
+# in requirements-ci.lock, so a test, scan or guide build fetches nothing
+# unchecked. Each is exact, as in the workflows before the lock.
+setuptools>=77                 # building jobdork itself (pyproject [build-system])
+coverage==7.16.2               # guide.yml's coverage badge
+pip-audit==2.10.1              # docker.yml's security job, guide.yml's badge
+bandit==1.9.4                  # docker.yml's security job
+zizmor==1.31.1 ; python_version >= "3.11"   # the security job (3.14): the workflows themselves
+# The user guide (guide/mkdocs.yml). MkDocs 2 drops the plugin and theme
+# system Material is built on: stay on 1.x.
+mkdocs==1.6.1
+mkdocs-material==9.7.7
