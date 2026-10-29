@@ -53,6 +53,17 @@ the job post window, pictures retaken.
 
 ---
 
+## Changed — 2026-10-29 — The Resume page's preview uses the whole right side
+
+On a wide window the Resume page kept to 1060 pixels and its PDF to 68% of
+the window's height, leaving a band of blank page. The page now widens to
+1600 pixels, the preview takes the larger share of it, and the PDF is as tall
+as the window less the preview's tabs. The PDF opens fitted to the
+preview's width without the viewer's page list beside it, and a long
+*Stored at* path wraps instead of running under the preview.
+
+---
+
 ## Added — 2026-10-29 — A job post's documents beside its tailored resume
 
 On the Resume page, a tailored resume's preview now has a tab for each of
