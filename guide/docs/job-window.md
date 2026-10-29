@@ -92,14 +92,51 @@ Below the score, the advert's skills in three groups:
 
 **What to do** lists the changes that would raise the score.
 
-### The four main buttons
+### The main buttons
 
 | Button | What you get |
 |---|---|
 | **Ask AI** / **Ask AI again** | The AI's verdict on this post: a [score](scores.md#ai-the-models-opinion), a summary, and the reasons for and against |
 | **Write cover letter (AI)** | A cover letter from your resume and this advert. It opens in a new **Cover letter** tab, and is listed on the [Resume](resume.md#cover-letters) page |
 | **Write tailored resume (AI)** | Your resume rewritten for this advert, as a PDF and a Word file named `FirstName_LastName_JobTitle_Resume`, in a plain layout that applicant tracking systems read well ([the layout](#the-tailored-resume)). It opens in a **Tailored resume** tab. Your contact line is copied from your resume, never written by the AI, and any employer, school, skill, certification or award your resume does not name is left out and listed |
+| **Interview prep (AI)** | Ready for the interview: [what it gives](#interview-prep). Opens in an **Interview prep** tab |
+| **Recruiter message (AI)** | A short message to a recruiter or hiring manager: [how it is written](#recruiter-message). Opens in a **Recruiter message** tab |
 | **Review resume for this post** | What to change in your resume for this post, each point quoting the line it is about, and what the advert asks for that your resume does not show. Opens in a **Resume review** tab |
+
+### Interview prep
+
+From your resume, your Resume page entries and this advert:
+
+- **Why you fit**: three to five points where your resume meets what the
+  advert asks for.
+- **Questions about your resume**: five to eight an interviewer is likely to
+  ask, each with what it tests and answer points from your resume.
+- **Follow-ups on your work**: three to six deeper ones about a job or
+  project you list (what was hard, what you would change, how a result was
+  measured).
+- **Gaps to prepare**: three to five things the advert wants that your
+  resume does not show, why they may come up, and how to answer honestly.
+  A gap is never written as something you have: the **gaps not claimed**
+  check is READ if one reads that way.
+- **Talking points**: five to eight lines to work into your answers.
+
+What it says about you (the fit, the answer points, the talking points) gets
+the hallucination check and the figures check, as a letter does. Saved as
+`interview-prep-ai.md` in the job's folder.
+
+### Recruiter message
+
+A message of 70 to 100 words for LinkedIn or an email: its first sentence
+names something from the advert (never "I'm reaching out"), one sentence on
+your strongest match with a figure only if your resume has one, and a small
+ask ("Worth a quick chat?"). No "excited" or "passionate", no greeting, no
+placeholders. It gets the same checks as a letter, and a **word count**
+check. **Copy message** copies it: jobdork never sends anything; paste it
+yourself. Saved as `recruiter-message-ai.md`.
+
+Both follow Resume Matcher's
+([srbhr/resume-matcher](https://github.com/srbhr/resume-matcher)) interview
+prep and outreach message, rewritten with jobdork's rules.
 
 ### Editing help
 

@@ -823,7 +823,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if path in ("/api/enrich", "/api/rescreen", "/api/discover",
                         "/api/generate", "/api/digest", "/api/judge",
                         "/api/check", "/api/letter", "/api/review", "/api/tool",
-                        "/api/tailor"):
+                        "/api/tailor", "/api/prep", "/api/message"):
                 return self._job(path.rsplit("/", 1)[1])
             return self._reject(404, "no such path")
 
@@ -1026,6 +1026,10 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 elif which == "tailor":
                     name = "tailored resume (AI)"
                     work = api_mod.tailor_job(cfg, str(form.get("uid") or ""))
+                elif which in ("prep", "message"):
+                    name = {"prep": "interview prep (AI)", "message": "recruiter message (AI)"}[which]
+                    work = (api_mod.prep_job if which == "prep" else api_mod.message_job)(
+                        cfg, str(form.get("uid") or ""))
                 elif which == "review":
                     name = "resume review"
                     work = api_mod.review_job(cfg, str(form.get("uid") or ""))

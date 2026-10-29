@@ -31,6 +31,34 @@ removes one. **What to do** says what would raise the score.
 
 ---
 
+## Added — 2026-10-29 — Interview prep and a recruiter message, by the AI
+
+Two more documents from a job post's window, written by the AI-page model
+and checked like a cover letter (`ai/writer.py`; `jobdork prep UID` and
+`jobdork message UID`; `/api/prep`, `/api/message`).
+
+**Interview prep (AI)**: why you fit (three to five points), questions
+about your resume (five to eight, each with what it tests and answer points
+from your resume), follow-ups on your work (three to six), gaps to prepare
+(three to five things the advert wants that your resume does not show, how
+to answer honestly) and talking points (five to eight). What it says about
+you gets the hallucination and figures checks; a new **gaps not claimed**
+check is READ when a gap's preparation reads as if you have it. It uses the
+Resume page's projects and education too. Saved as `interview-prep-ai.md`.
+
+**Recruiter message (AI)**: 70 to 100 words for LinkedIn or an email, its
+first sentence on something from the advert (never "I'm reaching out"),
+one on your strongest match, a figure only from your resume, and a small
+ask ("Worth a quick chat?"); no "excited" or "passionate", no greeting, no
+placeholders. A **word count** check joins the letter's checks (and its
+not-empty check takes 150 characters, not 400). **Copy message** copies it:
+jobdork never sends it. Saved as `recruiter-message-ai.md`.
+
+Both follow Resume Matcher's interview prep and outreach message
+(srbhr/resume-matcher, Apache-2.0), rewritten with jobdork's rules.
+
+---
+
 ## Changed — 2026-10-29 — The Resume page: your resumes as cards, beside a preview
 
 The Resume page is laid out after Resume Matcher's dashboard and builder
