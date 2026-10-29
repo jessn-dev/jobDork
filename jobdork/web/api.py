@@ -344,6 +344,35 @@ def _gates(raw: str) -> tuple[dict, int | None]:
 LETTER_FILES = ("cover-letter-ai.md", "cover-letter.md")
 
 
+def list_resumes(cfg) -> dict:
+    """Every tailored resume and CV recorded, newest first, with its job post
+    and how its checks went: the cards at the top of the Resume page."""
+    import re
+
+    from ..db.store import Store
+
+    with Store(cfg.db_path) as store:
+        rows = store.conn.execute(
+            "SELECT a.id, a.uid, a.kind, a.path, a.gates_json, a.created_at, r.title, "
+            "r.company FROM artifacts a LEFT JOIN roles r ON r.uid = a.uid "
+            "WHERE a.kind IN ('tailored_resume', 'cv') ORDER BY a.created_at DESC, a.id DESC"
+        ).fetchall()
+    out = []
+    for r in rows:
+        gates, _ = _gates(r["gates_json"])
+        readable = gates.get("readable by tracking systems") or {}
+        score = re.match(r"(\d+)/100", str(readable.get("detail") or ""))
+        out.append({"id": r["id"], "uid": r["uid"], "kind": r["kind"],
+                    "title": r["title"] or "", "company": r["company"] or "",
+                    "created_at": r["created_at"],
+                    "exists": bool(r["path"]) and Path(r["path"]).is_file(),
+                    "checks": len(gates),
+                    "to_read": sum(1 for g in gates.values()
+                                   if isinstance(g, dict) and not g.get("passed", True)),
+                    "readable": int(score.group(1)) if score else None})
+    return {"resumes": out}
+
+
 def list_letters(cfg) -> dict:
     """Every cover letter recorded, newest first, with its job post."""
     from ..core import storage

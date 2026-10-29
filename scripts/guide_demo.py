@@ -231,9 +231,41 @@ def build(folder: Path) -> Path:
         store.save_education({"credential": "MSN, Nursing Leadership", "school": "DePaul University",
                               "location": "Chicago, IL", "start": "Aug 2025",
                               "end": "Expected May 2027"})
+        _tailored(store, folder, uids)
         _runs(store, now)
     _checked_for_updates(Path(cfg.db_path).parent, now)
     return config
+
+
+def _tailored(store, folder: Path, uids: list[str]) -> None:
+    """Two tailored resumes, for the Resume page's cards: one whose checks all
+    passed, one with a check to read. Laid out by jobdork's own template."""
+    from jobdork.writing import resume_doc
+
+    info = {"name": "Jordan Rivera", "phone": "(312) 555-0142",
+            "email": "jordan.rivera@example.com", "location": "Chicago, IL"}
+    job = {"title": "Charge Nurse, Medical-Surgical", "company": "Lakeshore Community Hospital",
+           "location": "Chicago, IL", "start": "Jun 2021", "end": "Present",
+           "bullets": ["Lead a team of eight nurses per shift on a 32-bed unit.",
+                       "Cut medication errors on the unit by 30% with a bedside barcode "
+                       "scanning rollout.", "Precepted twelve new graduate nurses."]}
+    for n, (uid, to_read) in enumerate(((uids[0], False), (uids[1], True))):
+        doc = {"summary": "Registered nurse with seven years in acute care and telemetry.",
+               "skills": ["Telemetry", "Patient assessment", "Charge nurse", "Epic"],
+               "experience": [job], "education": [], "certifications": ["BLS", "ACLS"],
+               "projects": []}
+        path = folder / "job-applications" / f"demo-{n}" / "Jordan_Rivera_Resume.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(resume_doc.to_markdown(info, doc), encoding="utf-8")
+        gates = {"page count": {"passed": True, "detail": "1 page, within the 1 Indeed suggests "
+                                "for up to 10 years of experience", "items": []},
+                 "readable by tracking systems": {
+                     "passed": True, "detail": "100/100 when read back as a tracking system "
+                     "reads it", "items": []},
+                 "hallucination check": {"passed": not to_read, "items": [],
+                                         "detail": "1 of 9 claims not found in your resume or "
+                                         "the advert" if to_read else "every claim found"}}
+        store.add_artifact(uid, "tailored_resume", str(path), gates=gates)
 
 
 def _checked_for_updates(folder: Path, now: float) -> None:

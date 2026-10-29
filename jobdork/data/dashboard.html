@@ -588,8 +588,41 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .tabs button.on{color:var(--accent);border-color:var(--accent)}
 .gate{font-size:.8rem;margin:.15rem 0}
 .gate.pass{color:var(--ok)}.gate.fail{color:var(--warn)}
+/* The Resume page: cards for your resume and each tailored one, then the
+   details beside a preview of the chosen card (after Resume Matcher's
+   dashboard and builder, in this page's own look). */
+.rcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(11.5rem,1fr));gap:.6rem;margin:.75rem 0}
+.rcard{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:.3rem;cursor:pointer;
+  border:1px solid var(--line);border-radius:10px;padding:.7rem .8rem;background:var(--card);min-height:8.2rem}
+.rcard:hover{border-color:var(--accent)}
+.rcard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.rcard .top{display:flex;align-items:center;justify-content:space-between;gap:.4rem}
+.rcard .ini{display:inline-grid;place-items:center;min-width:2.1rem;height:2.1rem;padding:0 .3rem;
+  border-radius:7px;color:#fff;font-weight:700;font-size:.8rem;letter-spacing:.03em}
+.rcard .st{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.rcard .st::before{content:"";display:inline-block;width:.55rem;height:.55rem;margin-right:.3rem;
+  border-radius:2px;background:currentColor;vertical-align:-.02rem}
+.rcard .st.ok{color:var(--ok)}.rcard .st.read{color:var(--warn)}.rcard .st.none{color:var(--muted)}
+.rcard b{font-size:.9rem;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rcard .sub{font-size:.74rem;color:var(--muted)}
+.rcard .meter{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:auto}
+.rcard .meter i{display:block;height:100%;background:var(--ok)}
+.rcard .meter i.mid{background:var(--warn)}.rcard .meter i.low{background:var(--bad)}
+.rcard.add{align-items:center;justify-content:center;border-style:dashed;color:var(--accent);text-align:center}
+.rcard.add .plus{font-size:1.6rem;line-height:1}
+.rpanes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:1.1rem;align-items:start}
+@media (max-width:1150px){.rpanes{grid-template-columns:minmax(0,1fr)}.rpreview{order:-1}}
+.rpreview{position:sticky;top:1rem;max-height:calc(100vh - 2rem);overflow:auto;margin-top:1.25rem}
+.rptabs{display:flex;gap:.25rem;align-items:center;border-bottom:1px solid var(--line);margin:-.2rem 0 .55rem;flex-wrap:wrap}
+.rptabs [data-rtab]{all:unset;cursor:pointer;padding:.4rem .7rem;font-size:.82rem;font-weight:600;
+  color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.rptabs [data-rtab].on{color:var(--accent);border-bottom-color:var(--accent)}
+.rptabs [data-rtab]:focus-visible{outline:2px solid var(--accent)}
+.rpact{margin-left:auto;display:flex;gap:.3rem;flex-wrap:wrap}
+.rp-head{display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap;margin-bottom:.5rem}
+.rpreview .pdfview{height:68vh}
 /* How a tracking system reads the resume (search/readable.py). */
-#resume-readable{margin-top:.75rem}
 #resume-readable .rhead{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
 #resume-readable .rscore{font-weight:700;font-size:1.05rem}
 #resume-readable .rscore.good{color:var(--ok)}#resume-readable .rscore.mid{color:var(--warn)}
@@ -1373,6 +1406,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <p class="hint">Used to rank job posts by skill overlap, offline and free. It
       is also what every drafted document is built from. Without one, a CV
       would be inventing a career rather than tailoring one.</p>
+    <div class="rcards" id="rcards" aria-label="Your resume and the ones tailored from it"></div>
     <div class="bar">
       <input type="file" id="resume-file" accept=".pdf,.docx,.md,.txt">
       <button data-icon="upload" class="act primary" id="btn-upload">Upload</button>
@@ -1381,14 +1415,15 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <span id="resumemsg"></span>
     </div>
     <div class="upbar" id="resume-bar"></div>
-    <div id="resumeinfo"></div>
-    <div id="resume-readable" class="panel" hidden></div>
     <p class="hint temp-note" id="resume-temp" hidden>Running in a container: the resume
       and the documents below are kept in a temporary folder, emptied when jobdork
       stops or starts. Upload the resume again after a restart, and download a
       letter you want to keep.</p>
+    <div class="rpanes">
+    <div class="rleft">
+    <div id="resumeinfo"></div>
 
-    <h2 style="margin-top:1.5rem">Projects</h2>
+    <h2 style="margin-top:1.25rem">Projects</h2>
     <p class="hint">Work your resume does not describe well, in your own words: any kind
       of project, not only software. An app, articles you wrote, a campaign you ran,
       research, an event, volunteering, a personal project. Every project here goes
@@ -1486,6 +1521,18 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       post's window with <b>Write cover letter (AI)</b>. Delete removes the file and
       its text at once.</p>
     <div id="letters"></div>
+    </div>
+    <aside class="rpreview panel" id="rpreview" aria-label="Preview">
+      <div class="rptabs" role="tablist">
+        <button type="button" role="tab" data-rtab="doc" class="on">Resume</button>
+        <button type="button" role="tab" data-rtab="checks">Checks</button>
+        <span class="rpact" id="rp-acts"></span>
+      </div>
+      <div class="rp-head"><b id="rp-title"></b><span class="hint" id="rp-sub"></span></div>
+      <div id="rp-doc"></div>
+      <div id="rp-checks" hidden><div id="resume-readable" hidden></div><div id="rp-gates"></div></div>
+    </aside>
+    </div>
   </section>
 
   <section id="view-sources" hidden>
@@ -5503,16 +5550,133 @@ async function drawResume() {
   if (cfg.resume_path) api('/api/resume/check').then(r => r.ok ? r.json() : null)
     .then(showReadable).catch(() => showReadable(null));
   else showReadable(null);
+  drawResumeCards().then(drawPreview);
   $('resumeinfo').innerHTML = cfg.resume_path
     ? `<p class="hint">Stored at <code>${esc(cfg.resume_file || cfg.resume_path)}</code></p>`
     : `<p class="hint">None set. Job posts are still found and filtered; they are
        just not ranked by how well they fit you, and drafting is unavailable.</p>`;
 }
 
+// ── the cards and the preview ───────────────────────────────────────────────
+// Your resume first, then each tailored resume and CV, newest first, then a
+// card to tailor one. Choosing a card shows it on the right: the document,
+// or its checks (for your resume, how a tracking system reads it).
+let rsel = 'master', rtab = 'doc', rdocs = [], lastReadable = null, rpUrl = '';
+const RCOLOURS = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6'];
+const initials = t => (String(t || '').replace(/\(.*?\)/g, ' ').match(/[A-Za-z0-9]+/g) || ['?'])
+  .filter(w => !/^(of|and|the|for|at|in|ii|iii|iv)$/i.test(w)).slice(0, 3)
+  .map(w => w[0].toUpperCase()).join('');
+const hue = t => RCOLOURS[[...String(t)].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7) % RCOLOURS.length];
+const band = n => n >= 85 ? '' : n >= 60 ? 'mid' : 'low';
+const day = iso => new Date(String(iso).replace(' ', 'T')).toLocaleDateString(undefined,
+  {year: 'numeric', month: 'short', day: 'numeric'});
+
+async function drawResumeCards() {
+  try {
+    const r = await api('/api/resumes');
+    rdocs = r.ok ? (await r.json()).resumes : [];
+  } catch (e) { rdocs = []; }
+  if (rsel !== 'master' && !rdocs.some(d => d.id === rsel)) rsel = 'master';
+  renderResumeCards();
+}
+
+function renderResumeCards() {
+  if (!cfg) return;
+  const have = !!cfg.resume_path, score = lastReadable && !lastReadable.error ? lastReadable.score : null;
+  const file = (cfg.resume_file || cfg.resume_path || '').split(/[\\/]/).pop();
+  const master = `<button type="button" class="rcard${rsel === 'master' ? ' on' : ''}" data-card="master">
+      <span class="top"><span class="ini" style="background:var(--accent)">M</span>
+        <span class="st ${have ? 'ok' : 'none'}">${have ? 'Ready' : 'None yet'}</span></span>
+      <b>Your resume</b><span class="sub">${have ? esc(file) : 'Upload one below'}</span>
+      ${score === null ? '' : `<span class="sub">Readable: ${score}/100</span>
+        <span class="meter"><i class="${band(score)}" style="width:${score}%"></i></span>`}</button>`;
+  const docs = rdocs.map(d => {
+    const name = d.title || 'A job post no longer listed';
+    return `<button type="button" class="rcard${rsel === d.id ? ' on' : ''}" data-card="${d.id}">
+      <span class="top"><span class="ini" style="background:var(${hue(name)})">${esc(initials(name))}</span>
+        <span class="st ${!d.exists ? 'none' : d.to_read ? 'read' : 'ok'}">${!d.exists ? 'File gone'
+          : d.to_read ? `Read ${d.to_read}` : 'Ready'}</span></span>
+      <b>${esc(name)}${d.company ? ` @ ${esc(d.company)}` : ''}</b>
+      <span class="sub">${d.kind === 'cv' ? 'CV' : 'Tailored resume'} · ${esc(day(d.created_at))}</span>
+      ${d.readable === null ? '' : `<span class="meter"><i class="${band(d.readable)}" style="width:${d.readable}%"></i></span>`}</button>`;
+  }).join('');
+  $('rcards').innerHTML = master + docs + `<button type="button" class="rcard add" data-card="add">
+      <span class="plus">+</span><b>Tailor for a job</b>
+      <span class="sub">From a job post's window: Write tailored resume (AI)</span></button>`;
+  $('rcards').querySelectorAll('[data-card]').forEach(b => b.onclick = () => {
+    if (b.dataset.card === 'add') { document.querySelector('nav button[data-view="roles"]').click(); return; }
+    rsel = b.dataset.card === 'master' ? 'master' : Number(b.dataset.card);
+    renderResumeCards();
+    drawPreview();
+  });
+}
+
+document.querySelectorAll('[data-rtab]').forEach(b => b.onclick = () => {
+  rtab = b.dataset.rtab;
+  document.querySelectorAll('[data-rtab]').forEach(x => {
+    x.classList.toggle('on', x === b); x.setAttribute('aria-selected', String(x === b)); });
+  $('rp-doc').hidden = rtab !== 'doc';
+  $('rp-checks').hidden = rtab !== 'checks';
+});
+
+// A PDF in the preview, from a blob: fetched with the token like every call.
+async function previewPdf(path, title) {
+  const f = await api(path);
+  if (!f.ok) { $('rp-doc').innerHTML = `<p class="err">${esc(cap(await f.text()))}</p>`; return; }
+  if (rpUrl) URL.revokeObjectURL(rpUrl);
+  rpUrl = URL.createObjectURL(new Blob([await f.blob()], {type: 'application/pdf'}));
+  $('rp-doc').innerHTML = `<iframe class="pdfview" src="${rpUrl}" title="${esc(title)}"></iframe>`;
+}
+
+async function drawPreview() {
+  $('rp-doc').innerHTML = '<p class="hint">Loading…</p>';
+  $('rp-gates').innerHTML = '';
+  if (rsel === 'master') {
+    $('resume-readable').hidden = !lastReadable;
+    if (!cfg || !cfg.resume_path) {
+      $('rp-title').textContent = 'No resume yet';
+      $('rp-sub').textContent = '';
+      $('rp-acts').innerHTML = '';
+      $('rp-doc').innerHTML = '<p class="hint">Upload one above: a PDF, Word, Markdown or text file.</p>';
+      return;
+    }
+    const r = await api('/api/resume/view');
+    if (!r.ok) { $('rp-doc').innerHTML = `<p class="err">${esc(cap(await r.text()))}</p>`; return; }
+    const d = await r.json();
+    $('rp-title').textContent = 'Your resume';
+    $('rp-sub').textContent = `${d.name} · ${d.skills.length} skills recognised`;
+    $('rp-acts').innerHTML = `<button type="button" class="act" data-icon="eye" id="rp-full">The text it reads</button>`;
+    $('rp-full').onclick = () => $('btn-resume-view').click();
+    if (d.type === 'pdf') await previewPdf('/api/resume/file', d.name);
+    else $('rp-doc').innerHTML = d.markdown ? `<div class="advert md-doc">${mdLite(d.markdown)}</div>`
+      : `<div class="advert">${esc(d.text)}</div>`;
+    return;
+  }
+  $('resume-readable').hidden = true;
+  const doc = rdocs.find(x => x.id === rsel) || {};
+  $('rp-title').textContent = `${doc.title || 'A job post no longer listed'}${doc.company ? ' @ ' + doc.company : ''}`;
+  $('rp-sub').textContent = `${doc.kind === 'cv' ? 'CV' : 'Tailored resume'} · ${day(doc.created_at)}`;
+  $('rp-acts').innerHTML = (doc.uid ? `<button type="button" class="act" data-icon="external-link" id="rp-job">Job post</button>` : '') +
+    (doc.exists ? `<button type="button" class="act primary" data-icon="download" id="rp-pdf">PDF</button>
+      <button type="button" class="act" data-icon="download" id="rp-word">Word</button>` : '');
+  if ($('rp-job')) $('rp-job').onclick = () => openRole(doc.uid, doc.kind);
+  if ($('rp-pdf')) { $('rp-pdf').onclick = () => artifactPdf(doc.id, true); $('rp-word').onclick = () => artifactWord(doc.id); }
+  if (!doc.exists) { $('rp-doc').innerHTML = '<p class="hint">The file was recorded but is gone.</p>'; return; }
+  const [, a] = await Promise.all([previewPdf('/api/artifact/pdf?id=' + doc.id, $('rp-title').textContent),
+    api('/api/artifact?id=' + doc.id).then(r => r.ok ? r.json() : null)]);
+  $('rp-gates').innerHTML = a ? Object.entries(a.gates || {}).map(([n, g]) =>
+    `<div class="gate ${g.passed ? 'pass' : 'fail'}">${g.passed ? 'ok' : 'READ'}: ${esc(n)}, ${esc(g.detail)}${
+      !g.passed && (g.items || []).length
+        ? `<ul>${g.items.slice(0, 12).map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}</div>`).join('')
+    : '';
+}
+
 // How an applicant tracking system reads the uploaded file: the score, then
 // each problem with what to do about it; the checks that passed are counted.
 function showReadable(rep) {
   const box = $('resume-readable');
+  lastReadable = rep;
+  renderResumeCards();
   box.hidden = !rep;
   if (!rep) return;
   if (rep.error) {
@@ -5808,6 +5972,10 @@ $('btn-upload').onclick = async () => {
        ${d.skills.length} skills recognised.</p>
      <div class="flags">${d.skills.map(s => `<span class="flag">${esc(s)}</span>`).join('')}</div>`;
   showReadable(d.readable || null);
+  // The new file on its card, and in the preview.
+  cfg = await (await api('/api/config')).json();
+  rsel = 'master';
+  drawResumeCards().then(drawPreview);
 };
 
 // ── sources ──────────────────────────────────────────────────────────────────

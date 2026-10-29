@@ -165,6 +165,14 @@ try {
   await run(view('resume'));
   await sleep(1500);
   await shoot('resume');
+  // A tailored resume chosen: its PDF in the preview, then its checks.
+  await run(`document.querySelector('#rcards [data-card]:not([data-card="master"]):not([data-card="add"])').click()`);
+  await sleep(2500);
+  await shoot('resume-tailored');
+  await run(`document.querySelector('[data-rtab="checks"]').click()`);
+  await sleep(500);
+  await shoot('resume-checks', {clip: '#rpreview'});
+  await run(`document.querySelector('[data-rtab="doc"]').click()`);
 
   await run(view('sources'));
   await sleep(2000);
