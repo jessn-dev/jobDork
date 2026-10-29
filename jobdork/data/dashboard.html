@@ -2312,7 +2312,8 @@ const ICONS = {
 };
 const TAB_ICON = {tools: 'sparkles', advert: 'file-text', screen: 'clipboard-check', cv: 'file-user',
                   cover_letter: 'mail', letter: 'mail', resume_review: 'file-search',
-                  tailored_resume: 'file-user'};
+                  tailored_resume: 'file-user', interview_prep: 'messages-square',
+                  recruiter_message: 'send'};
 const STATUS_ICON = {new: 'circle-dot', viewed: 'eye', interested: 'star', applied: 'send',
   submitted: 'file-check', interviewing: 'messages-square', offer: 'award',
   rejected: 'circle-x', withdrawn: 'undo-2', skipped: 'skip-forward', closed: 'archive'};
@@ -2332,7 +2333,8 @@ decorate(document.body);
 
 const TOOL_KINDS = ['resume_edits', 'keywords', 'highlight', 'feedback', 'revise'];
 const TAB_LABEL = {tools: 'AI tools', cover_letter: 'cover letter', resume_review: 'resume review', cv: 'CV',
-                   tailored_resume: 'tailored resume'};
+                   tailored_resume: 'tailored resume', interview_prep: 'interview prep',
+                   recruiter_message: 'recruiter message'};
 // Documents that are resumes: shown formatted, with their PDF to open or save.
 const PDF_KINDS = ['tailored_resume', 'cv'];
 const tabLabel = t => TAB_LABEL[t] || t.replace('_', ' ');
@@ -2397,6 +2399,10 @@ function drawDetail(tab) {
         title="${esc(aiLabel ? `${aiLabel} rewrites your resume for this advert in the ATS template, then checks its claims` : 'set up a model on the AI page')}">Write tailored resume (AI)</button>
       <button data-icon="file-search" class="act spend" onclick="roleJob('review','${d.uid}','resume_review')"
         title="${esc(aiLabel ? `${aiLabel} reviews your resume against this advert` : 'set up a model on the AI page')}">Review resume for this post</button>
+      <button data-icon="messages-square" class="act spend" onclick="roleJob('prep','${d.uid}','interview_prep')"
+        title="${esc(aiLabel ? `${aiLabel} writes likely questions with answer points from your resume, and gaps to prepare` : 'set up a model on the AI page')}">Interview prep (AI)</button>
+      <button data-icon="send" class="act spend" onclick="roleJob('message','${d.uid}','recruiter_message')"
+        title="${esc(aiLabel ? `${aiLabel} writes a short message to a recruiter; you send it yourself` : 'set up a model on the AI page')}">Recruiter message (AI)</button>
       <span id="rolejob" class="hint"></span>
     </div>`;
   let body = tabsBar;
@@ -2453,9 +2459,14 @@ function drawDetail(tab) {
             <button data-icon="download" class="act primary" onclick="artifactPdf(${doc.id}, true)">Download PDF</button>
             <button data-icon="download" class="act" onclick="artifactWord(${doc.id})" title="The same resume as a Word file, to edit before you send it">Download Word</button>
             <span class="hint">Read it through before you send it.</span></div>` : '') +
-        (tab === 'resume_review' || PDF_KINDS.includes(tab)
-          ? `<div class="advert md-doc">${mdLite(tab === 'resume_review' ? untitled(doc.text) : doc.text)}</div>`
+        (tab === 'recruiter_message' ? `<div class="bar">
+            <button type="button" class="act primary" id="copy-msg">Copy message</button>
+            <span class="hint">jobdork never sends it: paste it into LinkedIn or an email yourself.</span></div>` : '') +
+        (['resume_review', 'interview_prep'].includes(tab) || PDF_KINDS.includes(tab)
+          ? `<div class="advert md-doc">${mdLite(PDF_KINDS.includes(tab) ? doc.text : untitled(doc.text))}</div>`
           : `<div class="advert">${esc(doc.text)}</div>`);
+      if ($('copy-msg')) $('copy-msg').onclick = () => navigator.clipboard.writeText(doc.text.trim())
+        .then(() => toast('Copied'), () => toast('Copying was refused by the browser', 'err'));
     });
   }
 }
@@ -2663,7 +2674,9 @@ async function roleJob(which, uid, tab) {
   $('rolejob').textContent = {judge: 'AI is reading…', check: 'checking…',
     letter: 'AI is writing the letter; it opens here when done…',
     tailor: 'AI is tailoring your resume; it opens here when done…',
-    review: 'AI is reviewing your resume; it opens here when done…'}[which];
+    review: 'AI is reviewing your resume; it opens here when done…',
+    prep: 'AI is preparing your interview notes; they open here when done…',
+    message: 'AI is writing the message; it opens here when done…'}[which];
   // The dialog redraws when the run finishes; land on what it made.
   if (tab) detailTab = tab;
   const r = await api('/api/' + which, {method: 'POST', body: form({uid, force: '1'})});

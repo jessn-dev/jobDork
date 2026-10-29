@@ -81,7 +81,8 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
 - **Uses an AI model only when you set one up.** Ollama on your own computer,
   or Anthropic, Gemini, OpenAI or Groq with your key, held in memory or, if
   you choose, in your computer's keychain; never in a file. It can judge posts, write a cover letter, review your resume and
-  write a tailored resume as a PDF and a Word file, held to Indeed's
+  write a tailored resume as a PDF and a Word file, interview prep and a
+  recruiter message, held to Indeed's
   length advice (one page up to ten years). A second model checks each output, claim
   by claim, against your resume and the advert, and anything unsupported is
   flagged: 2.9% of claims with the recommended local model, measured on seven
@@ -259,8 +260,9 @@ pictures taken.
   code, prompts or data (CC BY-NC) is included.
 - **[Resume Matcher](https://github.com/srbhr/resume-matcher)** by srbhr
   (Apache-2.0): the resume readability check (`jobdork/search/readable.py`)
-  follows its parse check's rules, thresholds and penalties, rewritten for
-  jobdork; none of its code is copied.
+  follows its parse check's rules, thresholds and penalties, and the interview
+  prep and recruiter message its prompts' parts, rewritten for jobdork; none
+  of its code is copied.
 - Place names from [GeoNames](https://www.geonames.org/) (CC BY 4.0); icons
   from [Lucide](https://lucide.dev/) (ISC).
 

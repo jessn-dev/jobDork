@@ -1275,7 +1275,8 @@ def _tool(job: str) -> str:
     if job in ("judge", "ai judging"):
         return "AI judging"
     if (job in ("letter", "review", "generate", "screen", "cv", "cover letter",
-                "cover letter (ai)", "resume review", "tailor", "tailored resume (ai)")
+                "cover letter (ai)", "resume review", "tailor", "tailored resume (ai)",
+                "prep", "interview prep (ai)", "message", "recruiter message (ai)")
             or job.startswith("ai tool")):
         return "AI writing"
     if job == "enrich":
@@ -2531,6 +2532,35 @@ def letter_job(cfg, uid: str):
         return (f"wrote {draft.path.name}"
                 + (f"; {len(failed)} gate(s) to read before sending"
                    if failed else "; all gates clean"))
+    return work
+
+
+def prep_job(cfg, uid: str):
+    """Interview prep for one post, from the AI-page model (ai/writer.py)."""
+    return _draft_job(cfg, uid, "prep", "interview prep")
+
+
+def message_job(cfg, uid: str):
+    """A short message to a recruiter about one post (ai/writer.py)."""
+    return _draft_job(cfg, uid, "message", "recruiter message")
+
+
+def _draft_job(cfg, uid: str, which: str, what: str):
+    if not UID.match(uid or ""):
+        raise ApiError("not a job post id")
+
+    def work(progress):
+        from ..ai import llm, writer
+        from ..db.store import Store
+
+        with Store(cfg.db_path) as store:
+            try:
+                draft = getattr(writer, which)(cfg, store, uid, progress=progress)
+            except llm.LLMError as exc:
+                raise ApiError(str(exc)) from exc
+        failed = [g for g in draft.gates if not g.passed]
+        return (f"wrote the {what}, {draft.path.name}"
+                + (f"; {len(failed)} gate(s) to read" if failed else "; all gates clean"))
     return work
 
 

@@ -62,7 +62,7 @@ def _summary(report) -> None:
 
 # Commands that run long enough to be worth watching on the Activity page.
 RECORDED = ("scan", "enrich", "check", "judge", "rescreen", "generate",
-            "letter", "review", "tailor")
+            "letter", "review", "tailor", "prep", "message")
 
 
 def _load(args, first_run: bool = False) -> config.Config:
@@ -677,6 +677,28 @@ def cmd_letter(args) -> int:
                                   progress=None if args.quiet else _say)
         except LLMError as exc:
             print(f"cannot write the letter: {exc}")
+            return 1
+    print(f"\n{draft.path}")
+    _summary_text(f"wrote {draft.path.name} (output {draft.output_id})")
+    return 0
+
+
+def cmd_draft(args) -> int:
+    """Interview prep (`prep`) or a recruiter message (`message`) for one job
+    post, from the AI-page model, checked and saved to the job folder."""
+    from .ai import writer
+    from .ai.llm import LLMError
+
+    cfg = _load(args)
+    with Store(cfg.db_path) as store:
+        uid = _one_uid(store, args.uid)
+        if not uid:
+            return 2
+        try:
+            draft = getattr(writer, args.command)(cfg, store, uid, root=args.dir,
+                                              progress=None if args.quiet else _say)
+        except LLMError as exc:
+            print(f"cannot write it: {exc}")
             return 1
     print(f"\n{draft.path}")
     _summary_text(f"wrote {draft.path.name} (output {draft.output_id})")
@@ -1562,6 +1584,17 @@ def build_parser() -> argparse.ArgumentParser:
                                               "(default ~/Documents/job-applications)")
     p.add_argument("-q", "--quiet", action="store_true")
     p.set_defaults(func=cmd_tailor)
+
+    for name, what in (("prep", "AI interview prep for one job post: likely questions with "
+                                "answer points from your resume, and gaps to prepare"),
+                       ("message", "AI message to a recruiter about one job post, 70 to "
+                                   "100 words, checked against your resume")):
+        p = subs.add_parser(name, parents=[over], help=what)
+        p.add_argument("uid", help="the job post's uid, URL or company")
+        p.add_argument("--dir", default="", help="job folders root "
+                                                  "(default ~/Documents/job-applications)")
+        p.add_argument("-q", "--quiet", action="store_true")
+        p.set_defaults(func=cmd_draft)
 
     p = subs.add_parser("review", parents=[over],
                         help="AI resume review; give a job post id to compare with it")
