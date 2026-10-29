@@ -455,7 +455,16 @@ def resume_check(cfg) -> dict:
 
     if not cfg.resume_path:
         raise ApiError("no resume uploaded", 404)
-    return readable.check_file(cfg.resume_path).to_dict()
+    from ..search import resume as resume_mod
+    from ..writing import style
+
+    out = readable.check_file(cfg.resume_path).to_dict()
+    # How its lines are written (writing/style.py), from the text the tools read.
+    try:
+        out["writing"] = style.check_text(resume_mod.load(cfg.resume_path).text).to_dict()
+    except resume_mod.ResumeError as exc:
+        out["writing"] = {"score": None, "lines": 0, "findings": [], "note": str(exc)}
+    return out
 
 
 def resume_view(cfg) -> dict:
@@ -881,6 +890,7 @@ def save_resume(cfg, filename: str, payload: bytes) -> dict:
     # it would score every role at zero while looking configured.
     from ..search import readable
     from ..search import resume as resume_mod
+    from ..writing import style
     try:
         parsed = resume_mod.load(str(target))
     except resume_mod.ResumeError as exc:
@@ -896,7 +906,8 @@ def save_resume(cfg, filename: str, payload: bytes) -> dict:
     return {
         "path": str(target),
         "file": str(target.resolve()),             # shown: the full path on disk
-        "readable": readable.check_file(str(target)).to_dict(),
+        "readable": {**readable.check_file(str(target)).to_dict(),
+                     "writing": style.check_text(parsed.text).to_dict()},
         "chars": len(parsed.text),
         "skills": sorted(parsed.skills),
         "years": resume_mod.years_claimed(parsed.text),
