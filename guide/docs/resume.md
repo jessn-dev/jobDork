@@ -15,6 +15,30 @@ a new one replaces the old, and every job post is re-scored. Under the
 button, *Stored at* gives the full path of jobdork's copy on your computer
 (your own file is left where it was).
 
+**How a tracking system reads it** checks the file the way an applicant
+tracking system's text reader does, on your computer, with no AI, and
+gives a score out of 100. Each problem says what to do:
+
+| Check | What trips a tracking system |
+|---|---|
+| Text a computer can read | A scan or a picture of a resume: nothing to read |
+| Letters come out as letters | A font that does not say which letters its shapes are, or letters spaced apart ("J O H N") |
+| No page is a picture | A page that is mostly an image |
+| One column | Two columns, read across line by line and mixed (dates at the right margin are fine) |
+| No tables, no text boxes | Word tables and text boxes, often skipped or scrambled |
+| Nothing only in the page header or footer | Your contact details in a header, which many systems skip |
+| Few pictures | A photo, icons or skill bars: anything they say is lost |
+| Length | Over two pages |
+| Email and phone near the top | Contact details missing, or only far down the page |
+| Standard section headings | No Experience, Education or Skills heading, or one split by a large first letter ("E xperience") |
+| Dates, in one format | No dates, or "March 2022" in one place and "03/2022" in another |
+
+A failed check costs 30, 12 or 4 points by how much it matters, a warning
+half that. A Markdown or text file has no layout, so only the content is
+checked. Every tailored resume jobdork writes is checked the same way (the
+**readable by tracking systems** check in its tab), and is laid out to pass.
+The checks follow [Resume Matcher](https://github.com/srbhr/resume-matcher)'s.
+
 - **View resume** shows it, and under *The text the fit score and the AI
   read*, exactly what jobdork could read from it, with the skills it found.
   If something is missing there, the file's layout hid it (usually a table,

@@ -588,6 +588,16 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .tabs button.on{color:var(--accent);border-color:var(--accent)}
 .gate{font-size:.8rem;margin:.15rem 0}
 .gate.pass{color:var(--ok)}.gate.fail{color:var(--warn)}
+/* How a tracking system reads the resume (search/readable.py). */
+#resume-readable{margin-top:.75rem}
+#resume-readable .rhead{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+#resume-readable .rscore{font-weight:700;font-size:1.05rem}
+#resume-readable .rscore.good{color:var(--ok)}#resume-readable .rscore.mid{color:var(--warn)}
+#resume-readable .rscore.low{color:var(--bad)}
+#resume-readable ul{list-style:none;margin:.4rem 0 0;padding:0}
+#resume-readable li{margin:.35rem 0;font-size:.88rem}
+#resume-readable li b.fail{color:var(--bad)}#resume-readable li b.warn{color:var(--warn)}
+#resume-readable li .advice{display:block;color:var(--muted);margin-left:1.4rem}
 table{border-collapse:collapse;width:100%;font-size:.85rem}
 td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
 /* First run: no menu, one step at a time, until setup is finished. */
@@ -1372,6 +1382,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     </div>
     <div class="upbar" id="resume-bar"></div>
     <div id="resumeinfo"></div>
+    <div id="resume-readable" class="panel" hidden></div>
     <p class="hint temp-note" id="resume-temp" hidden>Running in a container: the resume
       and the documents below are kept in a temporary folder, emptied when jobdork
       stops or starts. Upload the resume again after a restart, and download a
@@ -5489,10 +5500,40 @@ async function drawResume() {
   if (!cfg) cfg = await (await api('/api/config')).json();
   $('btn-resume-del').hidden = !cfg.resume_path;
   $('btn-resume-view').hidden = !cfg.resume_path;
+  if (cfg.resume_path) api('/api/resume/check').then(r => r.ok ? r.json() : null)
+    .then(showReadable).catch(() => showReadable(null));
+  else showReadable(null);
   $('resumeinfo').innerHTML = cfg.resume_path
     ? `<p class="hint">Stored at <code>${esc(cfg.resume_file || cfg.resume_path)}</code></p>`
     : `<p class="hint">None set. Job posts are still found and filtered; they are
        just not ranked by how well they fit you, and drafting is unavailable.</p>`;
+}
+
+// How an applicant tracking system reads the uploaded file: the score, then
+// each problem with what to do about it; the checks that passed are counted.
+function showReadable(rep) {
+  const box = $('resume-readable');
+  box.hidden = !rep;
+  if (!rep) return;
+  if (rep.error) {
+    box.innerHTML = `<div class="rhead"><b>How a tracking system reads it</b></div>
+      <p class="hint">Not checked: ${esc(rep.error)}.</p>`;
+    return;
+  }
+  const bad = rep.checks.filter(c => c.status !== 'pass')
+    .sort((a, b) => (a.status === 'fail' ? 0 : 1) - (b.status === 'fail' ? 0 : 1));
+  const passed = rep.checks.length - bad.length;
+  const band = rep.score >= 85 ? 'good' : rep.score >= 60 ? 'mid' : 'low';
+  box.innerHTML = `<div class="rhead"><b>How a tracking system reads it</b>
+      <span class="rscore ${band}">${rep.score}/100</span>
+      <span class="hint">${passed} of ${rep.checks.length} checks passed${
+        rep.kind === 'text' ? '; a text file has no layout to check' : ''}</span></div>
+    ${bad.length ? `<ul>${bad.map(c => `<li><b class="${c.status}">${
+        c.status === 'fail' ? 'Fix' : 'Check'}: ${esc(c.title)}</b>${c.detail ? `, ${esc(c.detail)}` : ''}
+        <span class="advice">${esc(c.advice)}</span></li>`).join('')}</ul>`
+      : '<p class="hint" style="margin:.3rem 0 0">Nothing found that a tracking system trips on.</p>'}
+    <p class="hint" style="margin:.4rem 0 0">Read the way a tracking system's text reader does,
+      on this computer. A tailored resume from jobdork is laid out to pass every check.</p>`;
 }
 
 // Delete asks twice, like Remove: the first click arms it for three seconds.
@@ -5766,6 +5807,7 @@ $('btn-upload').onclick = async () => {
      <p class="hint">${d.chars.toLocaleString()} characters read, ${d.years} years claimed,
        ${d.skills.length} skills recognised.</p>
      <div class="flags">${d.skills.map(s => `<span class="flag">${esc(s)}</span>`).join('')}</div>`;
+  showReadable(d.readable || null);
 };
 
 // ── sources ──────────────────────────────────────────────────────────────────

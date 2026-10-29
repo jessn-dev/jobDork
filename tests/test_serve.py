@@ -774,8 +774,15 @@ def test_an_uploaded_resume_is_deleted_but_your_own_file_is_only_unset():
             headers={"X-Filename": "cv.md", "X-Jobdork-Token": run.token,
                      "Content-Type": "application/octet-stream"})
         with urllib.request.urlopen(request, timeout=5) as response:
-            uploaded = Path(json.loads(response.read())["path"])
+            answer = json.loads(response.read())
+            uploaded = Path(answer["path"])
         assert uploaded.is_file() and uploaded.name == "resume.md"
+        # Checked as a tracking system would read it, on upload and on asking:
+        # no email in it, and no headings.
+        assert {c["id"] for c in answer["readable"]["checks"] if c["status"] == "fail"} \
+            >= {"contact", "headings"}
+        code, body = run.get("/api/resume/check")
+        assert code == 200 and json.loads(body)["score"] == answer["readable"]["score"]
         code, body = run.post("/api/resume/delete", {})
         assert code == 200 and json.loads(body)["deleted"] is True, body
         assert not uploaded.exists() and run.cfg_now.resume_path == ""

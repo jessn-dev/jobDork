@@ -6,6 +6,32 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-29 — How a tracking system reads your resume
+
+The Resume page now checks the uploaded file the way an applicant tracking
+system's text reader does, on this computer and with no AI, and scores it
+out of 100 (`search/readable.py`, `/api/resume/check`, and in the upload's
+answer). It looks for a text layer (not a scan), letters that come out as
+letters, pages that are pictures, two columns, Word tables and text boxes,
+contact details only in a page header, repeated header or footer lines,
+pictures, more than two pages, an email and phone near the top, the
+Experience, Education and Skills headings, and dates written one way. Each
+problem shown says what to do. Every tailored resume gets the same check on
+its own PDF, as the new **readable by tracking systems** gate.
+
+The rules, thresholds and penalties (30, 12 and 4 points, half for a
+warning) follow Resume Matcher's parse check (srbhr/resume-matcher,
+Apache-2.0), rewritten here with pypdf rather than pdfminer and no code
+copied. Tried on two dozen real resumes, three things were added to it: a
+sidebar of skills of even length is still a column (Resume Matcher's rule
+took it for dates at the right margin, so dates must now be dates);
+letter-spaced text ("J O H N") fails as unreadable; and a heading split by a
+large first letter ("E xperience") is named as such, as are plural
+headings and ones wrapped onto two lines ("Education and"), which were
+missed.
+
+---
+
 ## Fixed — 2026-10-28 — Any reader or checker can be moved or removed, the first too
 
 On the AI page and setup's AI step, only reader 2 onward (and checker 2

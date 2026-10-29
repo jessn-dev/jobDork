@@ -257,6 +257,10 @@ pictures taken.
   hallucination check follows, splitting an output into single claims and
   checking each against its source. Only the method is used; none of its
   code, prompts or data (CC BY-NC) is included.
+- **[Resume Matcher](https://github.com/srbhr/resume-matcher)** by srbhr
+  (Apache-2.0): the resume readability check (`jobdork/search/readable.py`)
+  follows its parse check's rules, thresholds and penalties, rewritten for
+  jobdork; none of its code is copied.
 - Place names from [GeoNames](https://www.geonames.org/) (CC BY 4.0); icons
   from [Lucide](https://lucide.dev/) (ISC).
 

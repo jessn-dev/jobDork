@@ -52,6 +52,7 @@ FACTS_GATE = "employers and schools from your resume"
 PROJECTS_GATE = "projects section"
 TUTORIAL_GATE = "tutorial projects"
 LENGTH_GATE = "page count"
+READABLE_GATE = "readable by tracking systems"
 GUARD_GATE = "hallucination check"
 OFF = "turned off in the AI settings"
 
@@ -487,6 +488,7 @@ def tailored_resume(settings: Settings, row, resume_text: str,
     (with_own_projects).
     """
     from ..output import pdf
+    from ..search import readable
     from ..search import resume as resume_mod
     from ..writing import length, resume_doc
 
@@ -603,6 +605,9 @@ def tailored_resume(settings: Settings, row, resume_text: str,
         (span.months / 12) if span else resume_mod.years_claimed(resume_text),
         title=row["title"] or "", advert=advert)
     markdown = resume_doc.to_markdown(info, doc)
+    # The PDF read back as a tracking system reads it (search/readable.py):
+    # a self-test of output/pdf.py, and the contact details the resume gives.
+    readback = readable.check_pdf(pdf.render(markdown))
     # Checked without the name and the lines under it: the resume's own, copied by script.
     body = "\n".join(markdown.splitlines()[1 + len(resume_doc.header_lines(info)):])
     report = (guard.check(settings, body, {"resume": record,
@@ -648,9 +653,15 @@ def tailored_resume(settings: Settings, row, resume_text: str,
         + (f"; {fitted.long_bullets} bullet(s) run past two lines, shorten them"
            if fitted.long_bullets else ""),
         items=fitted.left_out)
+    readable_gate = gates_mod.Gate(
+        READABLE_GATE, passed=not readback.failed,
+        detail=f"{readback.score}/100 when read back as a tracking system reads it"
+        + (f"; {', '.join(c.title.lower() for c in readback.failed + readback.warned)}"
+           if readback.failed or readback.warned else ""),
+        items=[f"{c.title}: {c.detail}. {c.advice}" for c in readback.failed + readback.warned])
     checks = gates_mod.run_all(body, "cv", resume_text=record)
     result = Tailored(text=markdown, gates=[*checks, facts, placed, tutorial_gate,
-                                            length_gate, guard_gate(report)],
+                                            length_gate, readable_gate, guard_gate(report)],
                       guard=report, markdown=markdown)
     result.dropped, result.unmatched = dropped, unmatched
     return result
