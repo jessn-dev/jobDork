@@ -855,6 +855,7 @@ def save_resume(cfg, filename: str, payload: bytes) -> dict:
 
     return {
         "path": str(target),
+        "file": str(target.resolve()),             # shown: the full path on disk
         "chars": len(parsed.text),
         "skills": sorted(parsed.skills),
         "years": resume_mod.years_claimed(parsed.text),
@@ -1873,6 +1874,9 @@ def llm_state(cfg) -> dict:
         "read_pages": cfg.llm.read_pages,
         "guard": cfg.llm.guard,
         "keys": {p: llm.key_for(p)[1] for p in llm.KEYED},
+        # Which variable an environment key came from, named on the page.
+        "env_vars": {p: next((n for n in llm.ENV_KEYS[p] if os.environ.get(n)), "")
+                     for p in llm.KEYED},
         # Where the Ollama key is held from, for lines that send it.
         "ollama_key": llm.key_for(llm.OLLAMA_KEY)[1],
         "problem": settings.problem(),
@@ -1937,14 +1941,19 @@ def keys_state(cfg) -> dict:
 
     store = {"darwin": "macOS Keychain", "win32": "Windows Credential Manager"}.get(
         sys.platform, "your Secret Service (GNOME Keyring or KWallet)")
-    missing = []
+    missing, from_env = [], []
     wanted = [r.provider for r in [*cfg.llm.readers, *cfg.llm.checkers]] or [cfg.llm.provider]
     for provider in dict.fromkeys(p for p in wanted if p in llm.KEYED):
         # Memory or the environment only: asking the keychain on every poll
         # could prompt on a Mac; keys kept there were loaded at start.
-        if not llm.VAULT.get(provider) and not any(
-                os.environ.get(n) for n in llm.ENV_KEYS[provider]):
-            missing.append({"kind": "ai", "name": provider, "label": llm.PROVIDERS[provider]})
+        if llm.VAULT.get(provider):
+            continue
+        var = next((n for n in llm.ENV_KEYS[provider] if os.environ.get(n)), "")
+        entry = {"kind": "ai", "name": provider, "label": llm.PROVIDERS[provider]}
+        # A key set outside jobdork (a shell profile, `launchctl setenv` on a
+        # Mac) counts as held, so it is not asked for: said, with its name, or
+        # the prompt asks for one key of two and nobody knows why.
+        (from_env if var else missing).append({**entry, "var": var} if var else entry)
     if any(r.provider == "ollama" and r.ollama_key for r in [*cfg.llm.readers, *cfg.llm.checkers]) \
             and not llm.VAULT.get(llm.OLLAMA_KEY) and not os.environ.get(llm.ENV_KEYS["ollama"][0]):
         missing.append({"kind": "ai", "name": llm.OLLAMA_KEY, "label": "Ollama"})
@@ -1955,7 +1964,7 @@ def keys_state(cfg) -> dict:
                             "label": "Adzuna" if source == "adzuna" else "USAJOBS"})
     return {"remember": cfg.remember_keys, "store": store,
             "unavailable": keystore.unavailable(), "legacy": bool(cfg.legacy_keys_file),
-            "missing": missing}
+            "missing": missing, "from_env": from_env}
 
 
 def legacy_keys(cfg, keep: bool) -> dict:

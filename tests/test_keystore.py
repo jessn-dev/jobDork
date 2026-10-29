@@ -34,6 +34,35 @@ def _config(tmp: str, extra: str = "") -> config.Config:
     return config.load()
 
 
+def test_a_key_from_the_environment_is_not_asked_for_but_named():
+    here = os.getcwd()
+    saved = {n: os.environ.pop(n, None) for p in llm.KEYED for n in llm.ENV_KEYS[p]}
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            _fresh()
+            os.chdir(tmp)
+            Path("config.yaml").write_text(
+                "titles: {include: [nurse]}\nlocations: {countries: [US]}\n"
+                "llm: {readers: [{provider: gemini, model: g}],\n"
+                "      checkers: [{provider: openai, model: o}]}\n")
+            cfg = config.load()
+            os.environ["OPENAI_API_KEY"] = "env-test-key"     # gitleaks:allow
+            state = api.keys_state(cfg)
+            # Gemini is asked for; OpenAI is not, and the prompt says why.
+            assert [m["name"] for m in state["missing"]] == ["gemini"]
+            assert state["from_env"] == [{"kind": "ai", "name": "openai",
+                                          "label": llm.PROVIDERS["openai"],
+                                          "var": "OPENAI_API_KEY"}]
+            assert api.llm_state(cfg)["env_vars"]["openai"] == "OPENAI_API_KEY"
+            del os.environ["OPENAI_API_KEY"]
+            assert [m["name"] for m in api.keys_state(cfg)["missing"]] == ["gemini", "openai"]
+    finally:
+        os.chdir(here)
+        _fresh()
+        os.environ.pop("OPENAI_API_KEY", None)
+        os.environ.update({n: v for n, v in saved.items() if v is not None})
+
+
 def test_an_ai_key_is_kept_only_when_you_chose_it_and_comes_back_after_a_wipe():
     here = os.getcwd()
     try:

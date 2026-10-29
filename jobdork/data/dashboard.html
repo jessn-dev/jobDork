@@ -3474,6 +3474,15 @@ async function drawKeysPrompt(k) {
       <div class="bar">${k.unavailable ? '' : `<button type="button" class="act primary" data-legacy="1">
         Keep them in ${esc(k.store)}</button>`}
         <button type="button" class="act" data-legacy="0">This time only</button></div></div>` : ''}
+    ${(k.from_env || []).map(m => `<div class="keycard"><b>${esc(m.label)}</b>: not asked for,
+      because <code>${esc(m.var)}</code> is set in your computer's environment, outside jobdork,
+      and that key is used. Paste one here to use another until jobdork closes.
+      <div class="bar"><span class="secret"><input type="password" autocomplete="off"
+          spellcheck="false" data-ai="${esc(m.name)}" placeholder="Paste the key"
+          aria-label="${esc(m.label)} API key" style="width:20rem"><button type="button"
+          class="act" data-show aria-pressed="false">Show</button></span>
+        <button type="button" class="act" data-hold="${esc(m.name)}">Save</button>
+        <span class="hint" data-said="${esc(m.name)}"></span></div></div>`).join('')}
     ${ai.map(m => `<div class="keycard"><b>${esc(m.label)}</b>, for the AI page
       <div class="bar"><span class="secret"><input type="password" autocomplete="off"
           spellcheck="false" data-ai="${esc(m.name)}" placeholder="Paste the key"
@@ -4617,7 +4626,8 @@ function keyState(p) {
   const where = ai.keys[p];
   return where === 'memory'
     ? `<span class="saved">key held in memory</span> <button data-icon="eraser" class="act r-forget" type="button">Forget</button>`
-    : where === 'environment' ? '<span class="hint">using the key from the environment</span>'
+    : where === 'environment' ? `<span class="hint">using ${esc((ai.env_vars || {})[p] || 'the key')} from
+      your computer's environment, set outside jobdork; a key saved here is used instead</span>`
     : '<span class="hint">No key held</span>';
 }
 
@@ -5474,7 +5484,7 @@ async function drawResume() {
   $('btn-resume-del').hidden = !cfg.resume_path;
   $('btn-resume-view').hidden = !cfg.resume_path;
   $('resumeinfo').innerHTML = cfg.resume_path
-    ? `<p class="hint">Currently: <code>${esc(cfg.resume_path)}</code></p>`
+    ? `<p class="hint">Stored at <code>${esc(cfg.resume_file || cfg.resume_path)}</code></p>`
     : `<p class="hint">None set. Job posts are still found and filtered; they are
        just not ranked by how well they fit you, and drafting is unavailable.</p>`;
 }
@@ -5746,7 +5756,7 @@ $('btn-upload').onclick = async () => {
   msg.textContent = ''; toast(`Resume uploaded: ${file.name}`);
   $('btn-resume-del').hidden = false; $('btn-resume-view').hidden = false;
   $('resumeinfo').innerHTML =
-    `<p class="hint">Stored at <code>${esc(d.path)}</code></p>
+    `<p class="hint">${esc(file.name)}, stored at <code>${esc(d.file || d.path)}</code></p>
      <p class="hint">${d.chars.toLocaleString()} characters read, ${d.years} years claimed,
        ${d.skills.length} skills recognised.</p>
      <div class="flags">${d.skills.map(s => `<span class="flag">${esc(s)}</span>`).join('')}</div>`;
