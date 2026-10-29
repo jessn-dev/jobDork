@@ -6,6 +6,23 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-29 — Job posts: the list with the chosen post beside it
+
+On a window 1180 pixels wide or more (the app's own size included), Job
+posts shows the list on the left and the post you chose on the right, as
+job boards do: click a card's title or any blank part of it and the whole
+post (the same tabs as its window) opens beside the list, scrolling on its
+own, with the list still there to choose the next. The chosen card is
+outlined; its Open button, status list and note step aside, as the post has
+them. The post's header gains **Apply** (opens the posting and marks it
+applied, as the card's does) and a **Note** field under the status buttons.
+**Close** empties the space. A narrower window, a list with nothing to open
+(posts dropped by your filters) and other pages (the Resume page's **Job
+post**) still open a post in a window over the page. Guide: Job posts and
+the job post window, pictures retaken.
+
+---
+
 ## Added — 2026-10-29 — A job post's documents beside its tailored resume
 
 On the Resume page, a tailored resume's preview now has a tab for each of

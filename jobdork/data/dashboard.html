@@ -113,6 +113,28 @@ main{padding:1.5rem 1.75rem;min-width:0}
 /* The Dashboard uses the whole width; pages of forms and reading keep a
    measure that is comfortable to read. */
 main > section:not(#view-scan):not(#view-settings):not(#view-setup){max-width:1060px}
+/* A list beside the item chosen from it, as job boards show posts: the list
+   scrolls with the page, the item beside it on its own. Narrower than this,
+   the item opens in a window over the page and the list has the width. */
+.dpane{display:none}
+@media (min-width:1180px){
+  main > section.has-split{max-width:1500px}
+  .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:1rem;align-items:start}
+  .dpane{display:block;position:sticky;top:1rem;max-height:calc(100vh - 2rem);overflow:auto;
+    border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+  .dpane:focus{outline:none}
+  .dpane:empty::before{content:"Choose a job post to read it here.";display:block;padding:2rem 1.25rem;
+    color:var(--muted);font-size:.9rem;text-align:center}
+  .dpane .dlg-body{max-height:none;overflow:visible}
+  .split.solo{display:block}.split.solo .dpane{display:none}
+  /* Narrower than the window: its title first, then Apply and the rest. */
+  .dpane .dh-top{flex-direction:column;gap:.65rem}
+  .split:not(.solo) .role{cursor:pointer}
+  .split:not(.solo) .role:hover{border-color:var(--accent)}
+  .split:not(.solo) .role.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  /* Its status and note are set beside it, in the post. */
+  .split:not(.solo) .role .acts :is(.open,select,.note){display:none}
+}
 h2{font-size:1.05rem;margin:0 0 .35rem}
 .bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
 /* The job post search takes the room left on its row, so a typed company
@@ -806,7 +828,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <p class="hint" id="setup-msg" role="status"></p>
   </section>
 
-  <section id="view-roles" hidden>
+  <section id="view-roles" class="has-split" hidden>
     <div class="bar">
       <select id="status"></select>
       <select id="scope">
@@ -868,7 +890,12 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <p class="count" id="count"></p>
     <div class="gjobs" id="gjobs" hidden></div>
     <div class="cleanup aged" id="aged-roles" role="status" hidden></div>
-    <div id="list"><p class="empty">Loading…</p></div>
+    <!-- The list, and beside it the job post you chose, when the window is
+         wide enough for both; narrower, a post opens in a window over the page. -->
+    <div class="split">
+      <div id="list"><p class="empty">Loading…</p></div>
+      <aside class="dpane" id="roles-pane" tabindex="-1" aria-label="The job post you chose"></aside>
+    </div>
   </section>
 
   <section id="view-scan">
@@ -1957,6 +1984,8 @@ function drawDropped() {
   $('count').textContent = `${shown.length.toLocaleString()} of ${droppedPosts.length.toLocaleString()} ` +
     `dropped by your filters in the last ${days} days · not stored, not scored` +
     (shown.length > DROPPED_SHOWN ? ` · first ${DROPPED_SHOWN} shown, search or filter to narrow` : '');
+  // A dropped post was never stored, so there is nothing to open beside it.
+  soloList(true);
   $('list').innerHTML = shown.length ? shown.slice(0, DROPPED_SHOWN).map(droppedCard).join('')
     : `<p class="empty">${droppedPosts.length ? 'Nothing matches.'
         : 'Nothing dropped yet. Posts your filters leave out are listed here after a scan.'}</p>`;
@@ -2080,6 +2109,7 @@ function drawRoles(d = rolesMeta) {
   $('nav-new').hidden = !fresh;
   $('nav-new').textContent = fresh > 999 ? '999+' : fresh;
   $('list').innerHTML = shown.length ? shown.map(card).join('') : '<p class="empty">Nothing matches.</p>';
+  soloList(!shown.length);
   drawGoogleJobs(!shown.length);
 }
 
@@ -2105,7 +2135,7 @@ function card(r) {
   const flags = (r.flags || []).map(f => `<span class="flag">${esc(flagLabel(f))}</span>`).join('');
   const opts = STATUSES.map(s =>
     `<option value="${s}"${s === r.status ? ' selected' : ''}>${cap(s)}</option>`).join('');
-  return `<div class="role" id="r-${r.uid}">
+  return `<div class="role${r.uid === chosen() ? ' on' : ''}" id="r-${r.uid}" onclick="cardClick(event, '${r.uid}')">
     <div class="head">
       ${matchTag(r.score, r.parts)}
       ${fitTag(r.fit, r.parts)}
@@ -2120,7 +2150,7 @@ function card(r) {
     ${flags ? `<div class="flags">${flags}</div>` : ''}
     ${overlapBox(r.overlap, false)}
     <div class="acts">
-      <button data-icon="eye" class="act" onclick="openRole('${r.uid}')">Open</button>
+      <button data-icon="eye" class="act open" onclick="openRole('${r.uid}')">Open</button>
       <button data-icon="star" class="act" onclick="act('${r.uid}','interested')">Interested</button>
       <button data-icon="external-link" class="act" data-url="${esc(r.url)}" onclick="apply('${r.uid}', this.dataset.url, this)">Apply</button>
       <button data-icon="skip-forward" class="act" onclick="act('${r.uid}','skipped')">Skip</button>
@@ -2137,7 +2167,7 @@ async function act(uid, status, note) {
   const r = await api('/api/action', {method: 'POST', body});
   if (!r.ok) { alert('Not saved: ' + await r.text()); if (el) el.classList.remove('busy'); return; }
   await loadRoles();
-  if (detail && detail.uid === uid && $('detail').open) openRole(uid, detailTab);
+  if (detail && detail.uid === uid && detailShown()) openRole(uid, detailTab);
 }
 
 // The posting is opened and then recorded. Marking applied without opening it
@@ -2209,12 +2239,69 @@ async function openRole(uid, tab = 'advert') {
   // and not decided on looks identical to one you never opened.
   if (detail.status === 'new') act(uid, 'viewed');
   // A tab is an artifact kind; fall back to the advert if this role lacks it.
-  const kinds = [...(detail.artifacts || []).map(a => a.kind), 'tools'];
+  const kinds = [...(detail.artifacts || []).map(a => a.kind), 'ats', 'tools'];
+  const pane = detailPane(), redraw = detail.uid === chosen() && detailShown();
+  if (pane) {
+    if ($('detail').open) $('detail').close();
+    if (!pane.contains($('dlg-head'))) pane.replaceChildren($('dlg-head'), $('dlg-body'));
+  } else if (!$('detail').contains($('dlg-head'))) $('detail').replaceChildren($('dlg-head'), $('dlg-body'));
   drawDetail(kinds.includes(tab) ? tab : 'advert');
+  markChosen();
+  if (pane) {
+    // A new post starts at its top; the same one, redrawn, stays put.
+    if (!redraw) { pane.scrollTop = 0; pane.focus({preventScroll: true}); }
+    return;
+  }
   // act() reopens the role to redraw it; showModal on an open dialog throws.
   if (!$('detail').open) $('detail').showModal();
   // Not the first focusable thing, the Match badge, whose tip a focus opens.
   $('detail').focus();
+}
+
+// Where a job post opens: beside the list on a page that has one and room
+// for it (the CSS hides the pane otherwise), else in the window over the page.
+function detailPane() {
+  const pane = document.querySelector('main > section:not([hidden]) .dpane');
+  return pane && getComputedStyle(pane).display !== 'none' ? pane : null;
+}
+
+function detailShown() {
+  const pane = $('dlg-head').closest('.dpane');
+  return $('detail').open || !!(pane && !pane.closest('section').hidden);
+}
+
+// The post showing, whose card in the list is marked.
+function chosen() { return detail && detailShown() ? detail.uid : null; }
+
+function markChosen() {
+  const uid = chosen();
+  document.querySelectorAll('.split .role').forEach(c => c.classList.toggle('on', c.id === 'r-' + uid));
+}
+
+// The list alone, with no pane, when there is nothing in it to open.
+function soloList(solo) {
+  const split = $('list').closest('.split');
+  split.classList.toggle('solo', solo);
+  if (solo && $('dlg-head').closest('.dpane') === split.querySelector('.dpane')) closeDetail();
+}
+
+// Narrowed until the pane hides: the post moves out of it.
+matchMedia('(min-width:1180px)').addEventListener('change', e => {
+  if (!e.matches && $('dlg-head').closest('.dpane')) closeDetail();
+});
+
+function closeDetail() {
+  if ($('detail').open) { $('detail').close(); return; }
+  // Out of the pane, back into the window, so the pane shows its hint.
+  $('detail').replaceChildren($('dlg-head'), $('dlg-body'));
+  markChosen();
+}
+
+// A click on a card's blank space opens it; its buttons, links and fields
+// do their own thing.
+function cardClick(e, uid) {
+  if (e.target.closest('button, a, select, input, textarea, label, .badge, .title')) return;
+  if (detailPane()) openRole(uid);
 }
 
 function openPosting() {
@@ -2372,8 +2459,10 @@ function drawDetail(tab) {
         <h2 class="dh-title" id="detail-title">${esc(d.title)}</h2>
       </div>
       <div class="dh-btns">
-        <button data-icon="external-link" class="act primary" onclick="openPosting()">Open posting</button>
-        <button data-icon="x" class="act" onclick="document.getElementById('detail').close()">Close</button>
+        <button data-icon="send" class="act primary" data-url="${esc(d.url)}" onclick="apply('${d.uid}', this.dataset.url, this)"
+          title="Opens the posting and marks it applied">Apply</button>
+        <button data-icon="external-link" class="act" onclick="openPosting()">Open posting</button>
+        <button data-icon="x" class="act" onclick="closeDetail()">Close</button>
       </div>
     </div>
     <div class="meta" style="width:100%">${
@@ -2393,7 +2482,9 @@ function drawDetail(tab) {
       // new and viewed are recorded for you; these are the ones you decide.
       STATUSES.filter(s => s !== 'new' && s !== 'viewed').map(s => s === d.status
         ? `<button class="act cur" data-icon="${STATUS_ICON[s] || 'circle-dot'}" style="background:${COLOURS[s] || '#6b7280'};border-color:${COLOURS[s] || '#6b7280'}" disabled>${cap(s)}</button>`
-        : `<button class="act" data-icon="${STATUS_ICON[s] || 'circle-dot'}" onclick="act('${d.uid}','${s}')">${cap(s)}</button>`).join('')}</div>`;
+        : `<button class="act" data-icon="${STATUS_ICON[s] || 'circle-dot'}" onclick="act('${d.uid}','${s}')">${cap(s)}</button>`).join('')}
+      <input class="note" value="${esc(d.note)}" placeholder="Note (Enter saves)" aria-label="Your note on this job post"
+        onkeydown="if(event.key==='Enter')act('${d.uid}', null, this.value)"></div>`;
 
   // AI tool results live together under one tab rather than a tab each.
   const tabs = ['advert', 'ats', ...(d.artifacts || []).map(a => a.kind).filter(k => !TOOL_KINDS.includes(k)), 'tools'];
@@ -2581,7 +2672,7 @@ async function artifactWord(id) {
 async function generate(uid, kind) {
   const r = await api('/api/generate', {method: 'POST', body: form({uid, kind})});
   if (!r.ok) { alert(await r.text()); return; }
-  $('detail').close();
+  closeDetail();
   document.querySelector('nav button[data-view="scan"]').click();
   logLine(`${cap(tabLabel(kind))} started (this spends tokens)`, 'dim');
 }
@@ -4701,7 +4792,7 @@ function listingTag(l, always) {
 }
 
 function redrawDetail() {
-  if (detail && $('detail').open) openRole(detail.uid, detailTab);
+  if (detail && detailShown()) openRole(detail.uid, detailTab);
 }
 
 // ── AI settings ──────────────────────────────────────────────────────────────

@@ -1,9 +1,12 @@
 # The job post window
 
 Click a job title, or **Open**, to see one post in full. Opening a new post
-marks it *viewed*.
+marks it *viewed*. On a wide window it opens beside the list on
+[Job posts](job-posts.md), with the list still there to choose the next;
+on a narrower one, and from other pages (the Resume page's **Job post**), in a
+window over the page. Both hold the same things.
 
-![A job post's window](images/job-window.png)
+![A job post beside the list](images/job-window.png)
 
 ## The top
 
@@ -13,13 +16,15 @@ marks it *viewed*.
   was the AI verdict useful? Your answers are counted on the
   [Dashboard](dashboard.md#the-numbers); they are how you can tell whether
   a model is worth keeping.
-- **Open posting** opens the employer's page in your browser, to apply.
-  **Close** closes the window.
+- **Apply** opens the employer's page in your browser and marks the post
+  *applied*, as the card's **Apply** does. **Open posting** only opens it.
+  **Close** closes the window, or empties the space beside the list.
 - The employer, place, arrangement, source, and how long the stored advert
   is. **Also posted at** lists the other places the same job was found,
   and whether each is still up.
 - **The status buttons** ([what each means](statuses.md#statuses)). The
-  coloured one is the current status.
+  coloured one is the current status. Under them, your **Note** on the post
+  (Enter saves), the same one the card has.
 
 ## Advert
 
