@@ -61,6 +61,8 @@ The four checks `main` requires keep their names (`test (3.10)`,
 `test (3.14)`, `security`, `image`): `main`'s ruleset names them, and a
 renamed one would never report, blocking every pull request.
 
+---
+
 ## Changed — 2026-10-28 — The installers built when they need to be
 
 The Mac (Apple Silicon and Intel) and Windows installers were built on every
