@@ -1,4 +1,4 @@
-name: Test, scan and publish
+name: "CI: test, scan and build every change; release on a tag"
 
 # Every push and pull request: tests, security scans, and the image built,
 # scanned and checked. A release is a version tag (v1.2.3): only a tag
@@ -212,6 +212,7 @@ jobs:
   # on every change and kept the queue full. desktop.yml's Run workflow
   # button builds any branch by hand, before a tag.
   packaging:
+    name: "Installers: needed for this change?"
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.diff.outputs.changed }}
@@ -258,6 +259,7 @@ jobs:
   # the build is attested, and an attestation should never vouch for code
   # that failed a scan.
   desktop:
+    name: Installers
     needs: [test, security, packaging]
     if: needs.packaging.outputs.changed == 'true'
     uses: ./.github/workflows/desktop.yml
@@ -269,6 +271,7 @@ jobs:
       attestations: write
 
   publish:
+    name: "Release: publish the Docker image (after your approval)"
     # The installers too: a tag whose app does not build publishes nothing,
     # rather than an image with a release page missing its downloads.
     needs: [image, desktop]
@@ -380,6 +383,7 @@ jobs:
   # installers, how to verify them, and what changed. A separate job, because
   # it needs to write to the repository and publishing must not.
   release-page:
+    name: "Release: create the GitHub Release page"
     needs: [publish, desktop]
     runs-on: ubuntu-latest
     permissions:
