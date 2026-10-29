@@ -6001,7 +6001,7 @@ async function drawFolders() {
   $('folders').innerHTML = Object.entries(d.folders).map(([k, f]) => `<div class="row">
     <b>${esc(FOLDER_NAMES[k] || k)}</b><code>${esc(f.path)}</code>
     ${d.can_open ? `<button data-icon="folder-open" class="act" data-folder="${esc(k)}"
-      ${f.exists ? '' : 'disabled title="Nothing has been written here yet"'}>Open</button>` : '<span></span>'}
+      ${f.exists === false ? 'disabled title="Nothing has been written here yet"' : ''}>Open</button>` : '<span></span>'}
     <span class="what">${esc(f.what)}</span></div>`).join('');
   $('folders').querySelectorAll('[data-folder]').forEach(b => b.onclick = async () => {
     const r = await api('/api/folders/open', {method: 'POST', body: form({which: b.dataset.folder})});
@@ -6128,17 +6128,24 @@ $('upd-page').onclick = () => lastVersion && openOut(lastVersion.url);
 // what goes; then what is left to do, the program itself.
 const mbOf = n => n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : n >= 1e3 ? `${Math.round(n / 1e3)} KB` : `${n} bytes`;
 
-async function drawRemove() {
+// Documents and Downloads are the person's folders, looked into only on
+// "Also look" (look=1): on a Mac the first look makes macOS ask to allow it,
+// and opening Settings must not be what asks.
+async function drawRemove(look) {
   const box = $('rm-box');
-  const r = await api('/api/uninstall');
+  const r = await api('/api/uninstall' + (look ? '?look=1' : ''));
   if (!r.ok) { box.innerHTML = `<p class="hint">${esc(cap(await r.text()))}.</p>`; return; }
   const d = await r.json();
-  const items = d.items.filter(i => i.present);
+  const items = d.items.filter(i => i.present || i.unchecked);
+  const unchecked = d.items.some(i => i.unchecked);
   box.innerHTML = `${items.length ? items.map(i => `<div class="row">
       <label class="check-inline"><input type="checkbox" class="rm-item" value="${esc(i.key)}">
         <b>${esc(i.label)}</b></label>
-      <span class="hint">${esc(i.what)} · ${mbOf(i.size)}</span></div>`).join('')
+      <span class="hint">${esc(i.what)} · ${i.unchecked ? 'not looked at yet' : mbOf(i.size)}</span></div>`).join('')
     : '<p class="hint">Nothing of yours is left on this computer.</p>'}
+    ${unchecked ? `<div class="row"><button data-icon="search" class="act" id="rm-look" type="button">Also look in
+      Documents and Downloads</button><span class="hint">Your own folders, so jobdork looks
+      only when you ask${navigator.platform.startsWith('Mac') ? '; your Mac asks once to allow it' : ''}.</span></div>` : ''}
     <div class="row">${d.finish === 'windows'
       ? `<span class="hint">On Windows, uninstall from <b>Settings, Apps, jobdork,
           Uninstall</b>: it asks the same questions, and can remove files jobdork has open.</span>`
@@ -6147,6 +6154,8 @@ async function drawRemove() {
     <div id="rm-result" aria-live="polite"></div>`;
   const start = $('rm-start');
   if (start) start.onclick = () => askRemove(d);
+  const lookBtn = $('rm-look');
+  if (lookBtn) lookBtn.onclick = () => drawRemove(true);
 }
 
 function askRemove(d) {

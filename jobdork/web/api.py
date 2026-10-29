@@ -2740,8 +2740,10 @@ def folders(cfg) -> dict:
         "documents": {"path": str(Path(generate.default_root()).expanduser()),
                       "what": "Cover letters and tailored resumes, a folder per job"},
     }
-    for item in where.values():
-        item["exists"] = Path(item["path"]).is_dir()
+    for key, item in where.items():
+        # Not Documents: the person's folder, not the app's (on a Mac the
+        # first look there makes macOS ask). Open checks it, when asked.
+        item["exists"] = None if key == "documents" else Path(item["path"]).is_dir()
     local = not os.environ.get(CONTAINER_ENV) and not os.environ.get(ALLOW_ENV, "").strip()
     return {"folders": where, "can_open": local}
 
@@ -2804,9 +2806,15 @@ def _finish_removing() -> str:
     return "appimage" if os.environ.get("APPIMAGE") else "linux"
 
 
-def uninstall_items() -> dict:
+def uninstall_items(look: bool = False) -> dict:
     """Settings' "Remove jobdork from this computer": what there is, item by
-    item, with its size, for the person to choose from."""
+    item, with its size, for the person to choose from.
+
+    Documents and Downloads are looked into only when the person asks
+    (`look`): they are the person's own folders, not the app's, and on a Mac
+    the first look makes macOS ask to allow it, which opening Settings should
+    not do.
+    """
     from ..core import uninstall
 
     if not getattr(sys, "frozen", False):
@@ -2814,7 +2822,8 @@ def uninstall_items() -> dict:
                        "in its own folder, which ./run.sh clean empties", 409)
     return {"finish": _finish_removing(), "appimage": os.environ.get("APPIMAGE", ""),
             "items": [{"key": i.key, "label": i.label, "what": i.what, "size": i.size,
-                       "present": i.present} for i in uninstall.inventory()]}
+                       "present": i.present, "unchecked": i.unchecked}
+                      for i in uninstall.inventory(guarded=look)]}
 
 
 def uninstall_now(form: dict) -> dict:
