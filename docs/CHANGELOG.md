@@ -6,6 +6,23 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-29 — The Resume page: your resumes as cards, beside a preview
+
+The Resume page is laid out after Resume Matcher's dashboard and builder
+(srbhr/resume-matcher), in jobdork's own colours, fonts and dark mode.
+Across the top, a card for your resume (its readability score as a bar),
+one for each tailored resume and CV, newest first (the job's initials,
+title and employer, the date, *Ready* or *Read 2* for checks to look at,
+and its readability), and **Tailor for a job**, which opens Job posts.
+Below, the details (the upload, Projects, Education, Resume review and
+Cover letters) sit beside a preview of the chosen card: **Resume** shows
+it as it will print, **Checks** its checks, and a tailored one has **Job
+post**, **PDF** and **Word**. On a narrow window the preview comes first.
+New `/api/resumes` lists the cards. The guide demo gained two tailored
+resumes, and the guide two pictures.
+
+---
+
 ## Added — 2026-10-29 — How a tracking system reads your resume
 
 The Resume page now checks the uploaded file the way an applicant tracking

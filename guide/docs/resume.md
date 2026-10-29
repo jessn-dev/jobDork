@@ -6,6 +6,31 @@ letter and tailored resume is built from. It stays on your computer.
 
 ![The Resume page](images/resume.png)
 
+## Your resumes, as cards
+
+Across the top, a card for each resume:
+
+- **Your resume** (M): the file you uploaded, *Ready* once it is read, with
+  its readability score as a bar ([below](#how-a-tracking-system-reads-it)).
+- **One card per tailored resume and CV**, newest first: the job post's
+  initials, its title and employer, when it was written, and *Ready* when
+  every check passed or *Read 1* (2, 3…) for the checks to look at before
+  you send it. The bar is how a tracking system reads it.
+- **Tailor for a job** opens Job posts: a tailored resume is written from a
+  job post's window, with **Write tailored resume (AI)**.
+
+Click a card to see it on the right. **Resume** shows the document (a PDF
+as it will print), **Checks** shows its checks: for your own resume, how a
+tracking system reads it; for a tailored one, every check its tab shows.
+Your resume's preview has **The text it reads**: what the fit score and the
+AI were given from the file.
+A tailored resume's preview has **Job post** (its window), **PDF** and
+**Word**. On a narrow window the preview moves above the rest.
+
+![A tailored resume chosen](images/resume-tailored.png)
+
+![Its checks](images/resume-checks.png)
+
 ## Your resume
 
 **Choose File**, then **Upload**: a PDF, Word (`.docx`), Markdown (`.md`) or
@@ -15,7 +40,9 @@ a new one replaces the old, and every job post is re-scored. Under the
 button, *Stored at* gives the full path of jobdork's copy on your computer
 (your own file is left where it was).
 
-**How a tracking system reads it** checks the file the way an applicant
+### How a tracking system reads it
+
+**Checks**, on your resume's card, looks at the file the way an applicant
 tracking system's text reader does, on your computer, with no AI, and
 gives a score out of 100. Each problem says what to do:
 

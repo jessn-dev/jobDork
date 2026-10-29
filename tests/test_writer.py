@@ -255,6 +255,10 @@ def test_a_tailored_resume_keeps_to_the_resume_and_is_named_for_the_role():
         assert "/100 when read back" in readback.detail
         content = ("Email and phone", "Standard section headings", "Dates")
         assert all(i.startswith(content) for i in readback.items), readback.items
+        # A card on the Resume page: the job, its checks, its readability score.
+        card = api.list_resumes(cfg)["resumes"][0]
+        assert card["id"] == result.artifact_id and card["exists"] and card["kind"] == "tailored_resume"
+        assert card["readable"] == int(readback.detail.split("/")[0]) and card["to_read"] >= 1
         fits = next(g for g in result.gates if g.name == writer.LENGTH_GATE)
         assert fits.passed and fits.detail.startswith("1 page, within the 1 Indeed suggests")
 

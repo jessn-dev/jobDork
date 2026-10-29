@@ -546,6 +546,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._send(200, body, kind)
             if path == "/api/letters":
                 return self._wrap(api_mod.list_letters, cfg_holder["cfg"])
+            if path == "/api/resumes":
+                return self._wrap(api_mod.list_resumes, cfg_holder["cfg"])
             if path == "/api/projects":
                 return self._wrap(api_mod.list_projects, cfg_holder["cfg"])
             if path == "/api/education":
