@@ -96,6 +96,32 @@ def test_the_list_says_what_is_there_and_how_big():
         assert items["jobs"].size == len("db") + len("wal") + len("backup") + len("{}")
 
 
+def test_documents_and_downloads_are_not_looked_into_until_asked():
+    """On a Mac the first look there asks for permission: Settings opening
+    must not be it. Unlooked items say so; the app's own folder is listed."""
+    with tempfile.TemporaryDirectory() as tmp:
+        home, docs, dl = _computer(Path(tmp))
+        looked = []
+        real_exists, real_glob = Path.exists, Path.glob
+
+        def exists(self, *a, **k):
+            looked.append(self)
+            return real_exists(self, *a, **k)
+
+        def glob(self, *a, **k):
+            looked.append(self)
+            return real_glob(self, *a, **k)
+        Path.exists, Path.glob = exists, glob
+        try:
+            items = {i.key: i for i in uninstall.inventory(home, docs, dl, guarded=False)}
+        finally:
+            Path.exists, Path.glob = real_exists, real_glob
+        assert not [p for p in looked if p.is_relative_to(docs) or p.is_relative_to(dl)]
+        assert items["documents"].unchecked and items["downloads"].unchecked
+        assert items["downloads"].paths == [] and not items["resume"].unchecked
+        assert items["resume"].paths == [home / "data" / "resume.pdf"]
+
+
 def test_a_path_outside_jobdorks_folders_is_never_removed():
     """A link in the app folder pointing elsewhere is not followed out."""
     with tempfile.TemporaryDirectory() as tmp:
