@@ -18,6 +18,7 @@ first makes the next one first. A single line is still turned off with
 
 ---
 
+
 ## Fixed — 2026-10-28 — AI providers by their company names, and a save message that says which line
 
 The AI page and setup's AI step named two providers by their chat apps: they
