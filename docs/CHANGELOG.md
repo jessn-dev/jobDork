@@ -6,6 +6,38 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-28 — A tailored resume in Indeed's layout and length, as Word too
+
+A tailored resume is now laid out like Indeed's free resume template and held
+to Indeed's advice on length
+(https://www.indeed.com/career-advice/resumes-cover-letters/how-long-should-a-resume-be).
+The name, then *Phone | Email | Location* and the website line, centred;
+then Professional summary, Experience, Skills, Education, Certifications and
+a new Awards & volunteer work section (each award checked against the resume
+like an employer); each job's dates at the right margin with *Company,
+Location* under the title; skills separated by `|`; Arial's equal at 11
+points, 0.7 inch margins. Students still lead with Education and projects
+still go by career stage.
+
+Length is enforced in code (`writing/length.py`), not only asked of the
+model: one page for up to ten years of experience, two after that, three
+past 25 years or for academic and medical jobs; jobs older than 15 years
+left out; seven bullets for the newest job down to three for older ones;
+and while the PDF runs over, an older job's last bullets go first, then
+extra projects, awards and the end of a long skills list. A new **page
+count** check says how many pages it fills and lists each cut.
+
+Besides the PDF, `jobdork tailor` and **Write tailored resume (AI)** write
+the same resume as a Word file (`FirstName_LastName_JobTitle_Resume.docx`),
+and the document's tab has **Download Word**. The `.docx` is written by
+`output/docx.py` with no new dependency, keeps any script (the PDF still
+spells non-Western letters with the nearest ones), and has no tables, text
+boxes or headers for a tracking system to trip on. The template's own file
+is not in the repository: the layout is rebuilt. Claude Code drafts
+(`CV.md`) get the same layout and length rules.
+
+---
+
 ## Changed — 2026-10-28 — Workflow names that say what each one does
 
 The Actions page listed "Test, scan and publish", "Desktop app", "guide",
@@ -28,6 +60,8 @@ every job what it checks:
 The four checks `main` requires keep their names (`test (3.10)`,
 `test (3.14)`, `security`, `image`): `main`'s ruleset names them, and a
 renamed one would never report, blocking every pull request.
+
+---
 
 ## Changed — 2026-10-28 — The installers built when they need to be
 
