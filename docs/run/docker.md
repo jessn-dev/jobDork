@@ -68,7 +68,7 @@ On the AI page, Ollama running on the same computer is
 `http://host.docker.internal:11434` with Docker Desktop (macOS, Windows); on
 Linux, add `--add-host=host.docker.internal:host-gateway` to `docker run`
 and make Ollama listen on more than `127.0.0.1`. Inside the container,
-`localhost` is the container itself. Claude, Gemini, ChatGPT and Groq need only a
+`localhost` is the container itself. Anthropic, Gemini, OpenAI and Groq need only a
 key, typed on the AI page and held in memory until the container stops.
 
 ## Scans that run by themselves

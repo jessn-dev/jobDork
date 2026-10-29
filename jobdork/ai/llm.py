@@ -1,8 +1,8 @@
 """
 jobdork.ai.llm
 ==============
-A language model as a second reader: local through Ollama, or Claude, Gemini,
-ChatGPT or Groq through their APIs.
+A language model as a second reader: local through Ollama, or Anthropic, Gemini,
+OpenAI or Groq through their APIs.
 
 It is used for two things, both optional and both on top of the rule-based
 screen rather than instead of it:
@@ -53,9 +53,9 @@ log = logging.getLogger("jobdork.ai.llm")
 
 PROVIDERS = {
     "ollama": "Ollama (local)",
-    "anthropic": "Claude",
+    "anthropic": "Anthropic",
     "gemini": "Gemini",
-    "openai": "ChatGPT",
+    "openai": "OpenAI",
     "groq": "Groq",
 }
 KEYED = ("anthropic", "gemini", "openai", "groq")
@@ -346,7 +346,7 @@ class Settings:
 # ── privacy ───────────────────────────────────────────────────────────────────
 # A resume carries an email address, a phone number and profile links, and none
 # of them helps a model judge fit or write a letter. They are removed from
-# anything sent to a hosted model (Claude, Gemini, ChatGPT, Groq). A local Ollama
+# anything sent to a hosted model (Anthropic, Gemini, OpenAI, Groq). A local Ollama
 # model sees the text as it is: nothing leaves the machine.
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 _PROFILE = re.compile(r"(?:https?://)?(?:www\.)?(?:linkedin\.com|github\.com|gitlab\.com)"
@@ -810,9 +810,9 @@ def _anthropic(s: Settings, system: str, user: str, schema: dict,
     except anthropic.RateLimitError:
         raise LLMError("rate limited or out of credit") from None
     except anthropic.APIStatusError as exc:
-        raise LLMError(f"Claude API error {exc.status_code}") from None
+        raise LLMError(f"Anthropic API error {exc.status_code}") from None
     except anthropic.APIConnectionError:
-        raise LLMError("could not reach the Claude API") from None
+        raise LLMError("could not reach the Anthropic API") from None
 
     usage = getattr(response, "usage", None)
     if usage is not None:
@@ -851,9 +851,9 @@ def list_models(settings: Settings) -> list[str]:
             client = anthropic.Anthropic(api_key=key, timeout=20)
             return sorted((m.id for m in client.models.list()), reverse=True)
         except ImportError:
-            raise LLMError("pip install -e '.[ai]' for Claude") from None
+            raise LLMError("pip install -e '.[ai]' for Anthropic") from None
         except Exception as exc:
-            raise LLMError(f"could not list Claude models: "
+            raise LLMError(f"could not list Anthropic models: "
                            f"{type(exc).__name__}") from None
     if p == "openai":
         resp = _get("https://api.openai.com/v1/models",

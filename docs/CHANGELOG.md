@@ -24,6 +24,26 @@ your computer's environment").
 
 ---
 
+## Fixed — 2026-10-28 — AI providers by their company names, and a save message that says which line
+
+The AI page and setup's AI step named two providers by their chat apps: they
+are now **Anthropic** (was Claude) and **OpenAI** (was ChatGPT), with
+Anthropic's own mark in place of Claude's spark; Ollama, Gemini and Groq keep
+theirs. The names change wherever a provider is named: the provider buttons,
+the key boxes, each model's label ("OpenAI · gpt-5.5"), error messages, the
+guide and the docs. Claude Code, which drafts documents, keeps its name.
+Config is unchanged (`anthropic`, `openai`).
+
+Saving a line that cannot be used yet said only "Saved. no model chosen for
+Groq · checked by ChatGPT · gpt-5.5", which read as if the save had chosen
+Groq. It now names the line: "Saved, but reader 1 cannot be used yet: no
+model chosen for Groq." A later reader or checker that cannot be used is
+named the same way after a working first one, and a checker shown as
+"checked by" is one that is ready. **Save and test** used to stop there
+without a word; it now adds "Not tested until then."
+
+---
+
 ## Added — 2026-10-28 — A tailored resume in Indeed's layout and length, as Word too
 
 A tailored resume is now laid out like Indeed's free resume template and held

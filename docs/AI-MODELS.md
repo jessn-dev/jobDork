@@ -10,7 +10,7 @@ hosted one with the numbers in front of you.
 **Short version.** On your own computer, read with **`gemma4:26b`** and
 check with **`qwen3.8:27b`**: 2.9% of the reader's claims were unsupported,
 and no one of seven resumes in six fields went above 4.5%. Every other local
-model we tried was at 10% or more. Hosted models (Claude, Gemini, ChatGPT,
+model we tried was at 10% or more. Hosted models (Anthropic, Gemini, OpenAI,
 Groq) are not in the table yet; [measure one yourself](#measure-it-yourself).
 
 ---
@@ -95,7 +95,7 @@ unloads the model two minutes after the last call.
 
 ## Local or hosted
 
-| | Local (Ollama) | Hosted (Claude, Gemini, ChatGPT, Groq) |
+| | Local (Ollama) | Hosted (Anthropic, Gemini, OpenAI, Groq) |
 |---|---|---|
 | Your resume and the job posts | Stay on your computers | Sent to that company, with your email, phone number and profile links removed first |
 | Cost | Nothing per call; a computer that can hold an 18 GB model | Tokens on your key, every verdict and every check |

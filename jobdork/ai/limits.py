@@ -38,7 +38,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-# Which providers have a free tier worth guarding. Claude and ChatGPT keys
+# Which providers have a free tier worth guarding. Anthropic and OpenAI keys
 # are paid by use: their limits are not a daily allowance running out.
 FREE_TIER = ("gemini", "groq")
 PACIFIC = ZoneInfo("America/Los_Angeles")      # where Gemini's day turns over
