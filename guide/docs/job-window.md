@@ -47,7 +47,7 @@ The whole job advert, with:
 
 Everything the AI does for one post is on the **AI tools** tab. Orange
 buttons use the AI model from the [AI page](ai.md): free with a local model,
-paid by the word with Claude, Gemini, ChatGPT or Groq.
+paid by the word with Anthropic, Gemini, OpenAI or Groq.
 
 ![The AI tools tab](images/job-window-ai-tools.png)
 
