@@ -557,15 +557,18 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     return self._reject(400, "not a document id")
                 return self._wrap(api_mod.artifact_text, cfg_holder["cfg"],
                                   int(raw))
-            if path == "/api/artifact/pdf":
+            if path in ("/api/artifact/pdf", "/api/artifact/docx"):
                 raw = parse_qs(urlsplit(self.path).query).get("id", [""])[0]
                 if not raw.isdigit():
                     return self._reject(400, "not a document id")
+                word = path.endswith("/docx")
                 try:
-                    body, name = api_mod.artifact_pdf(cfg_holder["cfg"], int(raw))
+                    body, name = (api_mod.artifact_docx if word else api_mod.artifact_pdf)(
+                        cfg_holder["cfg"], int(raw))
                 except api_mod.ApiError as exc:
                     return self._reject(exc.status, str(exc))
-                return self._send(200, body, "application/pdf", filename=name)
+                return self._send(200, body, api_mod.RESUME_TYPES[".docx" if word else ".pdf"],
+                                  filename=name)
             if path == "/api/ai_output":
                 raw = parse_qs(urlsplit(self.path).query).get("id", [""])[0]
                 if not raw.isdigit():

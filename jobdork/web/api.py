@@ -634,8 +634,20 @@ def artifact_pdf(cfg, artifact_id: int) -> tuple[bytes, str]:
     The document is found from its recorded path, never from anything the
     page sends, so only a file this tool wrote can be served.
     """
-    from ..db.store import Store
     from ..output import pdf
+
+    return _artifact_file(cfg, artifact_id, pdf.render, ".pdf")
+
+
+def artifact_docx(cfg, artifact_id: int) -> tuple[bytes, str]:
+    """The same document as a Word file (.docx), made as the PDF is."""
+    from ..output import docx
+
+    return _artifact_file(cfg, artifact_id, docx.render, ".docx")
+
+
+def _artifact_file(cfg, artifact_id: int, render, suffix: str) -> tuple[bytes, str]:
+    from ..db.store import Store
     from ..writing import resume_doc
 
     with Store(cfg.db_path) as store:
@@ -650,8 +662,8 @@ def artifact_pdf(cfg, artifact_id: int) -> tuple[bytes, str]:
         raise ApiError(f"{row['kind']} was recorded but the file is gone: {path}", 410)
     markdown = path.read_text(encoding="utf-8", errors="replace")
     name = resume_doc.name_of(markdown)
-    return (pdf.render(markdown, f"{name or 'Resume'}, {row['title'] or ''}"),
-            resume_doc.filename(name, row["title"] or ""))
+    return (render(markdown, f"{name or 'Resume'}, {row['title'] or ''}"),
+            resume_doc.filename(name, row["title"] or "", suffix))
 
 
 def set_advert(cfg, uid: str, text: str) -> dict:

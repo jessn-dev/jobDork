@@ -4,10 +4,17 @@ jobdork.writing.resume_doc
 The tailored resume's shape: the AI-friendly template, its file name, and
 the contact line.
 
-The template is https://resumeoptimizerpro.com/blog/ai-friendly-resume-template:
-one column, the name then one plain contact line, standard section names in a
-fixed order, skills as comma-separated text, each job as title, then
-"Company | City, State | Month YYYY - Month YYYY", then bullets.
+The layout follows Indeed's free resume template, rebuilt here (nothing of its
+file is copied): one column, the name, then "Phone | Email | Location" and a
+website line, centred; then PROFESSIONAL SUMMARY, EXPERIENCE, SKILLS,
+EDUCATION, CERTIFICATIONS and AWARDS & VOLUNTEER WORK in that order (projects
+placed by career stage, below); each job as its title with the dates at the
+right margin, then "Company, Location", then bullets; skills separated by
+" | ". Its length follows Indeed's guidance (writing/length.py).
+
+In the Markdown every output is made from, a heading's dates follow a tab:
+"### Software Engineer<TAB>March 2022 - Present". The PDF (output/pdf.py) and
+the Word file (output/docx.py) set them at the right margin.
 
 **The layout is code, not a request.** A model is asked for the content only,
 as fields (summary, skills, jobs, education...), and this module lays them out.
@@ -25,8 +32,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
-SECTIONS = ("PROFESSIONAL SUMMARY", "SKILLS", "PROFESSIONAL EXPERIENCE",
-            "EDUCATION", "CERTIFICATIONS", "PROJECTS")
+SECTIONS = ("PROFESSIONAL SUMMARY", "EXPERIENCE", "SKILLS", "EDUCATION",
+            "CERTIFICATIONS", "AWARDS & VOLUNTEER WORK", "PROJECTS")
 
 # ── the projects section: where, what it is called, whether at all ────────────
 #
@@ -45,28 +52,27 @@ SECTIONS = ("PROFESSIONAL SUMMARY", "SKILLS", "PROFESSIONAL EXPERIENCE",
 STAGES = ("student", "career_changer", "freelancer", "experienced")
 INDUSTRIES = ("tech", "creative", "business", "other")
 
-# Section order by stage. "PROJECTS" is where the projects section goes.
+# Section order by stage: the template's (summary, experience, skills,
+# education, certifications, awards), with "PROJECTS" where the projects
+# section goes.
+_AFTER = ("SKILLS", "EDUCATION", "CERTIFICATIONS", "AWARDS & VOLUNTEER WORK")
 ORDER = {
-    # Right below Education, which leads: it is most of the record.
-    "student": ("PROFESSIONAL SUMMARY", "SKILLS", "EDUCATION", "PROJECTS",
-                "PROFESSIONAL EXPERIENCE", "CERTIFICATIONS"),
+    # Education leads, its projects right below: it is most of the record.
+    "student": ("PROFESSIONAL SUMMARY", "EDUCATION", "PROJECTS", "EXPERIENCE",
+                "SKILLS", "CERTIFICATIONS", "AWARDS & VOLUNTEER WORK"),
     # Above the past jobs: proof of doing the new work today.
-    "career_changer": ("PROFESSIONAL SUMMARY", "SKILLS", "PROJECTS",
-                       "PROFESSIONAL EXPERIENCE", "EDUCATION", "CERTIFICATIONS"),
+    "career_changer": ("PROFESSIONAL SUMMARY", "PROJECTS", "EXPERIENCE", *_AFTER),
     # Beside the experience: a track record of delivery.
-    "freelancer": ("PROFESSIONAL SUMMARY", "SKILLS", "PROFESSIONAL EXPERIENCE",
-                   "PROJECTS", "EDUCATION", "CERTIFICATIONS"),
+    "freelancer": ("PROFESSIONAL SUMMARY", "EXPERIENCE", "PROJECTS", *_AFTER),
     # After the jobs, and only for projects the person added themselves;
     # the resume's own projects live in the jobs' bullets.
-    "experienced": ("PROFESSIONAL SUMMARY", "SKILLS", "PROFESSIONAL EXPERIENCE",
-                    "PROJECTS", "EDUCATION", "CERTIFICATIONS"),
+    "experienced": ("PROFESSIONAL SUMMARY", "EXPERIENCE", "PROJECTS", *_AFTER),
 }
 MAX_PROJECTS = {"student": 3, "career_changer": 3, "freelancer": 4, "experienced": 3}
 _HEADINGS = {"tech": "TECHNICAL PROJECTS", "creative": "PORTFOLIO HIGHLIGHTS",
              "business": "KEY INITIATIVES", "other": "PROJECTS"}
-SECTIONS = ("PROFESSIONAL SUMMARY", "SKILLS", "PROFESSIONAL EXPERIENCE",
-            "EDUCATION", "CERTIFICATIONS", "PROJECTS", *_HEADINGS.values(),
-            "SELECTED CLIENT PROJECTS", "CONSULTING HIGHLIGHTS")
+SECTIONS = (*SECTIONS, *_HEADINGS.values(), "SELECTED CLIENT PROJECTS",
+            "CONSULTING HIGHLIGHTS")
 
 
 def stage_of(value: str) -> str:
@@ -194,34 +200,43 @@ def record_notes(projects, education) -> str:
 
 # For `claude -p`, which writes the Markdown itself (generate.py).
 TEMPLATE_GUIDE = (
-    "Lay `CV.md` out exactly like this, one column, nothing else:\n\n"
+    "Lay `CV.md` out exactly like this, one column, nothing else (<TAB> is a\n"
+    "tab character: the dates go at the right margin):\n\n"
     "    # Full Name\n"
-    "    City, State | Phone | Email | LinkedIn URL\n"
+    "    Phone | Email | City, State\n"
+    "    Website or LinkedIn URL (only if the resume gives one)\n"
     "    ## PROFESSIONAL SUMMARY\n"
     "    Two or three plain sentences: role, years of experience, one or two\n"
     "    strengths, the kind of role targeted.\n"
-    "    ## SKILLS\n"
-    "    Comma-separated plain text on one line, no ratings.\n"
-    "    ## PROFESSIONAL EXPERIENCE\n"
-    "    ### Job Title\n"
-    "    Company | City, State | Month YYYY - Month YYYY\n"
+    "    ## EXPERIENCE\n"
+    "    ### Job Title<TAB>Month YYYY - Month YYYY\n"
+    "    Company, City, State\n"
     "    - action verb + what was done + result, as the resume states it\n"
+    "    ## SKILLS\n"
+    "    Skill | Skill | Skill, on one line, no ratings.\n"
     "    ## EDUCATION\n"
-    "    ### Degree\n"
-    "    School | City, State | Month YYYY\n"
+    "    ### Degree, Major<TAB>Month YYYY\n"
+    "    School, City, State\n"
     "    ## CERTIFICATIONS\n"
-    "    - one per line\n\n"
+    "    - Certification, certifying organisation - year\n"
+    "    ## AWARDS & VOLUNTEER WORK\n"
+    "    - one per line, only if the resume has any\n\n"
+    "Length, as Indeed advises: one page for up to ten years of experience,\n"
+    "two after that, three only past 25 years or for academic and medical\n"
+    "roles. Only the last 15 years of jobs. Three to seven bullets a job,\n"
+    "more for the newest and fewer for older ones, each at most two lines,\n"
+    "with a result the resume states where it gives one.\n\n"
     "Projects depend on the person's career stage, judged from the resume and\n"
     "the advert:\n"
-    "- Student or entry level: a projects section right below EDUCATION (and\n"
-    "  EDUCATION before PROFESSIONAL EXPERIENCE), two or three projects.\n"
-    "- Career changer: a projects section above PROFESSIONAL EXPERIENCE, with\n"
-    "  the projects that use this job's skills.\n"
+    "- Student or entry level: EDUCATION right after the summary, a projects\n"
+    "  section right below it, then EXPERIENCE; two or three projects.\n"
+    "- Career changer: a projects section above EXPERIENCE, with the projects\n"
+    "  that use this job's skills.\n"
     "- Freelancer or contractor: \"## SELECTED CLIENT PROJECTS\" right after\n"
-    "  PROFESSIONAL EXPERIENCE.\n"
+    "  EXPERIENCE.\n"
     "- Mid-career or senior: a project goes into a job's bullets only where\n"
     "  the resume says it was done in that job; the projects in `projects.md`\n"
-    "  get a projects section right after PROFESSIONAL EXPERIENCE.\n"
+    "  get a projects section right after EXPERIENCE.\n"
     "Name a projects section for the industry: \"## TECHNICAL PROJECTS\"\n"
     "(tech), \"## PORTFOLIO HIGHLIGHTS\" (creative), \"## KEY INITIATIVES\"\n"
     "(business), otherwise \"## PROJECTS\". Each project as \"### Name\", then\n"
@@ -327,8 +342,14 @@ def name_of(markdown: str) -> str:
 
 
 def contact_line(info: dict) -> str:
-    return " | ".join(v for v in (info.get("location"), info.get("phone"),
-                                   info.get("email"), info.get("profile")) if v)
+    """The line under the name: "Phone | Email | Location", as the template."""
+    return " | ".join(v for v in (info.get("phone"), info.get("email"),
+                                   info.get("location")) if v)
+
+
+def header_lines(info: dict) -> list[str]:
+    """Under the name: the contact line, then the website, each when given."""
+    return [x for x in (contact_line(info), info.get("profile") or "") if x]
 
 
 # ── the file name ─────────────────────────────────────────────────────────────
@@ -355,6 +376,17 @@ def filename(name: str, job_title: str, suffix: str = ".pdf") -> str:
 
 # ── the document ──────────────────────────────────────────────────────────────
 
+def _dated(heading: str, entry: dict) -> str:
+    """"### Title<TAB>dates": the dates at the right margin, when there are any."""
+    dates = date_range(entry.get("start"), entry.get("end"))
+    return f"### {heading}" + (f"\t{dates}" if dates else "")
+
+
+def _place(name: str, entry: dict):
+    """"Company, Location", or None when there is neither."""
+    return ", ".join(x for x in (name, entry.get("location")) if x) or None
+
+
 def to_markdown(info: dict, doc: dict) -> str:
     """The template, filled: `info` from contact(), `doc` from the model.
 
@@ -366,26 +398,22 @@ def to_markdown(info: dict, doc: dict) -> str:
     if doc.get("summary"):
         blocks["PROFESSIONAL SUMMARY"] = [doc["summary"]]
     if doc.get("skills"):
-        blocks["SKILLS"] = [", ".join(doc["skills"])]
+        blocks["SKILLS"] = [" | ".join(doc["skills"])]
     if doc.get("experience"):
         lines = []
         for job in doc["experience"]:
-            lines += ["", f"### {job['title']}",
-                      " | ".join(x for x in (job.get("company"), job.get("location"),
-                                             date_range(job.get("start"), job.get("end")))
-                                 if x)]
+            lines += ["", _dated(job["title"], job), _place(job.get("company"), job)]
             lines += [f"- {b}" for b in job.get("bullets") or []]
-        blocks["PROFESSIONAL EXPERIENCE"] = lines[1:]
+        blocks["EXPERIENCE"] = [x for x in lines[1:] if x is not None]
     if doc.get("education"):
         lines = []
         for ed in doc["education"]:
-            lines += ["", f"### {ed['credential']}",
-                      " | ".join(x for x in (ed.get("school"), ed.get("location"),
-                                             date_range(ed.get("start"), ed.get("end")))
-                                 if x)]
-        blocks["EDUCATION"] = lines[1:]
+            lines += ["", _dated(ed["credential"], ed), _place(ed.get("school"), ed)]
+        blocks["EDUCATION"] = [x for x in lines[1:] if x is not None]
     if doc.get("certifications"):
         blocks["CERTIFICATIONS"] = [f"- {c}" for c in doc["certifications"]]
+    if doc.get("awards"):
+        blocks["AWARDS & VOLUNTEER WORK"] = [f"- {a}" for a in doc["awards"]]
     projects = [p for p in doc.get("projects") or []
                 if stage != "experienced" or p.get("own")][:MAX_PROJECTS[stage]]
     if projects:
@@ -395,10 +423,7 @@ def to_markdown(info: dict, doc: dict) -> str:
                 + [f"- {b}" for b in p.get("bullets") or []]
         blocks["PROJECTS"] = lines[1:]
 
-    out = [f"# {info.get('name') or 'Resume'}"]
-    line = contact_line(info)
-    if line:
-        out.append(line)
+    out = [f"# {info.get('name') or 'Resume'}", *header_lines(info)]
     for section in ORDER[stage]:
         if section in blocks:
             heading = (projects_heading(stage, doc.get("industry", ""))

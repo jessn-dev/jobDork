@@ -9,7 +9,7 @@
 # The repository's Settings → Pages → Source must be "GitHub Actions"
 # (set once, by the owner).
 
-name: guide
+name: "Guide: build the user guide website; publish it from main"
 
 on:
   push:
@@ -29,6 +29,7 @@ concurrency:
 
 jobs:
   build:
+    name: "Build the guide (strict), coverage and badges"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -67,6 +68,7 @@ jobs:
           path: ${{ runner.temp }}/site
 
   publish:
+    name: "Publish the guide to GitHub Pages"
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
