@@ -6,6 +6,23 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-29 — A job post's documents beside its tailored resume
+
+On the Resume page, a tailored resume's preview now has a tab for each of
+its job post's other documents, as Resume Matcher's builder has: **Cover
+letter**, **Recruiter message** (with **Copy message**), **Interview prep**,
+**Resume review** when there is one, and the post's **ATS match**, then the
+resume's **Checks**. Everything for one application is in one place. A
+document not written yet says so, with **Open AI tools** (the job post's
+window, where it is written). Choosing another tailored card keeps the tab,
+to compare two cover letters, say. `/api/resumes` gives each card the newest
+of each document for its job post (`docs`); the job post's window and the
+preview draw a document the same way (`docHtml`). The resume's **Job post**,
+**PDF** and **Word** moved beside its title, so the tabs have the row.
+Guide: Resume page, with a new picture of the interview prep tab.
+
+---
+
 ## Added — 2026-10-29 — A job post's ATS match, and "I have this"
 
 Each job post's window has a new **ATS match** tab: your resume file

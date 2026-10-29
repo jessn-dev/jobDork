@@ -27,9 +27,20 @@ AI were given from the file.
 A tailored resume's preview has **Job post** (its window), **PDF** and
 **Word**. On a narrow window the preview moves above the rest.
 
+A tailored resume's preview also has a tab for each of its job post's other
+documents, so everything for one application is in one place: **Cover
+letter**, **Recruiter message** (with **Copy message**), **Interview prep**,
+**Resume review** once you have one, and the post's **ATS match** (the same
+as on [its window](job-window.md#ats-match), **I have this** included). One
+not written yet says so, with **Open AI tools**: the job post's window, where
+it is written. Choosing another tailored card keeps the tab, so you can
+compare, say, two cover letters.
+
 ![A tailored resume chosen](images/resume-tailored.png)
 
 ![Its checks](images/resume-checks.png)
+
+![Its interview prep](images/resume-interview-prep.png)
 
 ## Your resume
 

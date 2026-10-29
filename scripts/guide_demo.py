@@ -266,6 +266,48 @@ def _tailored(store, folder: Path, uids: list[str]) -> None:
                                          "detail": "1 of 9 claims not found in your resume or "
                                          "the advert" if to_read else "every claim found"}}
         store.add_artifact(uid, "tailored_resume", str(path), gates=gates)
+    _documents(store, folder, uids[1])
+
+
+def _documents(store, folder: Path, uid: str) -> None:
+    """The newest tailored resume's job post also has a cover letter, a
+    recruiter message and interview prep: the preview's other tabs."""
+    passed = {"hallucination check": {"passed": True, "detail": "every claim found",
+                                      "items": []}}
+    texts = {
+        "cover_letter": (
+            "Dear Hiring Manager,\n\nI am applying for the Registered Nurse, Telemetry "
+            "role at Lakeview Regional Hospital. Since 2021 I have led a team of "
+            "eight nurses per shift on a 32-bed medical-surgical unit, where a bedside "
+            "barcode scanning rollout I ran cut medication errors by 30%.\n\nI hold BLS "
+            "and ACLS and chart in Epic every day. I would welcome the chance to bring "
+            "that to your telemetry unit.\n\nSincerely,\nJordan Rivera\n"),
+        "recruiter_message": (
+            "Hi, I saw the Registered Nurse, Telemetry opening at Lakeview Regional "
+            "Hospital. I am a charge nurse at Lakeshore Community Hospital, where I "
+            "lead eight nurses per shift on a 32-bed unit and ran a barcode scanning "
+            "rollout that cut medication errors by 30%. I hold BLS and ACLS and work "
+            "in Epic daily. Telemetry is where I want to grow next. Would you have ten "
+            "minutes this week to tell me more about the team? Thank you, Jordan\n"),
+        "interview_prep": (
+            "# Interview prep: Registered Nurse, Telemetry at Lakeview Regional Hospital\n\n"
+            "## Why you fit\n\n- Seven years in acute care, five as charge nurse.\n"
+            "- BLS and ACLS current.\n\n"
+            "## Questions about your resume\n\n"
+            "**How did the barcode scanning rollout cut errors by 30%?**\n\n"
+            "- Who you trained, how you tracked errors before and after.\n\n"
+            "**How do you run a shift with eight nurses?**\n\n"
+            "- Assignments, huddles, and one shift that went wrong.\n\n"
+            "## Gaps to prepare\n\n"
+            "- **Telemetry monitoring**: the advert asks for it as a main duty. Say "
+            "what you have done with cardiac patients and how you would learn the rest.\n\n"
+            "## Talking points\n\n- The 30% fall in medication errors.\n"
+            "- Precepting twelve new graduate nurses.\n"),
+    }
+    for kind, text in texts.items():
+        path = folder / "job-applications" / "demo-1" / f"{kind}.md"
+        path.write_text(text, encoding="utf-8")
+        store.add_artifact(uid, kind, str(path), gates=passed)
 
 
 def _checked_for_updates(folder: Path, now: float) -> None:

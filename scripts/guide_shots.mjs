@@ -175,6 +175,10 @@ try {
   await run(`document.querySelector('[data-rtab="checks"]').click()`);
   await sleep(500);
   await shoot('resume-checks', {clip: '#rpreview'});
+  // The job post's other documents, as tabs beside its tailored resume.
+  await run(`document.querySelector('[data-rtab="interview_prep"]').click()`);
+  await sleep(1000);
+  await shoot('resume-interview-prep', {clip: '#rpreview'});
   await run(`document.querySelector('[data-rtab="doc"]').click()`);
 
   await run(view('sources'));

@@ -327,6 +327,15 @@ def test_a_tailored_resume_keeps_to_the_resume_and_is_named_for_the_role():
         card = api.list_resumes(cfg)["resumes"][0]
         assert card["id"] == result.artifact_id and card["exists"] and card["kind"] == "tailored_resume"
         assert card["readable"] == int(readback.detail.split("/")[0]) and card["to_read"] >= 1
+        assert card["docs"] == {}, "no other document for this job post yet"
+        # The job post's other documents become the preview's tabs: the
+        # newest of each kind.
+        with Store(cfg.db_path) as store:
+            store.add_artifact(uid, "cover_letter", str(Path(tmp) / "old.md"))
+            newest = store.add_artifact(uid, "cover_letter", str(Path(tmp) / "new.md"))
+            store.conn.commit()
+        card = api.list_resumes(cfg)["resumes"][0]
+        assert card["docs"] == {"cover_letter": newest}, card["docs"]
         fits = next(g for g in result.gates if g.name == writer.LENGTH_GATE)
         assert fits.passed and fits.detail.startswith("1 page, within the 1 Indeed suggests")
 
