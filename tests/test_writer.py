@@ -248,6 +248,13 @@ def test_a_tailored_resume_keeps_to_the_resume_and_is_named_for_the_role():
         assert result.docx_path.read_bytes().startswith(b"PK")
         body, name = api.artifact_docx(cfg, result.artifact_id)
         assert name == result.docx_path.name and body.startswith(b"PK")
+        # Its own PDF, read back as a tracking system reads it.
+        readback = next(g for g in result.gates if g.name == writer.READABLE_GATE)
+        # Its own layout passes every check; what is said is about the test
+        # resume's content (no email, phone, education or dates in it).
+        assert "/100 when read back" in readback.detail
+        content = ("Email and phone", "Standard section headings", "Dates")
+        assert all(i.startswith(content) for i in readback.items), readback.items
         fits = next(g for g in result.gates if g.name == writer.LENGTH_GATE)
         assert fits.passed and fits.detail.startswith("1 page, within the 1 Indeed suggests")
 

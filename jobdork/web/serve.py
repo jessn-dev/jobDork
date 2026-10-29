@@ -536,6 +536,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._wrap(api_mod.role_detail, cfg_holder["cfg"], uid)
             if path == "/api/resume/view":
                 return self._wrap(api_mod.resume_view, cfg_holder["cfg"])
+            if path == "/api/resume/check":
+                return self._wrap(api_mod.resume_check, cfg_holder["cfg"])
             if path == "/api/resume/file":
                 try:
                     body, kind, _name = api_mod.resume_file(cfg_holder["cfg"])

@@ -419,6 +419,16 @@ def forget_temporary(cfg) -> int:
     return removed
 
 
+def resume_check(cfg) -> dict:
+    """Whether an applicant tracking system can read the uploaded resume
+    (search/readable.py): a score out of 100 and what was found."""
+    from ..search import readable
+
+    if not cfg.resume_path:
+        raise ApiError("no resume uploaded", 404)
+    return readable.check_file(cfg.resume_path).to_dict()
+
+
 def resume_view(cfg) -> dict:
     """The resume as the tools read it: its text, and the skills found in it.
 
@@ -840,6 +850,7 @@ def save_resume(cfg, filename: str, payload: bytes) -> dict:
 
     # Read it straight back. A resume that cannot be parsed is worse than none:
     # it would score every role at zero while looking configured.
+    from ..search import readable
     from ..search import resume as resume_mod
     try:
         parsed = resume_mod.load(str(target))
@@ -856,6 +867,7 @@ def save_resume(cfg, filename: str, payload: bytes) -> dict:
     return {
         "path": str(target),
         "file": str(target.resolve()),             # shown: the full path on disk
+        "readable": readable.check_file(str(target)).to_dict(),
         "chars": len(parsed.text),
         "skills": sorted(parsed.skills),
         "years": resume_mod.years_claimed(parsed.text),
