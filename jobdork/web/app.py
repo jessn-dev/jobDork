@@ -299,6 +299,37 @@ def scheduled_scan(home: Path | None = None) -> int:
     return main(["scan", "--scheduled"])
 
 
+def agent_server(argv: list[str] | None = None, home: Path | None = None) -> int:
+    """What a coding agent starts: jobdork's tools over stdio (web/mcp.py),
+    or one of them from the command line (`argv` ["agent", TOOL, JSON]), in
+    the app's folder, so the agent works on what the window shows.
+
+    A Windows app is built without a console, so Python gives it no
+    standard streams even when the agent hands it pipes. The pipes are
+    there, as the process's standard handles: they are opened from those.
+    """
+    from ..cli import main
+
+    home = (home or app_home()).expanduser()
+    home.mkdir(parents=True, exist_ok=True)
+    os.chdir(home)
+    if sys.stdin is None or sys.stdout is None:
+        try:
+            import ctypes
+            import msvcrt
+
+            kernel = ctypes.windll.kernel32
+            sys.stdin = open(msvcrt.open_osfhandle(kernel.GetStdHandle(-10), os.O_RDONLY),  # noqa: SIM115
+                             encoding="utf-8")
+            sys.stdout = open(msvcrt.open_osfhandle(kernel.GetStdHandle(-11), 0), "w",  # noqa: SIM115
+                              encoding="utf-8")
+        except (ImportError, OSError, AttributeError):
+            return 2
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")  # noqa: SIM115 - logs have nowhere else to go
+    return main(argv or ["mcp"])
+
+
 def ask_before_closing(busy):
     """A handler for the window's `closing` event: while a job runs, closing
     (the red button, Ctrl-F4, Cmd-Q) asks first, since it stops the job.

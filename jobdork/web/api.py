@@ -2060,6 +2060,52 @@ def fresh_scan_job(cfg, expect):
 # ── the model ─────────────────────────────────────────────────────────────────
 
 
+# ── a coding agent (web/agent.py, web/mcp.py) ─────────────────────────────────
+
+
+def agent_mode(cfg) -> bool:
+    """The coding agent is the writer: jobdork asks no model of its own."""
+    from ..ai import llm
+
+    readers = cfg.llm.readers
+    return (readers[0].provider if readers else cfg.llm.provider) == llm.AGENT
+
+
+def refuse_in_agent_mode(cfg, ask: str) -> None:
+    """A job that would ask the writer, refused at once in agent mode, with
+    what to ask the agent instead."""
+    if agent_mode(cfg):
+        raise ApiError(f"Coding agent mode: jobdork asks no model. Ask your agent: \"{ask}\"", 409)
+
+
+def agent_setup(cfg) -> dict:
+    """How each coding agent starts jobdork's tools on this computer: the
+    command, ready to paste, for the AI page."""
+    import shlex
+    import subprocess
+    import sys
+
+    if getattr(sys, "frozen", False):            # the installed app
+        command, mcp_args, cli = sys.executable, ["--mcp"], [sys.executable, "--agent"]
+    else:
+        where = ["--config", str(Path(cfg.path).resolve())] if cfg.path else []
+        command = sys.executable
+        mcp_args = ["-m", "jobdork.cli", *where, "mcp"]
+        cli = [sys.executable, "-m", "jobdork.cli", *where, "agent"]
+    join = subprocess.list2cmdline if sys.platform == "win32" else shlex.join
+    line = join([command, *mcp_args])
+    server = {"command": command, "args": mcp_args}
+    return {
+        "command": command, "args": mcp_args,
+        "claude_code": f"claude mcp add jobdork -- {line}",
+        "codex": f"codex mcp add jobdork -- {line}",
+        "claude_desktop": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
+        "cursor": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
+        "vscode": json.dumps({"servers": {"jobdork": {"type": "stdio", **server}}}, indent=2),
+        "cli": join(cli),
+    }
+
+
 def llm_state(cfg) -> dict:
     """AI settings for the page. Says which keys are held, never what they are."""
     from ..ai import limits, llm
@@ -2105,6 +2151,9 @@ def llm_state(cfg) -> dict:
         "ollama_key": llm.key_for(llm.OLLAMA_KEY)[1],
         "problem": settings.problem(),
         "label": settings.label if cfg.llm.provider else "",
+        "agent_mode": agent_mode(cfg),
+        "agent_label": llm.AGENT_LABEL,
+        "agent_setup": agent_setup(cfg),
     }
 
 
@@ -2549,6 +2598,9 @@ def _judge_after_scan(cfg, store, progress) -> str:
     """The scan has already succeeded; a model problem must not undo that."""
     from ..ai import judging, llm
 
+    if agent_mode(cfg):
+        progress("AI judging skipped: your coding agent scores job posts when you ask it")
+        return "AI judging skipped"
     problem = llm.Settings.from_config(cfg).problem()
     if problem:
         progress(f"AI judging skipped: {problem}")
@@ -2565,6 +2617,8 @@ def _judge_after_scan(cfg, store, progress) -> str:
 def judge_job(cfg, limit: int = 0, uid: str = "", force: bool = False):
     if uid and not UID.match(uid):
         raise ApiError("not a job post id")
+    refuse_in_agent_mode(cfg, f"Use jobdork to score job post {uid} against my resume." if uid
+                         else "Use jobdork to score my top job posts against my resume.")
 
     def work(progress):
         from ..ai import judging
@@ -2697,6 +2751,7 @@ def letter_job(cfg, uid: str):
     """A cover letter from the AI-page model, saved beside the claude drafts."""
     if not UID.match(uid or ""):
         raise ApiError("not a job post id")
+    refuse_in_agent_mode(cfg, f"Use jobdork to write a cover letter for job post {uid}.")
 
     def work(progress):
         from ..ai import llm, writer
@@ -2730,6 +2785,7 @@ def message_job(cfg, uid: str):
 def _draft_job(cfg, uid: str, which: str, what: str):
     if not UID.match(uid or ""):
         raise ApiError("not a job post id")
+    refuse_in_agent_mode(cfg, f"Use jobdork to write the {what} for job post {uid}.")
 
     def work(progress):
         from ..ai import llm, writer
@@ -2750,6 +2806,7 @@ def tailor_job(cfg, uid: str):
     """A resume rewritten for one post, in the template, as Markdown and PDF."""
     if not UID.match(uid or ""):
         raise ApiError("not a job post id")
+    refuse_in_agent_mode(cfg, f"Use jobdork to write a tailored resume for job post {uid}.")
 
     def work(progress):
         from ..ai import llm, writer
@@ -2829,6 +2886,8 @@ def review_job(cfg, uid: str = ""):
     """A resume review: general, or against one job post."""
     if uid and not UID.match(uid):
         raise ApiError("not a job post id")
+    refuse_in_agent_mode(cfg, f"Use jobdork to review my resume for job post {uid}." if uid
+                         else "Use jobdork to review my resume.")
 
     def work(progress):
         from ..ai import llm, writer

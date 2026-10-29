@@ -1147,13 +1147,19 @@ def _validate(cfg: Config) -> None:
     if cfg.fetch.retries < 0:
         raise ConfigError("fetch.retries cannot be negative")
 
-    from ..ai.llm import PROVIDERS
-    if cfg.llm.provider and cfg.llm.provider not in PROVIDERS:
+    from ..ai.llm import AGENT, PROVIDERS
+    if cfg.llm.provider and cfg.llm.provider not in (*PROVIDERS, AGENT):
         raise ConfigError(
             f"llm.provider is {cfg.llm.provider!r}. Accepted: "
-            f"{', '.join(PROVIDERS)}, or empty for off.")
+            f"{', '.join(PROVIDERS)}, {AGENT}, or empty for off.")
     for name, listed in (("readers", cfg.llm.readers), ("checkers", cfg.llm.checkers)):
         for i, reader in enumerate(listed, 1):
+            # A coding agent writes alone: the only reader, never a checker.
+            if reader.provider == AGENT and name == "readers" and len(listed) == 1:
+                continue
+            if reader.provider == AGENT:
+                raise ConfigError(f"llm.{name} entry {i}: a coding agent ({AGENT}) can only "
+                                  "be the one reader, with no others")
             if reader.provider not in PROVIDERS:
                 raise ConfigError(f"llm.{name} entry {i} has provider {reader.provider!r}. "
                                   f"Accepted: {', '.join(PROVIDERS)}")

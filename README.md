@@ -80,7 +80,10 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
   **Fit** (the advert's skills you have and lack). [Scores](https://jessn-dev.github.io/jobDork/scores/)
 - **Uses an AI model only when you set one up.** Ollama on your own computer,
   or Anthropic, Gemini, OpenAI or Groq with your key, held in memory or, if
-  you choose, in your computer's keychain; never in a file. It can judge posts, write a cover letter, review your resume and
+  you choose, in your computer's keychain; never in a file. Or your own
+  coding agent (Claude Code, Codex, Cursor, GitHub Copilot, Claude Desktop)
+  does the writing through jobdork's MCP server or command line, with no key:
+  jobdork checks and keeps what it writes ([Coding agent](https://jessn-dev.github.io/jobDork/ai/#coding-agent)). It can judge posts, write a cover letter, review your resume and
   write a tailored resume as a PDF and a Word file, interview prep and a
   recruiter message, held to Indeed's
   length advice (one page up to ten years). A second model checks each output, claim

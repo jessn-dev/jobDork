@@ -6,6 +6,45 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-29 — A coding agent as the AI, with no key
+
+A third way to give jobdork its AI, beside Ollama and a keyed model: your
+own coding agent (Claude Code, Codex, Cursor, GitHub Copilot, Claude
+Desktop), after Resume Matcher's agent mode (srbhr/resume-matcher). jobdork
+never calls the agent; the agent calls jobdork's tools, and jobdork asks no
+model of its own.
+
+- **The tools** (`web/agent.py`): overview, list and read job posts, the
+  resume and record, a post's ATS match; `get_brief`, exactly what jobdork
+  would send a model for a tailored resume, cover letter, interview prep,
+  recruiter message, resume review or a post's AI score; `save_document`
+  and `save_verdict`, which put the agent's answer through every check a
+  model's gets (gates, PDF and Word, the record) and return the checks so it
+  can fix and save again; applications (status, next step, contact, notes);
+  and projects, education and confirmed skills.
+- **Two doors to the same tools**: an MCP server on stdio (`web/mcp.py`,
+  JSON-RPC 2.0 in the standard library; `jobdork mcp`, or the installed app
+  with `--mcp`), with its workflow sent as the server's instructions; and
+  `jobdork agent TOOL JSON` (the app: `--agent`) for agents that only run
+  commands. The build checks the built app answers MCP (`packaging/build.py`).
+- **How it fits** (`ai/llm.py`): `agent` is a provider whose calls are
+  answered from a queue; with none queued, the call keeps its brief and
+  raises `AgentBrief`, which never falls through to another reader. Only
+  Reader 1 may be one, alone; never a checker (`core/config.py`).
+- **The hallucination check stays a second model's** (`ai/guard.py`): the
+  agent never checks its own writing. A checker, or a reader the config had
+  before, checks; with none, the check is not run and is a check to read.
+- **The AI page** offers **Coding agent** for Reader 1, with the line for
+  Claude Code, Codex, Claude Desktop, Cursor, VS Code and the command line,
+  filled in for this computer, each with **Copy**. In agent mode a job
+  post's AI buttons show what to ask the agent instead, with **Copy**; the
+  dashboard's model jobs are refused with the same, and scans skip AI judging.
+
+Guide: the AI page's new Coding agent section, with a picture. Tests:
+`tests/test_agent.py` (14).
+
+---
+
 ## Added — 2026-10-29 — My applications
 
 A new page, **My applications** (menu, under Job posts), lists every job
