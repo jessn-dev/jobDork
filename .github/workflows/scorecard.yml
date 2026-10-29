@@ -5,7 +5,7 @@
 #
 # publish_results requires this shape: read-all at the top, the two write
 # permissions on the job only, and no steps but these.
-name: Scorecard
+name: "Scorecard: weekly supply-chain security score"
 
 on:
   branch_protection_rule:
@@ -18,6 +18,7 @@ permissions: read-all
 
 jobs:
   analysis:
+    name: "Score the repository; findings to Code scanning"
     runs-on: ubuntu-latest
     permissions:
       security-events: write        # the findings, to Code scanning

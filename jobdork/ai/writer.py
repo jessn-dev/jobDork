@@ -51,6 +51,7 @@ REVIEW_FILE = "resume-review.md"
 FACTS_GATE = "employers and schools from your resume"
 PROJECTS_GATE = "projects section"
 TUTORIAL_GATE = "tutorial projects"
+LENGTH_GATE = "page count"
 GUARD_GATE = "hallucination check"
 OFF = "turned off in the AI settings"
 
@@ -172,13 +173,14 @@ TAILOR_SCHEMA = {
             "required": ["credential", "school", "location", "start", "end"],
             "additionalProperties": False}},
         "certifications": {"type": "array", "items": {"type": "string"}},
+        "awards": {"type": "array", "items": {"type": "string"}},
         "projects": {"type": "array", "items": {
             "type": "object",
             "properties": {"name": _ENTRY, "bullets": _BULLETS},
             "required": ["name", "bullets"], "additionalProperties": False}},
     },
     "required": ["stage", "industry", "stage_reason", "summary", "skills",
-                 "experience", "education", "certifications", "projects"],
+                 "experience", "education", "certifications", "awards", "projects"],
     "additionalProperties": False,
 }
 
@@ -206,13 +208,18 @@ the length in <<MEASURED>> gives them, written out (none when it is not \
 given; never add up dates \
 yourself), one or two strengths the resume shows, and the kind of role they \
 want (this one). "skills": the resume's skills as short plain terms, the \
-ones this advert asks for first, no ratings. "experience": every job in the \
-resume, newest first, with "title" and "company" exactly as the resume writes \
-them, "location" and "start"/"end" as the resume gives them ("" when it does \
-not; "Present" for a current job). Its "bullets": three to six, each an action \
-verb, what was done, and the result the resume states, the ones this advert \
-cares about first. "education", "certifications", "projects": as the resume \
-gives them, empty when it has none. Text between <<PROJECTS>> and \
+ones this advert asks for first, no ratings. "experience": the resume's jobs \
+from the last 15 years, newest first, with "title" and "company" exactly as \
+the resume writes them, "location" and "start"/"end" as the resume gives them \
+("" when it does not; "Present" for a current job). Its "bullets": three to \
+seven, more for the newest job and fewer for older ones, each an action verb, \
+what was done, and the result the resume states, at most two lines, the ones \
+this advert cares about first; a job the advert has no use for gets three. \
+"education", "certifications", "projects": as the resume gives them, empty \
+when it has none. "awards": awards, recognition and volunteer work the \
+resume names, empty when none. The resume is to fill one page for up to ten \
+years of experience and two after that: choose what this job needs, and cut \
+the rest. Text between <<PROJECTS>> and \
 <</PROJECTS>>, when given, is the person describing their own projects and \
 education: it counts as part of the resume. Each line there starting \
 "Education:" is schooling the resume may not show yet; list it in \
@@ -250,6 +257,7 @@ class Draft:
 class Tailored(Draft):
     markdown: str = ""
     pdf_path: Path | None = None
+    docx_path: Path | None = None
     dropped: list[str] = field(default_factory=list)    # entries not in the resume
     unmatched: list[str] = field(default_factory=list)  # titles/schools worded differently
 
@@ -478,7 +486,9 @@ def tailored_resume(settings: Settings, row, resume_text: str,
     the rows from the Resume page, every one of which is shown
     (with_own_projects).
     """
-    from ..writing import resume_doc
+    from ..output import pdf
+    from ..search import resume as resume_mod
+    from ..writing import length, resume_doc
 
     if not resume_text:
         raise LLMError("no resume loaded. Upload one on the Resume page")
@@ -550,6 +560,16 @@ def tailored_resume(settings: Settings, row, resume_text: str,
             doc["certifications"].append(cert)
         else:
             dropped.append(f"certification: {cert}")
+    doc["awards"] = []
+    for award in (raw.get("awards") or [])[:6]:
+        award = _plain(award, 160)
+        if not award:
+            continue
+        # As an employer: one the resume does not name is not printed.
+        if _found(award, record):
+            doc["awards"].append(award)
+        else:
+            dropped.append(f"award: {award}")
     stage = resume_doc.stage_of(str(raw.get("stage") or ""))
     industry = str(raw.get("industry") or "")
     doc["stage"] = stage
@@ -573,9 +593,18 @@ def tailored_resume(settings: Settings, row, resume_text: str,
         raise LLMError("the model returned an empty resume")
 
     info = resume_doc.contact(resume_text)
+    # Held to its length, as Indeed advises (writing/length.py): the pages are
+    # counted from the PDF the person gets.
+    span = resume_mod.work_span(resume_text)
+    fitted = length.fit(
+        doc,
+        # lambda: the PDF this doc would be, for counting its pages.
+        lambda d: pdf.render(resume_doc.to_markdown(info, d)),
+        (span.months / 12) if span else resume_mod.years_claimed(resume_text),
+        title=row["title"] or "", advert=advert)
     markdown = resume_doc.to_markdown(info, doc)
-    # Checked without the contact line: it is the resume's own, copied by script.
-    body = "\n".join(markdown.splitlines()[2 if resume_doc.contact_line(info) else 1:])
+    # Checked without the name and the lines under it: the resume's own, copied by script.
+    body = "\n".join(markdown.splitlines()[1 + len(resume_doc.header_lines(info)):])
     report = (guard.check(settings, body, {"resume": record,
                                            "advert": guard.advert_source(row)})
               if check else guard.GuardReport(error=OFF))
@@ -608,9 +637,20 @@ def tailored_resume(settings: Settings, row, resume_text: str,
         + (f"; {len(unmatched)} worded differently from your resume, check them"
            if unmatched else ""),
         items=dropped + unmatched)
+    length_gate = gates_mod.Gate(
+        LENGTH_GATE, passed=fitted.pages <= fitted.budget,
+        detail=(f"{fitted.pages} page{'s' * (fitted.pages != 1)}, within the "
+                f"{fitted.budget} Indeed suggests for {fitted.reason}"
+                if fitted.pages <= fitted.budget else
+                f"{fitted.pages} pages, over the {fitted.budget} Indeed suggests for "
+                f"{fitted.reason}, with nothing more to cut: shorten it by hand")
+        + (f"; {len(fitted.left_out)} thing(s) left out to fit" if fitted.left_out else "")
+        + (f"; {fitted.long_bullets} bullet(s) run past two lines, shorten them"
+           if fitted.long_bullets else ""),
+        items=fitted.left_out)
     checks = gates_mod.run_all(body, "cv", resume_text=record)
     result = Tailored(text=markdown, gates=[*checks, facts, placed, tutorial_gate,
-                                            guard_gate(report)],
+                                            length_gate, guard_gate(report)],
                       guard=report, markdown=markdown)
     result.dropped, result.unmatched = dropped, unmatched
     return result
@@ -770,13 +810,13 @@ def letter(cfg, store, uid: str, root: str = "", progress=None) -> Draft:
 
 
 def tailor(cfg, store, uid: str, root: str = "", progress=None) -> Tailored:
-    """`jobdork tailor UID`: the tailored resume as Markdown and PDF, recorded.
+    """`jobdork tailor UID`: the tailored resume as Markdown, PDF and Word, recorded.
 
     Named FirstName_LastName_JobTitle_Resume, in the job's folder. The
-    artifact is the Markdown, which the page shows; the PDF sits beside it
-    under the same name.
+    artifact is the Markdown, which the page shows; the PDF and the .docx sit
+    beside it under the same name.
     """
-    from ..output import pdf
+    from ..output import docx, pdf
     from ..writing import generate, resume_doc
 
     settings = _settings(cfg)
@@ -797,8 +837,11 @@ def tailor(cfg, store, uid: str, root: str = "", progress=None) -> Tailored:
     result.pdf_path = folder / resume_doc.filename(name, row["title"] or "")
     result.path = result.pdf_path.with_suffix(".md")
     result.path.write_text(result.markdown, encoding="utf-8")
-    result.pdf_path.write_bytes(pdf.render(result.markdown,
-                                           f"{name or 'Resume'}, {row['title'] or ''}"))
+    title = f"{name or 'Resume'}, {row['title'] or ''}"
+    result.pdf_path.write_bytes(pdf.render(result.markdown, title))
+    # The same resume as Word, to edit before sending (output/docx.py).
+    result.docx_path = result.pdf_path.with_suffix(".docx")
+    result.docx_path.write_bytes(docx.render(result.markdown, title))
     result.output_id = store.add_ai_output(
         "tailored_resume", result.markdown, uid=uid, model=settings.label,
         guard=result.guard.to_dict())

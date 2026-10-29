@@ -61,13 +61,17 @@ def test_the_template_is_laid_out_in_order():
                           "start": "", "end": "2017"}],
            "certifications": [], "projects": []}
     md = resume_doc.to_markdown(resume_doc.contact(HEAD), doc)
-    assert md.splitlines()[:2] == [
+    # The template's header: name, "Phone | Email | Location", then the website.
+    assert md.splitlines()[:3] == [
         "# Jesse Ngolab",
-        "Chicago, IL | (312) 555-0199 | jesse@example.com | linkedin.com/in/jesse"]
-    order = [md.index(h) for h in ("## PROFESSIONAL SUMMARY", "## SKILLS",
-                                   "## PROFESSIONAL EXPERIENCE", "## EDUCATION")]
+        "(312) 555-0199 | jesse@example.com | Chicago, IL", "linkedin.com/in/jesse"]
+    order = [md.index(h) for h in ("## PROFESSIONAL SUMMARY", "## EXPERIENCE",
+                                   "## SKILLS", "## EDUCATION")]
     assert order == sorted(order)
-    assert "Acme | Austin, TX | March 2022 - Present" in md
+    # The dates after a tab (set at the right margin), the place under the title.
+    assert "### Analyst\tMarch 2022 - Present\nAcme, Austin, TX\n- Did it." in md
+    assert "### B.S.\t2017\nUT\n" in md
+    assert "## SKILLS\nSQL | Python" in md
     assert "## CERTIFICATIONS" not in md, "an empty section is left out"
     assert resume_doc.name_of(md) == "Jesse Ngolab"
 
@@ -147,20 +151,20 @@ def _headings(md):
 def test_projects_are_placed_and_named_by_career_stage_and_industry():
     info = {"name": "Jo Bloggs"}
     assert _headings(resume_doc.to_markdown(info, _doc("student", "tech"))) == [
-        "PROFESSIONAL SUMMARY", "SKILLS", "EDUCATION", "TECHNICAL PROJECTS",
-        "PROFESSIONAL EXPERIENCE"]
+        "PROFESSIONAL SUMMARY", "EDUCATION", "TECHNICAL PROJECTS", "EXPERIENCE",
+        "SKILLS"]
     assert _headings(resume_doc.to_markdown(info, _doc("career_changer", "creative"))) == [
-        "PROFESSIONAL SUMMARY", "SKILLS", "PORTFOLIO HIGHLIGHTS",
-        "PROFESSIONAL EXPERIENCE", "EDUCATION"]
+        "PROFESSIONAL SUMMARY", "PORTFOLIO HIGHLIGHTS", "EXPERIENCE", "SKILLS",
+        "EDUCATION"]
     assert _headings(resume_doc.to_markdown(info, _doc("freelancer", "tech"))) == [
-        "PROFESSIONAL SUMMARY", "SKILLS", "PROFESSIONAL EXPERIENCE",
-        "SELECTED CLIENT PROJECTS", "EDUCATION"]
+        "PROFESSIONAL SUMMARY", "EXPERIENCE", "SELECTED CLIENT PROJECTS", "SKILLS",
+        "EDUCATION"]
     assert "CONSULTING HIGHLIGHTS" in _headings(
         resume_doc.to_markdown(info, _doc("freelancer", "business")))
     assert "KEY INITIATIVES" in _headings(
         resume_doc.to_markdown(info, _doc("student", "business")))
     assert _headings(resume_doc.to_markdown(info, _doc("experienced", "tech"))) == [
-        "PROFESSIONAL SUMMARY", "SKILLS", "PROFESSIONAL EXPERIENCE", "EDUCATION"]
+        "PROFESSIONAL SUMMARY", "EXPERIENCE", "SKILLS", "EDUCATION"]
     # A stage the model made up is treated as experienced: nothing added.
     assert "PROJECTS" not in resume_doc.to_markdown(info, _doc("guru", "tech"))
 

@@ -3,7 +3,7 @@
 # it. It reads GitHub's dependency graph, which takes pyproject.toml; the
 # hash-pinned locks (requirements.lock, requirements-desktop.lock) are
 # checked by pip-audit in docker.yml's security job instead.
-name: Dependency review
+name: "PR check: no vulnerable new dependencies"
 
 on:
   pull_request:
@@ -14,6 +14,7 @@ permissions:
 
 jobs:
   review:
+    name: "New dependencies have no known vulnerabilities"
     runs-on: ubuntu-latest
     permissions:
       contents: read

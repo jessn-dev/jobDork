@@ -30,7 +30,7 @@ only after the owner approves it in the `release` environment. A push to
 | `scripts/check_image.sh` | That the image runs as user 1000, has no pip, contains no `.env`, config or database, cannot rewrite its own code, and that the dashboard starts and refuses a missing token and an address not named |
 | Dependency Review, on every pull request (`dependency-review.yml`) | A dependency the pull request adds or upgrades with a known vulnerability of moderate severity or above; it fails, and comments which. It reads `pyproject.toml`; the locks are pip-audit's |
 | OpenSSF Scorecard, weekly and on every push to `main` (`scorecard.yml`) | How the supply chain is guarded: pinned actions, branch protection, signed releases, reviews, token permissions. Findings go to Security, Code scanning; the score is published to scorecard.dev |
-| Desktop app build (`desktop.yml`), macOS (Apple Silicon and Intel) and Windows, after the tests and scans pass | That every installer still build from the hash-pinned `requirements-desktop.lock`, and that the built app carries every module and data file it needs and can verify a build attestation (its `--self-test`) |
+| Desktop app build (`desktop.yml`), macOS (Apple Silicon and Intel) and Windows, after the tests and scans pass: on every release tag, on a change to what the installers are built from (`packaging/`, `requirements-desktop.lock`, `pyproject.toml`, the workflows, the app-only code), and by hand (Run workflow) | That every installer still build from the hash-pinned `requirements-desktop.lock`, and that the built app carries every module and data file it needs and can verify a build attestation (its `--self-test`) |
 
 **How the image is built to be hard to tamper with:**
 
