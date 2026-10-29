@@ -42,7 +42,9 @@ your choice ([Settings, Your keys](settings.md#your-keys)):
 **Reader 1** does the work. Add up to six with **Add another reader**: when
 one cannot answer (no key held, not running, rate limited, an error), the
 next one does, so a second reader keeps things going when the first is down.
-**Earlier** moves one up the order; **Remove** takes it out. The same
+**Earlier** and **Later** move one up or down the order, and **Remove**
+takes it out, the first one included once there are two (the next then
+becomes reader 1). A single reader is turned off with **Off**. The same
 provider can be listed twice with different models.
 
 Each reader card has the **Provider**, the **Ollama address** (empty uses
@@ -85,7 +87,8 @@ two more calls to each.
 
 A different model checks the readers' work better than the reader checks
 itself: one model marking its own work misses what it got wrong the same
-way twice. Add up to six **checkers** with **Add another checker**, tried in order like readers. A
+way twice. Add up to six **checkers** with **Add another checker**, tried in order like readers,
+and moved or removed the same way (a single checker is turned off with **None**). A
 checker:
 
 - runs the hallucination check on everything a reader writes, and
