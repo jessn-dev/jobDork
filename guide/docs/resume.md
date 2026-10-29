@@ -25,7 +25,9 @@ tracking system reads it; for a tailored one, every check its tab shows.
 Your resume's preview has **The text it reads**: what the fit score and the
 AI were given from the file.
 A tailored resume's preview has **Job post** (its window), **PDF** and
-**Word**. On a narrow window the preview moves above the rest.
+**Word**. The preview takes the right side of the page, as wide as the
+window allows and as tall as the window, so a page reads at full size. On a
+narrow window it moves above the rest.
 
 A tailored resume's preview also has a tab for each of its job post's other
 documents, so everything for one application is in one place: **Cover

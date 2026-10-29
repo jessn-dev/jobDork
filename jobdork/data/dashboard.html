@@ -112,7 +112,10 @@ nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
 main{padding:1.5rem 1.75rem;min-width:0}
 /* The Dashboard uses the whole width; pages of forms and reading keep a
    measure that is comfortable to read. */
-main > section:not(#view-scan):not(#view-settings):not(#view-setup){max-width:1060px}
+main > section:not(#view-scan):not(#view-settings):not(#view-setup):not(#view-resume){max-width:1060px}
+/* The Resume page's preview takes the room a wide window has. */
+#view-resume{max-width:1600px}
+#resumeinfo code{overflow-wrap:anywhere}
 h2{font-size:1.05rem;margin:0 0 .35rem}
 .bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
 /* The job post search takes the room left on its row, so a typed company
@@ -628,7 +631,7 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .rcard .meter i.mid{background:var(--warn)}.rcard .meter i.low{background:var(--bad)}
 .rcard.add{align-items:center;justify-content:center;border-style:dashed;color:var(--accent);text-align:center}
 .rcard.add .plus{font-size:1.6rem;line-height:1}
-.rpanes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:1.1rem;align-items:start}
+.rpanes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:1.1rem;align-items:start}
 @media (max-width:1150px){.rpanes{grid-template-columns:minmax(0,1fr)}.rpreview{order:-1}}
 .rpreview{position:sticky;top:1rem;max-height:calc(100vh - 2rem);overflow:auto;margin-top:1.25rem}
 .rptabs{display:flex;gap:.25rem;align-items:center;border-bottom:1px solid var(--line);margin:-.2rem 0 .55rem;flex-wrap:wrap}
@@ -638,7 +641,8 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .rptabs [data-rtab]:focus-visible{outline:2px solid var(--accent)}
 .rpact{margin-left:auto;display:flex;gap:.3rem;flex-wrap:wrap}
 .rp-head{display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap;margin-bottom:.5rem}
-.rpreview .pdfview{height:68vh}
+/* As tall as the window, less the preview's tabs and title. */
+.rpreview .pdfview{height:calc(100vh - 9.5rem);min-height:24rem}
 /* How a tracking system reads the resume (search/readable.py). */
 #resume-readable .rhead{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
 #resume-readable .rscore{font-weight:700;font-size:1.05rem}
@@ -5764,7 +5768,8 @@ async function previewPdf(path, title) {
   if (!f.ok) { $('rp-doc').innerHTML = `<p class="err">${esc(cap(await f.text()))}</p>`; return; }
   if (rpUrl) URL.revokeObjectURL(rpUrl);
   rpUrl = URL.createObjectURL(new Blob([await f.blob()], {type: 'application/pdf'}));
-  $('rp-doc').innerHTML = `<iframe class="pdfview" src="${rpUrl}" title="${esc(title)}"></iframe>`;
+  // The page at the preview's width, without the viewer's page list beside it.
+  $('rp-doc').innerHTML = `<iframe class="pdfview" src="${rpUrl}#navpanes=0&view=FitH" title="${esc(title)}"></iframe>`;
 }
 
 async function drawPreview() {

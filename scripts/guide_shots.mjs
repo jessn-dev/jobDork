@@ -128,7 +128,7 @@ try {
   await open(url);
   await shoot('dashboard');
   await shoot('dashboard-usage', {clip: '#m-usage'});
-  await shoot('dashboard-buttons', {clip: '#view-scan > .bar:nth-of-type(2)'});
+  await shoot('dashboard-buttons', {clip: '#view-scan > .bar:has(#run)'});
 
   await run(view('roles'));
   await sleep(1500);
