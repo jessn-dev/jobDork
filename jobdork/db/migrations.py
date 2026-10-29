@@ -42,7 +42,7 @@ log = logging.getLogger("jobdork.db.migrations")
 
 # The version a fresh database is created at, and the version this code
 # understands. Bumped by adding a step below.
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 
 class MigrationError(Exception):
@@ -312,6 +312,15 @@ def _v12_to_v13(conn: sqlite3.Connection) -> None:
 )''')
 
 
+def _v13_to_v14(conn: sqlite3.Connection) -> None:
+    """Skills the person confirmed having ("I have this", on a job post's ATS
+    match): part of their record from then on (writing/resume_doc.py)."""
+    conn.execute('''CREATE TABLE IF NOT EXISTS confirmed_skills (
+    term        TEXT PRIMARY KEY,
+    created_at  TEXT NOT NULL
+)''')
+
+
 # Numbered, ordered, append-only. The key is the version a step produces.
 STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     2: _v1_to_v2,
@@ -326,6 +335,7 @@ STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     11: _v10_to_v11,
     12: _v11_to_v12,
     13: _v12_to_v13,
+    14: _v13_to_v14,
 }
 
 

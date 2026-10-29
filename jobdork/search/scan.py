@@ -171,7 +171,7 @@ def _load_resume(cfg: Config, store: Store | None = None):
     except resume_mod.ResumeError as exc:
         log.warning("resume not used for scoring: %s", exc)
         return None
-    notes = (resume_doc.record_notes(store.projects(), store.education())
+    notes = (resume_doc.store_notes(store)
              if store is not None else "")
     if notes:
         cv.text += "\n\n" + notes

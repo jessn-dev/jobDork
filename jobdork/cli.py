@@ -558,7 +558,7 @@ def cmd_generate(args) -> int:
                 dry_run=args.dry_run,
                 progress=_say if not args.quiet else None,
                 settings=guard.settings_for(cfg),
-                notes=resume_doc.record_notes(store.projects(), store.education()),
+                notes=resume_doc.store_notes(store),
             )
         except gen.GenerateError as exc:
             print(f"generate: {exc}", file=sys.stderr)

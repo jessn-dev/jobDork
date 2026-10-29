@@ -588,6 +588,23 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .tabs button.on{color:var(--accent);border-color:var(--accent)}
 .gate{font-size:.8rem;margin:.15rem 0}
 .gate.pass{color:var(--ok)}.gate.fail{color:var(--warn)}
+/* A job post's ATS match: score, its parts as bars, the skill chips. */
+.atshead{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;margin-bottom:.3rem}
+.atsscore{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums}
+.atsbar{display:block;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.atsbar i{display:block;height:100%;background:var(--ok)}.atsbar i.mid{background:var(--warn)}.atsbar i.low{background:var(--bad)}
+.atsparts{display:grid;gap:.55rem;margin:.7rem 0 .9rem}
+.atspart{display:grid;grid-template-columns:1fr auto;gap:.15rem .6rem;font-size:.85rem}
+.atspart .atsbar{grid-column:1/-1;height:4px}
+#ats-out h4{margin:.8rem 0 .35rem;font-size:.85rem}
+.atschips{display:flex;flex-wrap:wrap;gap:.35rem}
+.atschip{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;padding:.15rem .5rem;
+  border-radius:6px;border:1px solid var(--line)}
+.atschip.have{border-color:var(--ok);color:var(--ok)}.atschip.add{border-color:var(--accent);color:var(--accent)}
+.atschip.missing{border-color:var(--bad);color:var(--bad)}
+.atschip .act{font-size:.72rem;padding:.05rem .4rem}
+.atsadvice{margin:.2rem 0;padding-left:1.1rem;font-size:.85rem}
+.act.linkish{border:none;background:none;padding:0;color:var(--accent);text-decoration:underline;font-size:inherit}
 /* The Resume page: cards for your resume and each tailored one, then the
    details beside a preview of the chosen card (after Resume Matcher's
    dashboard and builder, in this page's own look). */
@@ -2310,7 +2327,7 @@ const ICONS = {
   "check": "<path d=\"M20 6 9 17l-5-5\"/>",
   "x": "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>"
 };
-const TAB_ICON = {tools: 'sparkles', advert: 'file-text', screen: 'clipboard-check', cv: 'file-user',
+const TAB_ICON = {tools: 'sparkles', advert: 'file-text', ats: 'search-check', screen: 'clipboard-check', cv: 'file-user',
                   cover_letter: 'mail', letter: 'mail', resume_review: 'file-search',
                   tailored_resume: 'file-user'};
 const STATUS_ICON = {new: 'circle-dot', viewed: 'eye', interested: 'star', applied: 'send',
@@ -2331,7 +2348,7 @@ new MutationObserver(() => decorate(document.body))
 decorate(document.body);
 
 const TOOL_KINDS = ['resume_edits', 'keywords', 'highlight', 'feedback', 'revise'];
-const TAB_LABEL = {tools: 'AI tools', cover_letter: 'cover letter', resume_review: 'resume review', cv: 'CV',
+const TAB_LABEL = {tools: 'AI tools', ats: 'ATS match', cover_letter: 'cover letter', resume_review: 'resume review', cv: 'CV',
                    tailored_resume: 'tailored resume'};
 // Documents that are resumes: shown formatted, with their PDF to open or save.
 const PDF_KINDS = ['tailored_resume', 'cv'];
@@ -2379,7 +2396,7 @@ function drawDetail(tab) {
         : `<button class="act" data-icon="${STATUS_ICON[s] || 'circle-dot'}" onclick="act('${d.uid}','${s}')">${cap(s)}</button>`).join('')}</div>`;
 
   // AI tool results live together under one tab rather than a tab each.
-  const tabs = ['advert', ...(d.artifacts || []).map(a => a.kind).filter(k => !TOOL_KINDS.includes(k)), 'tools'];
+  const tabs = ['advert', 'ats', ...(d.artifacts || []).map(a => a.kind).filter(k => !TOOL_KINDS.includes(k)), 'tools'];
   const uniq = [...new Set(tabs)];
   const tabsBar = `<div class="tabs">${uniq.map(t =>
       `<button class="${t === tab ? 'on' : ''}" data-icon="${TAB_ICON[t] || 'file-text'}" onclick="drawDetail('${t}')">${esc(cap(tabLabel(t)))}</button>`).join('')}
@@ -2404,6 +2421,11 @@ function drawDetail(tab) {
   if (tab === 'tools') {
     $('dlg-body').innerHTML = body + aiBars + toolsIntro(d.uid) + '<div id="tools-out"><p class="empty">Loading…</p></div>';
     drawTools(d.uid);
+    return;
+  }
+  if (tab === 'ats') {
+    $('dlg-body').innerHTML = body + '<div id="ats-out"><p class="empty">Loading…</p></div>';
+    drawAts(d.uid);
     return;
   }
   if (tab === 'advert') {
@@ -2458,6 +2480,51 @@ function drawDetail(tab) {
           : `<div class="advert">${esc(doc.text)}</div>`);
     });
   }
+}
+
+// ── ATS match (search/ats.py) ────────────────────────────────────────────────
+// Your resume file against this advert, as a tracking system searches it:
+// the score and its parts as bars, then the advert's skills you have, could
+// add (in your projects, education or confirmed skills) and lack, each of
+// the last with "I have this".
+async function drawAts(uid) {
+  const out = $('ats-out');
+  const r = await api('/api/ats?uid=' + encodeURIComponent(uid));
+  if (!out.isConnected) return;
+  if (!r.ok) { out.innerHTML = `<p class="hint">${esc(cap(await r.text()))}.</p>`; return; }
+  const a = await r.json();
+  if (a.score === null) {
+    out.innerHTML = '<p class="hint">Not scored: this advert names none of the skills jobdork knows, or it is too short. Paste the full advert on the Advert tab.</p>';
+    return;
+  }
+  const bar = n => `<span class="atsbar"><i class="${n >= 75 ? '' : n >= 50 ? 'mid' : 'low'}" style="width:${n}%"></i></span>`;
+  const chip = (t, kind) => `<span class="atschip ${kind}">${esc(skillName(t))}${kind === 'missing'
+    ? ` <button type="button" class="act" data-have="${esc(t)}" title="You have this skill: a tailored resume may then name it">I have this</button>` : ''}</span>`;
+  const parts = Object.keys(a.weights).map(k => a.parts[k] === null
+    ? `<div class="atspart"><span>${esc(a.labels[k])} <span class="hint">(${a.weights[k]}%)</span></span><span class="hint">not judged</span></div>`
+    : `<div class="atspart"><span>${esc(a.labels[k])} <span class="hint">(${a.weights[k]}%)</span></span><b>${Math.round(a.parts[k])}%</b>${bar(a.parts[k])}</div>`).join('');
+  out.innerHTML = `<div class="atshead"><b>ATS match</b><span class="atsscore">${Math.round(a.score)}<span class="hint">/100</span></span></div>
+    ${bar(a.score)}
+    <p class="hint">Your resume file against this advert, the way a tracking system searches it: by script, no AI.</p>
+    <div class="atsparts">${parts}</div>
+    ${a.have.length ? `<h4>On your resume</h4><div class="atschips">${a.have.map(t => chip(t, 'have')).join('')}</div>` : ''}
+    ${a.can_add.length ? `<h4>Safe to add <span class="hint">in your projects, education or confirmed skills, not your resume file</span></h4>
+      <div class="atschips">${a.can_add.map(t => chip(t, 'add')).join('')}</div>` : ''}
+    ${a.missing.length ? `<h4>Missing <span class="hint">nowhere in your record</span></h4>
+      <div class="atschips">${a.missing.map(t => chip(t, 'missing')).join('')}</div>` : ''}
+    ${a.confirmed.length ? `<p class="hint">You confirmed: ${a.confirmed.map(t => `${esc(skillName(t))}
+      <button type="button" class="act linkish" data-unhave="${esc(t)}">take back</button>`).join(', ')}</p>` : ''}
+    ${a.advice.length ? `<h4>What to do</h4><ul class="atsadvice">${a.advice.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+    <p class="hint" id="ats-msg"></p>`;
+  const send = async (term, have) => {
+    const r = await api('/api/skills/confirm', {method: 'POST', body: form({term, have: have ? '1' : '0'})});
+    if (!r.ok) { $('ats-msg').className = 'err'; $('ats-msg').textContent = cap(await r.text()); return; }
+    const d = await r.json();
+    toast(`${skillName(term)} ${have ? 'added to your skills' : 'taken back'}. ${d.rescore || ''}`);
+    drawAts(uid);
+  };
+  out.querySelectorAll('[data-have]').forEach(b => b.onclick = () => send(b.dataset.have, true));
+  out.querySelectorAll('[data-unhave]').forEach(b => b.onclick = () => send(b.dataset.unhave, false));
 }
 
 // A resume document's PDF, named FirstName_LastName_JobTitle_Resume.pdf by

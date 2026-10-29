@@ -519,6 +519,47 @@ def list_projects(cfg) -> dict:
             "tutorial_pattern": resume_doc.TUTORIAL.pattern}
 
 
+def role_ats(cfg, uid: str) -> dict:
+    """A job post's ATS match (search/ats.py): your resume file against its
+    advert, and the advert's skills you have, could add, and lack."""
+    from ..db.store import Store
+    from ..search import ats
+    from ..search import resume as resume_mod
+    from ..writing import resume_doc
+
+    if not cfg.resume_path:
+        raise ApiError("no resume uploaded: upload one on the Resume page", 404)
+    with Store(cfg.db_path) as store:
+        row = store.conn.execute("SELECT title, description FROM roles WHERE uid = ?",
+                                 (str(uid),)).fetchone()
+        if row is None:
+            raise ApiError("no such job post", 404)
+        notes = resume_doc.store_notes(store)
+        confirmed = store.confirmed_skills()
+    try:
+        text = resume_mod.load(cfg.resume_path).text
+    except resume_mod.ResumeError as exc:
+        raise ApiError(str(exc)) from None
+    found = ats.match(text, f"{text}\n\n{notes}" if notes else text,
+                      row["description"] or "", row["title"] or "")
+    return {**found.to_dict(), "confirmed": confirmed,
+            "advert_chars": len(row["description"] or "")}
+
+
+def confirm_skill(cfg, form: dict) -> dict:
+    """"I have this" for one skill, or taken back: part of your record from
+    then on (writing/resume_doc.py record_notes)."""
+    from ..db.store import Store
+
+    have = str(form.get("have") or "1") not in ("0", "false", "")
+    with Store(cfg.db_path) as store:
+        try:
+            changed = store.confirm_skill(str(form.get("term") or ""), have)
+        except ValueError as exc:
+            raise ApiError(str(exc)) from None
+        return {"have": have, "changed": changed, "confirmed": store.confirmed_skills()}
+
+
 def save_project(cfg, form: dict) -> dict:
     """Add or change one project. The link must be a web address, if given."""
     from ..db.store import Store
@@ -2492,7 +2533,7 @@ def generate_job(cfg, uid: str, kind: str):
 
             progress(f"running claude -p for {kind} (this spends tokens)")
             result = gen.generate(row, kind, cfg.resume_path, progress=progress,
-                                  notes=resume_doc.record_notes(store.projects(), store.education()),
+                                  notes=resume_doc.store_notes(store),
                                   settings=guard.settings_for(cfg))
 
             for gate in result.gates:
