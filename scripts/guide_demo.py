@@ -232,6 +232,7 @@ def build(folder: Path) -> Path:
                               "location": "Chicago, IL", "start": "Aug 2025",
                               "end": "Expected May 2027"})
         _tailored(store, folder, uids)
+        _applications(store, uids, now)
         _runs(store, now)
     _checked_for_updates(Path(cfg.db_path).parent, now)
     return config
@@ -308,6 +309,48 @@ def _documents(store, folder: Path, uid: str) -> None:
         path = folder / "job-applications" / "demo-1" / f"{kind}.md"
         path.write_text(text, encoding="utf-8")
         store.add_artifact(uid, kind, str(path), gates=passed)
+
+
+def _applications(store, uids: list[str], now: float) -> None:
+    """My applications: four jobs applied to, their stages dated over the
+    last three weeks, one follow-up past its date, a contact, the documents
+    sent and notes."""
+    def ago(days: float) -> str:
+        return time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now - days * 86400))
+
+    def on(days: float) -> str:
+        return time.strftime("%Y-%m-%d", time.localtime(now + days * 86400))
+
+    stages = {
+        uids[4]: [("applied", 12), ("interviewing", 5)],
+        uids[3]: [("applied", 9)],
+        uids[1]: [("interested", 4), ("applied", 3), ("submitted", 2)],
+        uids[2]: [("applied", 20), ("rejected", 6)],
+    }
+    for uid, steps in stages.items():
+        store.set_status(uid, steps[-1][0])
+        store.conn.execute("DELETE FROM status_history WHERE uid = ?", (uid,))
+        store.conn.executemany("INSERT INTO status_history(uid, status, at) VALUES(?,?,?)",
+                               [(uid, status, ago(days)) for status, days in steps])
+        store.conn.execute("UPDATE role_state SET updated_at = ? WHERE uid = ?",
+                           (ago(steps[-1][1]), uid))
+    store.conn.commit()
+    blank = dict.fromkeys(("contact_email", "contact_link", "resume_id", "letter_id"))
+    store.save_application(uids[4], {
+        **blank, "next_step": "Panel interview", "next_date": on(4),
+        "contact_name": "Dana Brooks", "contact_email": "dana.brooks@example.com"})
+    store.save_application(uids[3], {**blank, "next_step": "Follow up", "next_date": on(-2),
+                                     "contact_name": ""})
+    resume = store.artifacts(uids[1], "tailored_resume")[0]["id"]
+    letter = store.artifacts(uids[1], "cover_letter")[0]["id"]
+    store.save_application(uids[1], {**blank, "next_step": "Hear back", "next_date": on(7),
+                                     "contact_name": "", "resume_id": resume, "letter_id": letter})
+    for uid, note, days in ((uids[4], "Phone screen went well; they asked about telemetry.", 5),
+                            (uids[4], "Panel is three charge nurses and the unit manager.", 1)):
+        store.add_application_note(uid, note)
+        store.conn.execute("UPDATE application_notes SET at = ? WHERE uid = ? AND note = ?",
+                           (ago(days), uid, note))
+    store.conn.commit()
 
 
 def _checked_for_updates(folder: Path, now: float) -> None:

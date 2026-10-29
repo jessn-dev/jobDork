@@ -6,6 +6,9 @@ here, from a schedule or from a terminal.
 
 ![The Dashboard](images/dashboard.png)
 
+When a follow-up on one of [your applications](applications.md) is past its
+date, a note above the buttons says which, with **Open My applications**.
+
 ## The buttons
 
 ![The Dashboard's buttons](images/dashboard-buttons.png)

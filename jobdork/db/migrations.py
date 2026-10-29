@@ -42,7 +42,7 @@ log = logging.getLogger("jobdork.db.migrations")
 
 # The version a fresh database is created at, and the version this code
 # understands. Bumped by adding a step below.
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 
 class MigrationError(Exception):
@@ -321,6 +321,49 @@ def _v13_to_v14(conn: sqlite3.Connection) -> None:
 )''')
 
 
+def _v14_to_v15(conn: sqlite3.Connection) -> None:
+    """My applications: every status a job post was given and when, what you
+    keep about an application, and its dated notes. The history starts from
+    the status each post has now, dated when it was set: the one date kept."""
+    conn.executescript(APPLICATION_TABLES)
+    conn.execute(
+        "INSERT INTO status_history(uid, status, at) "
+        "SELECT s.uid, s.status, s.updated_at FROM role_state s JOIN roles r ON r.uid = s.uid "
+        "WHERE s.status NOT IN ('new', 'viewed') "
+        "AND NOT EXISTS (SELECT 1 FROM status_history h WHERE h.uid = s.uid)")
+
+
+# The same tables a new database is made with (store.SCHEMA), written once.
+APPLICATION_TABLES = """
+CREATE TABLE IF NOT EXISTS status_history (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    uid     TEXT NOT NULL REFERENCES roles(uid) ON DELETE CASCADE,
+    status  TEXT NOT NULL,
+    at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_history_uid ON status_history(uid);
+CREATE TABLE IF NOT EXISTS applications (
+    uid           TEXT PRIMARY KEY REFERENCES roles(uid) ON DELETE CASCADE,
+    next_step     TEXT,
+    next_date     TEXT,
+    contact_name  TEXT,
+    contact_email TEXT,
+    contact_link  TEXT,
+    resume_id     INTEGER REFERENCES artifacts(id) ON DELETE SET NULL,
+    letter_id     INTEGER REFERENCES artifacts(id) ON DELETE SET NULL,
+    updated_at    TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS application_notes (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    uid     TEXT NOT NULL REFERENCES roles(uid) ON DELETE CASCADE,
+    stage   TEXT NOT NULL,
+    note    TEXT NOT NULL,
+    at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_notes_uid ON application_notes(uid);
+"""
+
+
 # Numbered, ordered, append-only. The key is the version a step produces.
 STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     2: _v1_to_v2,
@@ -336,6 +379,7 @@ STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     12: _v11_to_v12,
     13: _v12_to_v13,
     14: _v13_to_v14,
+    15: _v14_to_v15,
 }
 
 

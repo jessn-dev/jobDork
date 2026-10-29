@@ -6,6 +6,36 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-29 — My applications
+
+A new page, **My applications** (menu, under Job posts), lists every job
+you applied to, newest change first: one marked applied, submitted,
+interviewing or offer, or rejected or withdrawn after (and one closed or
+skipped after applying). Chips narrow it to a stage (All, Applied,
+Interviewing, Offer, Closed) with counts; each row has the job, its status,
+the day you applied and its next step with the date, red once past. A row
+opens beside the list, as on Job posts (in the window when narrower), on a
+new **Application** tab that any job post you applied to now has:
+
+- **Stages**: each status with its day. jobdork now dates every status
+  change (`status_history`); a post applied to before this version starts
+  from the status it had, dated when it was set.
+- **Next step** and its date, **Contact** (name, email, link) and
+  **Documents sent** (which of the post's tailored resumes and cover
+  letters), kept by **Save application** (`applications`).
+- **Notes**: dated, filed under the status at the time, newest first, with
+  **Delete** (asks first) (`application_notes`).
+
+Like a status, all of it belongs to the job, so copies of one job share it,
+and it goes with the job post when that is deleted. A follow-up past its
+date is counted in red beside My applications in the menu and named on the
+Dashboard, with **Open My applications**. Schema 15. API: `/api/applications`,
+`/api/application`, `/api/application/note`; the job post's own
+(`/api/role`) carries its application. Guide: a new My applications page,
+and the Dashboard and Statuses pages; demo data with four applications.
+
+---
+
 ## Changed — 2026-10-29 — Job posts: the list with the chosen post beside it
 
 On a window 1180 pixels wide or more (the app's own size included), Job
