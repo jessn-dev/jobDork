@@ -64,7 +64,7 @@ paid by the word with Anthropic, Gemini, OpenAI or Groq.
 |---|---|
 | **Ask AI** / **Ask AI again** | The AI's verdict on this post: a [score](scores.md#ai-the-models-opinion), a summary, and the reasons for and against |
 | **Write cover letter (AI)** | A cover letter from your resume and this advert. It opens in a new **Cover letter** tab, and is listed on the [Resume](resume.md#cover-letters) page |
-| **Write tailored resume (AI)** | Your resume rewritten for this advert, in a plain layout that applicant tracking systems read well, as a PDF named `FirstName_LastName_JobTitle_Resume.pdf`. It opens in a **Tailored resume** tab. Your contact line is copied from your resume, never written by the AI, and any employer, school, skill or certification your resume does not name is left out and listed |
+| **Write tailored resume (AI)** | Your resume rewritten for this advert, as a PDF and a Word file named `FirstName_LastName_JobTitle_Resume`, in a plain layout that applicant tracking systems read well ([the layout](#the-tailored-resume)). It opens in a **Tailored resume** tab. Your contact line is copied from your resume, never written by the AI, and any employer, school, skill, certification or award your resume does not name is left out and listed |
 | **Review resume for this post** | What to change in your resume for this post, each point quoting the line it is about, and what the advert asks for that your resume does not show. Opens in a **Resume review** tab |
 
 ### Editing help
@@ -114,4 +114,29 @@ Before you see anything the AI wrote, jobdork checks it:
 
 In a document's tab, each check shows **ok** or **READ**: READ means look at
 it before you send anything. The thumbs on a document say whether it helped.
-**Open PDF** and **Download PDF** are on resumes and CVs.
+**Open PDF** and **Download PDF** are on resumes and CVs, and **Download
+Word** gives the same resume as a `.docx` to edit in Word, Pages or Google
+Docs before you send it.
+
+### The tailored resume
+
+Laid out like Indeed's free resume template, one column:
+
+- your name, then *Phone | Email | City, State*, then your website or
+  LinkedIn, centred;
+- **Professional summary**, **Experience**, **Skills**, **Education**,
+  **Certifications**, then **Awards & volunteer work**, each left out when
+  your resume has nothing for it. A student's Education comes right after
+  the summary, and projects go where your career stage puts them;
+- each job as its title with the dates at the right margin, then
+  *Company, City*, then its bullets; skills separated by `|`.
+
+Its length follows [Indeed's advice](https://www.indeed.com/career-advice/resumes-cover-letters/how-long-should-a-resume-be):
+one page for up to ten years of experience, two after that, and three only
+past 25 years or for academic and medical jobs. Jobs that ended more than
+15 years ago are left out (unless it is the only one), the newest job keeps
+up to seven bullets and older ones fewer, and when it still runs over, an
+older job's last bullets go first. The **page count** check says how many
+pages it fills and lists everything left out to fit, so you can put back
+what matters by hand in the Word file. Arial at 11 points, 0.7 inch margins,
+US Letter.

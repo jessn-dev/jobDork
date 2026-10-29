@@ -235,7 +235,7 @@ def test_a_tailored_resume_keeps_to_the_resume_and_is_named_for_the_role():
         text = result.markdown
         assert text.startswith("# Jane Doe\n")
         assert "## PROFESSIONAL SUMMARY" in text and "\u2014" not in text
-        assert "## SKILLS\nKubernetes, Python, Go, GitHub Actions\n" in text
+        assert "## SKILLS\nKubernetes | Python | Go | GitHub Actions\n" in text
         # Globex and the CKA are not in the resume: left out, and said so.
         assert "Globex" not in text and "CKA" not in text
         facts = next(g for g in result.gates if g.name == writer.FACTS_GATE)
@@ -243,6 +243,13 @@ def test_a_tailored_resume_keeps_to_the_resume_and_is_named_for_the_role():
 
         body, name = api.artifact_pdf(cfg, result.artifact_id)
         assert name == result.pdf_path.name and body.startswith(b"%PDF-")
+        # The same resume as Word, beside the PDF and from the page.
+        assert result.docx_path.name == "Jane_Doe_Platform_Engineer_Resume.docx"
+        assert result.docx_path.read_bytes().startswith(b"PK")
+        body, name = api.artifact_docx(cfg, result.artifact_id)
+        assert name == result.docx_path.name and body.startswith(b"PK")
+        fits = next(g for g in result.gates if g.name == writer.LENGTH_GATE)
+        assert fits.passed and fits.detail.startswith("1 page, within the 1 Indeed suggests")
 
 
 DATED = RESUME + "Platform engineer, Acme, March 2016 - April 2017\n"
@@ -285,7 +292,7 @@ def test_a_skill_the_resume_does_not_have_is_left_off_and_said_so():
     result = _tailor_with({**BASE, "stage": "experienced", "industry": "tech",
                            "stage_reason": "", "projects": [],
                            "skills": ["Kubernetes", "Django", "Python (Go)"]})
-    assert "## SKILLS\nKubernetes, Python (Go)\n" in result.markdown
+    assert "## SKILLS\nKubernetes | Python (Go)\n" in result.markdown
     facts = next(g for g in result.gates if g.name == writer.FACTS_GATE)
     assert not facts.passed and facts.items == ["skill: Django"]
 
@@ -332,7 +339,7 @@ def test_a_career_changer_leads_with_projects_from_their_own_notes():
                                {"name": "Invented project", "bullets": ["Did things."]}]},
                           notes)
     md = result.markdown
-    assert md.index("## TECHNICAL PROJECTS") < md.index("## PROFESSIONAL EXPERIENCE")
+    assert md.index("## TECHNICAL PROJECTS") < md.index("## EXPERIENCE")
     assert "Kubernetes homelab" in md and "Invented project" not in md
     # Figures from the notes are the person's own: not "unsupported".
     figures = next(g for g in result.gates if g.name == "unsupported figures")
@@ -353,7 +360,7 @@ def test_your_own_projects_are_shown_even_when_experienced_and_left_out_by_the_m
                            "stage_reason": "Seven years of platform work.",
                            "projects": []}, notes)
     md = result.markdown
-    assert md.index("## PROFESSIONAL EXPERIENCE") < md.index("## TECHNICAL PROJECTS")
+    assert md.index("## EXPERIENCE") < md.index("## TECHNICAL PROJECTS")
     assert "### Release notes newsletter\nEditor | https://example.com/notes\n" in md
     assert "- Wrote a monthly issue from the changelog." in md
     assert "- Read by 220 engineers a month." in md
@@ -413,7 +420,7 @@ def test_education_added_on_the_resume_page_is_shown_newest_first():
     md = result.markdown
     edu = md[md.index("## EDUCATION"):]
     assert edu.index("### MS Computer Science") < edu.index("### B.S. in Computer Science")
-    assert "Georgia Tech | Online" in edu and "Acme University | Springfield" in edu
+    assert "Georgia Tech, Online" in edu and "Acme University, Springfield" in edu
     assert "### BS Computer Science" not in edu      # replaced by your own line
     facts = next(g for g in result.gates if g.name == writer.FACTS_GATE)
     assert not any("Georgia Tech" in i for i in facts.items), facts.items
