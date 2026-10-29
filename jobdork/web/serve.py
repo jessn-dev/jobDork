@@ -299,6 +299,9 @@ def _config_payload(cfg) -> dict:
         "show_days": cfg.freshness.show_days,
         "older_days": cfg.freshness.older_days,
         "resume_path": cfg.resume_path,
+        # Where it is on disk, in full: the setting may be "data/resume.pdf",
+        # relative to the folder jobdork started in, which says little.
+        "resume_file": str(Path(cfg.resume_path).expanduser().resolve()) if cfg.resume_path else "",
         "credentials": cfg.credentials,
         "companies": [{"name": c.name, "platform": c.platform, "token": c.token}
                       for c in cfg.sources.companies],
