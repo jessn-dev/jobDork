@@ -563,7 +563,7 @@ llm:
     - {provider: anthropic, model: claude-sonnet-5-5} # then this one
 ```
 
-**What a hosted model is sent.** Claude, Gemini, ChatGPT and Groq get every prompt
+**What a hosted model is sent.** Anthropic, Gemini, OpenAI and Groq get every prompt
 with email addresses, phone numbers and LinkedIn, GitHub and GitLab profile
 links removed (`llm.redact`). Year ranges, figures and standards such as
 "NIST 800-53" are left alone. A local Ollama model gets the text as it is,
@@ -573,7 +573,7 @@ it off a resume you use with a hosted model if that matters to you.
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `llm.readers` | list | empty (off) | The AI readers, in the order they are asked, up to 6: each `{provider, model}`, and for Ollama an optional `ollama_url` and `ollama_key: true` (send the Ollama key, held in memory or the keychain like the other keys, never in this file, to an Ollama behind a gatekeeper). The first does the work; when it cannot answer (no key held, not reachable, rate limited, an error) the next one does. The same provider may be listed again with another model, but not the same model twice. Setup offers up to 3; the AI page the rest |
-| `llm.provider` | string | empty (off) | The first reader's provider: `ollama`, `anthropic` (Claude), `gemini`, `openai` (ChatGPT) or `groq`. A config with no `readers` has this one reader |
+| `llm.provider` | string | empty (off) | The first reader's provider: `ollama`, `anthropic` (Anthropic: Claude models), `gemini`, `openai` (OpenAI: GPT models) or `groq`. A config with no `readers` has this one reader |
 | `llm.model` | string | empty | The first reader's model, e.g. `gemma4:26b`; the AI page lists what is available |
 | `llm.ollama_url` | URL | `http://localhost:11434` | Where Ollama answers. Must be `http(s)://host:port` |
 | `llm.context` | int | `16384` | Ollama's context window in tokens, 4,096 to 131,072. A prompt that may not fit is said so in the log, since Ollama would drop the start of it without a word |
@@ -718,9 +718,9 @@ true; the environment and `.env` win over both. A key written into
 | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna |
 | `USAJOBS_API_KEY`, `USAJOBS_EMAIL` | USAJOBS — the email must be the address you registered, and is sent as the User-Agent |
 | `RESEND_API_KEY`, `RESEND_FROM` | Email: `scan --email`, `digest`, and the dork generator |
-| `ANTHROPIC_API_KEY` | Claude, from the terminal (the dashboard takes keys on its AI page) |
+| `ANTHROPIC_API_KEY` | Anthropic, from the terminal (the dashboard takes keys on its AI page) |
 | `GEMINI_API_KEY` or `GOOGLE_API_KEY` | Gemini, from the terminal |
-| `OPENAI_API_KEY` | ChatGPT, from the terminal |
+| `OPENAI_API_KEY` | OpenAI, from the terminal |
 | `GROQ_API_KEY` | Groq, from the terminal |
 | `JOBDORK_CONFIG` | Config path override |
 | `JOBDORK_FEEDBACK_URL` | Where the Feedback page's Send goes. By default the maintainers' relay (see [relay/feedback](../relay/feedback/README.md)); an `https://` address replaces it, and `off` turns Send off, leaving "Open as a GitHub issue" and "Save as a file". No Resend or GitHub key is ever read by the app for this |
