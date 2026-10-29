@@ -111,17 +111,42 @@ def test_an_answer_that_is_not_the_schema_is_refused():
             assert not store.artifacts(uid)
 
 
-def test_the_agent_never_falls_through_to_another_model():
-    settings = llm.Settings(provider=llm.AGENT,
-                            fallbacks=[llm.Settings(provider="ollama", model="m")])
+def test_an_agent_alone_with_nothing_to_give_stops_the_run_with_its_brief():
     llm.agent_answers([])
     try:
-        llm.complete_json(settings, "sys", "user", {"type": "object"}, purpose="judge")
+        llm.complete_json(llm.Settings(provider=llm.AGENT), "sys", "user",
+                          {"type": "object"}, purpose="judge")
     except llm.AgentBrief:
         pass
     else:
         raise AssertionError("an agent with nothing to give must stop the run")
     assert llm.last_brief()["system"] == "sys"
+
+
+def test_with_other_readers_the_next_one_answers_what_jobdork_asks():
+    """A button or a scan, with the agent as Reader 1: Reader 2 answers.
+    The agent's own answer, when it gave one, is used, never passed on."""
+    asked = []
+
+    def model(reader, *_args):
+        asked.append(reader.provider)
+        return {"from": "ollama"}
+
+    settings = llm.Settings(provider=llm.AGENT,
+                            fallbacks=[llm.Settings(provider="ollama", model="m")])
+    was = llm._call_one
+    llm._call_one = model
+    try:
+        llm.agent_answers([])
+        assert llm.complete_json(settings, "s", "u", {"type": "object"}) == {"from": "ollama"}
+        assert settings.label == "Ollama (local) · m"
+        llm.agent_answers([{"from": "agent"}], client="codex")
+        assert llm.complete_json(settings, "s", "u", {"type": "object"}) == {"from": "agent"}
+        assert settings.label == "Coding agent · codex"
+    finally:
+        llm._call_one = was
+        llm.agent_answers([])
+    assert asked == ["ollama"]
 
 
 def test_the_agent_never_checks_its_own_writing():
@@ -141,9 +166,11 @@ def test_as_agent_keeps_the_other_readers_as_checkers():
     assert cfg.llm.readers[0].provider == "ollama", "the config itself is unchanged"
 
 
-def test_a_coding_agent_writes_alone():
-    _validate(Config(titles_include=["x"], llm=Llm(provider=llm.AGENT, readers=[Reader(llm.AGENT)])))
-    for bad in (Llm(provider=llm.AGENT, readers=[Reader(llm.AGENT), Reader("ollama", "m")]),
+def test_a_coding_agent_is_one_reader_line_and_never_a_checker():
+    for good in ([Reader(llm.AGENT)], [Reader(llm.AGENT), Reader("ollama", "m")],
+                 [Reader("ollama", "m"), Reader(llm.AGENT)]):
+        _validate(Config(titles_include=["x"], llm=Llm(provider=good[0].provider, readers=good)))
+    for bad in (Llm(provider=llm.AGENT, readers=[Reader(llm.AGENT), Reader(llm.AGENT)]),
                 Llm(provider="ollama", model="m", readers=[Reader("ollama", "m")],
                     checkers=[Reader(llm.AGENT)])):
         try:
@@ -154,9 +181,13 @@ def test_a_coding_agent_writes_alone():
             raise AssertionError(f"accepted {bad}")
 
 
-def test_agent_mode_refuses_the_dashboards_model_jobs_with_what_to_ask():
+def test_an_agent_alone_refuses_the_dashboards_model_jobs_with_what_to_ask():
     with _setup() as (cfg, uid, _):
         cfg.llm = Llm(provider=llm.AGENT, readers=[Reader(llm.AGENT)])
+        with_another = Llm(provider=llm.AGENT, readers=[Reader(llm.AGENT), Reader("ollama", "m")])
+        assert api.agent_mode(cfg) and api.agent_only(cfg)
+        assert api.agent_mode(Config(llm=with_another)) and not api.agent_only(Config(llm=with_another))
+        api.letter_job(Config(llm=with_another), uid)     # another reader writes it
         for job in (api.letter_job, api.tailor_job, api.judge_job):
             try:
                 job(cfg, uid=uid) if job is api.judge_job else job(cfg, uid)
@@ -271,6 +302,8 @@ def test_the_setup_commands_start_jobdork_on_this_computer():
     assert s["args"][:3] == ["-m", "jobdork.cli", "--config"] and s["args"][-1] == "mcp"
     assert s["args"][3].endswith("config.yaml")
     assert s["claude_code"].startswith("claude mcp add jobdork -- ")
+    assert s["gemini"].startswith("gemini mcp add -s user jobdork ") and " -- -m jobdork.cli" in s["gemini"]
+    assert json.loads(s["gemini_json"])["mcpServers"]["jobdork"]["args"] == s["args"]
     assert json.loads(s["claude_desktop"])["mcpServers"]["jobdork"]["command"] == sys.executable
     frozen, was = getattr(sys, "frozen", None), sys.executable
     sys.frozen = True

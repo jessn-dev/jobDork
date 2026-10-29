@@ -505,7 +505,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     "claude": bool(__import__("shutil").which("claude")),
                     "ai": ai["label"],
                     "ai_problem": ai["problem"],
-                    "agent": ai["agent_mode"],
+                    "agent": ai["agent_first"],
+                    "agent_only": ai["agent_only"],
+                    "agent_fallback": ai["agent_fallback"],
                     "unkept_data": _unkept(cfg_holder["cfg"]),
                     "notifications": {
                         "enabled": cfg_holder["cfg"].notifications.enabled,

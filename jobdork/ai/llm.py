@@ -63,8 +63,9 @@ KEYED = ("anthropic", "gemini", "openai", "groq")
 # makes no call of its own. The agent asks jobdork for the brief a model
 # would have been given (web/agent.py), writes the answer itself, and hands it
 # back; from there it goes through every check a model's answer does. Not in
-# PROVIDERS: it is no model to list, check with or key, and only the first
-# reader may be one (core/config.py).
+# PROVIDERS: it is no model to list, check with or key. One reader line at
+# most may be one, and no checker (core/config.py); the readers after it
+# answer what jobdork asks for itself.
 AGENT = "agent"
 AGENT_LABEL = "Coding agent"
 ENV_KEYS = {
@@ -397,16 +398,22 @@ def complete_json(settings: Settings, system: str, user: str,
     `on_text`, if given, is called with the answer so far as a local model
     writes it, for a progress bar; hosted models answer in one piece.
     """
-    if settings.provider == AGENT:
-        answer = from_agent(system, user, schema, purpose)
-        settings.answered = replace(settings, model=_agent.client, checkers=[],
-                                    fallbacks=[], answered=None)
-        return answer
     why = settings.problem()
     if why and not any(not r.problem() for r in settings.fallbacks):
         raise LLMError(why)
     failed: list[str] = []
+    agent = None
     for reader in settings.chain():
+        # The coding agent answers what it was asked in its own chat (an
+        # answer queued by web/agent.py). What jobdork asks for itself (a
+        # button, a scan's judging) goes to the next reader, if there is one.
+        if reader.provider == AGENT:
+            if getattr(_agent, "answers", None):
+                answer = from_agent(system, user, schema, purpose)
+                settings.answered = replace(reader, model=_agent.client)
+                return answer
+            agent = reader
+            continue
         if reader.problem():
             failed.append(f"{reader.label}: {reader.problem()}")
             continue
@@ -419,6 +426,8 @@ def complete_json(settings: Settings, system: str, user: str,
             continue
         settings.answered = reader
         return answer
+    if agent is not None and not failed:
+        from_agent(system, user, schema, purpose)      # keeps the brief, raises AgentBrief
     if len(failed) == 1:
         raise LLMError(failed[0].split(": ", 1)[1])
     raise LLMError("no AI reader could answer. " + "; ".join(failed))
@@ -431,8 +440,8 @@ class AgentBrief(LLMError):
     """jobdork would have asked a model here, and the coding agent writes it.
 
     An LLMError, so whatever copes with a model that cannot answer (a scan's
-    judging, a page read) copes with this the same way; complete_json does
-    not pass it on to the next reader. `web/agent.py` reads the brief from
+    judging, a page read) copes with this the same way. Raised only when no
+    other reader is listed to answer instead. `web/agent.py` reads the brief from
     `last_brief()` to give it to the agent.
     """
 

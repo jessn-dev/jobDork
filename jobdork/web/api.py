@@ -2064,17 +2064,28 @@ def fresh_scan_job(cfg, expect):
 
 
 def agent_mode(cfg) -> bool:
-    """The coding agent is the writer: jobdork asks no model of its own."""
+    """A coding agent is one of the readers (web/agent.py)."""
     from ..ai import llm
 
     readers = cfg.llm.readers
-    return (readers[0].provider if readers else cfg.llm.provider) == llm.AGENT
+    return any(r.provider == llm.AGENT for r in readers) if readers \
+        else cfg.llm.provider == llm.AGENT
+
+
+def agent_only(cfg) -> bool:
+    """The coding agent is the only reader: jobdork asks no model of its own."""
+    from ..ai import llm
+
+    readers = cfg.llm.readers
+    return all(r.provider == llm.AGENT for r in readers) if readers \
+        else cfg.llm.provider == llm.AGENT
 
 
 def refuse_in_agent_mode(cfg, ask: str) -> None:
-    """A job that would ask the writer, refused at once in agent mode, with
-    what to ask the agent instead."""
-    if agent_mode(cfg):
+    """A job that would ask a model, refused at once when the coding agent
+    is the only reader, with what to ask the agent instead. With other
+    readers listed, they do it."""
+    if agent_only(cfg):
         raise ApiError(f"Coding agent mode: jobdork asks no model. Ask your agent: \"{ask}\"", 409)
 
 
@@ -2099,6 +2110,10 @@ def agent_setup(cfg) -> dict:
         "command": command, "args": mcp_args,
         "claude_code": f"claude mcp add jobdork -- {line}",
         "codex": f"codex mcp add jobdork -- {line}",
+        # Gemini CLI reads flags after the command as its own: `--` first.
+        # -s user: for every folder, not only the one it is run in.
+        "gemini": join(["gemini", "mcp", "add", "-s", "user", "jobdork", command, "--", *mcp_args]),
+        "gemini_json": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
         "claude_desktop": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
         "cursor": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
         "vscode": json.dumps({"servers": {"jobdork": {"type": "stdio", **server}}}, indent=2),
@@ -2152,6 +2167,12 @@ def llm_state(cfg) -> dict:
         "problem": settings.problem(),
         "label": settings.label if cfg.llm.provider else "",
         "agent_mode": agent_mode(cfg),
+        "agent_only": agent_only(cfg),
+        "agent_first": bool(cfg.llm.readers) and cfg.llm.readers[0].provider == llm.AGENT,
+        # Who answers the buttons when the agent is a reader: the first
+        # other reader ready to, or "" for none.
+        "agent_fallback": next((r.label for r in settings.chain()
+                                if r.provider != llm.AGENT and not r.problem()), ""),
         "agent_label": llm.AGENT_LABEL,
         "agent_setup": agent_setup(cfg),
     }
@@ -2598,7 +2619,7 @@ def _judge_after_scan(cfg, store, progress) -> str:
     """The scan has already succeeded; a model problem must not undo that."""
     from ..ai import judging, llm
 
-    if agent_mode(cfg):
+    if agent_only(cfg):
         progress("AI judging skipped: your coding agent scores job posts when you ask it")
         return "AI judging skipped"
     problem = llm.Settings.from_config(cfg).problem()

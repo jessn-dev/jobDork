@@ -40,9 +40,11 @@ your choice ([Settings, Your keys](settings.md#your-keys)):
 
 ## Coding agent {#coding-agent}
 
-Already use a coding agent? It can do jobdork's AI work, so you need no API
-key and no Ollama. Choose **Coding agent** for Reader 1: it writes alone, so
-the other readers go.
+Already use a coding agent (Claude Code, Codex, Gemini CLI, Cursor, GitHub
+Copilot, Claude Desktop)? It can do jobdork's AI work, so you need no API
+key and no Ollama. Choose **Coding agent** for a reader, usually Reader 1.
+It can be on one reader line, and is never a checker. Other readers can
+still be added after it (below).
 
 ![Coding agent chosen](images/ai-agent.png)
 
@@ -67,9 +69,14 @@ projects, education and skills you tell it about to your record.
 **Connecting it.** The page shows the line for each agent, filled in for
 this computer, each with **Copy**:
 
-- **Claude Code** and **Codex**: a command to run once in a terminal.
-- **Claude Desktop**, **Cursor**, **VS Code with GitHub Copilot**: a few
-  lines for the file the page names. Restart the app afterwards.
+- **Claude Code**, **Codex** and **Gemini CLI**: a command to run once in a
+  terminal. In Gemini CLI, `/mcp` then shows jobdork connected.
+- **Claude Desktop**, **Cursor**, **VS Code with GitHub Copilot**, and
+  **Gemini CLI by hand**: a few lines for the file the page names. Restart
+  the app afterwards.
+- **The Gemini app** (gemini.google.com and its desktop app) has no way
+  documented by Google to add a tool like this one, so it is not listed;
+  Gemini CLI is.
 - **Without MCP**: for an agent that only runs commands, the command that
   runs one tool with its arguments (`list_job_posts`, `get_brief`,
   `save_document` and the rest). Running it with no tool lists them.
@@ -78,18 +85,24 @@ The connection is an [MCP](https://modelcontextprotocol.io) server that
 jobdork starts on your computer when the agent asks for it: it reads and
 writes the same data the window shows, and opens no network port.
 
-**With a coding agent, the buttons ask you to ask it.** A job post's
-**Write cover letter (AI)**, **Write tailored resume (AI)**, **Interview
-prep (AI)** and the rest show what to ask your agent instead, with **Copy**:
-jobdork asks no model. Scans do not score job posts by AI afterwards either:
-ask your agent to. The AI tools tab's editing tools need a model; ask your
-agent for those directly.
+**What jobdork asks for itself goes to the next reader.** Your agent
+answers what you ask in its chat; jobdork cannot ask it anything. So with
+the agent as Reader 1, a job post's **Write cover letter (AI)**, **Write
+tailored resume (AI)**, **Interview prep (AI)** and the rest show what to ask
+your agent, with **Copy**, and, when another reader is listed, a button to
+have that reader write it instead. Judging after a scan, reading posting
+pages and the AI tools tab go to the next reader without asking.
+
+With the agent as the only reader, jobdork asks no model at all: the
+buttons only say what to ask your agent, and scans do not score job posts
+by AI afterwards (ask your agent to). The AI tools tab's editing tools need
+a model; ask your agent for those directly.
 
 **The hallucination check is still a second model's.** Your agent never
 checks its own writing. With a [checker](#checkers) chosen, it checks
-everything your agent writes, as it does a reader's; a reader you had
-before choosing the agent can check too. With none, the check is not done,
-and says so as a check to read: read every claim yourself before you send it.
+everything your agent writes, as it does a reader's; with none chosen, your
+other readers check instead. With neither, the check is not done, and says
+so as a check to read: read every claim yourself before you send it.
 
 ## Readers
 

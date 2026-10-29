@@ -81,7 +81,7 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
 - **Uses an AI model only when you set one up.** Ollama on your own computer,
   or Anthropic, Gemini, OpenAI or Groq with your key, held in memory or, if
   you choose, in your computer's keychain; never in a file. Or your own
-  coding agent (Claude Code, Codex, Cursor, GitHub Copilot, Claude Desktop)
+  coding agent (Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot, Claude Desktop)
   does the writing through jobdork's MCP server or command line, with no key:
   jobdork checks and keeps what it writes ([Coding agent](https://jessn-dev.github.io/jobDork/ai/#coding-agent)). It can judge posts, write a cover letter, review your resume and
   write a tailored resume as a PDF and a Word file, interview prep and a

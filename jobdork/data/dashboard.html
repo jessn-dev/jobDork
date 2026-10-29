@@ -1873,7 +1873,7 @@ async function saveFile(blob, name) {
 }
 
 let roles = [], cfg = null, detail = null, detailTab = 'advert', hasClaude = false;
-let aiLabel = '', agentOn = false;
+let aiLabel = '', agentOn = false, agentFallback = '';
 const $ = id => document.getElementById(id);
 // At or below this, an advert is a teaser: dealbreakers and fit have almost
 // nothing to read. Adzuna's cap is 500.
@@ -2923,14 +2923,21 @@ function agentAsk(which, uid) {
   const text = which === 'judge' ? `Use jobdork to score ${what} against my resume.`
     : `Use jobdork to ${AGENT_ASKS[which]} ${what}.`;
   $('rolejob').innerHTML = `<span class="agentask">Your coding agent writes this. Ask it:
-    <q>${esc(text)}</q> <button type="button" class="act" data-icon="copy" id="agent-copy">Copy</button></span>`;
+    <q>${esc(text)}</q> <button type="button" class="act" data-icon="copy" id="agent-copy">Copy</button>
+    ${agentFallback ? `<button type="button" class="act" id="agent-instead">Use ${esc(agentFallback)} instead</button>` : ''}</span>`;
   $('agent-copy').onclick = () => navigator.clipboard.writeText(text)
     .then(() => toast('Copied: paste it into your agent'), () => toast('Copying was refused by the browser', 'err'));
+  // The next reader, asked by jobdork as if the agent were not listed.
+  if ($('agent-instead')) $('agent-instead').onclick = () => roleJob(which, uid, AGENT_TABS[which], true);
   decorate($('rolejob'));
 }
 
-async function roleJob(which, uid, tab) {
-  if (agentOn && AGENT_ASKS[which]) { agentAsk(which, uid); return; }
+// The tab each job lands on, for "Use ... instead".
+const AGENT_TABS = {letter: 'cover_letter', tailor: 'tailored_resume', review: 'resume_review',
+  prep: 'interview_prep', message: 'recruiter_message'};
+
+async function roleJob(which, uid, tab, direct) {
+  if (agentOn && AGENT_ASKS[which] && !direct) { agentAsk(which, uid); return; }
   $('rolejob').textContent = {judge: 'AI is reading…', check: 'checking…',
     letter: 'AI is writing the letter; it opens here when done…',
     tailor: 'AI is tailoring your resume; it opens here when done…',
@@ -3324,6 +3331,7 @@ async function refreshState() {
   hasClaude = s.claude;
   aiLabel = s.ai || '';
   agentOn = !!s.agent;
+  agentFallback = s.agent_fallback || '';
   $('aihint').textContent = s.ai_problem ? `AI: ${s.ai_problem}` : `AI: ${s.ai}`;
   // Docker without -v: the data lives in the container and goes with it.
   $('datawarn').hidden = !s.unkept_data;
@@ -4981,8 +4989,9 @@ function drawList(list, loadAll) {
         ${i < items.length - 1 ? `<button data-icon="chevron-right" class="act r-down" type="button" title="Ask this one later">Later</button>` : ''}
         <button data-icon="trash-2" class="act r-del" type="button">Remove</button>` : ''}</span></div>
     <div class="field"><label>Provider</label><div class="seg r-prov">${
-      // A coding agent writes alone: offered for the first reader only.
-      [...(i === 0 ? [''] : []), ...(i === 0 && list === 'readers' ? ['agent'] : []), ...Object.keys(ai.providers)].map(p =>
+      // A coding agent: on one reader line at most, and never a checker.
+      [...(i === 0 ? [''] : []), ...(list === 'readers' && !items.some((x, j) => j !== i && x.provider === 'agent')
+        ? ['agent'] : []), ...Object.keys(ai.providers)].map(p =>
         `<button type="button" data-p="${p}" ${p ? '' : 'data-icon="power" '}class="${p === r.provider ? 'on' : ''}">${
           providerIcon(p)}${p ? esc(p === 'agent' ? ai.agent_label : ai.providers[p]) : (list === 'readers' ? 'Off' : 'None')}</button>`).join('')}</div></div>
     <div class="field r-url-row" ${r.provider === 'ollama' ? '' : 'hidden'}><label>Ollama address</label>
@@ -5009,9 +5018,8 @@ function drawList(list, loadAll) {
         <span class="r-msg hint"></span></div></div>
   </div>`).join('');
   const off = !items[0].provider, what = list === 'readers' ? 'readers' : 'checkers';
-  const agentOnly = list === 'readers' && items[0].provider === 'agent';
-  $(kind.add).hidden = off || agentOnly;
-  if (list === 'readers') drawAgentSetup(agentOnly);
+  $(kind.add).hidden = off;
+  if (list === 'readers') drawAgentSetup(items.some(r => r.provider === 'agent'));
   $(kind.add).disabled = items.length >= max;
   $(kind.note).textContent = off ? '' : items.length >= max
     ? (setupStep ? `Up to ${max} here; add more later on the AI page.` : `Up to ${max} ${what}.`)
@@ -5038,17 +5046,22 @@ function drawAgentSetup(on) {
   // The apps set up from a file, folded: each is a screenful.
   const folded = (title, where, text) => `<details class="agentcmd"><summary><b>${title}</b>
     <span class="hint">${where}</span></summary>${row(text)}</details>`;
-  box.innerHTML = `<p><b>Your coding agent does the AI work.</b> Claude Code, Codex, Cursor, GitHub
-      Copilot or Claude Desktop reads your resume and the advert through jobdork's tools, writes the
+  box.innerHTML = `<p><b>Your coding agent does the AI work.</b> Claude Code, Codex, Gemini CLI,
+      Cursor, GitHub Copilot or Claude Desktop reads your resume and the advert through jobdork's tools, writes the
       document itself, and saves it back: jobdork checks it, makes the PDF and Word files and keeps it,
       as it does a model's. jobdork asks no model and needs no API key; it never calls your agent,
       your agent calls jobdork. Ask it, for instance: <q>Use jobdork to write a cover letter for my
       best job post.</q></p>
-    <p class="hint">The hallucination check is still done by a second model: a checker below, or
-      with none, not done, and the check says so. Your agent never checks its own writing.</p>
+    <p class="hint">What jobdork asks for itself (a job post's AI buttons, judging after a scan,
+      reading posting pages) goes to the next reader you list${ai.readers.some(r => r.provider && r.provider !== 'agent')
+        ? '' : '; with none, those buttons say what to ask your agent instead'}. The hallucination check
+      is still done by a second model: a checker below, or another reader; with neither, not done, and
+      the check says so. Your agent never checks its own writing.</p>
     ${block('Claude Code', 'run once, in a terminal', s.claude_code || '')}
     ${block('Codex', 'run once, in a terminal', s.codex || '')}
+    ${block('Gemini CLI', 'run once, in a terminal; then /mcp in Gemini shows it connected', s.gemini || '')}
     ${folded('Claude Desktop', 'in claude_desktop_config.json, then restart it', s.claude_desktop || '')}
+    ${folded('Gemini CLI, by hand', 'in ~/.gemini/settings.json, then restart it', s.gemini_json || '')}
     ${folded('Cursor', 'in ~/.cursor/mcp.json', s.cursor || '')}
     ${folded('VS Code with GitHub Copilot', 'in .vscode/mcp.json', s.vscode || '')}
     ${folded('Without MCP', 'any agent that runs commands: this, then a tool and its JSON', s.cli || '')}`;
@@ -5063,7 +5076,7 @@ function wireReader(card, load) {
     syncReaders();
     if (r.provider !== b.dataset.p) r.model = '';
     r.provider = b.dataset.p;
-    if (i === 0 && (!r.provider || r.provider === 'agent')) ai[list] = [r];   // Off, or an agent: alone
+    if (i === 0 && !r.provider) ai[list] = [r];        // Off: none at all
     drawReaders(false);
     const again = $(AI_LISTS[list].box).querySelector(`.reader[data-i="${i}"]`);
     if (again) loadReaderModels(again, true);

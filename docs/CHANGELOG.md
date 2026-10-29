@@ -9,8 +9,8 @@ it and into an entry when the work is done.
 ## Added — 2026-10-29 — A coding agent as the AI, with no key
 
 A third way to give jobdork its AI, beside Ollama and a keyed model: your
-own coding agent (Claude Code, Codex, Cursor, GitHub Copilot, Claude
-Desktop), after Resume Matcher's agent mode (srbhr/resume-matcher). jobdork
+own coding agent (Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot,
+Claude Desktop), after Resume Matcher's agent mode (srbhr/resume-matcher). jobdork
 never calls the agent; the agent calls jobdork's tools, and jobdork asks no
 model of its own.
 
@@ -28,17 +28,23 @@ model of its own.
   `jobdork agent TOOL JSON` (the app: `--agent`) for agents that only run
   commands. The build checks the built app answers MCP (`packaging/build.py`).
 - **How it fits** (`ai/llm.py`): `agent` is a provider whose calls are
-  answered from a queue; with none queued, the call keeps its brief and
-  raises `AgentBrief`, which never falls through to another reader. Only
-  Reader 1 may be one, alone; never a checker (`core/config.py`).
+  answered from a queue (the agent's own answer, never passed on). What
+  jobdork asks for itself (a button, judging after a scan, a page read)
+  goes to the next reader; with the agent the only reader, the call keeps
+  its brief and raises `AgentBrief`. One reader line at most may be an
+  agent, with other readers before or after it; never a checker
+  (`core/config.py`).
 - **The hallucination check stays a second model's** (`ai/guard.py`): the
   agent never checks its own writing. A checker, or a reader the config had
   before, checks; with none, the check is not run and is a check to read.
 - **The AI page** offers **Coding agent** for Reader 1, with the line for
-  Claude Code, Codex, Claude Desktop, Cursor, VS Code and the command line,
-  filled in for this computer, each with **Copy**. In agent mode a job
-  post's AI buttons show what to ask the agent instead, with **Copy**; the
-  dashboard's model jobs are refused with the same, and scans skip AI judging.
+  Claude Code, Codex, Gemini CLI (command and settings.json), Claude
+  Desktop, Cursor, VS Code and the command line,
+  filled in for this computer, each with **Copy**. With the agent as Reader
+  1, a job post's AI buttons show what to ask the agent, with **Copy**, and
+  **Use <next reader> instead** when another reader is listed. With the agent
+  the only reader, the dashboard's model jobs are refused with what to ask,
+  and scans skip AI judging.
 
 Guide: the AI page's new Coding agent section, with a picture. Tests:
 `tests/test_agent.py` (14).

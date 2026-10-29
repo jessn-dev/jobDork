@@ -1154,12 +1154,16 @@ def _validate(cfg: Config) -> None:
             f"{', '.join(PROVIDERS)}, {AGENT}, or empty for off.")
     for name, listed in (("readers", cfg.llm.readers), ("checkers", cfg.llm.checkers)):
         for i, reader in enumerate(listed, 1):
-            # A coding agent writes alone: the only reader, never a checker.
-            if reader.provider == AGENT and name == "readers" and len(listed) == 1:
-                continue
+            # A coding agent: one reader line at most, and never a checker,
+            # which would have it mark its own writing.
             if reader.provider == AGENT:
-                raise ConfigError(f"llm.{name} entry {i}: a coding agent ({AGENT}) can only "
-                                  "be the one reader, with no others")
+                if name == "checkers":
+                    raise ConfigError(f"llm.checkers entry {i}: a coding agent ({AGENT}) "
+                                      "cannot check; choose a model")
+                if sum(r.provider == AGENT for r in listed[:i]) > 1:
+                    raise ConfigError(f"llm.readers entry {i}: a coding agent ({AGENT}) "
+                                      "is listed once")
+                continue
             if reader.provider not in PROVIDERS:
                 raise ConfigError(f"llm.{name} entry {i} has provider {reader.provider!r}. "
                                   f"Accepted: {', '.join(PROVIDERS)}")
