@@ -389,6 +389,107 @@ def test_the_settings_page_routes():
     _with_server(check)
 
 
+# ── the update put in place, then restarted ───────────────────────────────────
+
+
+def _app(where: Path, version: str, mark: str) -> Path:
+    import plistlib
+
+    app = where / "jobdork.app"
+    (app / "Contents" / "MacOS").mkdir(parents=True)
+    (app / "Contents" / "MacOS" / "jobdork").write_text(mark, encoding="utf-8")
+    with open(app / "Contents" / "Info.plist", "wb") as fh:
+        plistlib.dump({"CFBundleShortVersionString": version}, fh)
+    return app
+
+
+def test_only_an_app_in_a_folder_of_its_own_replaces_itself():
+    with tempfile.TemporaryDirectory() as tmp:
+        app = _app(Path(tmp) / "Applications", "0.16.0", "old")
+        exe = str(app / "Contents" / "MacOS" / "jobdork")
+        assert updates.running_bundle(exe) == app.resolve()
+        assert updates.running_bundle("/usr/bin/python3") is None, "not inside an app"
+        assert updates.running_bundle("/Volumes/jobdork/jobdork.app/Contents/MacOS/jobdork") is None
+        moved = "/private/var/folders/x/AppTranslocation/ABC/d/jobdork.app/Contents/MacOS/jobdork"
+        assert updates.running_bundle(moved) is None, "opened from Downloads: a read-only copy"
+        os.chmod(app.parent, 0o555)
+        try:
+            assert updates.running_bundle(exe) is None, "a folder this user cannot write"
+        finally:
+            os.chmod(app.parent, 0o755)
+
+
+def _fake_tools(holds: str):
+    """hdiutil and ditto, standing in: attach fills the mount point with an
+    app of version `holds`; ditto copies; detach does nothing."""
+    import shutil
+
+    calls = []
+
+    def run(cmd, **_):
+        calls.append(cmd[:2])
+        if cmd[:2] == ["hdiutil", "attach"]:
+            _app(Path(cmd[cmd.index("-mountpoint") + 1]), holds, "new")
+        elif cmd[0] == "ditto":
+            shutil.copytree(cmd[1], cmd[2])
+        return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+    return run, calls
+
+
+def test_the_new_app_is_copied_out_beside_the_old_one():
+    with tempfile.TemporaryDirectory() as tmp:
+        app = _app(Path(tmp) / "Applications", "0.15.4", "old")
+        run, calls = _fake_tools("0.16.0")
+        staged = updates.stage_mac_update(Path(tmp) / "x.dmg", app, "0.16.0", run=run)
+        assert staged == app.with_name(".jobdork-0.16.0.app")
+        assert (staged / "Contents" / "MacOS" / "jobdork").read_text() == "new"
+        assert ["hdiutil", "detach"] in calls, "the disk image is put away again"
+        shutil_staged = staged
+        run, _ = _fake_tools("0.15.9")
+        try:
+            updates.stage_mac_update(Path(tmp) / "x.dmg", app, "0.16.0", run=run)
+        except updates.UpdateError as exc:
+            assert "0.15.9" in str(exc)
+        else:
+            raise AssertionError("an app of another version was put in place")
+        assert not shutil_staged.exists(), "nothing left behind"
+
+
+def test_the_apps_are_swapped_once_jobdork_has_quit_and_the_new_one_opens():
+    import subprocess
+    import time
+
+    with tempfile.TemporaryDirectory() as tmp:
+        app = _app(Path(tmp) / "Applications", "0.15.4", "old")
+        new = Path(tmp) / "staged"
+        _app(new, "0.16.0", "new")
+        opened = Path(tmp) / "opened"
+        opener = Path(tmp) / "opener.sh"
+        opener.write_text(f'#!/bin/sh\necho "$1" > "{opened}"\n', encoding="utf-8")
+        opener.chmod(0o755)
+        still_open = subprocess.Popen(["sleep", "1"])
+        log = Path(tmp) / "logs" / "update.log"
+        updates.swap_after_quit(app, new / "jobdork.app", log, pid=still_open.pid,
+                                opener=str(opener))
+        assert (app / "Contents" / "MacOS" / "jobdork").read_text() == "old", "not while it runs"
+        still_open.wait()
+        for _ in range(60):
+            if opened.exists():
+                break
+            time.sleep(0.1)
+        assert (app / "Contents" / "MacOS" / "jobdork").read_text() == "new"
+        assert opened.read_text().strip() == str(app), "the new one is opened"
+        assert not list(app.parent.glob("jobdork.app.previous-*")), "the old one is gone"
+        assert "replaced" in log.read_text()
+
+
+def test_the_windows_installer_runs_on_its_own_and_reopens_jobdork():
+    args = updates.windows_installer_args(Path("C:/x/setup.exe"))
+    assert "/SILENT" in args and "/CLOSEAPPLICATIONS" in args and "/restart=yes" in args
+    iss = (Path(__file__).resolve().parent.parent / "packaging" / "jobdork.iss").read_text()
+    assert "Check: RestartAfter" in iss and "{param:restart|no}" in iss
+
+
 if __name__ == "__main__":
     import traceback
     failed = 0

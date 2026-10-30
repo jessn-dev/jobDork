@@ -6990,7 +6990,7 @@ const UPD_STEPS = [
   ['downloading', 'Downloading the installer'],
   ['checksum', "Checking it against the release's checksums"],
   ['attestation', "Checking it was built by jobdork's release workflow"],
-  ['opened', 'Opening the installer'],
+  ['opened', 'Putting it in place'],
 ];
 let updTimer = 0, updAt = 0;
 const mb = n => (n / 1e6).toFixed(n < 1e7 ? 1 : 0);
@@ -7001,7 +7001,7 @@ function updStepAt(d) {
   if (d.stage === 'downloading') return d.total && d.done >= d.total ? 2 : 1;
   if (d.stage === 'checksum') return 3;
   if (d.stage === 'attestation') return 4;
-  if (d.stage === 'opened') return UPD_STEPS.length;
+  if (d.stage === 'opened' || d.stage === 'restarting') return UPD_STEPS.length;
   return updAt;
 }
 
@@ -7021,13 +7021,19 @@ function drawUpdate(d) {
   $('upd-sub').textContent = d.file || '';
   $('upd-dlg-page').hidden = !failed;
   $('upd-quit').hidden = !(d.stage === 'opened' && d.platform === 'mac' && desk());
-  $('upd-next').innerHTML = failed
+  $('upd-next').innerHTML = d.stage === 'restarting'
+    ? `<p><b>jobdork ${esc(d.version || '')} is ready.</b> ${d.platform === 'windows'
+        ? 'jobdork closes while it installs, then opens again by itself.'
+        : 'jobdork closes and opens again by itself in a few seconds, as the new version.'}</p>
+       <p class="hint">Your settings and job posts are kept: they are not inside the app.</p>`
+    : failed
     ? `<p class="err"><b>The update did not finish.</b> ${esc(cap(d.error || 'No reason was given.'))}</p>
        <p class="hint">Nothing was installed. Try again later, or download the installer from
        the release page and open it; your settings and job posts are kept either way.</p>`
     : d.stage !== 'opened' ? ''
     : d.platform === 'mac'
-    ? `<p><b>${esc(d.file || 'The installer')}</b> is open in a Finder window. To finish:</p>
+    ? `${d.why ? `<p class="hint">It could not put itself in place: ${esc(d.why)}.</p>` : ''}
+       <p><b>${esc(d.file || 'The installer')}</b> is open in a Finder window. To finish:</p>
        <ol><li>Click <b>Quit jobdork</b> below.</li>
          <li>In the Finder window, drag <b>jobdork</b> onto <b>Applications</b> and choose
            <b>Replace</b>.</li>
@@ -7038,7 +7044,8 @@ function drawUpdate(d) {
        offers to open the new version when it finishes.</p>
        <p class="hint">Your settings and job posts are kept.</p>`
     : `<p><b>${esc(d.file || 'The installer')}</b> is open; follow it to finish.</p>`;
-  $('upd-title').textContent = d.stage === 'opened' ? 'Ready to install'
+  $('upd-title').textContent = d.stage === 'restarting' ? 'Restarting jobdork'
+    : d.stage === 'opened' ? 'Ready to install'
     : failed ? 'Update not finished' : 'Updating jobdork';
 }
 
@@ -7050,7 +7057,7 @@ async function followUpdate() {
     if (r.ok) {
       const d = await r.json();
       drawUpdate(d);
-      if (['opened', 'failed'].includes(d.stage)) return;
+      if (['opened', 'failed', 'restarting'].includes(d.stage)) return;
     }
   } catch (e) { /* the server is gone; the window says nothing new */ }
   updTimer = setTimeout(followUpdate, 400);

@@ -6,6 +6,34 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-30 — An update puts itself in place and restarts jobdork
+
+**Update** used to stop at opening the installer: on a Mac a Finder window
+with the disk image, to drag jobdork onto Applications, quit and reopen it
+by hand; on Windows the installer's pages to click through. Now, once the
+download passes its checks (who uploaded it, the release's checksums, its
+build attestation), jobdork finishes the update itself:
+
+- **Mac:** the new `jobdork.app` is copied out of the disk image, hidden,
+  beside the running one, and its version checked. jobdork closes, a small
+  script swaps the two once it has quit (keeping the old one until the new
+  one is in place) and opens the new version. No password: the app's own
+  folder is yours to write, as dragging it there was. Logged in the app's
+  `logs/update.log`.
+- **Windows:** the installer runs on its own (`/SILENT`), closes jobdork and
+  opens the new version (`/restart=yes`, packaging/jobdork.iss). A silent
+  install without that, as WinGet's, still opens nothing.
+- Where jobdork cannot replace itself (run from the disk image or from
+  Downloads, or in a folder you cannot write), the installer opens as
+  before, and the window says why and how to finish.
+
+The window's last step is now **Putting it in place**, then **Restarting
+jobdork**. This takes effect from the release after 0.16.0: the update is
+done by the version you have, so updating from 0.16.0 still ends in the
+Finder window.
+
+---
+
 ## Fixed — 2026-10-30 — The banner's Update starts the update
 
 When a newer jobdork is out, a banner says so at the top of every page, with

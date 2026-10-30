@@ -92,8 +92,12 @@ After that it opens on the Dashboard.
   Notification Center (macOS) or as a toast (Windows). **Settings →
   Notifications** turns them, or their sound, off.
 - **Updates:** once a day the app asks GitHub whether a newer release is
-  out, and a banner says so. **Settings → Updates → Update** downloads the
-  installer and opens it only once it is shown to be this project's: uploaded
+  out, and a banner says so. Its **Update**, or **Settings → Updates →
+  Update**, downloads the installer and, only once it is shown to be this
+  project's, puts it in place and restarts jobdork as the new version: on a
+  Mac the new app replaces this one once it has quit and opens by itself; on
+  Windows the installer runs on its own and opens the new version. The
+  checks: uploaded
   by the release workflow, matching the release's checksums, and carrying a
   build attestation from this repository's workflow at that version's tag
   ([how](../../SECURITY.md#how-the-app-checks-an-update-before-opening-it)).
