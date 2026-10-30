@@ -101,8 +101,11 @@ only after the owner approves it in the `release` environment. A push to
 ## How the app checks an update before opening it
 
 **Settings → Updates → Update** in the desktop app downloads the installer
-for this computer and opens it (the Windows installer replaces the app). It
-opens nothing unless all of these hold (`jobdork/core/updates.py`):
+for this computer and puts it in place: on a Mac the new `jobdork.app` is
+copied out of the disk image beside the running one and swapped in once
+jobdork has quit, then opened; on Windows the installer runs on its own and
+opens the new version. It puts nothing in place, and opens nothing, unless
+all of these hold (`jobdork/core/updates.py`):
 
 1. **The file was uploaded by the release workflow.** Release files uploaded
    by anyone else (`uploader` other than `github-actions[bot]`) are not
@@ -117,6 +120,13 @@ opens nothing unless all of these hold (`jobdork/core/updates.py`):
    log entry, and the signed statement must name this file and digest. A
    build from another workflow, branch, fork or tag fails, and so does any
    file whose bytes differ.
+
+On a Mac the copied app must also say it is the version the release names
+(its `Info.plist`), or it is deleted and nothing is swapped. The swap is a
+rename in the app's own folder, which the person can write: nothing asks
+for a password or runs as anyone else, and the old app is kept until the new
+one is in its place. A folder the person cannot write, or an app run from
+the disk image or from Downloads, gets the disk image opened instead.
 
 A file that fails is deleted. GitHub unreachable while checking is a
 failure too, never a pass. Sigstore's trust root is refreshed online, or

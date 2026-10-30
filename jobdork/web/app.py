@@ -404,6 +404,9 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
         "jobdork", running["url"], width=WINDOW_SIZE[0],
         height=WINDOW_SIZE[1], min_size=MIN_SIZE, text_select=True)
     bridge._window.events.closing += ask_before_closing(running["busy"])
+    # An update in place closes the window so the new version can start.
+    from . import api as api_mod
+    api_mod.QUIT_APP = bridge.quit_app
     # Not private: the page keeps small conveniences (a remembered tab) in
     # local storage. The token is never stored; it lives in the page.
     webview.start(private_mode=False, storage_path=str(home / "window"), debug=debug)

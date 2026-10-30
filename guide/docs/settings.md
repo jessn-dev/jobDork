@@ -75,8 +75,8 @@ the keychain or **This time only**, and deletes the file either way.
 
 Which version you have and whether a newer one is out. When one is, a
 banner says so at the top of every page; its **Update** starts the update
-at once, in the same window as below (from jobdork 0.16.0; in 0.15.4 it only
-opened this page, so press **Update to** here).
+at once, in the same window as below (from the release after 0.16.0; in
+0.16.0 and before it only opens this page, so press **Update to** here).
 
 - **Check now** asks at once. When GitHub cannot be reached it says so and
   why (offline, GitHub limiting requests from your network, a certificate
@@ -85,17 +85,21 @@ opened this page, so press **Update to** here).
   asking GitHub for the release, downloading the installer (with how much
   is done), checking it against the release's checksums, checking it was
   built by jobdork's own release workflow (its build attestation), and
-  opening it. An installer that fails a check is deleted, not opened. Then
-  the window says how to finish:
-    - **Mac:** click **Quit jobdork**, drag jobdork onto Applications in the
-      Finder window that opened and choose Replace, then open it again.
-    - **Windows:** follow the installer; it closes jobdork and offers to open
-      the new version.
+  putting it in place. An installer that fails a check is deleted, not
+  opened. Then jobdork restarts as the new version by itself:
+    - **Mac:** the new app replaces this one in its folder, jobdork closes,
+      and the new version opens a few seconds later. No Finder window, no
+      dragging.
+    - **Windows:** the installer runs on its own with a progress bar, closes
+      jobdork, and opens the new version.
 
-  If the update cannot finish, the window says why, with **Release page** to
-  download it yourself. Your settings and job posts are kept either way.
-  Elsewhere than the desktop app, Settings says how to update your copy,
-  with **Release page**.
+  Where jobdork cannot replace itself (on a Mac: run from the disk image or
+  from Downloads, or kept in a folder you cannot write), the installer opens
+  instead, and the window says how to finish by hand. If the update cannot
+  finish, the window says why, with **Release page** to download it
+  yourself. Your settings and job posts are kept either way. Elsewhere than
+  the desktop app, Settings says how to update your copy, with **Release
+  page**.
 - **Turn off the daily check** stops jobdork asking GitHub once a day. That
   check is one request for the number of the latest release; nothing about
   you is sent ([privacy policy](https://github.com/jessn-dev/jobDork/blob/main/PRIVACY.md)).

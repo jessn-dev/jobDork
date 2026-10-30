@@ -3266,7 +3266,7 @@ def _update_at(stage: str, **facts) -> None:
 
 def update_progress() -> dict:
     """The update window's state: its stage ("idle", "asking", "downloading",
-    "checksum", "attestation", "opened", "failed"), the bytes so far, and
+    "checksum", "attestation", "restarting", "opened", "failed"), the bytes so far, and
     what to say. 0.15.0 showed "Downloading the update" while the job had
     already failed; the window shows the failure and its reason."""
     with _UPDATE_LOCK:
@@ -3274,13 +3274,31 @@ def update_progress() -> dict:
                 else "windows" if sys.platform == "win32" else "other"}
 
 
+# Closes the app's window, set by the desktop app (app.run): after an update
+# is in place, jobdork quits itself so the new version can start.
+QUIT_APP = None
+# Seconds between saying jobdork restarts and closing it: the page shows it.
+RESTART_AFTER = 2.5
+
+
+def _restart_soon() -> None:
+    import threading
+
+    if QUIT_APP is not None:
+        threading.Timer(RESTART_AFTER, QUIT_APP).start()
+
+
 def update_job(cfg):
     """Download this computer's installer for the newest release, check it
-    against the release's checksums, and open it: the Windows installer
-    replaces this copy (closing it first); the Mac disk image opens for the
-    new app to be dragged into Applications."""
+    against the release's checksums and build attestation, and put it in
+    place, then restart: on a Mac the new app replaces this one once it has
+    quit and opens (updates.stage_mac_update, swap_after_quit); on Windows
+    the installer runs on its own and opens the new version. Where that
+    cannot be done, the installer opens to finish by hand, as before."""
+    import subprocess
+
     from ..core import updates
-    from .app import open_with_system
+    from .app import app_home, open_with_system
 
     if not getattr(sys, "frozen", False):
         raise ApiError("only the desktop app installs its own updates; see how "
@@ -3299,7 +3317,33 @@ def update_job(cfg):
         except Exception as exc:
             _update_at("failed", error=f"{type(exc).__name__}: {exc}")
             raise
+        version = (re.search(r"jobdork-(\d+\.\d+\.\d+)-", path.name) or [None, ""])[1]
+        bundle = updates.running_bundle() if sys.platform == "darwin" else None
+        why = ""
+        if bundle and version:
+            try:
+                staged = updates.stage_mac_update(path, bundle, version)
+                updates.swap_after_quit(bundle, staged, app_home() / "logs" / "update.log")
+            except (updates.UpdateError, OSError) as exc:
+                why = str(exc)
+            else:
+                path.unlink(missing_ok=True)
+                _update_at("restarting", version=version, file=path.name)
+                _restart_soon()
+                return f"jobdork {version} is in place; restarting to finish"
+        elif sys.platform == "darwin":
+            why = ("jobdork cannot replace itself where it is (run from the disk image or "
+                   "Downloads, or a folder you cannot write)")
+        if sys.platform == "win32" and version:
+            try:
+                subprocess.Popen(updates.windows_installer_args(path), close_fds=True)
+            except OSError as exc:
+                why = str(exc)
+            else:
+                _update_at("restarting", version=version, file=path.name)
+                _restart_soon()
+                return f"installing jobdork {version}; it opens again when done"
         open_with_system(path)
-        _update_at("opened", path=str(path), file=path.name)
+        _update_at("opened", path=str(path), file=path.name, why=why)
         return f"opened {path.name}; follow the installer to finish the update"
     return work

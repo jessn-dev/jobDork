@@ -429,3 +429,127 @@ def check_bundled_attestation() -> str:
     named = [(s.get("name"), (s.get("digest") or {}).get("sha256"))
              for s in statement.get("subject") or []]
     return "" if (kept["name"], kept["sha256"]) in named else "the statement names another file"
+
+
+# ── putting the update in place, then starting it ─────────────────────────────
+# On a Mac the new jobdork.app is copied out of the disk image beside the
+# one running, and a small script swaps them once this one has quit, then
+# opens the new one: no Finder window, no dragging, no reopening by hand.
+# jobdork's own folder is the person's to write (they put the app there), so
+# nothing asks for a password. Where it is not (a shared /Applications, the
+# app run from the disk image or from Downloads, which macOS moves to a
+# read-only place), the disk image opens as before.
+#
+# On Windows the installer runs on its own (/SILENT), closes jobdork and
+# opens the new version (`/restart=yes`, packaging/jobdork.iss).
+
+SWAP_SCRIPT = """#!/bin/sh
+# jobdork's update on a Mac, run once the app has quit (core/updates.py).
+pid=$1; app=$2; new=$3; log=$4; opener=${5:-open}
+exec >>"$log" 2>&1
+echo "$(date '+%Y-%m-%d %H:%M:%S') update: waiting for jobdork ($pid) to quit"
+i=0
+while kill -0 "$pid" 2>/dev/null; do
+    i=$((i + 1))
+    if [ "$i" -gt 240 ]; then
+        echo "update: jobdork is still open after two minutes; not replaced"
+        rm -rf "$new"
+        exit 1
+    fi
+    sleep 0.5
+done
+old="$app.previous-$$"
+if mv "$app" "$old" && mv "$new" "$app"; then
+    rm -rf "$old"
+    echo "update: replaced $app"
+else
+    echo "update: could not replace $app; the old one is kept"
+    [ -e "$app" ] || mv "$old" "$app"
+    rm -rf "$new"
+fi
+"$opener" "$app"
+"""
+
+
+def running_bundle(executable: str = "") -> Path | None:
+    """The jobdork.app this copy runs from, when it can be replaced where it
+    is: inside a .app, not on a disk image or in macOS's read-only copy of an
+    app opened from Downloads, and in a folder this user may write."""
+    exe = Path(executable or sys.executable).resolve()
+    if exe.parent.name != "MacOS" or len(exe.parents) < 3:
+        return None
+    bundle = exe.parents[2]
+    text = str(bundle)
+    if bundle.suffix != ".app" or "/AppTranslocation/" in text or text.startswith("/Volumes/"):
+        return None
+    if not (os.access(bundle.parent, os.W_OK) and os.access(bundle, os.W_OK)):
+        return None
+    return bundle
+
+
+def stage_mac_update(dmg: Path, bundle: Path, version: str, run=None) -> Path:
+    """Copy the new jobdork.app out of the checked disk image, beside the one
+    running, and return it. Raises UpdateError; nothing is left behind."""
+    import plistlib
+    import shutil
+    import subprocess
+    import tempfile
+
+    run = run or subprocess.run
+    staged = bundle.with_name(f".jobdork-{version}.app")
+    shutil.rmtree(staged, ignore_errors=True)
+    mount = Path(tempfile.mkdtemp(prefix="jobdork-update-"))
+    try:
+        opened = run(["hdiutil", "attach", "-quiet", "-nobrowse", "-readonly", "-noautoopen",
+                      "-mountpoint", str(mount), str(dmg)], capture_output=True, text=True)
+        if opened.returncode:
+            raise UpdateError("could not open the disk image to copy the new jobdork out")
+        try:
+            if not (mount / "jobdork.app").is_dir():
+                raise UpdateError("the disk image holds no jobdork.app")
+            copied = run(["ditto", str(mount / "jobdork.app"), str(staged)],
+                         capture_output=True, text=True)
+            if copied.returncode:
+                raise UpdateError(f"could not copy the new jobdork beside {bundle.name}")
+        finally:
+            if run(["hdiutil", "detach", "-quiet", str(mount)], capture_output=True).returncode:
+                run(["hdiutil", "detach", "-quiet", "-force", str(mount)], capture_output=True)
+        try:
+            with open(staged / "Contents" / "Info.plist", "rb") as fh:
+                found = str(plistlib.load(fh).get("CFBundleShortVersionString") or "")
+        except (OSError, plistlib.InvalidFileException):
+            found = ""
+        if found != version:
+            raise UpdateError(f"the disk image holds jobdork {found or 'of no version'}, "
+                              f"not {version}")
+    except BaseException:
+        shutil.rmtree(staged, ignore_errors=True)
+        raise
+    finally:
+        shutil.rmtree(mount, ignore_errors=True)
+    return staged
+
+
+def swap_after_quit(bundle: Path, staged: Path, log: Path, pid: int = 0,
+                    spawn=None, opener: str = "open") -> Path:
+    """Start the script that swaps the apps once this process has quit, and
+    opens the new one. Returns the script's path."""
+    import subprocess
+    import tempfile
+
+    spawn = spawn or subprocess.Popen
+    log.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix="jobdork-update-", suffix=".sh")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(SWAP_SCRIPT)
+    spawn(["/bin/sh", name, str(pid or os.getpid()), str(bundle), str(staged), str(log), opener],
+          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+          start_new_session=True, close_fds=True)
+    return Path(name)
+
+
+def windows_installer_args(path: Path) -> list[str]:
+    """The installer, on its own: a progress bar and no questions; it closes
+    jobdork and opens the new version (packaging/jobdork.iss)."""
+    return [str(path), "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
+            "/restart=yes"]

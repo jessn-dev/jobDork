@@ -60,6 +60,9 @@ Name: "{autodesktop}\jobdork"; Filename: "{app}\jobdork.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\jobdork.exe"; Description: "{cm:LaunchProgram,jobdork}"; Flags: nowait postinstall skipifsilent
+; The app's own Update runs this installer silently with /restart=yes: then
+; it opens the new version. A silent install without it (WinGet) opens nothing.
+Filename: "{app}\jobdork.exe"; Flags: nowait; Check: RestartAfter
 
 [UninstallRun]
 ; Before the program's files go, while jobdork.exe is still there to run.
@@ -68,6 +71,12 @@ Filename: "{app}\jobdork.exe"; Parameters: "--uninstall {code:RemoveChoices}"; F
 [Code]
 var
   Choices: String;
+
+{ /restart=yes, from the app's Update: open jobdork once it is installed. }
+function RestartAfter: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:restart|no}') = 'yes');
+end;
 
 { What the person ticked, comma separated, for jobdork.exe --uninstall. }
 function RemoveChoices(Param: String): String;
