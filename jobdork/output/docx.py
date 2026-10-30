@@ -35,11 +35,13 @@ BODY, NAME = 22, 36                       # half-points: 11 and 18
 
 _BOLD_MARKS = re.compile(r"\*\*(.+?)\*\*")
 # Characters XML 1.0 cannot carry at all; a resume never needs them.
-_NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
+# A table for str.translate, each mapped to nothing: control characters
+# but tab, newline and carriage return, and U+FFFE and U+FFFF.
+_NOT_XML = dict.fromkeys([*range(0x00, 0x09), 0x0B, 0x0C, *range(0x0E, 0x20), 0xFFFE, 0xFFFF])
 
 
 def _text(value: str) -> str:
-    return escape(_NOT_XML.sub("", value))
+    return escape(value.translate(_NOT_XML))
 
 
 # On every run as well as in the defaults: a lesser reader (macOS Quick Look)

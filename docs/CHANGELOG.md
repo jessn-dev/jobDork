@@ -6,6 +6,20 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-30 — Two code-scanning findings
+
+CodeQL flagged the Word file's list of characters XML cannot carry
+(`output/docx.py`) as a suspicious range: the control characters it named by
+range were meant, but the list is now a plain table of exactly those
+characters, removed with `str.translate`, so nothing reads as a range. And
+`jobdork ollama-code` printing the connection code it makes, flagged as
+logging a secret, now says beside it why: printing it is the command's
+purpose, for the person who runs it to send on. The third finding, the
+hidden-character ranges in `core/textutil.py`, is meant as it is: those are
+the characters that can carry hidden instructions to an AI.
+
+---
+
 ## Fixed — 2026-10-30 — The banner's Update starts the update
 
 When a newer jobdork is out, a banner says so at the top of every page, with
