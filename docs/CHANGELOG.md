@@ -59,6 +59,7 @@ removes one. **What to do** says what would raise the score.
 
 ---
 
+
 ## Added — 2026-10-29 — Interview prep and a recruiter message, by the AI
 
 Two more documents from a job post's window, written by the AI-page model
