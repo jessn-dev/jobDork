@@ -78,21 +78,32 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
   board does not carry is flagged.
 - **Ranks against your resume**, offline: **Match** (title, place, pay) and
   **Fit** (the advert's skills you have and lack). [Scores](https://jessn-dev.github.io/jobDork/scores/)
+- **Checks your resume**, offline: how an applicant tracking system reads
+  the file and what to fix, how its lines are written, and each post's
+  **ATS match** (keywords, required skills, title, sections, dates, out of
+  100). [The Resume page](https://jessn-dev.github.io/jobDork/resume/)
 - **Uses an AI model only when you set one up.** Ollama on your own computer,
   or Anthropic, Gemini, OpenAI or Groq with your key, held in memory or, if
   you choose, in your computer's keychain; never in a file. Or your own
-  coding agent (Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot, Claude Desktop)
-  does the writing through jobdork's MCP server or command line, with no key:
-  jobdork checks and keeps what it writes ([Coding agent](https://jessn-dev.github.io/jobDork/ai/#coding-agent)). It can judge posts, write a cover letter, review your resume and
-  write a tailored resume as a PDF and a Word file, interview prep and a
-  recruiter message, held to Indeed's
-  length advice (one page up to ten years). A second model checks each output, claim
-  by claim, against your resume and the advert, and anything unsupported is
-  flagged: 2.9% of claims with the recommended local model, measured on seven
-  resumes in six fields ([models compared](docs/AI-MODELS.md)). It never
-  applies for you. [The AI page](https://jessn-dev.github.io/jobDork/ai/)
+  coding agent (Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot,
+  Claude Desktop) does the writing through jobdork's MCP server or command
+  line, with no key, within guardrails: jobdork checks and keeps what it
+  writes, and what it adds to your record waits for your OK
+  ([Coding agent](https://jessn-dev.github.io/jobDork/ai/#coding-agent)).
+  It can judge posts, write a cover letter, review your resume, and write a
+  tailored resume as a PDF and a Word file, held to Indeed's length advice
+  (one page up to ten years), interview prep and a recruiter message. A
+  second model checks each output, claim by claim, against your resume and
+  the advert, and anything unsupported is flagged: 2.9% of claims with the
+  recommended local model, measured on seven resumes in six fields
+  ([models compared](docs/AI-MODELS.md)). It never applies or sends for
+  you. [The AI page](https://jessn-dev.github.io/jobDork/ai/)
 - **Keeps track.** Statuses from *new* to *offer*, notes, a check for posts
   that have closed, scans on a schedule, notifications, and an email digest.
+  **My applications** keeps every job you applied to, by stage, with each
+  status dated, the next step and its date, the contact, the resume and
+  letter you sent, and notes.
+  [My applications](https://jessn-dev.github.io/jobDork/applications/)
 - **Reaches past what it can read.** A **Search Google Jobs** link opens your
   search in Google's job results, and `jobdork dork` builds Google searches
   for sites that cannot be read automatically (LinkedIn, Indeed and others).
@@ -226,10 +237,10 @@ image) and `requirements-desktop.lock` (the installers).
 │   ├── core/              # config, setup, schedule, notifications, updates, telemetry
 │   ├── db/                # SQLite store, migrations, grouping copies of a job
 │   ├── fetch/             # one reader per source, robots.txt, the paced HTTP client
-│   ├── search/            # scan, screening, built-in boards, discover, freshness, places, resume
+│   ├── search/            # scan, screening, built-in boards, discover, freshness, places, resume, ATS match
 │   ├── ai/                # the model, judging, the hallucination check, letters and reviews
 │   ├── writing/           # drafts by Claude Code, tailored resumes, the checks every draft gets
-│   ├── web/               # the dashboard server, its API, and the desktop window
+│   ├── web/               # the dashboard server, its API, the desktop window, and a coding agent's tools (MCP)
 │   ├── output/            # the static page and the email digest
 │   ├── dork/              # the Google search builder
 │   └── data/              # built-in boards, the place list, the dashboard page, humanizer rules

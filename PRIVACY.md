@@ -99,6 +99,14 @@ provider to be judged, reviewed or written from:
 - **Drafts written with the `claude` command** (cover letters, CVs) go
   through your own Claude Code installation, under your account with
   Anthropic.
+- **A coding agent** (Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot,
+  Claude Desktop), when you connect one, reads what it asks jobdork's tools
+  for: job posts, your resume and record, your applications. jobdork sends
+  it nothing by itself and opens no network port for it (the agent starts
+  jobdork's tools on your computer). Your email, phone number and profile
+  links are removed from what it reads, as for a hosted model; what it then
+  sends to its own provider is under that agent's terms, and your account
+  with it.
 
 Nothing is sent to an AI provider unless you chose one.
 

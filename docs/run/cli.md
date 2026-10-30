@@ -45,7 +45,11 @@ them into: put `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY` or `GROQ_
 | `jobdork judge` | AI reads the best job posts against your resume |
 | `jobdork letter <uid>` | AI cover letter, checked against your resume and the advert |
 | `jobdork review [<uid>]` | AI resume review, or against one post |
-| `jobdork tailor <uid>` | AI resume rewritten for one post, as a PDF |
+| `jobdork tailor <uid>` | AI resume rewritten for one post, in Indeed's layout and length, as a PDF and a Word file |
+| `jobdork prep <uid>` | AI interview prep for one post: why you fit, likely questions with answer points, gaps to prepare |
+| `jobdork message <uid>` | AI recruiter message for one post, 70 to 100 words; jobdork never sends it |
+| `jobdork mcp` | jobdork's tools for a coding agent, as an MCP server on standard input and output ([Coding agent](https://jessn-dev.github.io/jobDork/ai/#coding-agent)) |
+| `jobdork agent [<tool> <json>]` | One of those tools from the command line, for an agent that only runs commands; with no tool, lists them |
 | `jobdork generate <uid> -k screen\|cv\|cover_letter` | Drafts through the `claude` CLI, which must be on your PATH |
 | `jobdork serve` / `jobdork app` | The dashboard, in a browser or a window ([source.md](source.md)) |
 | `jobdork dork` | The original Google search builder ([../DORK.md](../DORK.md)) |

@@ -75,7 +75,7 @@ only after the owner approves it in the `release` environment. A push to
 2. **After the merge**, bring `main` up to date, then tag it and push the tag:
    `git checkout main && git pull`, then check that `main` now says the new
    version, `grep -m1 '^version' pyproject.toml`, and only then
-   `git tag v0.15.4 && git push origin v0.15.4`. Only an admin can create a
+   `git tag v0.16.0 && git push origin v0.16.0`. Only an admin can create a
    `v*` tag, and once pushed it can never be moved or deleted, so a tag made
    before the pull lands on the old commit for good (as `v0.14.0`,
    `v0.14.1` and `v0.14.2` did). Pushing a branch or opening a pull request does not put
@@ -132,7 +132,7 @@ swapped later.
 Check that it was built by this repository's workflow and not altered since:
 
 ```bash
-cosign verify jessengolab/jobdork:0.15.4 \
+cosign verify jessengolab/jobdork:0.16.0 \
   --certificate-identity-regexp '^https://github.com/jessn-dev/jobDork/\.github/workflows/docker\.yml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
@@ -228,6 +228,18 @@ links. The app treats them as hostile.
   allow; and it reads none of those settings (`--setting-sources project`),
   so your own permission rules, hooks and plugins do not apply to it. A posting that persuades it can spoil that one draft, not reach
   the rest of your machine.
+- **For a coding agent** (Claude Code, Codex, Cursor and others, through
+  jobdork's MCP server or `jobdork agent`, `jobdork/web/agent.py`) it is
+  data, never instructions: the characters a reader cannot see are removed
+  from every title, company, place and advert the agent is given, each
+  answer carrying them says they are from strangers, and the agent is told
+  never to follow them, run a command or open a link because of them. What
+  the agent writes goes through every check a model's does, and a second
+  model checks its claims, never the agent itself. It cannot add to your
+  record without your OK on the Resume page (so a posting that persuades it
+  cannot plant a skill it then cites), it has no tool that sends anything,
+  and its writes are limited per hour, capped in size and logged on the
+  Dashboard as its own.
 - **As an address to fetch** (an apply link, a careers page) it reaches
   public addresses only. One that names this machine or its network
   (`localhost`, `192.168.x.x`, `169.254.169.254`), or redirects there, is
