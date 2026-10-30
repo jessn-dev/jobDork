@@ -264,14 +264,17 @@ def read_docx(data: bytes) -> Document:
     """A Word file's body text, and what a tracking system trips on in it."""
     from xml.sax.saxutils import unescape
 
+    from . import resume as resume_mod
+
     def text_of(xml: str) -> str:
         xml = re.sub(r"</w:p>", "\n", xml)
         return unescape(re.sub(r"<[^>]+>", "", xml))
 
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         names = z.namelist()
-        body = z.read("word/document.xml").decode("utf-8", "replace")
-        margins = "".join(z.read(n).decode("utf-8", "replace") for n in names
+        # Each part refused past the size no resume reaches (resume.MAX_DOCX_XML).
+        body = resume_mod.document_xml(z)
+        margins = "".join(resume_mod.document_xml(z, n) for n in names
                           if re.fullmatch(r"word/(header|footer)\d*\.xml", n))
     boxes = "".join(re.findall(r"<w:txbxContent>.*?</w:txbxContent>", body, re.S))
     # Text boxes are left out of the body text, as a tracking system leaves them.
