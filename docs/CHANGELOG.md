@@ -76,7 +76,6 @@ removes one. **What to do** says what would raise the score.
 
 ---
 
-
 ## Added — 2026-10-29 — Interview prep and a recruiter message, by the AI
 
 Two more documents from a job post's window, written by the AI-page model
@@ -102,6 +101,9 @@ jobdork never sends it. Saved as `recruiter-message-ai.md`.
 
 Both follow Resume Matcher's interview prep and outreach message
 (srbhr/resume-matcher, Apache-2.0), rewritten with jobdork's rules.
+
+Interview prep reads your whole record beside the resume: projects,
+education and the skills you confirmed with **I have this** (`store_notes`).
 
 ---
 
@@ -4382,7 +4384,6 @@ move to an image other than the one signed and approved.
 The verify step now tries up to six times, ten seconds apart, before it calls
 a signature missing.
 
-
 ---
 
 ## Fixed — 2026-09-30 — no traceback when the browser hangs up
@@ -4508,7 +4509,6 @@ extracted text, with the skills found in it, is still there, folded under
 The page may now frame a `blob:` it made itself (`frame-src blob:` in the
 content security policy); it still loads nothing from anywhere else, and
 nothing may frame the page.
-
 
 ---
 
