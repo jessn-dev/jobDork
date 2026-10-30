@@ -85,6 +85,14 @@ def built_app() -> Path:
     return DIST / "jobdork" / ("jobdork.exe" if sys.platform == "win32" else "jobdork")
 
 
+def agent_app() -> Path:
+    """What a coding agent starts: on Windows the console program beside the
+    app (jobdork.spec), elsewhere the app itself."""
+    if sys.platform == "win32":
+        return DIST / "jobdork" / "jobdork-agent.exe"
+    return built_app()
+
+
 def self_test() -> None:
     """Run the built app's own check; stop the build if anything is missing."""
     report = WORK / "self-test.txt"
@@ -111,7 +119,7 @@ def mcp_test() -> None:
              "params": {"protocolVersion": "2025-06-18", "capabilities": {},
                         "clientInfo": {"name": "build", "version": "1"}}}
     with tempfile.TemporaryDirectory() as home:
-        done = subprocess.run([str(built_app()), "--mcp"], input=json.dumps(hello) + "\n",
+        done = subprocess.run([str(agent_app()), "--mcp"], input=json.dumps(hello) + "\n",
                               capture_output=True, text=True, timeout=120,
                               env={**os.environ, "JOBDORK_HOME": home})
     try:

@@ -59,7 +59,14 @@ exe = EXE(
     upx=False,
 )
 
-coll = COLLECT(exe, a.binaries, a.datas, name="jobdork", upx=False)
+# Windows only: the same program with a console, for a coding agent to start
+# (`jobdork-agent.exe --mcp`, web/mcp.py). A program built without one gets
+# no standard input or output, and an MCP server is nothing else; the window
+# keeps jobdork.exe. A Mac app has its streams either way.
+agent = (EXE(pyz, a.scripts, [], exclude_binaries=True, name="jobdork-agent",
+             console=True, icon=ICON, upx=False),) if sys.platform == "win32" else ()
+
+coll = COLLECT(exe, *agent, a.binaries, a.datas, name="jobdork", upx=False)
 
 if sys.platform == "darwin":
     app = BUNDLE(

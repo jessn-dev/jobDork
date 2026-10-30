@@ -309,6 +309,10 @@ def test_the_setup_commands_start_jobdork_on_this_computer():
     sys.frozen = True
     try:
         assert api.agent_setup(cfg)["args"] == ["--mcp"]
+        sys.executable = r"C:\Program Files\jobdork\jobdork.exe"
+        win = api.agent_setup(cfg, platform="win32")
+        assert win["command"] == r"C:\Program Files\jobdork\jobdork-agent.exe", "its console twin"
+        assert win["claude_code"].endswith(r'"C:\Program Files\jobdork\jobdork-agent.exe" --mcp')
     finally:
         if frozen is None:
             del sys.frozen

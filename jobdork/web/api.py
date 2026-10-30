@@ -2100,21 +2100,27 @@ def refuse_in_agent_mode(cfg, ask: str) -> None:
         raise ApiError(f"Coding agent mode: jobdork asks no model. Ask your agent: \"{ask}\"", 409)
 
 
-def agent_setup(cfg) -> dict:
+def agent_setup(cfg, platform: str = "") -> dict:
     """How each coding agent starts jobdork's tools on this computer: the
     command, ready to paste, for the AI page."""
     import shlex
     import subprocess
     import sys
 
+    platform = platform or sys.platform
     if getattr(sys, "frozen", False):            # the installed app
-        command, mcp_args, cli = sys.executable, ["--mcp"], [sys.executable, "--agent"]
+        # On Windows its console twin, which has the streams an agent talks on.
+        from pathlib import PureWindowsPath
+
+        program = (str(PureWindowsPath(sys.executable).with_name("jobdork-agent.exe"))
+                   if platform == "win32" else sys.executable)
+        command, mcp_args, cli = program, ["--mcp"], [program, "--agent"]
     else:
         where = ["--config", str(Path(cfg.path).resolve())] if cfg.path else []
         command = sys.executable
         mcp_args = ["-m", "jobdork.cli", *where, "mcp"]
         cli = [sys.executable, "-m", "jobdork.cli", *where, "agent"]
-    join = subprocess.list2cmdline if sys.platform == "win32" else shlex.join
+    join = subprocess.list2cmdline if platform == "win32" else shlex.join
     line = join([command, *mcp_args])
     server = {"command": command, "args": mcp_args}
     return {
