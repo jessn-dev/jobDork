@@ -29,7 +29,10 @@ a = Analysis(
     + collect_data_files("sigstore") + copy_metadata("sigstore")
     # keyring finds the keychain it talks to (macOS Keychain, Windows
     # Credential Manager) through its package metadata's entry points.
-    + copy_metadata("keyring"),
+    + copy_metadata("keyring")
+    # Windows has no time zone database: the tzdata package's travels with
+    # the app (ai/limits.py), checked by the self-test.
+    + (collect_data_files("tzdata") if sys.platform == "win32" else []),
     # Imported only inside functions or behind a try, so named here: the
     # Claude provider and the PDF reader are extras a pip install may skip,
     # and an app user cannot add them afterwards. The command line runs the
@@ -40,6 +43,7 @@ a = Analysis(
                    # Keys you choose to keep (core/keystore.py): every backend,
                    # each loaded by name from its entry point.
                    *collect_submodules("keyring.backends"),
+                   *(collect_submodules("tzdata") if sys.platform == "win32" else []),
                    # Imported inside a function, for notifications on macOS.
                    *(["UserNotifications"] if sys.platform == "darwin" else [])],
     # The dork generator is a terminal tool; the app never runs it.

@@ -35,13 +35,26 @@ import re
 import threading
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta, timezone, tzinfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # Which providers have a free tier worth guarding. Anthropic and OpenAI keys
 # are paid by use: their limits are not a daily allowance running out.
 FREE_TIER = ("gemini", "groq")
-PACIFIC = ZoneInfo("America/Los_Angeles")      # where Gemini's day turns over
+
+
+def pacific() -> tzinfo:
+    """Where Gemini's day turns over. Windows has no time zone database of
+    its own, only the tzdata package's (pyproject.toml); without one, this
+    module failed to load and took the AI page with it (2026-10-30). Then
+    Pacific standard time all year: the day turns an hour early in summer."""
+    try:
+        return ZoneInfo("America/Los_Angeles")
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        return timezone(timedelta(hours=-8), "PST")
+
+
+PACIFIC = pacific()
 # Requests a day kept back from background work, for what you ask yourself.
 RESERVE = 5
 MAX_WAIT = 65            # seconds; a longer wait is not made, the call fails
