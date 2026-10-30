@@ -643,6 +643,27 @@ def test_a_pasted_code_holds_its_key_and_the_page_never_gets_it_back():
 
 # ── free-tier limits (ai/limits.py) ──────────────────────────────────────────
 
+
+def test_without_a_time_zone_database_the_pacific_day_still_turns():
+    """Windows has none but the tzdata package's; without it the module once
+    failed to load, and the AI page with it."""
+    from datetime import datetime, timedelta
+
+    from jobdork.ai import limits
+
+    was = limits.ZoneInfo
+
+    def missing(_key):
+        raise limits.ZoneInfoNotFoundError("No time zone found")
+
+    limits.ZoneInfo = missing
+    try:
+        zone = limits.pacific()
+    finally:
+        limits.ZoneInfo = was
+    assert zone.utcoffset(datetime(2026, 1, 15)) == timedelta(hours=-8)
+    assert limits.pacific().utcoffset(datetime(2026, 7, 1)) == timedelta(hours=-7)
+
 _GEMINI_OK = ('{"candidates": [{"content": {"parts": [{"text": "{\\"ok\\": true}"}]}}],'
               ' "usageMetadata": {"promptTokenCount": 10, "candidatesTokenCount": 2}}')
 _GROQ_OK = '{"choices": [{"message": {"content": "{\\"ok\\": true}"}}]}'

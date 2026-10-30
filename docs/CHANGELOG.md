@@ -201,6 +201,25 @@ warned).
 
 ---
 
+## Fixed — 2026-10-30 — The Windows app's AI settings, which needed a time zone
+
+On Windows, jobdork 0.15.4 could not load the part that keeps free Gemini
+and Groq keys within their limits (`ai/limits.py`): it reads the Pacific
+time zone, where Gemini's day turns over, and Windows has no time zone
+database of its own; the app carried none. The dashboard's AI settings,
+which the page asks for all the time, failed with it. Found by the new MCP
+check in the Windows build (#105).
+
+- `tzdata` is a dependency on Windows (`pyproject.toml`,
+  `requirements-desktop.lock`) and travels with the Windows app
+  (`packaging/jobdork.spec`).
+- Without a database anyway, the module uses Pacific standard time all
+  year instead of failing (the day turns an hour early in summer).
+- The app's self-test looks a time zone up, so a build without one stops
+  before it becomes an installer.
+
+---
+
 ## Added — 2026-10-29 — A job post's ATS match, and "I have this"
 
 Each job post's window has a new **ATS match** tab: your resume file
