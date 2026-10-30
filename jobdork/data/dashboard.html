@@ -2970,7 +2970,8 @@ function toolsIntro(uid) {
       : 'Set up a model on the AI page to use these.'}</div>
   <div class="bar toolbar">
     <button data-icon="pen-line" class="act spend" onclick="toolJob('${uid}','resume_edits')">Tailor my resume</button>
-    <button data-icon="search-check" class="act spend" onclick="toolJob('${uid}','keywords')">ATS keywords</button>
+    <button data-icon="search" class="act spend" onclick="toolJob('${uid}','keywords')"
+      title="The AI's ten terms a tracking system would look for, found or missing in your resume. The ATS match tab scores the same advert by script, for free">Keyword ideas (AI)</button>
     <button data-icon="lightbulb" class="act spend" onclick="toolJob('${uid}','highlight')">Skills to highlight</button>
     <button data-icon="messages-square" class="act spend" onclick="toolJob('${uid}','feedback')">Recruiter feedback</button>
     <span id="tooljob" class="hint"></span>
