@@ -612,7 +612,7 @@ def application_detail(store, uid: str, artifacts: list[dict]) -> dict:
     from ..core.config import PURSUING_STATUSES
 
     row = store.get(uid)
-    history = [{"status": h["status"], "at": h["at"]} for h in store.history(uid)]
+    history = [{"status": h["status"], "at": h["at"], "by": h["by"]} for h in store.history(uid)]
     d = store.application(uid)
     status = (row["status"] if row else "") or "new"
     return {
@@ -623,7 +623,7 @@ def application_detail(store, uid: str, artifacts: list[dict]) -> dict:
                     for k in ("next_step", "next_date", "contact_name", "contact_email",
                               "contact_link", "resume_id", "letter_id")},
         "overdue": _overdue(d, status, datetime.date.today().isoformat()),
-        "notes": [{"id": n["id"], "stage": n["stage"], "note": n["note"], "at": n["at"]}
+        "notes": [{"id": n["id"], "stage": n["stage"], "note": n["note"], "at": n["at"], "by": n["by"]}
                   for n in store.application_notes(uid)],
         # What could have been sent: this post's resumes and cover letters.
         "resumes": [a for a in artifacts if a["kind"] in ("tailored_resume", "cv")],
@@ -665,7 +665,7 @@ def save_application(cfg, form: dict) -> dict:
     return {"saved": True}
 
 
-def application_note(cfg, form: dict) -> dict:
+def application_note(cfg, form: dict, by: str = "") -> dict:
     """A dated note on an application, added, or deleted by its id."""
     from ..db.store import Store
 
@@ -681,13 +681,13 @@ def application_note(cfg, form: dict) -> dict:
                 raise ApiError("no such note", 404)
             return {"deleted": True}
         try:
-            store.add_application_note(uid, str(form.get("note") or ""))
+            store.add_application_note(uid, str(form.get("note") or ""), by=by)
         except ValueError as exc:
             raise ApiError(str(exc)) from None
     return {"added": True}
 
 
-def confirm_skill(cfg, form: dict) -> dict:
+def confirm_skill(cfg, form: dict, suggested_by: str = "") -> dict:
     """"I have this" for one skill, or taken back: part of your record from
     then on (writing/resume_doc.py record_notes)."""
     from ..db.store import Store
@@ -695,13 +695,64 @@ def confirm_skill(cfg, form: dict) -> dict:
     have = str(form.get("have") or "1") not in ("0", "false", "")
     with Store(cfg.db_path) as store:
         try:
-            changed = store.confirm_skill(str(form.get("term") or ""), have)
+            changed = store.confirm_skill(str(form.get("term") or ""), have, suggested_by)
         except ValueError as exc:
             raise ApiError(str(exc)) from None
         return {"have": have, "changed": changed, "confirmed": store.confirmed_skills()}
 
 
-def save_project(cfg, form: dict) -> dict:
+def suggestions_count(cfg) -> int:
+    """How many of a coding agent's suggestions wait, for the menu's count."""
+    from ..db.store import Store
+
+    if not Path(cfg.db_path).is_file():        # before setup: none, and no database made
+        return 0
+    try:
+        with Store(cfg.db_path) as store:
+            return store.suggestions_waiting()
+    except Exception:          # no database yet, or a newer one: no count
+        return 0
+
+
+def list_suggestions(cfg) -> dict:
+    """What a coding agent suggested for the record, waiting for your OK."""
+    from ..db.store import Store
+
+    with Store(cfg.db_path) as store:
+        return {
+            "projects": [{**_project(p), "suggested_by": p["suggested_by"]}
+                         for p in store.projects(suggested=True)],
+            "education": [{**_education(e), "suggested_by": e["suggested_by"]}
+                          for e in store.education(suggested=True)],
+            "skills": [{"term": t, "suggested_by": r["suggested_by"]} for t, r in (
+                (r["term"], r) for r in store.conn.execute(
+                    "SELECT term, suggested_by FROM confirmed_skills WHERE suggested_by <> '' "
+                    "ORDER BY term"))],
+        }
+
+
+def decide_suggestion(cfg, form: dict) -> dict:
+    """Approve or turn down one suggestion: kind project, education or skill."""
+    from ..db.store import Store
+
+    kind = str(form.get("kind") or "")
+    key = str(form.get("key") or "")
+    approve = str(form.get("approve") or "") in ("1", "true", "yes")
+    if kind in ("project", "education"):
+        if not key.isdigit():
+            raise ApiError(f"not a {kind} id")
+        key = int(key)
+    with Store(cfg.db_path) as store:
+        try:
+            done = store.decide_suggestion(kind, key, approve)
+        except ValueError as exc:
+            raise ApiError(str(exc)) from None
+    if not done:
+        raise ApiError("no such suggestion: approved or turned down already", 404)
+    return {"approved": approve, "kind": kind, "changed": True}
+
+
+def save_project(cfg, form: dict, suggested_by: str = "") -> dict:
     """Add or change one project. The link must be a web address, if given."""
     from ..db.store import Store
     from ..writing import resume_doc
@@ -718,10 +769,11 @@ def save_project(cfg, form: dict) -> dict:
         raise ApiError("the link must start with http:// or https://")
     raw = str(form.get("id") or "")
     with Store(cfg.db_path) as store:
-        project_id = store.save_project(fields, int(raw) if raw.isdigit() else None)
+        project_id = store.save_project(fields, int(raw) if raw.isdigit() and not suggested_by
+                                        else None, suggested_by=suggested_by)
         if not project_id:
             raise ApiError("no such project", 404)
-        row = next(r for r in store.projects() if r["id"] == project_id)
+        row = next(r for r in store.projects(suggested=bool(suggested_by)) if r["id"] == project_id)
     return {"project": _project(row)}
 
 
@@ -737,7 +789,7 @@ def list_education(cfg) -> dict:
         return {"education": [_education(r) for r in store.education()]}
 
 
-def save_education(cfg, form: dict) -> dict:
+def save_education(cfg, form: dict, suggested_by: str = "") -> dict:
     """Add or change one education entry: a degree, diploma or course."""
     from ..db.store import Store
 
@@ -749,10 +801,11 @@ def save_education(cfg, form: dict) -> dict:
             raise ApiError(f"{key} is too long")
     raw = str(form.get("id") or "")
     with Store(cfg.db_path) as store:
-        entry_id = store.save_education(fields, int(raw) if raw.isdigit() else None)
+        entry_id = store.save_education(fields, int(raw) if raw.isdigit() and not suggested_by
+                                        else None, suggested_by=suggested_by)
         if not entry_id:
             raise ApiError("no such entry", 404)
-        row = next(r for r in store.education() if r["id"] == entry_id)
+        row = next(r for r in store.education(suggested=bool(suggested_by)) if r["id"] == entry_id)
     return {"entry": _education(row)}
 
 

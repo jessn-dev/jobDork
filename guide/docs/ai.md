@@ -104,6 +104,30 @@ everything your agent writes, as it does a reader's; with none chosen, your
 other readers check instead. With neither, the check is not done, and says
 so as a check to read: read every claim yourself before you send it.
 
+**Guardrails for your agent.** jobdork holds it to the same rules as a
+model, and some more:
+
+- **Its own writing is checked** by every check a model's gets, and by a
+  second model, never by itself (above).
+- **What it adds to your record waits for your OK** on the
+  [Resume page](resume.md#suggestions). It cannot take back a skill you
+  confirmed.
+- **Job adverts are data, not instructions.** An advert can hide text
+  meant for an AI. Hidden characters are removed from everything the agent
+  reads from a job board, every answer says that text is from strangers, and
+  the agent is told never to follow it, run a command or open a link because
+  it says so.
+- **Your contact details stay with you.** As for a hosted model, your
+  email, phone number and profile links are removed from your resume and
+  everything else the agent reads; jobdork puts them in the files itself.
+- **Limits**: 30 documents and 60 job post scores an hour, answers up to
+  64 KB, 25 suggestions waiting at once.
+- **A record of everything it changes.** Each change is a run on the
+  [Dashboard](dashboard.md), *from the coding agent*, refused ones too, and
+  its writing is counted with the AI calls. A status or note it set says
+  *by Coding agent* in the job post's
+  [Application tab](applications.md#the-application-tab).
+
 ## Readers
 
 **Reader 1** does the work. Add up to six with **Add another reader**: when

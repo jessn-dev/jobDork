@@ -42,7 +42,7 @@ log = logging.getLogger("jobdork.db.migrations")
 
 # The version a fresh database is created at, and the version this code
 # understands. Bumped by adding a step below.
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 
 
 class MigrationError(Exception):
@@ -333,13 +333,25 @@ def _v14_to_v15(conn: sqlite3.Connection) -> None:
         "AND NOT EXISTS (SELECT 1 FROM status_history h WHERE h.uid = s.uid)")
 
 
+def _v15_to_v16(conn: sqlite3.Connection) -> None:
+    """A coding agent's changes, kept apart (web/agent.py): what it adds to
+    the record waits for the person's OK (`suggested_by` names the agent, ""
+    once approved or when they added it), and the statuses and notes it set
+    say so (`by`)."""
+    for table in ("projects", "education", "confirmed_skills"):
+        _add_column(conn, table, "suggested_by", "TEXT NOT NULL DEFAULT ''")
+    for table in ("status_history", "application_notes"):
+        _add_column(conn, table, "by", "TEXT NOT NULL DEFAULT ''")
+
+
 # The same tables a new database is made with (store.SCHEMA), written once.
 APPLICATION_TABLES = """
 CREATE TABLE IF NOT EXISTS status_history (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     uid     TEXT NOT NULL REFERENCES roles(uid) ON DELETE CASCADE,
     status  TEXT NOT NULL,
-    at      TEXT NOT NULL
+    at      TEXT NOT NULL,
+    by      TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_history_uid ON status_history(uid);
 CREATE TABLE IF NOT EXISTS applications (
@@ -358,7 +370,8 @@ CREATE TABLE IF NOT EXISTS application_notes (
     uid     TEXT NOT NULL REFERENCES roles(uid) ON DELETE CASCADE,
     stage   TEXT NOT NULL,
     note    TEXT NOT NULL,
-    at      TEXT NOT NULL
+    at      TEXT NOT NULL,
+    by      TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_notes_uid ON application_notes(uid);
 """
@@ -380,6 +393,7 @@ STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     13: _v12_to_v13,
     14: _v13_to_v14,
     15: _v14_to_v15,
+    16: _v15_to_v16,
 }
 
 

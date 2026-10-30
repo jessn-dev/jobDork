@@ -44,6 +44,25 @@ compare, say, two cover letters.
 
 ![Its interview prep](images/resume-interview-prep.png)
 
+## Suggestions from your coding agent {#suggestions}
+
+A [coding agent](ai.md#coding-agent) can suggest a project, an education
+entry or a skill for your record, from what you tell it. A suggestion waits
+here, at the top of the Resume page, with a count beside **Resume** in the
+menu, and counts for nothing until you choose:
+
+![A coding agent's suggestion](images/resume-suggested.png)
+
+- **Approve**: it joins your record, as if you had added it yourself, and
+  your job posts are re-scored with it. Approve only what is true: tailored
+  resumes, letters and fit scores then count it as yours, and an
+  interviewer may ask.
+- **Turn down**: it goes.
+
+This is what stops an agent from adding a skill and then citing it: until
+you approve it, every check still treats it as not in your record. At most
+25 wait at once.
+
 ## Your resume
 
 **Choose File**, then **Upload**: a PDF, Word (`.docx`), Markdown (`.md`) or

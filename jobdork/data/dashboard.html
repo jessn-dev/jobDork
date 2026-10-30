@@ -631,6 +631,11 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .atschip .act{font-size:.72rem;padding:.05rem .4rem}
 .atsadvice{margin:.2rem 0;padding-left:1.1rem;font-size:.85rem}
 .act.linkish{border:none;background:none;padding:0;color:var(--accent);text-decoration:underline;font-size:inherit}
+/* A coding agent's suggestions for the record, waiting for your OK. */
+.sugglist{list-style:none;margin:.5rem 0 0;padding:0}
+.sugglist li{display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:center;padding:.4rem 0;border-top:1px solid var(--line)}
+.sugglist .pill{background:var(--accent)}
+.sugglist .acts{margin-left:auto;display:flex;gap:.3rem}
 /* A coding agent as the writer: how to connect each one, and what to ask. */
 .agentbox{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;
   padding:.7rem .9rem;margin:-.2rem 0 .8rem;font-size:.86rem;line-height:1.5}
@@ -856,7 +861,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <button class="item" data-view="apps" title="My applications"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 2h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a1 1 0 0 1 1-1zm1 1.8v1.4h4V3.8h-4zm5.7 7.5-1.4-1.4-3.3 3.3-1.6-1.6-1.4 1.4 3 3 4.7-4.7z"/></svg><span class="label">My applications</span><span class="count due" id="nav-apps" title="follow-ups past their date" hidden></span></button>
   <div class="sec">Setup</div>
   <button class="item" data-view="settings" data-label="Search" data-info="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen." aria-description="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24a1 1 0 0 1-1.42 1.42l-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span class="label">Search</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
-  <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="count" id="nav-sugg" title="suggestions from your coding agent, waiting for your OK" hidden></span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="sources" data-label="Sources" data-info="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, holds the keys for Adzuna and USAJOBS, adds a job post from a link, and adds or removes employer boards." aria-description="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, holds the keys for Adzuna and USAJOBS, adds a job post from a link, and adds or removes employer boards."><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 8.2C5.6 9.3 8.6 10 12 10s6.4-.7 8-1.8V12c0 1.66-3.6 3-8 3s-8-1.34-8-3V8.2zm0 7c1.6 1.1 4.6 1.8 8 1.8s6.4-.7 8-1.8V19c0 1.66-3.6 3-8 3s-8-1.34-8-3v-3.8z"/></svg><span class="label">Sources</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="ai" data-label="AI" data-info="Choose a model (local through Ollama, or Anthropic, Gemini, OpenAI or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are never written to a file: held in memory, or kept in your keychain if you choose." aria-description="Choose a model (local through Ollama, or Anthropic, Gemini, OpenAI or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are never written to a file: held in memory, or kept in your keychain if you choose."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2l1.9 5.6 5.6 1.9-5.6 1.9L11 17l-1.9-5.6-5.6-1.9 5.6-1.9L11 2zm7.5 11l.95 2.55 2.55.95-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95L18.5 13z"/></svg><span class="label">AI</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="tools" data-label="Feedback" data-info="Send a problem, an idea or a question to the people who make jobdork." aria-description="Send a problem, an idea or a question to the people who make jobdork."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><rect x="11" y="5.75" width="10" height="2.5" rx="1.25"/><circle cx="18" cy="17" r="3"/><rect x="3" y="15.75" width="10" height="2.5" rx="1.25"/></svg><span class="label">Feedback</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
@@ -1515,6 +1520,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <p class="hint">Used to rank job posts by skill overlap, offline and free. It
       is also what every drafted document is built from. Without one, a CV
       would be inventing a career rather than tailoring one.</p>
+    <div class="cleanup suggested" id="suggested" role="status" hidden></div>
     <div class="rcards" id="rcards" aria-label="Your resume and the ones tailored from it"></div>
     <div class="bar">
       <input type="file" id="resume-file" accept=".pdf,.docx,.md,.txt">
@@ -3331,6 +3337,8 @@ async function refreshState() {
   hasClaude = s.claude;
   aiLabel = s.ai || '';
   agentOn = !!s.agent;
+  $('nav-sugg').hidden = !s.suggested;
+  $('nav-sugg').textContent = s.suggested || '';
   agentFallback = s.agent_fallback || '';
   $('aihint').textContent = s.ai_problem ? `AI: ${s.ai_problem}` : `AI: ${s.ai}`;
   // Docker without -v: the data lives in the container and goes with it.
@@ -5931,7 +5939,7 @@ function applicationHtml(d) {
     <h4>Stages</h4>
     ${a.history.length ? `<ol class="stages">${a.history.map(h => `<li><span class="pill"
       style="background:${COLOURS[h.status] || '#6b7280'}">${esc(h.status)}</span>
-      <span class="hint">${esc(day(h.at))}</span></li>`).join('')}</ol>`
+      <span class="hint">${esc(day(h.at))}${h.by ? ' · by ' + esc(h.by) : ''}</span></li>`).join('')}</ol>`
       : '<p class="hint">No changes recorded yet: from now on each status is dated here.</p>'}
     <h4>Next step</h4>
     <div class="appform">
@@ -5955,7 +5963,7 @@ function applicationHtml(d) {
     <div class="appnote"><textarea id="ap-note" maxlength="2000" placeholder="e.g. Interview went well; they asked about telemetry"></textarea>
       <button type="button" class="act" data-icon="plus" id="ap-add">Add note</button></div>
     ${a.notes.length ? `<ul class="appnotes">${a.notes.map(n => `<li><span class="hint">${esc(day(n.at))} ·
-      ${esc(n.stage)}</span><span class="txt">${esc(n.note)}</span>
+      ${esc(n.stage)}${n.by ? ' · by ' + esc(n.by) : ''}</span><span class="txt">${esc(n.note)}</span>
       <button type="button" class="act linkish" data-note="${n.id}">Delete</button></li>`).join('')}</ul>` : ''}
   </div>`;
 }
@@ -5987,7 +5995,52 @@ function bindApplication(d) {
 }
 
 // ── resume ───────────────────────────────────────────────────────────────────
+// What a coding agent suggested for your record (web/agent.py): it counts
+// for nothing until you approve it here, so an agent cannot add a skill
+// and then cite it.
+async function drawSuggested() {
+  const box = $('suggested');
+  let d;
+  try {
+    const r = await api('/api/record/suggested');
+    if (!r.ok) { box.hidden = true; return; }
+    d = await r.json();
+  } catch (e) { box.hidden = true; return; }
+  const items = [
+    ...d.skills.map(x => ({kind: 'skill', key: x.term, what: 'Skill', text: skillName(x.term), by: x.suggested_by})),
+    ...d.projects.map(x => ({kind: 'project', key: x.id, what: 'Project', by: x.suggested_by,
+      text: [x.name, x.role, x.result].filter(Boolean).join(' · ')})),
+    ...d.education.map(x => ({kind: 'education', key: x.id, what: 'Education', by: x.suggested_by,
+      text: [x.credential, x.school, [x.start, x.end].filter(Boolean).join(' to ')].filter(Boolean).join(' · ')})),
+  ];
+  box.hidden = !items.length;
+  $('nav-sugg').hidden = !items.length;
+  $('nav-sugg').textContent = items.length;
+  if (!items.length) return;
+  box.innerHTML = `<b>Your coding agent suggested ${items.length === 1 ? 'this' : 'these'} for your record.</b>
+    Nothing uses ${items.length === 1 ? 'it' : 'them'} until you approve: approve only what is true,
+    since tailored resumes, letters and fit scores then count it as yours.
+    <ul class="sugglist">${items.map(x => `<li><span class="pill">${x.what}</span> ${esc(x.text)}
+      <span class="hint">${esc(x.by)}</span>
+      <span class="acts"><button type="button" class="act primary" data-icon="check" data-ok="1"
+        data-kind="${x.kind}" data-key="${esc(String(x.key))}">Approve</button>
+      <button type="button" class="act" data-icon="x" data-ok="0" data-kind="${x.kind}"
+        data-key="${esc(String(x.key))}">Turn down</button></span></li>`).join('')}</ul>`;
+  decorate(box);
+  box.querySelectorAll('[data-ok]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const r = await api('/api/record/decide', {method: 'POST',
+      body: form({kind: b.dataset.kind, key: b.dataset.key, approve: b.dataset.ok})});
+    if (!r.ok) { toast(cap(await r.text()), 'err'); b.disabled = false; return; }
+    const done = await r.json();
+    toast(`${done.approved ? 'Approved: now part of your record.' : 'Turned down.'}${done.rescore ? ' ' + done.rescore : ''}`);
+    drawSuggested();
+    if (done.approved) { drawProjects(); drawEducation(); }
+  });
+}
+
 async function drawResume() {
+  drawSuggested();
   if (!cfg) cfg = await (await api('/api/config')).json();
   $('btn-resume-del').hidden = !cfg.resume_path;
   $('btn-resume-view').hidden = !cfg.resume_path;

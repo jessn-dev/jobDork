@@ -6,6 +6,41 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-29 — Guardrails for a coding agent
+
+A coding agent (web/agent.py) is held to the rules a model is, and more:
+
+- **What it adds to your record waits for your OK.** A project, education
+  entry or skill it suggests is kept apart (`suggested_by`, schema 16) and
+  counts for nothing (fit, checks, tailoring, the record notes) until you
+  **Approve** it at the top of the Resume page; **Turn down** removes it.
+  The menu counts what waits. An agent cannot take back a skill you
+  confirmed, nor undo one; yours approves its suggestion of the same skill.
+  At most 25 wait at once. Without this, an agent could add a skill and
+  then cite it, and every check would pass.
+- **Job board text is data, not instructions.** Hidden characters are
+  removed from every title, company, place and advert the agent reads, and
+  from its briefs; every answer carrying them says they are from strangers;
+  the agent's instructions say never to follow them, run a command or open a
+  link because of them.
+- **Contact details stay with you**, as for a hosted model: email, phone
+  and profile links are removed from the resume, the record and the briefs
+  the agent reads (`llm.redact`); `get_resume` gives the file's name, not
+  its place on your computer.
+- **Limits**: 30 documents and 60 job post scores an hour, counted from what
+  agents saved, so they hold across sessions and the command line; answers
+  up to 64 KB.
+- **A record of what it changes.** Every change is a run on the Dashboard
+  from the coding agent, refused ones too, with what it did; its answers
+  are counted with the AI calls under its name; statuses and notes it set
+  say *by Coding agent · <its name>* in the Application tab (`by`, schema 16).
+
+Guide: the AI page's guardrails, the Resume page's suggestions, with a
+picture; demo data has one suggested skill. Tests: 7 more in
+`tests/test_agent.py`.
+
+---
+
 ## Added — 2026-10-29 — A coding agent as the AI, with no key
 
 A third way to give jobdork its AI, beside Ollama and a keyed model: your
