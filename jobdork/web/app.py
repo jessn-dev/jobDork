@@ -260,6 +260,14 @@ def self_test() -> list[str]:
                  if not (data / name).exists()]
     if __version__.endswith("+source"):
         problems.append("no package metadata: the version reads as " + __version__)
+    # A time zone by name (ai/limits.py): Windows has no database but the
+    # tzdata package's, and a build without it failed only once the AI page
+    # loaded (2026-10-30).
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    try:
+        ZoneInfo("America/Los_Angeles")
+    except ZoneInfoNotFoundError:
+        problems.append("no time zone database: the tzdata package did not come along")
     # The GPL's text travels with every built copy (packaging/jobdork.spec).
     bundle = getattr(sys, "_MEIPASS", "")
     if bundle and not (Path(bundle) / "LICENSE").exists():

@@ -34,6 +34,9 @@ dependencies = [
     "PyYAML>=6.0",
     "requests>=2.31",
     "resend>=2.0.0",
+    # Time zones (ai/limits.py: when Gemini's day turns over). macOS and Linux
+    # carry their own database; Windows has none, only this package's.
+    "tzdata>=2024.1; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
