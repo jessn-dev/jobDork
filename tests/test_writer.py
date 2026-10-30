@@ -47,6 +47,7 @@ class _Script:
 
     def __call__(self, *a, purpose="", **k):
         self.purposes.append(purpose)
+        self.prompts = [*getattr(self, "prompts", []), a[2] if len(a) > 2 else ""]
         return self.answers.pop(0)
 
     def __enter__(self):
@@ -107,6 +108,76 @@ def test_a_letter_is_humanized_gated_guarded_and_recorded():
         assert (output["kind"], output["uid"], output["checked"]) == \
             ("cover_letter", uid, 1)
         assert f'"output_id": {draft.output_id}' in artifact["gates_json"]
+
+
+PREP = {
+    "fit": ["Ran the Kubernetes platform for 40 services, the work this advert describes."],
+    "questions": [{"question": "How did you keep 40 services running on one cluster?",
+                   "tests": "Run Kubernetes for product teams",
+                   "points": ["Ran the Kubernetes platform for 40 services at Acme."]}],
+    "follow_ups": [{"question": "What would you change about the CI pipelines?",
+                    "tests": "Own CI", "points": ["Built CI pipelines in GitHub Actions."]}],
+    "gaps": [{"skill": "On-call", "why": "The advert asks you to own on-call.",
+              "prepare": "Say plainly it is not on your resume, and how you would learn it."},
+             {"skill": "Terraform", "why": "Platform teams often use it.",
+              "prepare": "Mention your experience with Terraform."}],
+    "talking_points": ["Seven years of Python and Go."],
+}
+
+
+def test_interview_prep_is_laid_out_checked_and_recorded_and_gaps_are_never_claimed():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, uid = _setup(tmp)
+        saved = _patched_settings()
+        try:
+            with _Script(PREP, *GUARD_OK) as script, Store(cfg.db_path) as store:
+                store.confirm_skill("terraform")
+                draft = writer.prep(cfg, store, uid, root=tmp)
+                artifact = store.artifacts(uid, "interview_prep")[0]
+                output = store.ai_output(draft.output_id)
+        finally:
+            writer._settings = saved
+        assert script.purposes == ["interview_prep", "guard_extract", "guard_verify"]
+        assert "Skills I confirm I have: terraform" in script.prompts[0], "the whole record"
+        text = draft.text
+        assert text.startswith("# Interview prep: Platform Engineer at Initech\n")
+        order = [text.index(h) for h in ("## Why you fit", "## Questions about your resume",
+                                         "## Follow-ups on your work", "## Gaps to prepare",
+                                         "## Talking points")]
+        assert order == sorted(order)
+        assert "### How did you keep 40 services running on one cluster?\nTests: Run Kubernetes" in text
+        assert draft.path.name == writer.PREP_FILE and artifact["path"] == str(draft.path)
+        assert output["kind"] == "interview_prep"
+        gaps = next(g for g in draft.gates if g.name == "gaps not claimed")
+        # "Mention your experience with Terraform" claims what the resume does not show.
+        assert not gaps.passed and gaps.items == ["Terraform"]
+
+
+def test_a_recruiter_message_is_short_checked_and_never_sent():
+    words = ("Initech's product teams need someone to run Kubernetes and own the path to "
+             "production. I ran the Kubernetes platform for 40 services at Acme and built "
+             "its CI pipelines in GitHub Actions, in Python and Go, for seven years of "
+             "platform work across several product teams that shipped every day with it. "
+             "Worth a quick chat about the role?")
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, uid = _setup(tmp)
+        saved = _patched_settings()
+        try:
+            with _Script({"message": words}, *GUARD_OK) as script, Store(cfg.db_path) as store:
+                draft = writer.message(cfg, store, uid, root=tmp)
+                artifact = store.artifacts(uid, "recruiter_message")[0]
+        finally:
+            writer._settings = saved
+        assert script.purposes == ["recruiter_message", "guard_extract", "guard_verify"]
+        assert draft.path.name == writer.MESSAGE_FILE and artifact["path"] == str(draft.path)
+        length = next(g for g in draft.gates if g.name == writer.MESSAGE_GATE)
+        assert length.passed and length.detail.startswith(f"{len(words.split())} words")
+        assert next(g for g in draft.gates if g.name == "length").passed, "short by design"
+        long = writer.recruiter_message
+        with _Script({"message": words * 3}, *GUARD_OK):
+            with Store(cfg.db_path) as store:
+                too_long = long(SETTINGS, store.get(uid), RESUME)
+        assert not next(g for g in too_long.gates if g.name == writer.MESSAGE_GATE).passed
 
 
 def test_a_letter_needs_a_real_advert():
