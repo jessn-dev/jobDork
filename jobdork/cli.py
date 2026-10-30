@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -1658,11 +1659,77 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--checker", default="", help="a model to check with (optional)")
     p.set_defaults(func=cmd_ollama_code)
 
+    p = subs.add_parser("mcp", parents=[over],
+                        help="jobdork's tools for a coding agent, as an MCP server on stdio")
+    p.set_defaults(func=cmd_mcp)
+
+    p = subs.add_parser("agent", parents=[over],
+                        help="one of jobdork's tools for a coding agent, from the command line",
+                        description="Run TOOL with ARGS (a JSON object, or - to read it from "
+                                    "standard input) and print its JSON answer. With no "
+                                    "TOOL, list the tools and how to work with them.")
+    p.add_argument("tool", nargs="?", default="", help="the tool, e.g. get_brief")
+    p.add_argument("json", nargs="?", default="{}",
+                   help='its arguments as JSON, e.g. \'{"uid": "...", "kind": "cover_letter"}\'')
+    p.set_defaults(func=cmd_agent)
+
     p = subs.add_parser("dork", help="the original Google query generator")
     p.add_argument("rest", nargs=argparse.REMAINDER)
     p.set_defaults(func=cmd_dork)
 
     return parser
+
+
+def _agent_cfg(args):
+    """The config for an agent's tools. Its standard output is the answer,
+    so a config problem goes to standard error like everything else."""
+    for stream in (sys.stdin, sys.stdout):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+    # An agent starts this from its own folder: the config's paths (data/,
+    # the resume) are read from the config's, as when jobdork runs there.
+    if getattr(args, "config", ""):
+        os.chdir(Path(args.config).expanduser().resolve().parent)
+        args.config = str(Path(args.config).expanduser().resolve().name)
+    # Before setup is finished too: the agent can say what is missing.
+    return _load(args, first_run=True)
+
+
+def cmd_mcp(args) -> int:
+    """`jobdork mcp`: the tools over stdio, until the agent disconnects."""
+    from .web import mcp
+
+    return mcp.serve(_agent_cfg(args))
+
+
+def cmd_agent(args) -> int:
+    """`jobdork agent TOOL JSON`: one tool, its answer printed as JSON."""
+    from .web import agent
+
+    if not args.tool:
+        print(agent.INSTRUCTIONS + "\n\nTools (jobdork agent TOOL JSON):")
+        for tool in agent.TOOLS:
+            fields = ", ".join(f"{k}{'' if k in tool.schema['required'] else '?'}"
+                               for k in tool.schema["properties"])
+            print(f"  {tool.name}({fields})\n      {tool.description}")
+        return 0
+    cfg = _agent_cfg(args)
+    raw = sys.stdin.read() if args.json == "-" else args.json
+    try:
+        given = json.loads(raw or "{}")
+    except json.JSONDecodeError as exc:
+        print(json.dumps({"error": f"the arguments are not JSON: {exc}"}))
+        return 2
+    if not isinstance(given, dict):
+        print(json.dumps({"error": "the arguments must be a JSON object"}))
+        return 2
+    try:
+        done = agent.call(cfg, args.tool, given)
+    except agent.ToolError as exc:
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+        return 1
+    print(json.dumps(done, ensure_ascii=False, indent=1))
+    return 0
 
 
 def _recorded(args) -> int:

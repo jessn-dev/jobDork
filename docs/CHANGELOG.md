@@ -6,6 +6,55 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-10-29 — A coding agent as the AI, with no key
+
+A third way to give jobdork its AI, beside Ollama and a keyed model: your
+own coding agent (Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot,
+Claude Desktop), after Resume Matcher's agent mode (srbhr/resume-matcher). jobdork
+never calls the agent; the agent calls jobdork's tools, and jobdork asks no
+model of its own.
+
+- **The tools** (`web/agent.py`): overview, list and read job posts, the
+  resume and record, a post's ATS match; `get_brief`, exactly what jobdork
+  would send a model for a tailored resume, cover letter, interview prep,
+  recruiter message, resume review or a post's AI score; `save_document`
+  and `save_verdict`, which put the agent's answer through every check a
+  model's gets (gates, PDF and Word, the record) and return the checks so it
+  can fix and save again; applications (status, next step, contact, notes);
+  and projects, education and confirmed skills.
+- **Two doors to the same tools**: an MCP server on stdio (`web/mcp.py`,
+  JSON-RPC 2.0 in the standard library; `jobdork mcp`, or the installed app
+  with `--mcp`), with its workflow sent as the server's instructions; and
+  `jobdork agent TOOL JSON` (the app: `--agent`) for agents that only run
+  commands. The build checks the built app answers MCP (`packaging/build.py`).
+  On Windows the agent starts `jobdork-agent.exe`, the same program built
+  with a console beside `jobdork.exe` (`packaging/jobdork.spec`): the
+  window's program has no standard streams for an agent to talk on, which
+  that check found.
+- **How it fits** (`ai/llm.py`): `agent` is a provider whose calls are
+  answered from a queue (the agent's own answer, never passed on). What
+  jobdork asks for itself (a button, judging after a scan, a page read)
+  goes to the next reader; with the agent the only reader, the call keeps
+  its brief and raises `AgentBrief`. One reader line at most may be an
+  agent, with other readers before or after it; never a checker
+  (`core/config.py`).
+- **The hallucination check stays a second model's** (`ai/guard.py`): the
+  agent never checks its own writing. A checker, or a reader the config had
+  before, checks; with none, the check is not run and is a check to read.
+- **The AI page** offers **Coding agent** for Reader 1, with the line for
+  Claude Code, Codex, Gemini CLI (command and settings.json), Claude
+  Desktop, Cursor, VS Code and the command line,
+  filled in for this computer, each with **Copy**. With the agent as Reader
+  1, a job post's AI buttons show what to ask the agent, with **Copy**, and
+  **Use <next reader> instead** when another reader is listed. With the agent
+  the only reader, the dashboard's model jobs are refused with what to ask,
+  and scans skip AI judging.
+
+Guide: the AI page's new Coding agent section, with a picture. Tests:
+`tests/test_agent.py` (14).
+
+---
+
 ## Added — 2026-10-29 — My applications
 
 A new page, **My applications** (menu, under Job posts), lists every job
@@ -114,6 +163,25 @@ The job window's heading is now *The main buttons* (there are more than four);
 the Resume page's link to it follows, and `tests/test_guide.py` now fails on
 any guide link to a part of a page that is not there (the docs build only
 warned).
+
+---
+
+## Fixed — 2026-10-30 — The Windows app's AI settings, which needed a time zone
+
+On Windows, jobdork 0.15.4 could not load the part that keeps free Gemini
+and Groq keys within their limits (`ai/limits.py`): it reads the Pacific
+time zone, where Gemini's day turns over, and Windows has no time zone
+database of its own; the app carried none. The dashboard's AI settings,
+which the page asks for all the time, failed with it. Found by the new MCP
+check in the Windows build (#105).
+
+- `tzdata` is a dependency on Windows (`pyproject.toml`,
+  `requirements-desktop.lock`) and travels with the Windows app
+  (`packaging/jobdork.spec`).
+- Without a database anyway, the module uses Pacific standard time all
+  year instead of failing (the day turns an hour early in summer).
+- The app's self-test looks a time zone up, so a build without one stops
+  before it becomes an installer.
 
 ---
 

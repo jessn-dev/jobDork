@@ -260,6 +260,14 @@ def self_test() -> list[str]:
                  if not (data / name).exists()]
     if __version__.endswith("+source"):
         problems.append("no package metadata: the version reads as " + __version__)
+    # A time zone by name (ai/limits.py): Windows has no database but the
+    # tzdata package's, and a build without it failed only once the AI page
+    # loaded (2026-10-30).
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    try:
+        ZoneInfo("America/Los_Angeles")
+    except ZoneInfoNotFoundError:
+        problems.append("no time zone database: the tzdata package did not come along")
     # The GPL's text travels with every built copy (packaging/jobdork.spec).
     bundle = getattr(sys, "_MEIPASS", "")
     if bundle and not (Path(bundle) / "LICENSE").exists():
@@ -297,6 +305,27 @@ def scheduled_scan(home: Path | None = None) -> int:
         sys.stdout = sys.stderr = open(os.devnull, "w")  # noqa: SIM115 - the scan opens its log
     widen_path()
     return main(["scan", "--scheduled"])
+
+
+def agent_server(argv: list[str] | None = None, home: Path | None = None) -> int:
+    """What a coding agent starts: jobdork's tools over stdio (web/mcp.py),
+    or one of them from the command line (`argv` ["agent", TOOL, JSON]), in
+    the app's folder, so the agent works on what the window shows.
+
+    On Windows the agent starts jobdork-agent.exe, the same program built
+    with a console (packaging/jobdork.spec): the window's jobdork.exe has
+    no standard streams to talk on, and says so by stopping at once.
+    """
+    from ..cli import main
+
+    home = (home or app_home()).expanduser()
+    home.mkdir(parents=True, exist_ok=True)
+    os.chdir(home)
+    if sys.stdin is None or sys.stdout is None:
+        return 2
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")  # noqa: SIM115 - logs have nowhere else to go
+    return main(argv or ["mcp"])
 
 
 def ask_before_closing(busy):

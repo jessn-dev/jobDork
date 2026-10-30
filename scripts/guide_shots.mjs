@@ -218,6 +218,27 @@ try {
   await sleep(1500);
   await shoot('ai');
   await shoot('ai-checkers', {clip: '#ai-check'});
+  // Coding agent chosen for Reader 1, Ollama after it, not saved: the
+  // commands to connect one.
+  // The commands as the installed Mac app gives them: this computer's own
+  // would put its folders in the picture.
+  const app = '/Applications/jobdork.app/Contents/MacOS/jobdork';
+  await run(`ai.agent_setup = {claude_code: 'claude mcp add jobdork -- ${app} --mcp',
+      codex: 'codex mcp add jobdork -- ${app} --mcp',
+      gemini: 'gemini mcp add -s user jobdork ${app} -- --mcp',
+      gemini_json: JSON.stringify({mcpServers: {jobdork: {command: '${app}', args: ['--mcp']}}}, null, 2),
+      claude_desktop: JSON.stringify({mcpServers: {jobdork: {command: '${app}', args: ['--mcp']}}}, null, 2),
+      cursor: JSON.stringify({mcpServers: {jobdork: {command: '${app}', args: ['--mcp']}}}, null, 2),
+      vscode: JSON.stringify({servers: {jobdork: {type: 'stdio', command: '${app}', args: ['--mcp']}}}, null, 2),
+      cli: '${app} --agent'};
+    ai.readers = [{provider: 'agent', model: '', ollama_url: ''},
+                  {provider: 'ollama', model: 'gemma4:26b', ollama_url: ''}]; drawReaders(false);`);
+  await sleep(500);
+  const agentH = await run(`return document.getElementById('ai-agent').getBoundingClientRect().bottom
+    - document.getElementById('ai-readers').getBoundingClientRect().top;`);
+  await shoot('ai-agent', {clip: '#ai-readers', height: agentH});
+  await run(`drawAI();`);
+  await sleep(1000);
 
   await run(view('prefs'));
   await sleep(1500);
