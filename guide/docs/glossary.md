@@ -9,15 +9,30 @@
 
 **Applicant tracking system (ATS)**
 : The software employers use to receive and sort applications. It reads
-  your resume for the advert's words, which is what **ATS keywords** helps
-  with.
+  your resume for the advert's words: a job post's **ATS match** scores how
+  well yours does ([how](job-window.md#ats-match)), and the Resume page
+  checks whether it can read your file at all
+  ([how](resume.md#how-a-tracking-system-reads-it)).
+
+**Application**
+: A job you applied to, kept on [My applications](applications.md) with
+  its stages, next step, contact, the documents you sent and your notes.
 
 **Board**
 : A place job posts are listed: a job board, or an employer's own career
   site (an *employer board*).
 
+**Brief**
+: What jobdork gives a coding agent to write a document from: the same
+  instructions, advert and resume a model would get. [AI](ai.md#coding-agent)
+
 **Checker**
 : A second AI model that checks the first one's work. [AI](ai.md#checkers)
+
+**Coding agent**
+: An AI assistant you already use for code (Claude Code, Codex, Gemini CLI,
+  Cursor, GitHub Copilot, Claude Desktop), connected to jobdork to do its
+  writing with no API key. [AI](ai.md#coding-agent)
 
 **Copy**
 : The same job posted in more than one place. Copies show as one post
@@ -50,6 +65,11 @@
 **Match**
 : Points for everything you asked for, added up. Not a percentage.
   [Scores explained](scores.md#match-everything-you-asked-for-added-up)
+
+**MCP (Model Context Protocol)**
+: The common way coding agents connect to a tool such as jobdork. jobdork
+  starts its MCP server on your computer when your agent asks for it; it
+  opens no network port. [AI](ai.md#coding-agent)
 
 **Ollama**
 : A free program that runs AI models on your own computer, so nothing
@@ -88,6 +108,15 @@
 **Source**
 : Somewhere jobdork reads job posts from. [Sources](sources.md)
 
+**Stage**
+: Where an application is: applied, interviewing, offer or closed. Each
+  status it is given is dated. [My applications](applications.md)
+
 **Status**
 : Where you are with a job: new, viewed, interested, applied and so on.
   [Statuses](statuses.md#statuses)
+
+**Suggestion**
+: A project, education entry or skill a coding agent proposed for your
+  record. It counts for nothing until you approve it.
+  [Resume](resume.md#suggestions)

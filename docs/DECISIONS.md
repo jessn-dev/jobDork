@@ -83,6 +83,32 @@ it is a 2.0, planned, not a reason to drop the promise), or something not
 on the list turns out to be what people build on (then it joins the list in
 a minor release).
 
+## A coding agent calls jobdork, never the other way — 2026-10-29
+
+**Decided.** A coding agent (Claude Code, Codex, Gemini CLI, Cursor, GitHub
+Copilot, Claude Desktop) can do jobdork's AI work, after Resume Matcher's
+agent mode. jobdork serves it tools (an MCP server on stdio, and the same
+tools as `jobdork agent`, in the standard library) and never calls the agent
+or a subscription through it. The agent asks for the brief a model would have
+been given, writes the answer, and saves it through every check a model's
+answer gets. A second model checks its claims; the agent never checks its
+own. What it adds to the person's record waits for their OK. One reader line
+at most is an agent, beside other readers, which answer what jobdork asks
+for itself.
+
+**Why.** People already pay for an agent and should not need a second key.
+Having the app drive the agent would mean using a subscription through a
+third-party app, which its terms may not allow, and an agent that only
+answers in its own chat cannot be asked by a button anyway. The brief is the
+model's prompt, unchanged, so the agent is held to the same rules and the
+same checks without a second set to keep in step. A suggestion waits because
+an agent that could add a skill could then cite it, and every check would
+pass. MCP's stdio transport is a line of JSON each way, so no server
+framework (FastAPI, the MCP SDK) is added to the installers.
+
+**Revisit when** an agent can be asked by another program within its terms,
+or the Gemini app documents a way to add a tool.
+
 ## The tailored resume follows Indeed's template and length — 2026-10-28
 
 **Decided.** A tailored resume is laid out like Indeed's free resume

@@ -42,10 +42,28 @@ hide:
 
     ---
 
-    Optional. Ollama on your own computer, or Anthropic, Gemini, OpenAI or
-    Groq with your key. It judges posts and drafts cover letters; a second
-    model checks every claim against your resume and the advert. It never
-    applies for you. [The AI page](ai.md)
+    Optional. Ollama on your own computer, Anthropic, Gemini, OpenAI or
+    Groq with your key, or your own coding agent (Claude Code, Codex, Gemini
+    CLI, Cursor) with no key at all. It judges posts and drafts cover
+    letters, tailored resumes, interview prep and recruiter messages; a
+    second model checks every claim against your resume and the advert. It
+    never applies for you. [The AI page](ai.md)
+
+-   :material-file-document-check-outline:{ .lg } **A resume that gets read**
+
+    ---
+
+    How a tracking system reads your resume file, and what to fix; how its
+    lines are written; each post's **ATS match**; and a tailored resume in
+    Indeed's layout and length, as PDF and Word. [Resume](resume.md)
+
+-   :material-clipboard-check-outline:{ .lg } **Your applications in one place**
+
+    ---
+
+    Every job you applied to, by stage, with the date of each step, the
+    next one and when, who you are talking to, what you sent, and your
+    notes. [My applications](applications.md)
 
 -   :material-ghost-off-outline:{ .lg } **Fewer repeats and ghost jobs**
 
@@ -84,7 +102,8 @@ say how many.
 2. **Run a scan.** The first posts arrive in about a minute.
    [The Dashboard](dashboard.md)
 3. **Read the best first and mark what you did:** interested, applied,
-   interviewing. The next scan shows only what is new.
+   interviewing. The next scan shows only what is new, and every job you
+   applied to is kept in [My applications](applications.md).
    [Job posts](job-posts.md)
 
 ## How it compares

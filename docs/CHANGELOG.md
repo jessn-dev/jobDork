@@ -6,6 +6,57 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-30 — version 0.16.0
+
+0.16.0 carries the 19 entries below, everything since 0.15.4 (28 October).
+For you:
+
+- **Your resume, tailored and checked.** A tailored resume in Indeed's
+  layout and length, as PDF and Word; how a tracking system reads your
+  resume file, scored with what to fix; and how its lines are written
+  (weak openers, "I", long bullets, no numbers).
+- **A new Resume page**: your resume and each tailored one as cards beside
+  a preview that fills the window, with each job post's other documents as
+  tabs: cover letter, recruiter message, interview prep, review, ATS match.
+- **A job post's ATS match**, by script: keywords, required skills, title,
+  sections and dates, out of 100, with **I have this** for a skill you have.
+- **Interview prep and a recruiter message**, written by the AI and checked
+  like a cover letter. jobdork never sends the message; you do.
+- **Job posts with the chosen post beside the list**, as job boards show
+  them, on a wide window.
+- **My applications**: every job you applied to, by stage, with each
+  status dated, the next step and its date (past ones flagged on the
+  Dashboard), the contact, what you sent, and notes.
+- **Your coding agent as the AI**, with no key: Claude Code, Codex, Gemini
+  CLI, Cursor, GitHub Copilot or Claude Desktop does the writing through
+  jobdork's tools, and jobdork checks and keeps it. With guardrails: what it
+  adds to your record waits for your OK, job adverts are data and never
+  instructions, your contact details stay with you, limits an hour, and
+  every change it makes on the Dashboard.
+- **Fixed:** the Windows app's AI settings (no time zone database); any
+  reader or checker moves or goes, the first too; Settings no longer makes
+  the Mac ask for Documents and Downloads; the resume's full path; keys from
+  your computer's environment named; AI providers by their company names.
+
+Updating from 0.15.4 uses the update window, as before. On first start the
+database moves from schema 13 to 16 by itself (confirmed skills, the dated
+history of statuses, applications and their notes, and what a coding agent
+suggested); an older jobdork will not open it after. The config keeps
+working as it is. On Windows, if 0.15.4's Settings, Updates does not
+answer (the time zone fix above), install 0.16.0 from the release page over
+it: your data stays. Windows also gains `jobdork-agent.exe` beside the app,
+which a coding agent starts.
+
+The documentation is brought up to date for all of it: the user guide (its
+home page, overview, getting started and glossary, and a new My
+applications page), the README, PRIVACY.md and SECURITY.md (what a coding
+agent reads, and what a job post cannot make it do), the terminal commands
+(`jobdork prep`, `message`, `mcp`, `agent`), the config reference
+(`provider: agent`), ARCHITECTURE.md, the desktop page, and a decision in
+DECISIONS.md on how a coding agent is used.
+
+---
+
 ## Fixed — 2026-10-30 — The Windows app's AI settings, which needed a time zone
 
 On Windows, jobdork 0.15.4 could not load the part that keeps free Gemini
