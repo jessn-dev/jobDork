@@ -88,6 +88,31 @@ def test_every_picture_is_taken_by_the_script_and_used_by_a_page():
     assert have <= used, f"pictures no page shows: {sorted(have - used)}"
 
 
+
+def _anchors(page: Path) -> set[str]:
+    """The anchors a page has, as MkDocs makes them: each heading's slug
+    (python-markdown's toc), a heading's own {#id}, and <span id="...">."""
+    text = page.read_text(encoding="utf-8")
+    found = set(re.findall(r'\{#([\w-]+)\}', text)) | set(re.findall(r'id="([\w-]+)"', text))
+    for heading in re.findall(r"^#{1,6} (.+?)\s*(?:\{#[\w-]+\})?$", text, re.M):
+        plain = re.sub(r"[*`]|\[([^\]]*)\]\([^)]*\)", r"\1", heading)
+        slug = re.sub(r"[^\w\s-]", "", plain).strip().lower()
+        found.add(re.sub(r"[-\s]+", "-", slug))
+    return found
+
+
+def test_every_link_to_a_part_of_a_page_finds_it():
+    """A heading renamed leaves links to its old anchor pointing nowhere; the
+    docs build only warns (2026-10-30: #the-four-main-buttons)."""
+    broken = []
+    for page in DOCS.glob("*.md"):
+        for target, anchor in re.findall(r"\]\(([\w-]*\.md)?#([\w-]+)\)",
+                                         page.read_text(encoding="utf-8")):
+            other = DOCS / target if target else page
+            if other.exists() and anchor not in _anchors(other):
+                broken.append(f"{page.name} -> {target or page.name}#{anchor}")
+    assert not broken, broken
+
 if __name__ == "__main__":
     import traceback
     failed = 0
