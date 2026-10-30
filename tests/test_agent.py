@@ -448,6 +448,28 @@ def test_what_an_agent_changes_is_logged_and_marked_as_its():
     assert step["by"] == note["by"] == "Coding agent · claude-code"
 
 
+def test_save_and_test_counts_a_coding_agent_as_ready():
+    """It cannot be asked from the app; that is not a failure."""
+    cfg = Config(llm=Llm(provider=llm.AGENT, readers=[Reader(llm.AGENT)]))
+    done = api.llm_test(cfg)
+    assert done["readers"][0]["agent"] and done["readers"][0]["ok"]
+
+
+def test_the_agents_answers_are_left_out_of_the_ai_timings():
+    with _setup() as (cfg, uid, _):
+        agent.call(cfg, "save_document", {"uid": uid, "kind": "cover_letter", "answer": LETTER})
+        with Store(cfg.db_path) as store:
+            store.conn.execute(
+                "INSERT INTO llm_calls(at, model, purpose, seconds, ok) "
+                "VALUES(datetime('now', 'localtime'), 'Ollama (local) · m', 'judge', 12.0, 1)")
+            store.conn.commit()
+            models = [r[0] for r in store.conn.execute("SELECT model FROM llm_calls")]
+        assert any(m.startswith("Coding agent") for m in models), "still counted as a call"
+        metrics = api.metrics(cfg)
+    timing = next(v for v in metrics.values() if isinstance(v, dict) and "p50" in v)
+    assert timing["p50"] == 12.0, "the agent's 0 seconds would pull it down"
+
+
 # ── keep this block LAST ───────────────────────────────────────────────────────
 
 if __name__ == "__main__":

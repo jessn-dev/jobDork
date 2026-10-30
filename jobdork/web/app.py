@@ -322,6 +322,13 @@ def agent_server(argv: list[str] | None = None, home: Path | None = None) -> int
     home.mkdir(parents=True, exist_ok=True)
     os.chdir(home)
     if sys.stdin is None or sys.stdout is None:
+        # jobdork.exe, built without a console, started by an agent: said in
+        # the app's log, the one place it can be seen.
+        log_dir = home / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        with open(log_dir / "app.log", "a", encoding="utf-8") as fh:
+            fh.write("a coding agent started jobdork.exe, which has no console to talk on; "
+                     "set it up with jobdork-agent.exe, beside it (the AI page shows the line)\n")
         return 2
     if sys.stderr is None:
         sys.stderr = open(os.devnull, "w")  # noqa: SIM115 - logs have nowhere else to go

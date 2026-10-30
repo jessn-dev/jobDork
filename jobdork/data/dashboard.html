@@ -5303,8 +5303,8 @@ async function runTest() {
     if ($('ai-msg').className !== 'err') $('ai-msg').textContent += ' Not tested until then.';
     return;
   }
-  const who = [...ai.readers, ...ai.checkers].filter(x => x.provider)
-    .map(x => x.model || ai.providers[x.provider]).join(', ');
+  const who = [...ai.readers, ...ai.checkers].filter(x => x.provider && x.provider !== 'agent')
+    .map(x => x.model || ai.providers[x.provider]).join(', ') || ai.agent_label;
   $('ai-msg').className = 'hint';
   $('ai-msg').innerHTML = `<span class="spin">${svgIcon('loader-circle')}</span>Asking ${esc(who)}…
     A local model can take a minute.`;
@@ -5316,7 +5316,8 @@ async function runTest() {
   const checkers = d.checkers || [];
   $('ai-msg').className = failed.length || checkers.some(x => x.error) ? 'err' : 'saved';
   $('ai-msg').textContent = (d.readers || [d]).map(x => x.error
-      ? `${x.model}: ${x.error}` : `${x.model} answered in ${x.seconds}s`).join(' · ') +
+      ? `${x.model}: ${x.error}` : x.agent ? `${x.model}: nothing to test here, it connects from your agent (the lines below)`
+      : `${x.model} answered in ${x.seconds}s`).join(' · ') +
     checkers.map(x => x.error ? ` · checker ${x.model}: ${x.error}`
       : ` · checker ${x.model} answered in ${x.seconds}s`).join('');
   if ($('setup-next')) $('setup-next').hidden = false;      // the AI setup step
