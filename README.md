@@ -260,9 +260,10 @@ pictures taken.
   code, prompts or data (CC BY-NC) is included.
 - **[Resume Matcher](https://github.com/srbhr/resume-matcher)** by srbhr
   (Apache-2.0): the resume readability check (`jobdork/search/readable.py`)
-  follows its parse check's rules, thresholds and penalties, and the interview
+  and the writing rules (`jobdork/writing/style.py`) follow its parse check
+  and writing check, their rules, thresholds and weights, and the interview
   prep and recruiter message its prompts' parts, rewritten for jobdork; none
-  of its code is copied.
+  of its code is copied. The Resume page's layout follows its dashboard.
 - Place names from [GeoNames](https://www.geonames.org/) (CC BY 4.0); icons
   from [Lucide](https://lucide.dev/) (ISC).
 
