@@ -6,6 +6,36 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-30 — version 0.16.1
+
+0.16.1 carries the 8 entries below, everything since 0.16.0 (earlier
+today). For you:
+
+- **Updates finish themselves.** After the download passes its checks, the
+  new jobdork replaces this one and opens: on a Mac with no Finder window
+  and no dragging, on Windows with only the installer's progress bar. Where
+  it cannot (the app run from the disk image or Downloads, or a folder you
+  cannot write), the installer opens as before.
+- **The banner's Update starts the update**, where it only opened Settings.
+- **Fixed:** saving a pasted advert threw a page error; Save and test on the
+  AI page failed with a coding agent as the reader; a coding agent's answers
+  pulled the Dashboard's AI answer times down; `jobdork.exe --mcp` on
+  Windows stopped without a word.
+- **Renamed:** the AI tools tab's **ATS keywords** is now **Keyword ideas
+  (AI)**, so it is not taken for the free **ATS match** tab.
+- **Security:** a resume file is read only so far (30 PDF pages, 200,000
+  characters, a `.docx` that would unpack past 20 MB refused); two
+  code-scanning findings fixed.
+
+Updating from 0.16.0 is the old way one last time: the update is done by
+the version you have. In 0.16.0 press **Update to 0.16.1** under Settings,
+Updates (the banner's **Update** only opens that page), and on a Mac drag
+the new jobdork onto Applications in the Finder window, then open it again.
+From 0.16.1 on, updates finish by themselves. Nothing in the database or
+the config changes.
+
+---
+
 ## Changed — 2026-10-30 — An update puts itself in place and restarts jobdork
 
 **Update** used to stop at opening the installer: on a Mac a Finder window
