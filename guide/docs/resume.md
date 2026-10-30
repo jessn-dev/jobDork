@@ -126,7 +126,7 @@ re-scored when you save one.
 point quoting the line it is about. A point that quotes something not in
 your resume is dropped, so it cannot invent problems. To compare your resume
 with one job, use **Review resume for this post** in that post's
-[window](job-window.md#the-four-main-buttons).
+[window](job-window.md#the-main-buttons).
 
 ## Cover letters
 

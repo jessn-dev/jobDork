@@ -35,6 +35,12 @@ Both follow Resume Matcher's interview prep and outreach message
 
 Interview prep reads your whole record beside the resume: projects,
 education and the skills you confirmed with **I have this** (`store_notes`).
+
+The job window's heading is now *The main buttons* (there are more than four);
+the Resume page's link to it follows, and `tests/test_guide.py` now fails on
+any guide link to a part of a page that is not there (the docs build only
+warned).
+
 ---
 
 ## Added — 2026-10-29 — A job post's ATS match, and "I have this"
