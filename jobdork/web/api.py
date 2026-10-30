@@ -621,7 +621,7 @@ def application_detail(store, uid: str, artifacts: list[dict]) -> dict:
     from ..core.config import PURSUING_STATUSES
 
     row = store.get(uid)
-    history = [{"status": h["status"], "at": h["at"]} for h in store.history(uid)]
+    history = [{"status": h["status"], "at": h["at"], "by": h["by"]} for h in store.history(uid)]
     d = store.application(uid)
     status = (row["status"] if row else "") or "new"
     return {
@@ -632,7 +632,7 @@ def application_detail(store, uid: str, artifacts: list[dict]) -> dict:
                     for k in ("next_step", "next_date", "contact_name", "contact_email",
                               "contact_link", "resume_id", "letter_id")},
         "overdue": _overdue(d, status, datetime.date.today().isoformat()),
-        "notes": [{"id": n["id"], "stage": n["stage"], "note": n["note"], "at": n["at"]}
+        "notes": [{"id": n["id"], "stage": n["stage"], "note": n["note"], "at": n["at"], "by": n["by"]}
                   for n in store.application_notes(uid)],
         # What could have been sent: this post's resumes and cover letters.
         "resumes": [a for a in artifacts if a["kind"] in ("tailored_resume", "cv")],
@@ -674,7 +674,7 @@ def save_application(cfg, form: dict) -> dict:
     return {"saved": True}
 
 
-def application_note(cfg, form: dict) -> dict:
+def application_note(cfg, form: dict, by: str = "") -> dict:
     """A dated note on an application, added, or deleted by its id."""
     from ..db.store import Store
 
@@ -690,13 +690,13 @@ def application_note(cfg, form: dict) -> dict:
                 raise ApiError("no such note", 404)
             return {"deleted": True}
         try:
-            store.add_application_note(uid, str(form.get("note") or ""))
+            store.add_application_note(uid, str(form.get("note") or ""), by=by)
         except ValueError as exc:
             raise ApiError(str(exc)) from None
     return {"added": True}
 
 
-def confirm_skill(cfg, form: dict) -> dict:
+def confirm_skill(cfg, form: dict, suggested_by: str = "") -> dict:
     """"I have this" for one skill, or taken back: part of your record from
     then on (writing/resume_doc.py record_notes)."""
     from ..db.store import Store
@@ -704,13 +704,64 @@ def confirm_skill(cfg, form: dict) -> dict:
     have = str(form.get("have") or "1") not in ("0", "false", "")
     with Store(cfg.db_path) as store:
         try:
-            changed = store.confirm_skill(str(form.get("term") or ""), have)
+            changed = store.confirm_skill(str(form.get("term") or ""), have, suggested_by)
         except ValueError as exc:
             raise ApiError(str(exc)) from None
         return {"have": have, "changed": changed, "confirmed": store.confirmed_skills()}
 
 
-def save_project(cfg, form: dict) -> dict:
+def suggestions_count(cfg) -> int:
+    """How many of a coding agent's suggestions wait, for the menu's count."""
+    from ..db.store import Store
+
+    if not Path(cfg.db_path).is_file():        # before setup: none, and no database made
+        return 0
+    try:
+        with Store(cfg.db_path) as store:
+            return store.suggestions_waiting()
+    except Exception:          # no database yet, or a newer one: no count
+        return 0
+
+
+def list_suggestions(cfg) -> dict:
+    """What a coding agent suggested for the record, waiting for your OK."""
+    from ..db.store import Store
+
+    with Store(cfg.db_path) as store:
+        return {
+            "projects": [{**_project(p), "suggested_by": p["suggested_by"]}
+                         for p in store.projects(suggested=True)],
+            "education": [{**_education(e), "suggested_by": e["suggested_by"]}
+                          for e in store.education(suggested=True)],
+            "skills": [{"term": t, "suggested_by": r["suggested_by"]} for t, r in (
+                (r["term"], r) for r in store.conn.execute(
+                    "SELECT term, suggested_by FROM confirmed_skills WHERE suggested_by <> '' "
+                    "ORDER BY term"))],
+        }
+
+
+def decide_suggestion(cfg, form: dict) -> dict:
+    """Approve or turn down one suggestion: kind project, education or skill."""
+    from ..db.store import Store
+
+    kind = str(form.get("kind") or "")
+    key = str(form.get("key") or "")
+    approve = str(form.get("approve") or "") in ("1", "true", "yes")
+    if kind in ("project", "education"):
+        if not key.isdigit():
+            raise ApiError(f"not a {kind} id")
+        key = int(key)
+    with Store(cfg.db_path) as store:
+        try:
+            done = store.decide_suggestion(kind, key, approve)
+        except ValueError as exc:
+            raise ApiError(str(exc)) from None
+    if not done:
+        raise ApiError("no such suggestion: approved or turned down already", 404)
+    return {"approved": approve, "kind": kind, "changed": True}
+
+
+def save_project(cfg, form: dict, suggested_by: str = "") -> dict:
     """Add or change one project. The link must be a web address, if given."""
     from ..db.store import Store
     from ..writing import resume_doc
@@ -727,10 +778,11 @@ def save_project(cfg, form: dict) -> dict:
         raise ApiError("the link must start with http:// or https://")
     raw = str(form.get("id") or "")
     with Store(cfg.db_path) as store:
-        project_id = store.save_project(fields, int(raw) if raw.isdigit() else None)
+        project_id = store.save_project(fields, int(raw) if raw.isdigit() and not suggested_by
+                                        else None, suggested_by=suggested_by)
         if not project_id:
             raise ApiError("no such project", 404)
-        row = next(r for r in store.projects() if r["id"] == project_id)
+        row = next(r for r in store.projects(suggested=bool(suggested_by)) if r["id"] == project_id)
     return {"project": _project(row)}
 
 
@@ -746,7 +798,7 @@ def list_education(cfg) -> dict:
         return {"education": [_education(r) for r in store.education()]}
 
 
-def save_education(cfg, form: dict) -> dict:
+def save_education(cfg, form: dict, suggested_by: str = "") -> dict:
     """Add or change one education entry: a degree, diploma or course."""
     from ..db.store import Store
 
@@ -758,10 +810,11 @@ def save_education(cfg, form: dict) -> dict:
             raise ApiError(f"{key} is too long")
     raw = str(form.get("id") or "")
     with Store(cfg.db_path) as store:
-        entry_id = store.save_education(fields, int(raw) if raw.isdigit() else None)
+        entry_id = store.save_education(fields, int(raw) if raw.isdigit() and not suggested_by
+                                        else None, suggested_by=suggested_by)
         if not entry_id:
             raise ApiError("no such entry", 404)
-        row = next(r for r in store.education() if r["id"] == entry_id)
+        row = next(r for r in store.education(suggested=bool(suggested_by)) if r["id"] == entry_id)
     return {"entry": _education(row)}
 
 
@@ -2071,6 +2124,73 @@ def fresh_scan_job(cfg, expect):
 # ── the model ─────────────────────────────────────────────────────────────────
 
 
+# ── a coding agent (web/agent.py, web/mcp.py) ─────────────────────────────────
+
+
+def agent_mode(cfg) -> bool:
+    """A coding agent is one of the readers (web/agent.py)."""
+    from ..ai import llm
+
+    readers = cfg.llm.readers
+    return any(r.provider == llm.AGENT for r in readers) if readers \
+        else cfg.llm.provider == llm.AGENT
+
+
+def agent_only(cfg) -> bool:
+    """The coding agent is the only reader: jobdork asks no model of its own."""
+    from ..ai import llm
+
+    readers = cfg.llm.readers
+    return all(r.provider == llm.AGENT for r in readers) if readers \
+        else cfg.llm.provider == llm.AGENT
+
+
+def refuse_in_agent_mode(cfg, ask: str) -> None:
+    """A job that would ask a model, refused at once when the coding agent
+    is the only reader, with what to ask the agent instead. With other
+    readers listed, they do it."""
+    if agent_only(cfg):
+        raise ApiError(f"Coding agent mode: jobdork asks no model. Ask your agent: \"{ask}\"", 409)
+
+
+def agent_setup(cfg, platform: str = "") -> dict:
+    """How each coding agent starts jobdork's tools on this computer: the
+    command, ready to paste, for the AI page."""
+    import shlex
+    import subprocess
+    import sys
+
+    platform = platform or sys.platform
+    if getattr(sys, "frozen", False):            # the installed app
+        # On Windows its console twin, which has the streams an agent talks on.
+        from pathlib import PureWindowsPath
+
+        program = (str(PureWindowsPath(sys.executable).with_name("jobdork-agent.exe"))
+                   if platform == "win32" else sys.executable)
+        command, mcp_args, cli = program, ["--mcp"], [program, "--agent"]
+    else:
+        where = ["--config", str(Path(cfg.path).resolve())] if cfg.path else []
+        command = sys.executable
+        mcp_args = ["-m", "jobdork.cli", *where, "mcp"]
+        cli = [sys.executable, "-m", "jobdork.cli", *where, "agent"]
+    join = subprocess.list2cmdline if platform == "win32" else shlex.join
+    line = join([command, *mcp_args])
+    server = {"command": command, "args": mcp_args}
+    return {
+        "command": command, "args": mcp_args,
+        "claude_code": f"claude mcp add jobdork -- {line}",
+        "codex": f"codex mcp add jobdork -- {line}",
+        # Gemini CLI reads flags after the command as its own: `--` first.
+        # -s user: for every folder, not only the one it is run in.
+        "gemini": join(["gemini", "mcp", "add", "-s", "user", "jobdork", command, "--", *mcp_args]),
+        "gemini_json": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
+        "claude_desktop": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
+        "cursor": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
+        "vscode": json.dumps({"servers": {"jobdork": {"type": "stdio", **server}}}, indent=2),
+        "cli": join(cli),
+    }
+
+
 def llm_state(cfg) -> dict:
     """AI settings for the page. Says which keys are held, never what they are."""
     from ..ai import limits, llm
@@ -2116,6 +2236,15 @@ def llm_state(cfg) -> dict:
         "ollama_key": llm.key_for(llm.OLLAMA_KEY)[1],
         "problem": settings.problem(),
         "label": settings.label if cfg.llm.provider else "",
+        "agent_mode": agent_mode(cfg),
+        "agent_only": agent_only(cfg),
+        "agent_first": bool(cfg.llm.readers) and cfg.llm.readers[0].provider == llm.AGENT,
+        # Who answers the buttons when the agent is a reader: the first
+        # other reader ready to, or "" for none.
+        "agent_fallback": next((r.label for r in settings.chain()
+                                if r.provider != llm.AGENT and not r.problem()), ""),
+        "agent_label": llm.AGENT_LABEL,
+        "agent_setup": agent_setup(cfg),
     }
 
 
@@ -2560,6 +2689,9 @@ def _judge_after_scan(cfg, store, progress) -> str:
     """The scan has already succeeded; a model problem must not undo that."""
     from ..ai import judging, llm
 
+    if agent_only(cfg):
+        progress("AI judging skipped: your coding agent scores job posts when you ask it")
+        return "AI judging skipped"
     problem = llm.Settings.from_config(cfg).problem()
     if problem:
         progress(f"AI judging skipped: {problem}")
@@ -2576,6 +2708,8 @@ def _judge_after_scan(cfg, store, progress) -> str:
 def judge_job(cfg, limit: int = 0, uid: str = "", force: bool = False):
     if uid and not UID.match(uid):
         raise ApiError("not a job post id")
+    refuse_in_agent_mode(cfg, f"Use jobdork to score job post {uid} against my resume." if uid
+                         else "Use jobdork to score my top job posts against my resume.")
 
     def work(progress):
         from ..ai import judging
@@ -2708,6 +2842,7 @@ def letter_job(cfg, uid: str):
     """A cover letter from the AI-page model, saved beside the claude drafts."""
     if not UID.match(uid or ""):
         raise ApiError("not a job post id")
+    refuse_in_agent_mode(cfg, f"Use jobdork to write a cover letter for job post {uid}.")
 
     def work(progress):
         from ..ai import llm, writer
@@ -2741,6 +2876,7 @@ def message_job(cfg, uid: str):
 def _draft_job(cfg, uid: str, which: str, what: str):
     if not UID.match(uid or ""):
         raise ApiError("not a job post id")
+    refuse_in_agent_mode(cfg, f"Use jobdork to write the {what} for job post {uid}.")
 
     def work(progress):
         from ..ai import llm, writer
@@ -2761,6 +2897,7 @@ def tailor_job(cfg, uid: str):
     """A resume rewritten for one post, in the template, as Markdown and PDF."""
     if not UID.match(uid or ""):
         raise ApiError("not a job post id")
+    refuse_in_agent_mode(cfg, f"Use jobdork to write a tailored resume for job post {uid}.")
 
     def work(progress):
         from ..ai import llm, writer
@@ -2840,6 +2977,8 @@ def review_job(cfg, uid: str = ""):
     """A resume review: general, or against one job post."""
     if uid and not UID.match(uid):
         raise ApiError("not a job post id")
+    refuse_in_agent_mode(cfg, f"Use jobdork to review my resume for job post {uid}." if uid
+                         else "Use jobdork to review my resume.")
 
     def work(progress):
         from ..ai import llm, writer

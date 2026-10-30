@@ -85,6 +85,14 @@ def built_app() -> Path:
     return DIST / "jobdork" / ("jobdork.exe" if sys.platform == "win32" else "jobdork")
 
 
+def agent_app() -> Path:
+    """What a coding agent starts: on Windows the console program beside the
+    app (jobdork.spec), elsewhere the app itself."""
+    if sys.platform == "win32":
+        return DIST / "jobdork" / "jobdork-agent.exe"
+    return built_app()
+
+
 def self_test() -> None:
     """Run the built app's own check; stop the build if anything is missing."""
     report = WORK / "self-test.txt"
@@ -97,6 +105,31 @@ def self_test() -> None:
         raise SystemExit(f"the built app failed its self-test (exit {code}):\n"
                          f"{found or 'it wrote no report'}")
     print("self-test: ok", flush=True)
+    mcp_test()
+
+
+def mcp_test() -> None:
+    """The built app answers a coding agent over stdio (`--mcp`): a Windows
+    build has no console, and this is where that would show. In a folder of
+    its own, so it reads no one's data."""
+    import json
+    import tempfile
+
+    hello = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+             "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                        "clientInfo": {"name": "build", "version": "1"}}}
+    with tempfile.TemporaryDirectory() as home:
+        done = subprocess.run([str(agent_app()), "--mcp"], input=json.dumps(hello) + "\n",
+                              capture_output=True, text=True, timeout=120,
+                              env={**os.environ, "JOBDORK_HOME": home})
+    try:
+        answer = json.loads(done.stdout.splitlines()[0])
+    except (IndexError, json.JSONDecodeError):
+        raise SystemExit(f"the built app did not answer as an MCP server (exit "
+                         f"{done.returncode}): {done.stdout[:300]!r} {done.stderr[-500:]}") from None
+    if answer.get("result", {}).get("serverInfo", {}).get("name") != "jobdork":
+        raise SystemExit(f"the built app answered MCP wrongly: {answer}")
+    print("mcp: ok", flush=True)
 
 
 def dmg(ver: str) -> Path:

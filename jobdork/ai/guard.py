@@ -33,7 +33,7 @@ import re
 from dataclasses import dataclass, field, replace
 
 from ..core.textutil import visible
-from .llm import LLMError, Settings, complete_json
+from .llm import AGENT, LLMError, Settings, complete_json
 
 MAX_CLAIMS = 25
 MAX_SOURCE = 16_000
@@ -409,6 +409,12 @@ def verify(settings: Settings, claims: list[str],
     return out
 
 
+# What the hallucination check says when a coding agent wrote it and there
+# is no model to check with: not run, so read it closely.
+NO_CHECKER = ("not run: your coding agent wrote it and no checker model is set "
+              "(AI page, Checkers); read every claim yourself")
+
+
 def checking(settings: Settings) -> tuple[Settings, str]:
     """Who checks what `settings` wrote, as one Settings that tries them in
     order, and a note naming any chosen checker that could not be used.
@@ -425,13 +431,17 @@ def checking(settings: Settings) -> tuple[Settings, str]:
     skipped = [c for c in settings.checkers if c.problem()]
     order: list[Settings] = []
     for one in [*settings.checkers, *settings.chain()]:
-        if (one.problem() or (one.provider, one.model) == wrote
+        # A coding agent checks nothing: it would be marking its own work.
+        if (one.provider == AGENT or one.problem() or (one.provider, one.model) == wrote
                 or any(o.provider == one.provider and o.model == one.model
                        and o.ollama_url == one.ollama_url for o in order)):
             continue
         order.append(replace(one, checkers=[], fallbacks=[], answered=None))
-    order.append(replace(writer, checkers=[], fallbacks=[], answered=None))
+    if writer.provider != AGENT:
+        order.append(replace(writer, checkers=[], fallbacks=[], answered=None))
     note = "; ".join(f"second model {c.label} not used: {c.problem()}" for c in skipped)
+    if not order:
+        return Settings(), note
     return replace(order[0], fallbacks=order[1:]), note
 
 
@@ -444,6 +454,8 @@ def check(settings: Settings, text: str, sources: dict[str, str]) -> GuardReport
     """
     use, note = checking(settings)
     writer = settings.answered or settings
+    if not use.provider and writer.provider == AGENT:
+        return GuardReport(error=NO_CHECKER, note=note)
     if use.problem():
         return GuardReport(error=use.problem(), model=use.label if use.provider else "",
                            note=note)

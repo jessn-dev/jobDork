@@ -338,7 +338,9 @@ def _measured(resume_text: str) -> str:
 def guard_gate(report: guard.GuardReport) -> gates_mod.Gate:
     """The guard's result in the shape the other gates have."""
     if not report.checked:
-        return gates_mod.Gate(GUARD_GATE, passed=True,
+        # Written by a coding agent with no model to check it: to be read,
+        # claim by claim, before it is sent.
+        return gates_mod.Gate(GUARD_GATE, passed=report.error != guard.NO_CHECKER,
                               detail=f"not checked: {report.error or 'no model'}")
     bad = report.unsupported
     by = f" (checked by {report.model}, a second model)" if report.second else ""

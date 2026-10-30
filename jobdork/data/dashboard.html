@@ -631,6 +631,21 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .atschip .act{font-size:.72rem;padding:.05rem .4rem}
 .atsadvice{margin:.2rem 0;padding-left:1.1rem;font-size:.85rem}
 .act.linkish{border:none;background:none;padding:0;color:var(--accent);text-decoration:underline;font-size:inherit}
+/* A coding agent's suggestions for the record, waiting for your OK. */
+.sugglist{list-style:none;margin:.5rem 0 0;padding:0}
+.sugglist li{display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:center;padding:.4rem 0;border-top:1px solid var(--line)}
+.sugglist .pill{background:var(--accent)}
+.sugglist .acts{margin-left:auto;display:flex;gap:.3rem}
+/* A coding agent as the writer: how to connect each one, and what to ask. */
+.agentbox{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;
+  padding:.7rem .9rem;margin:-.2rem 0 .8rem;font-size:.86rem;line-height:1.5}
+.agentbox p{margin:.2rem 0 .5rem}
+.agentcmd{margin:.55rem 0}
+.agentcmd summary{cursor:pointer}
+.agentcmd .cmdrow{display:flex;gap:.4rem;align-items:flex-start;margin-top:.2rem}
+.agentcmd pre{flex:1;margin:0;padding:.45rem .6rem;border:1px solid var(--line);border-radius:6px;
+  background:var(--card);font-size:.76rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.agentask{display:inline-flex;flex-wrap:wrap;gap:.35rem;align-items:center}
 /* My applications: stage chips, the table, and a post's Application tab. */
 .appchips{display:flex;gap:.35rem;flex-wrap:wrap;margin:.6rem 0 .8rem}
 .appchips button{all:unset;cursor:pointer;font-size:.82rem;font-weight:600;padding:.3rem .7rem;
@@ -846,7 +861,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <button class="item" data-view="apps" title="My applications"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 2h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a1 1 0 0 1 1-1zm1 1.8v1.4h4V3.8h-4zm5.7 7.5-1.4-1.4-3.3 3.3-1.6-1.6-1.4 1.4 3 3 4.7-4.7z"/></svg><span class="label">My applications</span><span class="count due" id="nav-apps" title="follow-ups past their date" hidden></span></button>
   <div class="sec">Setup</div>
   <button class="item" data-view="settings" data-label="Search" data-info="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen." aria-description="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24a1 1 0 0 1-1.42 1.42l-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span class="label">Search</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
-  <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="count" id="nav-sugg" title="suggestions from your coding agent, waiting for your OK" hidden></span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="sources" data-label="Sources" data-info="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, holds the keys for Adzuna and USAJOBS, adds a job post from a link, and adds or removes employer boards." aria-description="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, holds the keys for Adzuna and USAJOBS, adds a job post from a link, and adds or removes employer boards."><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 8.2C5.6 9.3 8.6 10 12 10s6.4-.7 8-1.8V12c0 1.66-3.6 3-8 3s-8-1.34-8-3V8.2zm0 7c1.6 1.1 4.6 1.8 8 1.8s6.4-.7 8-1.8V19c0 1.66-3.6 3-8 3s-8-1.34-8-3v-3.8z"/></svg><span class="label">Sources</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="ai" data-label="AI" data-info="Choose a model (local through Ollama, or Anthropic, Gemini, OpenAI or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are never written to a file: held in memory, or kept in your keychain if you choose." aria-description="Choose a model (local through Ollama, or Anthropic, Gemini, OpenAI or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are never written to a file: held in memory, or kept in your keychain if you choose."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2l1.9 5.6 5.6 1.9-5.6 1.9L11 17l-1.9-5.6-5.6-1.9 5.6-1.9L11 2zm7.5 11l.95 2.55 2.55.95-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95L18.5 13z"/></svg><span class="label">AI</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="tools" data-label="Feedback" data-info="Send a problem, an idea or a question to the people who make jobdork." aria-description="Send a problem, an idea or a question to the people who make jobdork."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><rect x="11" y="5.75" width="10" height="2.5" rx="1.25"/><circle cx="18" cy="17" r="3"/><rect x="3" y="15.75" width="10" height="2.5" rx="1.25"/></svg><span class="label">Feedback</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
@@ -1309,6 +1324,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       a connection code: it fills in their address and models, and holds the key their
       Ollama asks for. Keep it private, like a password.</p>
     <div id="ai-readers"></div>
+    <div class="agentbox" id="ai-agent" hidden></div>
     <div class="bar" style="margin:-.2rem 0 .3rem">
       <button data-icon="plus" class="act" id="ai-add">Add another reader</button>
       <span class="hint" id="ai-add-note"></span>
@@ -1504,6 +1520,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <p class="hint">Used to rank job posts by skill overlap, offline and free. It
       is also what every drafted document is built from. Without one, a CV
       would be inventing a career rather than tailoring one.</p>
+    <div class="cleanup suggested" id="suggested" role="status" hidden></div>
     <div class="rcards" id="rcards" aria-label="Your resume and the ones tailored from it"></div>
     <div class="bar">
       <input type="file" id="resume-file" accept=".pdf,.docx,.md,.txt">
@@ -1862,7 +1879,7 @@ async function saveFile(blob, name) {
 }
 
 let roles = [], cfg = null, detail = null, detailTab = 'advert', hasClaude = false;
-let aiLabel = '';
+let aiLabel = '', agentOn = false, agentFallback = '';
 const $ = id => document.getElementById(id);
 // At or below this, an advert is a teaser: dealbreakers and fit have almost
 // nothing to read. Adzuna's cap is 500.
@@ -2424,6 +2441,7 @@ const ICONS = {
   "building-2": "<path d=\"M10 12h4\"/><path d=\"M10 8h4\"/><path d=\"M14 21v-3a2 2 0 0 0-4 0v3\"/><path d=\"M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2\"/><path d=\"M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16\"/>",
   "chart-line": "<path d=\"M3 3v16a2 2 0 0 0 2 2h16\"/><path d=\"m19 9-5 5-4-4-3 3\"/>",
   "chevron-left": "<path d=\"m15 18-6-6 6-6\"/>",
+  "copy": "<rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\"/><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"/>",
   "chevron-right": "<path d=\"m9 18 6-6-6-6\"/>",
   "circle-alert": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\"/><line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\"/>",
   "circle-check": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m16 9-5.5 5.5L8 12\"/>",
@@ -2900,7 +2918,32 @@ async function checkOwnBoard(uid) {
   }
 }
 
-async function roleJob(which, uid, tab) {
+// What to ask a coding agent for each job, when it is the writer.
+const AGENT_ASKS = {letter: 'write a cover letter for', tailor: 'write a tailored resume for',
+  review: 'review my resume for', prep: 'write interview prep for', message: 'write a recruiter message for',
+  judge: 'score against my resume'};
+
+function agentAsk(which, uid) {
+  const d = detail && detail.uid === uid ? detail : {};
+  const what = `the job post "${d.title || uid}"${d.company ? ' at ' + d.company : ''} (jobdork id ${uid})`;
+  const text = which === 'judge' ? `Use jobdork to score ${what} against my resume.`
+    : `Use jobdork to ${AGENT_ASKS[which]} ${what}.`;
+  $('rolejob').innerHTML = `<span class="agentask">Your coding agent writes this. Ask it:
+    <q>${esc(text)}</q> <button type="button" class="act" data-icon="copy" id="agent-copy">Copy</button>
+    ${agentFallback ? `<button type="button" class="act" id="agent-instead">Use ${esc(agentFallback)} instead</button>` : ''}</span>`;
+  $('agent-copy').onclick = () => navigator.clipboard.writeText(text)
+    .then(() => toast('Copied: paste it into your agent'), () => toast('Copying was refused by the browser', 'err'));
+  // The next reader, asked by jobdork as if the agent were not listed.
+  if ($('agent-instead')) $('agent-instead').onclick = () => roleJob(which, uid, AGENT_TABS[which], true);
+  decorate($('rolejob'));
+}
+
+// The tab each job lands on, for "Use ... instead".
+const AGENT_TABS = {letter: 'cover_letter', tailor: 'tailored_resume', review: 'resume_review',
+  prep: 'interview_prep', message: 'recruiter_message'};
+
+async function roleJob(which, uid, tab, direct) {
+  if (agentOn && AGENT_ASKS[which] && !direct) { agentAsk(which, uid); return; }
   $('rolejob').textContent = {judge: 'AI is reading…', check: 'checking…',
     letter: 'AI is writing the letter; it opens here when done…',
     tailor: 'AI is tailoring your resume; it opens here when done…',
@@ -3293,6 +3336,10 @@ async function refreshState() {
   else if (setupStep) return location.replace(`/?t=${encodeURIComponent(TOKEN)}`);
   hasClaude = s.claude;
   aiLabel = s.ai || '';
+  agentOn = !!s.agent;
+  $('nav-sugg').hidden = !s.suggested;
+  $('nav-sugg').textContent = s.suggested || '';
+  agentFallback = s.agent_fallback || '';
   $('aihint').textContent = s.ai_problem ? `AI: ${s.ai_problem}` : `AI: ${s.ai}`;
   // Docker without -v: the data lives in the container and goes with it.
   $('datawarn').hidden = !s.unkept_data;
@@ -4868,6 +4915,8 @@ const PROVIDER_ICONS = {
   "anthropic": "M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z",
   "gemini": "M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81",
   "openai": "M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z",
+  // Not a brand: a terminal, for whichever coding agent you use.
+  "agent": "M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 2v14h18V5H3zm2.3 3.7 1.4-1.4L11.4 12l-4.7 4.7-1.4-1.4L8.6 12 5.3 8.7zM12 15h6v2h-6v-2z",
   "groq": "M12.036 2c-3.853-.035-7 3-7.036 6.781-.035 3.782 3.055 6.872 6.908 6.907h2.42v-2.566h-2.292c-2.407.028-4.38-1.866-4.408-4.23-.029-2.362 1.901-4.298 4.308-4.326h.1c2.407 0 4.358 1.915 4.365 4.278v6.305c0 2.342-1.944 4.25-4.323 4.279a4.375 4.375 0 01-3.033-1.252l-1.851 1.818A7 7 0 0012.029 22h.092c3.803-.056 6.858-3.083 6.879-6.816v-6.5C18.907 4.963 15.817 2 12.036 2z"
 };
 const providerIcon = p => PROVIDER_ICONS[p]
@@ -4948,9 +4997,11 @@ function drawList(list, loadAll) {
         ${i < items.length - 1 ? `<button data-icon="chevron-right" class="act r-down" type="button" title="Ask this one later">Later</button>` : ''}
         <button data-icon="trash-2" class="act r-del" type="button">Remove</button>` : ''}</span></div>
     <div class="field"><label>Provider</label><div class="seg r-prov">${
-      [...(i === 0 ? [''] : []), ...Object.keys(ai.providers)].map(p =>
+      // A coding agent: on one reader line at most, and never a checker.
+      [...(i === 0 ? [''] : []), ...(list === 'readers' && !items.some((x, j) => j !== i && x.provider === 'agent')
+        ? ['agent'] : []), ...Object.keys(ai.providers)].map(p =>
         `<button type="button" data-p="${p}" ${p ? '' : 'data-icon="power" '}class="${p === r.provider ? 'on' : ''}">${
-          providerIcon(p)}${p ? esc(ai.providers[p]) : (list === 'readers' ? 'Off' : 'None')}</button>`).join('')}</div></div>
+          providerIcon(p)}${p ? esc(p === 'agent' ? ai.agent_label : ai.providers[p]) : (list === 'readers' ? 'Off' : 'None')}</button>`).join('')}</div></div>
     <div class="field r-url-row" ${r.provider === 'ollama' ? '' : 'hidden'}><label>Ollama address</label>
       <input class="r-url" style="width:20rem" spellcheck="false" value="${esc(readerUrlShown(r))}"
         placeholder="${esc(ai.ollama_url || '')} (this computer)">
@@ -4966,7 +5017,7 @@ function drawList(list, loadAll) {
           placeholder="Paste the key" style="width:22rem">
         <button data-icon="key-round" class="act r-hold" type="button">Hold in memory</button>
         <span class="r-key-state">${needsKey(r) ? keyState(keyOf(r)) : ''}</span></div></div>
-    <div class="field r-model-row" ${r.provider ? '' : 'hidden'}><label>Model</label>
+    <div class="field r-model-row" ${r.provider && r.provider !== 'agent' ? '' : 'hidden'}><label>Model</label>
       <div class="bar" style="margin:0">
         <select class="r-models" aria-label="Model" style="width:22rem" hidden></select>
         <input class="r-model" aria-label="Model name" style="width:22rem" spellcheck="false"
@@ -4976,6 +5027,7 @@ function drawList(list, loadAll) {
   </div>`).join('');
   const off = !items[0].provider, what = list === 'readers' ? 'readers' : 'checkers';
   $(kind.add).hidden = off;
+  if (list === 'readers') drawAgentSetup(items.some(r => r.provider === 'agent'));
   $(kind.add).disabled = items.length >= max;
   $(kind.note).textContent = off ? '' : items.length >= max
     ? (setupStep ? `Up to ${max} here; add more later on the AI page.` : `Up to ${max} ${what}.`)
@@ -4987,6 +5039,43 @@ function drawList(list, loadAll) {
       .forEach(el => el.disabled = off);
   }
   $(kind.box).querySelectorAll('.reader').forEach(card => wireReader(card, loadAll));
+}
+
+// A coding agent as the writer (web/agent.py): how each one starts jobdork's
+// tools, filled in for this computer, each with Copy.
+function drawAgentSetup(on) {
+  const box = $('ai-agent');
+  box.hidden = !on;
+  if (!on) return;
+  const s = ai.agent_setup || {};
+  const row = text => `<div class="cmdrow"><pre>${esc(text)}</pre><button type="button" class="act"
+    data-icon="copy" data-copy="${esc(text)}">Copy</button></div>`;
+  const block = (title, where, text) => `<div class="agentcmd"><b>${title}</b>${where ? ` <span class="hint">${where}</span>` : ''}${row(text)}</div>`;
+  // The apps set up from a file, folded: each is a screenful.
+  const folded = (title, where, text) => `<details class="agentcmd"><summary><b>${title}</b>
+    <span class="hint">${where}</span></summary>${row(text)}</details>`;
+  box.innerHTML = `<p><b>Your coding agent does the AI work.</b> Claude Code, Codex, Gemini CLI,
+      Cursor, GitHub Copilot or Claude Desktop reads your resume and the advert through jobdork's tools, writes the
+      document itself, and saves it back: jobdork checks it, makes the PDF and Word files and keeps it,
+      as it does a model's. jobdork asks no model and needs no API key; it never calls your agent,
+      your agent calls jobdork. Ask it, for instance: <q>Use jobdork to write a cover letter for my
+      best job post.</q></p>
+    <p class="hint">What jobdork asks for itself (a job post's AI buttons, judging after a scan,
+      reading posting pages) goes to the next reader you list${ai.readers.some(r => r.provider && r.provider !== 'agent')
+        ? '' : '; with none, those buttons say what to ask your agent instead'}. The hallucination check
+      is still done by a second model: a checker below, or another reader; with neither, not done, and
+      the check says so. Your agent never checks its own writing.</p>
+    ${block('Claude Code', 'run once, in a terminal', s.claude_code || '')}
+    ${block('Codex', 'run once, in a terminal', s.codex || '')}
+    ${block('Gemini CLI', 'run once, in a terminal; then /mcp in Gemini shows it connected', s.gemini || '')}
+    ${folded('Claude Desktop', 'in claude_desktop_config.json, then restart it', s.claude_desktop || '')}
+    ${folded('Gemini CLI, by hand', 'in ~/.gemini/settings.json, then restart it', s.gemini_json || '')}
+    ${folded('Cursor', 'in ~/.cursor/mcp.json', s.cursor || '')}
+    ${folded('VS Code with GitHub Copilot', 'in .vscode/mcp.json', s.vscode || '')}
+    ${folded('Without MCP', 'any agent that runs commands: this, then a tool and its JSON', s.cli || '')}`;
+  box.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copy)
+    .then(() => toast('Copied'), () => toast('Copying was refused by the browser', 'err')));
+  decorate(box);
 }
 
 function wireReader(card, load) {
@@ -5040,7 +5129,7 @@ async function loadReaderModels(card, quiet) {
   const r = ai[card.dataset.list][Number(card.dataset.i)], msg = card.querySelector('.r-msg');
   const sel = card.querySelector('.r-models'), input = card.querySelector('.r-model');
   fillModelsEl(sel, input, []);
-  if (!r || !r.provider || (needsKey(r) && !ai.keys[keyOf(r)])) { msg.textContent = ''; return; }
+  if (!r || !r.provider || r.provider === 'agent' || (needsKey(r) && !ai.keys[keyOf(r)])) { msg.textContent = ''; return; }
   msg.textContent = 'loading…';
   const url = card.querySelector('.r-url').value.trim() || readerUrl(r);
   const sendKey = r.provider === 'ollama' && card.querySelector('.r-okey').checked;
@@ -5850,7 +5939,7 @@ function applicationHtml(d) {
     <h4>Stages</h4>
     ${a.history.length ? `<ol class="stages">${a.history.map(h => `<li><span class="pill"
       style="background:${COLOURS[h.status] || '#6b7280'}">${esc(h.status)}</span>
-      <span class="hint">${esc(day(h.at))}</span></li>`).join('')}</ol>`
+      <span class="hint">${esc(day(h.at))}${h.by ? ' · by ' + esc(h.by) : ''}</span></li>`).join('')}</ol>`
       : '<p class="hint">No changes recorded yet: from now on each status is dated here.</p>'}
     <h4>Next step</h4>
     <div class="appform">
@@ -5874,7 +5963,7 @@ function applicationHtml(d) {
     <div class="appnote"><textarea id="ap-note" maxlength="2000" placeholder="e.g. Interview went well; they asked about telemetry"></textarea>
       <button type="button" class="act" data-icon="plus" id="ap-add">Add note</button></div>
     ${a.notes.length ? `<ul class="appnotes">${a.notes.map(n => `<li><span class="hint">${esc(day(n.at))} ·
-      ${esc(n.stage)}</span><span class="txt">${esc(n.note)}</span>
+      ${esc(n.stage)}${n.by ? ' · by ' + esc(n.by) : ''}</span><span class="txt">${esc(n.note)}</span>
       <button type="button" class="act linkish" data-note="${n.id}">Delete</button></li>`).join('')}</ul>` : ''}
   </div>`;
 }
@@ -5906,7 +5995,52 @@ function bindApplication(d) {
 }
 
 // ── resume ───────────────────────────────────────────────────────────────────
+// What a coding agent suggested for your record (web/agent.py): it counts
+// for nothing until you approve it here, so an agent cannot add a skill
+// and then cite it.
+async function drawSuggested() {
+  const box = $('suggested');
+  let d;
+  try {
+    const r = await api('/api/record/suggested');
+    if (!r.ok) { box.hidden = true; return; }
+    d = await r.json();
+  } catch (e) { box.hidden = true; return; }
+  const items = [
+    ...d.skills.map(x => ({kind: 'skill', key: x.term, what: 'Skill', text: skillName(x.term), by: x.suggested_by})),
+    ...d.projects.map(x => ({kind: 'project', key: x.id, what: 'Project', by: x.suggested_by,
+      text: [x.name, x.role, x.result].filter(Boolean).join(' · ')})),
+    ...d.education.map(x => ({kind: 'education', key: x.id, what: 'Education', by: x.suggested_by,
+      text: [x.credential, x.school, [x.start, x.end].filter(Boolean).join(' to ')].filter(Boolean).join(' · ')})),
+  ];
+  box.hidden = !items.length;
+  $('nav-sugg').hidden = !items.length;
+  $('nav-sugg').textContent = items.length;
+  if (!items.length) return;
+  box.innerHTML = `<b>Your coding agent suggested ${items.length === 1 ? 'this' : 'these'} for your record.</b>
+    Nothing uses ${items.length === 1 ? 'it' : 'them'} until you approve: approve only what is true,
+    since tailored resumes, letters and fit scores then count it as yours.
+    <ul class="sugglist">${items.map(x => `<li><span class="pill">${x.what}</span> ${esc(x.text)}
+      <span class="hint">${esc(x.by)}</span>
+      <span class="acts"><button type="button" class="act primary" data-icon="check" data-ok="1"
+        data-kind="${x.kind}" data-key="${esc(String(x.key))}">Approve</button>
+      <button type="button" class="act" data-icon="x" data-ok="0" data-kind="${x.kind}"
+        data-key="${esc(String(x.key))}">Turn down</button></span></li>`).join('')}</ul>`;
+  decorate(box);
+  box.querySelectorAll('[data-ok]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const r = await api('/api/record/decide', {method: 'POST',
+      body: form({kind: b.dataset.kind, key: b.dataset.key, approve: b.dataset.ok})});
+    if (!r.ok) { toast(cap(await r.text()), 'err'); b.disabled = false; return; }
+    const done = await r.json();
+    toast(`${done.approved ? 'Approved: now part of your record.' : 'Turned down.'}${done.rescore ? ' ' + done.rescore : ''}`);
+    drawSuggested();
+    if (done.approved) { drawProjects(); drawEducation(); }
+  });
+}
+
 async function drawResume() {
+  drawSuggested();
   if (!cfg) cfg = await (await api('/api/config')).json();
   $('btn-resume-del').hidden = !cfg.resume_path;
   $('btn-resume-view').hidden = !cfg.resume_path;

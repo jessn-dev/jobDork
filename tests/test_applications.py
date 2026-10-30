@@ -84,9 +84,8 @@ def test_an_old_database_starts_its_history_from_the_status_it_has():
             store.conn.execute("INSERT INTO meta(key, value) VALUES('schema_version', '14')")
             store.conn.commit()
         with Store(path) as store:
-            assert store.applied_migrations == [15]
+            assert store.applied_migrations == list(range(15, migrations.SCHEMA_VERSION + 1))
             assert [h["status"] for h in store.history(uid)] == ["applied"]
-        assert migrations.SCHEMA_VERSION == 15
 
 
 def test_the_list_has_stages_and_overdue_follow_ups():

@@ -59,6 +59,15 @@ PROVIDERS = {
     "groq": "Groq",
 }
 KEYED = ("anthropic", "gemini", "openai", "groq")
+# A coding agent (Claude Code, Codex, Cursor, Copilot) as the writer: jobdork
+# makes no call of its own. The agent asks jobdork for the brief a model
+# would have been given (web/agent.py), writes the answer itself, and hands it
+# back; from there it goes through every check a model's answer does. Not in
+# PROVIDERS: it is no model to list, check with or key. One reader line at
+# most may be one, and no checker (core/config.py); the readers after it
+# answer what jobdork asks for itself.
+AGENT = "agent"
+AGENT_LABEL = "Coding agent"
 ENV_KEYS = {
     "anthropic": ("ANTHROPIC_API_KEY",),
     "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
@@ -322,6 +331,8 @@ class Settings:
         """Why this cannot be used right now, or "" when it can."""
         if not self.provider:
             return "no AI provider chosen (AI page)"
+        if self.provider == AGENT:
+            return ""
         if self.provider not in PROVIDERS:
             return f"unknown provider {self.provider!r}"
         if not self.model:
@@ -337,6 +348,8 @@ class Settings:
     def label(self) -> str:
         """The model's name, or after a call, the name of the one that answered."""
         who = self.answered or self
+        if who.provider == AGENT:
+            return AGENT_LABEL + (f" · {who.model}" if who.model else "")
         return f"{PROVIDERS.get(who.provider, who.provider)} · {who.model}"
 
 
@@ -389,7 +402,18 @@ def complete_json(settings: Settings, system: str, user: str,
     if why and not any(not r.problem() for r in settings.fallbacks):
         raise LLMError(why)
     failed: list[str] = []
+    agent = None
     for reader in settings.chain():
+        # The coding agent answers what it was asked in its own chat (an
+        # answer queued by web/agent.py). What jobdork asks for itself (a
+        # button, a scan's judging) goes to the next reader, if there is one.
+        if reader.provider == AGENT:
+            if getattr(_agent, "answers", None):
+                answer = from_agent(system, user, schema, purpose)
+                settings.answered = replace(reader, model=_agent.client)
+                return answer
+            agent = reader
+            continue
         if reader.problem():
             failed.append(f"{reader.label}: {reader.problem()}")
             continue
@@ -402,9 +426,77 @@ def complete_json(settings: Settings, system: str, user: str,
             continue
         settings.answered = reader
         return answer
+    if agent is not None and not failed:
+        from_agent(system, user, schema, purpose)      # keeps the brief, raises AgentBrief
     if len(failed) == 1:
         raise LLMError(failed[0].split(": ", 1)[1])
     raise LLMError("no AI reader could answer. " + "; ".join(failed))
+
+
+# ── a coding agent as the writer ──────────────────────────────────────────────
+
+
+class AgentBrief(LLMError):
+    """jobdork would have asked a model here, and the coding agent writes it.
+
+    An LLMError, so whatever copes with a model that cannot answer (a scan's
+    judging, a page read) copes with this the same way. Raised only when no
+    other reader is listed to answer instead. `web/agent.py` reads the brief from
+    `last_brief()` to give it to the agent.
+    """
+
+    def __init__(self, purpose: str = ""):
+        super().__init__(f"{AGENT_LABEL} mode: your coding agent writes this "
+                         "(ask it to, with jobdork's tools); jobdork asks no model")
+        self.purpose = purpose
+
+
+# Per thread: the answers the agent gave, queued for the calls they answer,
+# the brief of the last call that had none, and the agent's name (from its
+# MCP client) for the label an output is recorded under.
+_agent = threading.local()
+
+
+def agent_answers(answers: list[dict], client: str = ""):
+    """Answer the next calls on this thread with `answers`, in order."""
+    _agent.answers = list(answers)
+    _agent.client = client
+    _agent.brief = None
+
+
+def last_brief() -> dict | None:
+    return getattr(_agent, "brief", None)
+
+
+def from_agent(system: str, user: str, schema: dict, purpose: str) -> dict:
+    """The agent's answer to this call, checked to be the object asked for;
+    with none left, AgentBrief, keeping what the model would have read."""
+    queued = getattr(_agent, "answers", None) or []
+    if not hasattr(_agent, "client"):
+        _agent.client = ""
+    if not queued:
+        # What a hosted model would read: hidden characters out, and the
+        # person's contact details (the agent sends it to its own cloud).
+        _agent.brief = {"purpose": purpose, "system": system,
+                        "user": redact(textutil.visible(user)), "schema": schema}
+        raise AgentBrief(purpose)
+    answer = queued.pop(0)
+    if not isinstance(answer, dict):
+        raise LLMError("the answer must be one JSON object, as the brief's schema says")
+    missing = [k for k in schema.get("required", []) if k not in answer]
+    if missing:
+        raise LLMError(f"the answer has no {', '.join(missing)}: the brief's schema requires it")
+    for key, spec in (schema.get("properties") or {}).items():
+        want = {"string": str, "array": list, "object": dict, "boolean": bool,
+                "integer": int, "number": (int, float)}.get(spec.get("type", ""))
+        if key in answer and want and not isinstance(answer[key], want):
+            raise LLMError(f"{key} must be a {spec['type']}, as the brief's schema says")
+    # Counted with the AI calls on the Dashboard, under the agent's name.
+    from ..core import telemetry
+
+    telemetry.llm(AGENT_LABEL + (f" · {_agent.client}" if _agent.client else ""), 0.0,
+                  ok=True, purpose=purpose)
+    return answer
 
 
 # The tokens the provider counted for the call in flight on this thread,

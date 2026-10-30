@@ -25,6 +25,90 @@ check in the Windows build (#105).
 
 ---
 
+## Added — 2026-10-29 — Guardrails for a coding agent
+
+A coding agent (web/agent.py) is held to the rules a model is, and more:
+
+- **What it adds to your record waits for your OK.** A project, education
+  entry or skill it suggests is kept apart (`suggested_by`, schema 16) and
+  counts for nothing (fit, checks, tailoring, the record notes) until you
+  **Approve** it at the top of the Resume page; **Turn down** removes it.
+  The menu counts what waits. An agent cannot take back a skill you
+  confirmed, nor undo one; yours approves its suggestion of the same skill.
+  At most 25 wait at once. Without this, an agent could add a skill and
+  then cite it, and every check would pass.
+- **Job board text is data, not instructions.** Hidden characters are
+  removed from every title, company, place and advert the agent reads, and
+  from its briefs; every answer carrying them says they are from strangers;
+  the agent's instructions say never to follow them, run a command or open a
+  link because of them.
+- **Contact details stay with you**, as for a hosted model: email, phone
+  and profile links are removed from the resume, the record and the briefs
+  the agent reads (`llm.redact`); `get_resume` gives the file's name, not
+  its place on your computer.
+- **Limits**: 30 documents and 60 job post scores an hour, counted from what
+  agents saved, so they hold across sessions and the command line; answers
+  up to 64 KB.
+- **A record of what it changes.** Every change is a run on the Dashboard
+  from the coding agent, refused ones too, with what it did; its answers
+  are counted with the AI calls under its name; statuses and notes it set
+  say *by Coding agent · <its name>* in the Application tab (`by`, schema 16).
+
+Guide: the AI page's guardrails, the Resume page's suggestions, with a
+picture; demo data has one suggested skill. Tests: 7 more in
+`tests/test_agent.py`.
+
+---
+
+## Added — 2026-10-29 — A coding agent as the AI, with no key
+
+A third way to give jobdork its AI, beside Ollama and a keyed model: your
+own coding agent (Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot,
+Claude Desktop), after Resume Matcher's agent mode (srbhr/resume-matcher). jobdork
+never calls the agent; the agent calls jobdork's tools, and jobdork asks no
+model of its own.
+
+- **The tools** (`web/agent.py`): overview, list and read job posts, the
+  resume and record, a post's ATS match; `get_brief`, exactly what jobdork
+  would send a model for a tailored resume, cover letter, interview prep,
+  recruiter message, resume review or a post's AI score; `save_document`
+  and `save_verdict`, which put the agent's answer through every check a
+  model's gets (gates, PDF and Word, the record) and return the checks so it
+  can fix and save again; applications (status, next step, contact, notes);
+  and projects, education and confirmed skills.
+- **Two doors to the same tools**: an MCP server on stdio (`web/mcp.py`,
+  JSON-RPC 2.0 in the standard library; `jobdork mcp`, or the installed app
+  with `--mcp`), with its workflow sent as the server's instructions; and
+  `jobdork agent TOOL JSON` (the app: `--agent`) for agents that only run
+  commands. The build checks the built app answers MCP (`packaging/build.py`).
+  On Windows the agent starts `jobdork-agent.exe`, the same program built
+  with a console beside `jobdork.exe` (`packaging/jobdork.spec`): the
+  window's program has no standard streams for an agent to talk on, which
+  that check found.
+- **How it fits** (`ai/llm.py`): `agent` is a provider whose calls are
+  answered from a queue (the agent's own answer, never passed on). What
+  jobdork asks for itself (a button, judging after a scan, a page read)
+  goes to the next reader; with the agent the only reader, the call keeps
+  its brief and raises `AgentBrief`. One reader line at most may be an
+  agent, with other readers before or after it; never a checker
+  (`core/config.py`).
+- **The hallucination check stays a second model's** (`ai/guard.py`): the
+  agent never checks its own writing. A checker, or a reader the config had
+  before, checks; with none, the check is not run and is a check to read.
+- **The AI page** offers **Coding agent** for Reader 1, with the line for
+  Claude Code, Codex, Gemini CLI (command and settings.json), Claude
+  Desktop, Cursor, VS Code and the command line,
+  filled in for this computer, each with **Copy**. With the agent as Reader
+  1, a job post's AI buttons show what to ask the agent, with **Copy**, and
+  **Use <next reader> instead** when another reader is listed. With the agent
+  the only reader, the dashboard's model jobs are refused with what to ask,
+  and scans skip AI judging.
+
+Guide: the AI page's new Coding agent section, with a picture. Tests:
+`tests/test_agent.py` (14).
+
+---
+
 ## Added — 2026-10-29 — My applications
 
 A new page, **My applications** (menu, under Job posts), lists every job
