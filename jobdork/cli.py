@@ -487,6 +487,8 @@ def cmd_ollama_code(args) -> int:
         print(f"ollama-code: {exc}", file=sys.stderr)
         return 1
     print("\nSend this privately, as you would a password. It carries the key:\n")
+    # Printing it is this command's purpose: it is for the person who runs it,
+    # in their own terminal, to send on (CodeQL's clear-text logging finding).
     print(code)
     print("\nThey paste it on jobdork's AI page, under Use this code, and click Save.")
     return 0

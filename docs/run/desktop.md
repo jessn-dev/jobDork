@@ -6,9 +6,9 @@ Nothing to type, no Python to install. Other ways to run it:
 
 | System | Download |
 |---|---|
-| Mac with Apple Silicon (M1 or later), macOS 12 or newer | `jobdork-0.16.0-macos-arm64.dmg` |
-| Mac with an Intel processor, macOS 12 or newer | `jobdork-0.16.0-macos-x86_64.dmg` (from 0.15.3) |
-| Windows 10 or 11, 64-bit | `jobdork-0.16.0-windows-x64-setup.exe` |
+| Mac with Apple Silicon (M1 or later), macOS 12 or newer | `jobdork-0.16.1-macos-arm64.dmg` |
+| Mac with an Intel processor, macOS 12 or newer | `jobdork-0.16.1-macos-x86_64.dmg` (from 0.15.3) |
+| Windows 10 or 11, 64-bit | `jobdork-0.16.1-windows-x64-setup.exe` |
 | Linux | No installer: run the same window [from source](source.md#the-desktop-window-from-source) |
 
 **Which Mac do I have?** Apple menu → **About This Mac**. "Chip: Apple M…"
@@ -68,7 +68,7 @@ above):
 [GitHub CLI](https://cli.github.com/):
 
 ```bash
-gh attestation verify jobdork-0.16.0-macos-arm64.dmg --repo jessn-dev/jobDork
+gh attestation verify jobdork-0.16.1-macos-arm64.dmg --repo jessn-dev/jobDork
 ```
 
 or compare its SHA-256 with `SHA256SUMS.txt` on the same release.
@@ -152,8 +152,8 @@ problem, or through the dashboard's Feedback page otherwise.
 ```bash
 pip install --require-hashes -r requirements-desktop.lock
 pip install --no-deps --no-build-isolation -e .
-python packaging/build.py   # macOS: dist/jobdork-0.16.0-macos-arm64.dmg
-                            # Windows: dist/jobdork-0.16.0-windows-x64-setup.exe
+python packaging/build.py   # macOS: dist/jobdork-0.16.1-macos-arm64.dmg
+                            # Windows: dist/jobdork-0.16.1-windows-x64-setup.exe
 ```
 
 The lock pins every package by version and hash, as the release builds do;

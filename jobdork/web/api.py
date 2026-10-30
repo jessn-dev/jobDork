@@ -1508,7 +1508,7 @@ OUTPUT_KINDS = {"judge": "verdicts", "page_read": "page reads",
                 "tailored_resume": "tailored resumes",
                 "draft": "Claude drafts", "resume_edits": "tailored resume edits",
                 "highlight": "skills to highlight", "feedback": "recruiter feedback",
-                "revise": "revisions", "keywords": "ATS keywords"}
+                "revise": "revisions", "keywords": "keyword ideas"}
 
 
 def _tool(job: str) -> str:
@@ -1566,7 +1566,7 @@ def metrics(cfg, days: int = 30) -> dict:
         runs = [_activity_row(r) for r in conn.execute(
             "SELECT * FROM activity WHERE started_at >= ? ORDER BY id", (since,))]
         calls = conn.execute(
-            "SELECT seconds, ok FROM llm_calls WHERE at >= ?", (since,)).fetchall()
+            "SELECT seconds, ok, model FROM llm_calls WHERE at >= ?", (since,)).fetchall()
         first_call = conn.execute("SELECT MIN(at) FROM llm_calls").fetchone()[0] or ""
         outputs = conn.execute(
             "SELECT kind, COALESCE(NULLIF(model, ''), 'unknown model') AS model, "
@@ -1600,7 +1600,10 @@ def metrics(cfg, days: int = 30) -> dict:
         if day in by_day:
             by_day[day][_tool(r["job"])] += 1
 
-    seconds = [c["seconds"] for c in calls]
+    # A coding agent's answer is counted as a call, but it took no time of
+    # jobdork's (the agent wrote it in its own chat): left out of the timings.
+    from ..ai.llm import AGENT_LABEL
+    seconds = [c["seconds"] for c in calls if not str(c["model"] or "").startswith(AGENT_LABEL)]
     checked = [o for o in outputs if o["checked"]]
     claims = sum(o["claims"] for o in checked)
     unsupported = sum(o["unsupported"] for o in checked)
@@ -2424,6 +2427,12 @@ def llm_test(cfg) -> dict:
     def ask(models) -> list[dict]:
         answers = []
         for one in models:
+            # A coding agent cannot be asked from here: it asks jobdork, in its
+            # own chat. Nothing to test; it is ready once connected.
+            if one.provider == llm.AGENT:
+                answers.append({"ok": True, "model": one.label, "seconds": 0,
+                                "agent": True})
+                continue
             try:
                 if one.problem():
                     raise llm.LLMError(one.problem())

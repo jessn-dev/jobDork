@@ -129,6 +129,34 @@ def test_a_file_that_cannot_be_read_says_so_and_the_score_is_the_weights():
     assert readable.score(checks) == 100 - 30 - 6
 
 
+def test_a_resume_file_built_to_stall_the_app_is_not_read_whole():
+    """A .docx whose text unpacks past any resume is refused before it is
+    unpacked; the text kept from any file stops at a cap."""
+    from jobdork.search import resume
+
+    was = resume.MAX_DOCX_XML
+    resume.MAX_DOCX_XML = 1000
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "big.docx"
+            with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+                z.writestr("word/document.xml", "<w:p>" + "a" * 5000 + "</w:p>")
+            try:
+                resume.load(str(path))
+            except resume.ResumeError as exc:
+                assert "unpacks to over" in str(exc)
+            else:
+                raise AssertionError("an oversized .docx was read")
+            assert readable.check_file(str(path)).error, "the readability check refuses it too"
+    finally:
+        resume.MAX_DOCX_XML = was
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "long.docx"
+        with zipfile.ZipFile(path, "w") as z:
+            z.writestr("word/document.xml", "<w:p>" + "word " * 60_000 + "</w:p>")
+        assert len(resume.load(str(path)).text) <= resume.MAX_TEXT_CHARS
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

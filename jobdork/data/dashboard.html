@@ -2299,7 +2299,11 @@ async function saveAdvert(uid) {
     m.textContent = d.dropped
       ? `Saved, and it no longer passes: ${d.dropped}. Marked skipped.`
       : `Saved ${d.advert_chars.toLocaleString()} characters. Score ${Math.round(d.score)}, fit ${d.fit == null ? '-' : Math.round(d.fit)}/25.`;
-    m.closest('details').open = true;
+    // The box it sits in is a plain one, shown or hidden: open it, so the
+    // message is seen. It was taken for a fold-out (details), which threw
+    // "null is not an object" after every save.
+    const box = m.closest('.paste');
+    if (box) box.hidden = false;
   }
 }
 
@@ -2970,7 +2974,8 @@ function toolsIntro(uid) {
       : 'Set up a model on the AI page to use these.'}</div>
   <div class="bar toolbar">
     <button data-icon="pen-line" class="act spend" onclick="toolJob('${uid}','resume_edits')">Tailor my resume</button>
-    <button data-icon="search-check" class="act spend" onclick="toolJob('${uid}','keywords')">ATS keywords</button>
+    <button data-icon="search" class="act spend" onclick="toolJob('${uid}','keywords')"
+      title="The AI's ten terms a tracking system would look for, found or missing in your resume. The ATS match tab scores the same advert by script, for free">Keyword ideas (AI)</button>
     <button data-icon="lightbulb" class="act spend" onclick="toolJob('${uid}','highlight')">Skills to highlight</button>
     <button data-icon="messages-square" class="act spend" onclick="toolJob('${uid}','feedback')">Recruiter feedback</button>
     <span id="tooljob" class="hint"></span>
@@ -5303,8 +5308,8 @@ async function runTest() {
     if ($('ai-msg').className !== 'err') $('ai-msg').textContent += ' Not tested until then.';
     return;
   }
-  const who = [...ai.readers, ...ai.checkers].filter(x => x.provider)
-    .map(x => x.model || ai.providers[x.provider]).join(', ');
+  const who = [...ai.readers, ...ai.checkers].filter(x => x.provider && x.provider !== 'agent')
+    .map(x => x.model || ai.providers[x.provider]).join(', ') || ai.agent_label;
   $('ai-msg').className = 'hint';
   $('ai-msg').innerHTML = `<span class="spin">${svgIcon('loader-circle')}</span>Asking ${esc(who)}…
     A local model can take a minute.`;
@@ -5316,7 +5321,8 @@ async function runTest() {
   const checkers = d.checkers || [];
   $('ai-msg').className = failed.length || checkers.some(x => x.error) ? 'err' : 'saved';
   $('ai-msg').textContent = (d.readers || [d]).map(x => x.error
-      ? `${x.model}: ${x.error}` : `${x.model} answered in ${x.seconds}s`).join(' · ') +
+      ? `${x.model}: ${x.error}` : x.agent ? `${x.model}: nothing to test here, it connects from your agent (the lines below)`
+      : `${x.model} answered in ${x.seconds}s`).join(' · ') +
     checkers.map(x => x.error ? ` · checker ${x.model}: ${x.error}`
       : ` · checker ${x.model} answered in ${x.seconds}s`).join('');
   if ($('setup-next')) $('setup-next').hidden = false;      // the AI setup step

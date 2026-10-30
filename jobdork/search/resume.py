@@ -367,16 +367,33 @@ class Resume:
         return bool(self.text)
 
 
+# How much of one resume file is read. A resume is a few pages: these are
+# far past any real one, and stop a file built to stall the app (a PDF of
+# thousands of pages, a .docx whose text unpacks to gigabytes) before it does.
+MAX_PDF_PAGES = 30
+MAX_TEXT_CHARS = 200_000
+MAX_DOCX_XML = 20 * 1024 * 1024        # word/document.xml, unpacked
+
+
+def document_xml(archive: zipfile.ZipFile, name: str = "word/document.xml") -> str:
+    """A .docx's text part, refused when it would unpack past MAX_DOCX_XML.
+    Raises KeyError when it has none, as ZipFile.read does."""
+    if archive.getinfo(name).file_size > MAX_DOCX_XML:
+        raise ResumeError(f"this .docx's text unpacks to over {MAX_DOCX_XML // 2**20} MB, "
+                          "far more than any resume; save it again from Word")
+    return archive.read(name).decode("utf-8", "replace")
+
+
 def _read_docx(path: Path) -> str:
     """A .docx is a zip; the text lives in word/document.xml."""
     try:
         with zipfile.ZipFile(path) as archive:
-            xml = archive.read("word/document.xml").decode("utf-8", "replace")
+            xml = document_xml(archive)
     except (zipfile.BadZipFile, KeyError) as exc:
         raise ResumeError(f"{path} is not a readable .docx: {exc}") from exc
     xml = re.sub(r"</w:p>", "\n", xml)
     xml = re.sub(r"<[^>]+>", "", xml)
-    return re.sub(r"\n{3,}", "\n\n", xml).strip()
+    return re.sub(r"\n{3,}", "\n\n", xml).strip()[:MAX_TEXT_CHARS]
 
 
 _PARA = re.compile(r"<w:p[ >].*?</w:p>|<w:p/>", re.DOTALL)
@@ -395,7 +412,7 @@ def docx_markdown(path: str) -> str:
 
     try:
         with zipfile.ZipFile(path) as archive:
-            xml = archive.read("word/document.xml").decode("utf-8", "replace")
+            xml = document_xml(archive)
     except (zipfile.BadZipFile, KeyError, OSError) as exc:
         raise ResumeError(f"{path} is not a readable .docx: {exc}") from exc
     lines = []
@@ -467,20 +484,21 @@ def _read_pdf(path: Path) -> str:
 
     try:
         reader = PdfReader(str(path))
-        text = "\n\n".join((page.extract_text() or "") for page in reader.pages)
+        pages = list(reader.pages)[:MAX_PDF_PAGES]
+        text = "\n\n".join((page.extract_text() or "") for page in pages)
         # Some PDFs place every word apart, and come out one word per line
         # ("April / 2025 / - / present"): every word read, every line lost.
         # Read by layout instead. Not always: layout puts two columns side
         # by side, line by line, where the default reads one, then the other.
         if _word_per_line(text):
             laid = "\n\n".join(
-                (page.extract_text(extraction_mode="layout") or "") for page in reader.pages)
+                (page.extract_text(extraction_mode="layout") or "") for page in pages)
             text = "\n".join(re.sub(r"[ \t]{2,}", " ", line).strip()
                               for line in laid.splitlines())
     except Exception as exc:                      # pypdf raises a wide variety
         raise ResumeError(f"{path} could not be read as a PDF: {exc}") from exc
 
-    text = _fix_glyphs(text)
+    text = _fix_glyphs(text)[:MAX_TEXT_CHARS]
     if len(text.strip()) < 200:
         raise ResumeError(
             f"{path} yielded only {len(text.strip())} characters of text. It is "

@@ -6,6 +6,36 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-30 — version 0.16.1
+
+0.16.1 carries the 8 entries below, everything since 0.16.0 (earlier
+today). For you:
+
+- **Updates finish themselves.** After the download passes its checks, the
+  new jobdork replaces this one and opens: on a Mac with no Finder window
+  and no dragging, on Windows with only the installer's progress bar. Where
+  it cannot (the app run from the disk image or Downloads, or a folder you
+  cannot write), the installer opens as before.
+- **The banner's Update starts the update**, where it only opened Settings.
+- **Fixed:** saving a pasted advert threw a page error; Save and test on the
+  AI page failed with a coding agent as the reader; a coding agent's answers
+  pulled the Dashboard's AI answer times down; `jobdork.exe --mcp` on
+  Windows stopped without a word.
+- **Renamed:** the AI tools tab's **ATS keywords** is now **Keyword ideas
+  (AI)**, so it is not taken for the free **ATS match** tab.
+- **Security:** a resume file is read only so far (30 PDF pages, 200,000
+  characters, a `.docx` that would unpack past 20 MB refused); two
+  code-scanning findings fixed.
+
+Updating from 0.16.0 is the old way one last time: the update is done by
+the version you have. In 0.16.0 press **Update to 0.16.1** under Settings,
+Updates (the banner's **Update** only opens that page), and on a Mac drag
+the new jobdork onto Applications in the Finder window, then open it again.
+From 0.16.1 on, updates finish by themselves. Nothing in the database or
+the config changes.
+
+---
+
 ## Changed — 2026-10-30 — An update puts itself in place and restarts jobdork
 
 **Update** used to stop at opening the installer: on a Mac a Finder window
@@ -31,6 +61,69 @@ The window's last step is now **Putting it in place**, then **Restarting
 jobdork**. This takes effect from the release after 0.16.0: the update is
 done by the version you have, so updating from 0.16.0 still ends in the
 Finder window.
+
+---
+
+## Fixed — 2026-10-30 — Saving a pasted advert no longer throws a page error
+
+After **Save and re-screen** on a job post's pasted advert, the page looked
+for a fold-out around the message, found none (the paste box is a plain
+box), and threw `null is not an object (evaluating
+'m.closest('details').open = true')`, logged as a page error every time. The
+advert was saved; the message now shows in its box with no error.
+
+---
+
+## Security — 2026-10-30 — A resume file is read only so far
+
+A resume file could make jobdork read without end: a PDF of thousands of
+pages, or a `.docx` (a zip) whose text unpacks to gigabytes from a 10 MB
+upload. Now jobdork reads the first 30 pages of a PDF, keeps at most 200,000
+characters of any resume's text, and refuses a `.docx` whose text part would
+unpack past 20 MB, before unpacking it (`search/resume.py`, used by the
+readability check too). Every real resume is far inside all three. The last
+open item from the 2026-10-27 security review.
+
+---
+
+## Fixed — 2026-10-30 — A coding agent's rough edges
+
+- **Save and test** on the AI page with **Coding agent** as a reader failed
+  with "Coding agent mode: your coding agent writes this": an agent cannot
+  be asked from the app. Now its line says there is nothing to test here
+  (it connects from your agent's side) and counts as ready; the other lines
+  are tested as before.
+- **The Dashboard's AI answer times** counted each answer a coding agent
+  saved as a call of 0 seconds, pulling the median down. They still count
+  as calls, but are left out of the timings.
+- **`jobdork.exe --mcp` on Windows** stopped without a word: that program has
+  no console to talk on. It now says, in the app's log, to set the agent up
+  with `jobdork-agent.exe`, as the AI page's lines do.
+
+---
+
+## Changed — 2026-10-30 — "ATS keywords" is now "Keyword ideas (AI)"
+
+A job post's AI tools tab had **ATS keywords**, an AI tool, beside the
+post's **ATS match** tab, which scores the same advert by script and for
+free: two "ATS" things that are not the same. The AI tool is now **Keyword
+ideas (AI)**, with a different icon, and says how it differs: the AI's ten
+terms a tracking system would look for, which can go past the skills list
+the ATS match uses. Nothing else changed in it.
+
+---
+
+## Fixed — 2026-10-30 — Two code-scanning findings
+
+CodeQL flagged the Word file's list of characters XML cannot carry
+(`output/docx.py`) as a suspicious range: the control characters it named by
+range were meant, but the list is now a plain table of exactly those
+characters, removed with `str.translate`, so nothing reads as a range. And
+`jobdork ollama-code` printing the connection code it makes, flagged as
+logging a secret, now says beside it why: printing it is the command's
+purpose, for the person who runs it to send on. The third finding, the
+hidden-character ranges in `core/textutil.py`, is meant as it is: those are
+the characters that can carry hidden instructions to an AI.
 
 ---
 

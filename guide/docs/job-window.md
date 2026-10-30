@@ -148,7 +148,7 @@ prep and outreach message, rewritten with jobdork's rules.
 | Button | What you get |
 |---|---|
 | **Tailor my resume** | Suggested edits, not a new resume: rewordings of your lines (tick the ones you want), which lines to move up, and a skills line from skills you have that the advert asks for. An edit that adds a number you never wrote is left unticked, in red. **Download tailored resume** gives your resume with the ticked edits |
-| **ATS keywords** | The ten words an applicant tracking system would look for in this advert, each marked found or missing in your resume |
+| **Keyword ideas (AI)** | The ten words the AI expects an applicant tracking system to look for in this advert, each marked found or missing in your resume. The [ATS match](#ats-match) tab scores the same advert by script, for free; the AI can name terms beyond the skills list it uses. (Called **ATS keywords** before 0.16.1) |
 | **Skills to highlight** | The advert's three most important skills, the three things you did that best show them, and strong verbs for the role |
 | **Recruiter feedback** | The AI reads your resume as this post's recruiter would: strengths and gaps |
 
