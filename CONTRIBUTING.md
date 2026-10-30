@@ -3,8 +3,12 @@
 Pull requests are welcome: a fix, a new job source, a clearer sentence in the
 guide. So are issues: the app's **Feedback** page files one for you
 ([how](https://jessn-dev.github.io/jobDork/feedback/)), or open one on
-[GitHub](https://github.com/jessn-dev/jobDork/issues/new). For a security
-problem, follow [SECURITY.md](SECURITY.md) instead of opening an issue.
+[GitHub](https://github.com/jessn-dev/jobDork/issues/new/choose) from one of
+its three forms: a problem, an idea or a question. For a security problem,
+follow [SECURITY.md](SECURITY.md) instead of opening an issue.
+
+Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md): be
+kind, keep to the work, and keep private things out of public issues.
 
 ## Set up
 

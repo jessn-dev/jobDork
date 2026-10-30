@@ -1,0 +1,28 @@
+name: A question
+description: How to do something, or why jobdork does what it does.
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The [user guide](https://jessn-dev.github.io/jobDork/) may answer it already. If not, ask here.
+
+        **Keep private things out:** no resume, no contact details, no API keys.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you tried
+      description: Optional. What you did, and what happened.
+  - type: input
+    id: version
+    attributes:
+      label: jobdork version
+      description: Optional. Settings, Updates shows it.
+      placeholder: "0.16.1"

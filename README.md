@@ -216,7 +216,9 @@ verifies ([SECURITY.md](SECURITY.md#how-the-app-checks-an-update-before-opening-
 
 ## Development
 
-Contributions are welcome: [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome: [CONTRIBUTING.md](CONTRIBUTING.md), and the
+[code of conduct](CODE_OF_CONDUCT.md) for everyone taking part. Issues
+start from a form: a problem, an idea or a question.
 
 ```bash
 pip install -e '.[dev]'     # pytest, ruff, and sigstore for the update tests

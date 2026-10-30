@@ -1,0 +1,10 @@
+# Issues start from one of the forms below: a problem, an idea or a
+# question. The app's Feedback page files the same three kinds for you.
+blank_issues_enabled: false
+contact_links:
+  - name: A security problem
+    url: https://github.com/jessn-dev/jobDork/security/advisories/new
+    about: Report it privately, never in a public issue (SECURITY.md).
+  - name: The user guide
+    url: https://jessn-dev.github.io/jobDork/
+    about: How every page of the app works, with pictures.
