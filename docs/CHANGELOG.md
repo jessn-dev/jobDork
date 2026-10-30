@@ -56,6 +56,22 @@ open item from the 2026-10-27 security review.
 
 ---
 
+## Fixed — 2026-10-30 — A coding agent's rough edges
+
+- **Save and test** on the AI page with **Coding agent** as a reader failed
+  with "Coding agent mode: your coding agent writes this": an agent cannot
+  be asked from the app. Now its line says there is nothing to test here
+  (it connects from your agent's side) and counts as ready; the other lines
+  are tested as before.
+- **The Dashboard's AI answer times** counted each answer a coding agent
+  saved as a call of 0 seconds, pulling the median down. They still count
+  as calls, but are left out of the timings.
+- **`jobdork.exe --mcp` on Windows** stopped without a word: that program has
+  no console to talk on. It now says, in the app's log, to set the agent up
+  with `jobdork-agent.exe`, as the AI page's lines do.
+
+---
+
 ## Fixed — 2026-10-30 — The banner's Update starts the update
 
 When a newer jobdork is out, a banner says so at the top of every page, with
