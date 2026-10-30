@@ -106,6 +106,7 @@ removes one. **What to do** says what would raise the score.
 
 ---
 
+
 ## Added — 2026-10-29 — Interview prep and a recruiter message, by the AI
 
 Two more documents from a job post's window, written by the AI-page model
@@ -131,6 +132,26 @@ jobdork never sends it. Saved as `recruiter-message-ai.md`.
 
 Both follow Resume Matcher's interview prep and outreach message
 (srbhr/resume-matcher, Apache-2.0), rewritten with jobdork's rules.
+
+---
+
+## Added — 2026-10-29 — How a resume's lines are written, checked
+
+A new script check (`writing/style.py`, no AI) reads a resume's bullets as
+a recruiter does: a bullet that starts by saying you were near the work
+("Responsible for", "Helped with", "Assisted", "Worked on"; hard), first
+person ("I", "my"), over 35 words, three or more bullets of one job
+starting with the same word, and no figure. Each line scores 100, less 40
+for the hard rule, 10 for each soft one and 5 for no figure, and the score
+is their mean (Resume Matcher's writing rules and weights,
+srbhr/resume-matcher, rewritten; its long-dash and AI-phrase rules are left
+to the checks jobdork already has). It shows under your resume's
+**Checks** as *How its lines are written*, each rule once with its count
+and three of its lines; from a PDF, whose bullet marks are usually drawn,
+the Experience section's lines are read as bullets. Tailored resumes and
+CVs get it as the **resume writing** check (READ only for the hard rule),
+and the tailoring instructions now forbid those openers and the first
+person and ask for varied verbs.
 
 ---
 
