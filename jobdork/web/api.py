@@ -357,6 +357,14 @@ def list_resumes(cfg) -> dict:
             "r.company FROM artifacts a LEFT JOIN roles r ON r.uid = a.uid "
             "WHERE a.kind IN ('tailored_resume', 'cv') ORDER BY a.created_at DESC, a.id DESC"
         ).fetchall()
+        # The newest of each other document for the same job post: the
+        # preview's tabs beside a tailored resume.
+        docs: dict[str, dict[str, int]] = {}
+        for d in store.conn.execute(
+                "SELECT uid, kind, MAX(id) AS id FROM artifacts WHERE kind IN "
+                "('cover_letter', 'recruiter_message', 'interview_prep', 'resume_review') "
+                "GROUP BY uid, kind").fetchall():
+            docs.setdefault(d["uid"], {})[d["kind"]] = d["id"]
     out = []
     for r in rows:
         gates, _ = _gates(r["gates_json"])
@@ -369,7 +377,8 @@ def list_resumes(cfg) -> dict:
                     "checks": len(gates),
                     "to_read": sum(1 for g in gates.values()
                                    if isinstance(g, dict) and not g.get("passed", True)),
-                    "readable": int(score.group(1)) if score else None})
+                    "readable": int(score.group(1)) if score else None,
+                    "docs": docs.get(r["uid"], {})})
     return {"resumes": out}
 
 

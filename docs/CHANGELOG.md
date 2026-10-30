@@ -6,6 +6,34 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-10-29 — The Resume page's preview uses the whole right side
+
+On a wide window the Resume page kept to 1060 pixels and its PDF to 68% of
+the window's height, leaving a band of blank page. The page now widens to
+1600 pixels, the preview takes the larger share of it, and the PDF is as tall
+as the window less the preview's tabs. The PDF opens fitted to the
+preview's width without the viewer's page list beside it, and a long
+*Stored at* path wraps instead of running under the preview.
+
+---
+
+## Added — 2026-10-29 — A job post's documents beside its tailored resume
+
+On the Resume page, a tailored resume's preview now has a tab for each of
+its job post's other documents, as Resume Matcher's builder has: **Cover
+letter**, **Recruiter message** (with **Copy message**), **Interview prep**,
+**Resume review** when there is one, and the post's **ATS match**, then the
+resume's **Checks**. Everything for one application is in one place. A
+document not written yet says so, with **Open AI tools** (the job post's
+window, where it is written). Choosing another tailored card keeps the tab,
+to compare two cover letters, say. `/api/resumes` gives each card the newest
+of each document for its job post (`docs`); the job post's window and the
+preview draw a document the same way (`docHtml`). The resume's **Job post**,
+**PDF** and **Word** moved beside its title, so the tabs have the row.
+Guide: Resume page, with a new picture of the interview prep tab.
+
+---
+
 ## Added — 2026-10-29 — Interview prep and a recruiter message, by the AI
 
 Two more documents from a job post's window, written by the AI-page model
@@ -31,7 +59,6 @@ jobdork never sends it. Saved as `recruiter-message-ai.md`.
 
 Both follow Resume Matcher's interview prep and outreach message
 (srbhr/resume-matcher, Apache-2.0), rewritten with jobdork's rules.
-
 
 Interview prep reads your whole record beside the resume: projects,
 education and the skills you confirmed with **I have this** (`store_notes`).
@@ -4345,7 +4372,6 @@ move to an image other than the one signed and approved.
 The verify step now tries up to six times, ten seconds apart, before it calls
 a signature missing.
 
-
 ---
 
 ## Fixed — 2026-09-30 — no traceback when the browser hangs up
@@ -4471,7 +4497,6 @@ extracted text, with the skills found in it, is still there, folded under
 The page may now frame a `blob:` it made itself (`frame-src blob:` in the
 content security policy); it still loads nothing from anywhere else, and
 nothing may frame the page.
-
 
 ---
 

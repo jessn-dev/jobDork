@@ -112,7 +112,10 @@ nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
 main{padding:1.5rem 1.75rem;min-width:0}
 /* The Dashboard uses the whole width; pages of forms and reading keep a
    measure that is comfortable to read. */
-main > section:not(#view-scan):not(#view-settings):not(#view-setup){max-width:1060px}
+main > section:not(#view-scan):not(#view-settings):not(#view-setup):not(#view-resume){max-width:1060px}
+/* The Resume page's preview takes the room a wide window has. */
+#view-resume{max-width:1600px}
+#resumeinfo code{overflow-wrap:anywhere}
 h2{font-size:1.05rem;margin:0 0 .35rem}
 .bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
 /* The job post search takes the room left on its row, so a typed company
@@ -628,7 +631,7 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .rcard .meter i.mid{background:var(--warn)}.rcard .meter i.low{background:var(--bad)}
 .rcard.add{align-items:center;justify-content:center;border-style:dashed;color:var(--accent);text-align:center}
 .rcard.add .plus{font-size:1.6rem;line-height:1}
-.rpanes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:1.1rem;align-items:start}
+.rpanes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:1.1rem;align-items:start}
 @media (max-width:1150px){.rpanes{grid-template-columns:minmax(0,1fr)}.rpreview{order:-1}}
 .rpreview{position:sticky;top:1rem;max-height:calc(100vh - 2rem);overflow:auto;margin-top:1.25rem}
 .rptabs{display:flex;gap:.25rem;align-items:center;border-bottom:1px solid var(--line);margin:-.2rem 0 .55rem;flex-wrap:wrap}
@@ -638,7 +641,8 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .rptabs [data-rtab]:focus-visible{outline:2px solid var(--accent)}
 .rpact{margin-left:auto;display:flex;gap:.3rem;flex-wrap:wrap}
 .rp-head{display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap;margin-bottom:.5rem}
-.rpreview .pdfview{height:68vh}
+/* As tall as the window, less the preview's tabs and title. */
+.rpreview .pdfview{height:calc(100vh - 9.5rem);min-height:24rem}
 /* How a tracking system reads the resume (search/readable.py). */
 #resume-readable .rhead{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
 #resume-readable .rscore{font-weight:700;font-size:1.05rem}
@@ -1540,14 +1544,12 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <div id="letters"></div>
     </div>
     <aside class="rpreview panel" id="rpreview" aria-label="Preview">
-      <div class="rptabs" role="tablist">
-        <button type="button" role="tab" data-rtab="doc" class="on">Resume</button>
-        <button type="button" role="tab" data-rtab="checks">Checks</button>
-        <span class="rpact" id="rp-acts"></span>
-      </div>
-      <div class="rp-head"><b id="rp-title"></b><span class="hint" id="rp-sub"></span></div>
+      <div class="rptabs" role="tablist" id="rp-tabs"></div>
+      <div class="rp-head"><b id="rp-title"></b><span class="hint" id="rp-sub"></span>
+        <span class="rpact" id="rp-acts"></span></div>
       <div id="rp-doc"></div>
       <div id="rp-checks" hidden><div id="resume-readable" hidden></div><div id="rp-gates"></div></div>
+      <div id="rp-other" hidden></div>
     </aside>
     </div>
   </section>
@@ -2467,30 +2469,41 @@ function drawDetail(tab) {
     api('/api/artifact?id=' + art.id).then(async r => {
       if (!r.ok) { $('dlg-body').innerHTML = body + `<p class="err">${esc(await r.text())}</p>`; return; }
       const doc = await r.json();
-      const gates = Object.entries(doc.gates || {}).map(([n, g]) =>
-        `<div class="gate ${g.passed ? 'pass' : 'fail'}">${g.passed ? 'ok' : 'READ'}: ${esc(n)}, ${esc(g.detail)}${
-          !g.passed && (g.items || []).length
-            ? `<ul>${g.items.slice(0, 12).map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}</div>`).join('');
-      $('dlg-body').innerHTML = body +
-        (gates ? `<div style="margin-bottom:.75rem">${gates}</div>` : '') +
-        (doc.output ? `<div style="margin-bottom:.6rem">${fbButtons(doc.output.id, doc.output.feedback,
-          `Was this ${tabLabel(tab)} useful?`)}</div>` : '') +
-        `<div class="hint" style="margin-bottom:.5rem">${esc(doc.path)}</div>` +
-        (PDF_KINDS.includes(tab) ? `<div class="bar">
-            <button data-icon="external-link" class="act" onclick="artifactPdf(${doc.id}, false)">Open PDF</button>
-            <button data-icon="download" class="act primary" onclick="artifactPdf(${doc.id}, true)">Download PDF</button>
-            <button data-icon="download" class="act" onclick="artifactWord(${doc.id})" title="The same resume as a Word file, to edit before you send it">Download Word</button>
-            <span class="hint">Read it through before you send it.</span></div>` : '') +
-        (tab === 'recruiter_message' ? `<div class="bar">
-            <button type="button" class="act primary" id="copy-msg">Copy message</button>
-            <span class="hint">jobdork never sends it: paste it into LinkedIn or an email yourself.</span></div>` : '') +
-        (['resume_review', 'interview_prep'].includes(tab) || PDF_KINDS.includes(tab)
-          ? `<div class="advert md-doc">${mdLite(PDF_KINDS.includes(tab) ? doc.text : untitled(doc.text))}</div>`
-          : `<div class="advert">${esc(doc.text)}</div>`);
-      if ($('copy-msg')) $('copy-msg').onclick = () => navigator.clipboard.writeText(doc.text.trim())
-        .then(() => toast('Copied'), () => toast('Copying was refused by the browser', 'err'));
+      $('dlg-body').innerHTML = body + docHtml(doc, tab);
+      bindDoc($('dlg-body'), doc);
     });
   }
+}
+
+// One drafted document: its checks, then PDF and Word for a resume or Copy
+// for a message, then its text. The job post's window and the Resume page's
+// preview both show one this way.
+function docHtml(doc, kind) {
+  const gates = Object.entries(doc.gates || {}).map(([n, g]) =>
+    `<div class="gate ${g.passed ? 'pass' : 'fail'}">${g.passed ? 'ok' : 'READ'}: ${esc(n)}, ${esc(g.detail)}${
+      !g.passed && (g.items || []).length
+        ? `<ul>${g.items.slice(0, 12).map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}</div>`).join('');
+  return (gates ? `<div style="margin-bottom:.75rem">${gates}</div>` : '') +
+    (doc.output ? `<div style="margin-bottom:.6rem">${fbButtons(doc.output.id, doc.output.feedback,
+      `Was this ${tabLabel(kind)} useful?`)}</div>` : '') +
+    `<div class="hint" style="margin-bottom:.5rem">${esc(doc.path)}</div>` +
+    (PDF_KINDS.includes(kind) ? `<div class="bar">
+        <button data-icon="external-link" class="act" onclick="artifactPdf(${doc.id}, false)">Open PDF</button>
+        <button data-icon="download" class="act primary" onclick="artifactPdf(${doc.id}, true)">Download PDF</button>
+        <button data-icon="download" class="act" onclick="artifactWord(${doc.id})" title="The same resume as a Word file, to edit before you send it">Download Word</button>
+        <span class="hint">Read it through before you send it.</span></div>` : '') +
+    (kind === 'recruiter_message' ? `<div class="bar">
+        <button type="button" class="act primary copy-msg">Copy message</button>
+        <span class="hint">jobdork never sends it: paste it into LinkedIn or an email yourself.</span></div>` : '') +
+    (['resume_review', 'interview_prep'].includes(kind) || PDF_KINDS.includes(kind)
+      ? `<div class="advert md-doc">${mdLite(PDF_KINDS.includes(kind) ? doc.text : untitled(doc.text))}</div>`
+      : `<div class="advert">${esc(doc.text)}</div>`);
+}
+
+function bindDoc(box, doc) {
+  const copy = box.querySelector('.copy-msg');
+  if (copy) copy.onclick = () => navigator.clipboard.writeText(doc.text.trim())
+    .then(() => toast('Copied'), () => toast('Copying was refused by the browser', 'err'));
 }
 
 // ── ATS match (search/ats.py) ────────────────────────────────────────────────
@@ -2498,8 +2511,7 @@ function drawDetail(tab) {
 // the score and its parts as bars, then the advert's skills you have, could
 // add (in your projects, education or confirmed skills) and lack, each of
 // the last with "I have this".
-async function drawAts(uid) {
-  const out = $('ats-out');
+async function drawAts(uid, out = $('ats-out')) {
   const r = await api('/api/ats?uid=' + encodeURIComponent(uid));
   if (!out.isConnected) return;
   if (!r.ok) { out.innerHTML = `<p class="hint">${esc(cap(await r.text()))}.</p>`; return; }
@@ -2526,13 +2538,14 @@ async function drawAts(uid) {
     ${a.confirmed.length ? `<p class="hint">You confirmed: ${a.confirmed.map(t => `${esc(skillName(t))}
       <button type="button" class="act linkish" data-unhave="${esc(t)}">take back</button>`).join(', ')}</p>` : ''}
     ${a.advice.length ? `<h4>What to do</h4><ul class="atsadvice">${a.advice.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
-    <p class="hint" id="ats-msg"></p>`;
+    <p class="hint ats-msg"></p>`;
   const send = async (term, have) => {
     const r = await api('/api/skills/confirm', {method: 'POST', body: form({term, have: have ? '1' : '0'})});
-    if (!r.ok) { $('ats-msg').className = 'err'; $('ats-msg').textContent = cap(await r.text()); return; }
+    const msg = out.querySelector('.ats-msg');
+    if (!r.ok) { msg.className = 'err ats-msg'; msg.textContent = cap(await r.text()); return; }
     const d = await r.json();
     toast(`${skillName(term)} ${have ? 'added to your skills' : 'taken back'}. ${d.rescore || ''}`);
-    drawAts(uid);
+    drawAts(uid, out);
   };
   out.querySelectorAll('[data-have]').forEach(b => b.onclick = () => send(b.dataset.have, true));
   out.querySelectorAll('[data-unhave]').forEach(b => b.onclick = () => send(b.dataset.unhave, false));
@@ -5691,13 +5704,63 @@ function renderResumeCards() {
   });
 }
 
-document.querySelectorAll('[data-rtab]').forEach(b => b.onclick = () => {
-  rtab = b.dataset.rtab;
-  document.querySelectorAll('[data-rtab]').forEach(x => {
-    x.classList.toggle('on', x === b); x.setAttribute('aria-selected', String(x === b)); });
+// The preview's tabs. Your resume: the file and how a tracking system reads
+// it. A tailored one: the resume, then the job post's other documents and
+// its ATS match, then the resume's checks.
+const RDOCS = ['cover_letter', 'recruiter_message', 'interview_prep', 'resume_review'];
+function rtabsFor(doc) {
+  if (!doc) return ['doc', 'checks'];
+  return ['doc', ...RDOCS.filter(k => k !== 'resume_review' || (doc.docs || {})[k]),
+          ...(doc.uid ? ['ats'] : []), 'checks'];
+}
+
+function drawRTabs() {
+  const doc = rsel === 'master' ? null : rdocs.find(x => x.id === rsel);
+  const tabs = rtabsFor(doc);
+  if (!tabs.includes(rtab)) rtab = 'doc';
+  $('rp-tabs').innerHTML = tabs.map(k => `<button type="button" role="tab" data-rtab="${k}"
+      class="${k === rtab ? 'on' : ''}" aria-selected="${k === rtab}">${
+      k === 'doc' ? 'Resume' : k === 'checks' ? 'Checks' : esc(cap(tabLabel(k)))}</button>`).join('');
+  $('rp-tabs').querySelectorAll('[data-rtab]').forEach(b => b.onclick = () => {
+    rtab = b.dataset.rtab;
+    drawRTabs();
+    showRTab();
+  });
+}
+
+function showRTab() {
   $('rp-doc').hidden = rtab !== 'doc';
   $('rp-checks').hidden = rtab !== 'checks';
-});
+  $('rp-other').hidden = ['doc', 'checks'].includes(rtab);
+  if (!$('rp-other').hidden) drawRDoc(rtab);
+}
+
+// A job post's document or its ATS match, for the chosen tailored resume.
+// One not written yet points to the job post's AI tools, where it is.
+async function drawRDoc(kind) {
+  const box = $('rp-other'), doc = rdocs.find(x => x.id === rsel) || {};
+  const still = () => rtab === kind && rsel === doc.id;
+  if (kind === 'ats') {
+    box.innerHTML = '<p class="hint">Loading…</p>';
+    drawAts(doc.uid, box);
+    return;
+  }
+  const id = (doc.docs || {})[kind];
+  if (!id) {
+    box.innerHTML = `<p class="hint">No ${esc(tabLabel(kind))} for this job post yet.
+      ${doc.uid ? `Write one from the job post's AI tools.</p>
+      <button type="button" class="act" data-icon="sparkles" id="rp-write">Open AI tools</button>` : '</p>'}`;
+    if ($('rp-write')) $('rp-write').onclick = () => openRole(doc.uid, 'tools');
+    return;
+  }
+  box.innerHTML = '<p class="hint">Loading…</p>';
+  const r = await api('/api/artifact?id=' + id);
+  if (!still()) return;
+  if (!r.ok) { box.innerHTML = `<p class="err">${esc(cap(await r.text()))}</p>`; return; }
+  const d = await r.json();
+  box.innerHTML = docHtml(d, kind);
+  bindDoc(box, d);
+}
 
 // A PDF in the preview, from a blob: fetched with the token like every call.
 async function previewPdf(path, title) {
@@ -5705,10 +5768,13 @@ async function previewPdf(path, title) {
   if (!f.ok) { $('rp-doc').innerHTML = `<p class="err">${esc(cap(await f.text()))}</p>`; return; }
   if (rpUrl) URL.revokeObjectURL(rpUrl);
   rpUrl = URL.createObjectURL(new Blob([await f.blob()], {type: 'application/pdf'}));
-  $('rp-doc').innerHTML = `<iframe class="pdfview" src="${rpUrl}" title="${esc(title)}"></iframe>`;
+  // The page at the preview's width, without the viewer's page list beside it.
+  $('rp-doc').innerHTML = `<iframe class="pdfview" src="${rpUrl}#navpanes=0&view=FitH" title="${esc(title)}"></iframe>`;
 }
 
 async function drawPreview() {
+  drawRTabs();
+  showRTab();
   $('rp-doc').innerHTML = '<p class="hint">Loading…</p>';
   $('rp-gates').innerHTML = '';
   if (rsel === 'master') {
