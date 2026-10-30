@@ -92,8 +92,7 @@ class Server:
             if not isinstance(args, dict):
                 return _text({"error": "arguments must be an object"}, error=True)
             try:
-                done = agent.call(self.cfg, name, {**args, "_client": self.client}
-                                  if name in ("save_document", "save_verdict") else args)
+                done = agent.call(self.cfg, name, {**args, "_client": self.client})
             except agent.ToolError as exc:
                 return _text({"error": str(exc)}, error=True)
             return _text(done)

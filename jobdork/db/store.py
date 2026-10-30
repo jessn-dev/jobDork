@@ -248,7 +248,10 @@ CREATE TABLE IF NOT EXISTS projects (
     action      TEXT NOT NULL DEFAULT '',
     result      TEXT NOT NULL DEFAULT '',
     created_at  TEXT NOT NULL,
-    updated_at  TEXT NOT NULL
+    updated_at  TEXT NOT NULL,
+    -- A coding agent's suggestion, waiting for your OK: its name; "" once
+    -- approved or when you added it. Only "" counts as your record.
+    suggested_by TEXT NOT NULL DEFAULT ''
 );
 
 -- Education added on the Resume page: a degree, diploma or course the resume
@@ -264,7 +267,8 @@ CREATE TABLE IF NOT EXISTS education (
     end         TEXT NOT NULL DEFAULT '',
     details     TEXT NOT NULL DEFAULT '',
     created_at  TEXT NOT NULL,
-    updated_at  TEXT NOT NULL
+    updated_at  TEXT NOT NULL,
+    suggested_by TEXT NOT NULL DEFAULT ''
 );
 
 -- One row per employer board a scan read, kept or not a job of yours:
@@ -285,7 +289,8 @@ CREATE TABLE IF NOT EXISTS board_reads (
 -- match): part of their record, as projects are.
 CREATE TABLE IF NOT EXISTS confirmed_skills (
     term        TEXT PRIMARY KEY,
-    created_at  TEXT NOT NULL
+    created_at  TEXT NOT NULL,
+    suggested_by TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_roles_first_seen ON roles(first_seen);
@@ -831,7 +836,7 @@ class Store:
 
     # ── state ──────────────────────────────────────────────────────────────────
 
-    def set_status(self, uid: str, status: str, note: str = "") -> None:
+    def set_status(self, uid: str, status: str, note: str = "", by: str = "") -> None:
         """Record a decision — for every copy of the job, not just this one.
 
         A decision about a job is about the job. Set on one copy only, it was
@@ -850,8 +855,8 @@ class Store:
             f"SELECT uid, status FROM role_state WHERE uid IN ({','.join('?' * len(members))})",  # nosec B608
             members).fetchall())
         self.conn.executemany(
-            "INSERT INTO status_history(uid, status, at) VALUES(?,?,?)",
-            [(m, status, now) for m in members
+            "INSERT INTO status_history(uid, status, at, by) VALUES(?,?,?,?)",
+            [(m, status, now, by) for m in members
              if was.get(m, "new") != status and status not in ("new", "viewed")])
         self.conn.executemany(
             "INSERT INTO role_state(uid, status, note, updated_at) VALUES(?,?,?,?) "
@@ -954,11 +959,14 @@ class Store:
     PROJECT_FIELDS = ("name", "kind", "role", "tools", "link", "situation", "task",
                       "action", "result")
 
-    def projects(self) -> list[sqlite3.Row]:
+    def projects(self, suggested: bool = False) -> list[sqlite3.Row]:
+        """Your projects; with `suggested`, a coding agent's still waiting."""
         return self.conn.execute(
-            "SELECT * FROM projects ORDER BY updated_at DESC, id DESC").fetchall()
+            f"SELECT * FROM projects WHERE suggested_by {'<>' if suggested else '='} '' "  # nosec B608
+            "ORDER BY updated_at DESC, id DESC").fetchall()
 
-    def save_project(self, fields: dict, project_id: int | None = None) -> int:
+    def save_project(self, fields: dict, project_id: int | None = None,
+                     suggested_by: str = "") -> int:
         """Add a project, or replace one by id. Returns its id; 0 if no such id."""
         values = [str(fields.get(f) or "").strip() for f in self.PROJECT_FIELDS]
         if not values[0]:
@@ -973,8 +981,8 @@ class Store:
             return int(project_id) if cur.rowcount else 0
         cur = self.conn.execute(
             "INSERT INTO projects(name, kind, role, tools, link, situation, task, action, "
-            "result, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (*values, now, now))
+            "result, created_at, updated_at, suggested_by) "
+            "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (*values, now, now, suggested_by))
         self.conn.commit()
         return int(cur.lastrowid)
 
@@ -987,11 +995,14 @@ class Store:
 
     EDUCATION_FIELDS = ("credential", "school", "location", "start", "end", "details")
 
-    def education(self) -> list[sqlite3.Row]:
+    def education(self, suggested: bool = False) -> list[sqlite3.Row]:
+        """Your education; with `suggested`, a coding agent's still waiting."""
         return self.conn.execute(
-            "SELECT * FROM education ORDER BY updated_at DESC, id DESC").fetchall()
+            f"SELECT * FROM education WHERE suggested_by {'<>' if suggested else '='} '' "  # nosec B608
+            "ORDER BY updated_at DESC, id DESC").fetchall()
 
-    def save_education(self, fields: dict, entry_id: int | None = None) -> int:
+    def save_education(self, fields: dict, entry_id: int | None = None,
+                       suggested_by: str = "") -> int:
         """Add an entry, or replace one by id. Returns its id; 0 if no such id."""
         values = [str(fields.get(f) or "").strip() for f in self.EDUCATION_FIELDS]
         if not values[0]:
@@ -1006,7 +1017,8 @@ class Store:
             return int(entry_id) if cur.rowcount else 0
         cur = self.conn.execute(
             'INSERT INTO education(credential, school, location, start, "end", details, '
-            "created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)", (*values, now, now))
+            "created_at, updated_at, suggested_by) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (*values, now, now, suggested_by))
         self.conn.commit()
         return int(cur.lastrowid)
 
@@ -1020,7 +1032,7 @@ class Store:
     def history(self, uid: str) -> list[sqlite3.Row]:
         """Every status this job post was given, oldest first."""
         return self.conn.execute(
-            "SELECT status, at FROM status_history WHERE uid = ? ORDER BY at, id",
+            "SELECT status, at, by FROM status_history WHERE uid = ? ORDER BY at, id",
             (uid,)).fetchall()
 
     def applications(self) -> list[dict]:
@@ -1073,10 +1085,11 @@ class Store:
 
     def application_notes(self, uid: str) -> list[sqlite3.Row]:
         return self.conn.execute(
-            "SELECT id, stage, note, at FROM application_notes WHERE uid = ? ORDER BY at DESC, id DESC",
+            "SELECT id, stage, note, at, by FROM application_notes WHERE uid = ? "
+            "ORDER BY at DESC, id DESC",
             (uid,)).fetchall()
 
-    def add_application_note(self, uid: str, note: str) -> None:
+    def add_application_note(self, uid: str, note: str, by: str = "") -> None:
         """A dated note, filed under the status the job has now."""
         note = str(note or "").strip()
         if not note:
@@ -1086,8 +1099,8 @@ class Store:
         state = self.conn.execute("SELECT status FROM role_state WHERE uid = ?", (uid,)).fetchone()
         stage, now = state["status"] if state else "new", _now()
         self.conn.executemany(
-            "INSERT INTO application_notes(uid, stage, note, at) VALUES(?,?,?,?)",
-            [(m, stage, note, now) for m in grouping.uids(self.conn, uid)])
+            "INSERT INTO application_notes(uid, stage, note, at, by) VALUES(?,?,?,?,?)",
+            [(m, stage, note, now, by) for m in grouping.uids(self.conn, uid)])
         self.conn.commit()
 
     def delete_application_note(self, uid: str, note_id: int) -> bool:
@@ -1104,21 +1117,52 @@ class Store:
         self.conn.commit()
         return True
 
+    # ── a coding agent's suggestions for your record (web/agent.py) ───────────
+
+    SUGGESTED_MOST = 25
+    SUGGESTION_TABLES = {"project": ("projects", "id"), "education": ("education", "id"),
+                         "skill": ("confirmed_skills", "term")}
+
+    def suggestions_waiting(self) -> int:
+        return sum(self.conn.execute(
+            f"SELECT COUNT(*) FROM {table} WHERE suggested_by <> ''").fetchone()[0]  # nosec B608
+            for table, _ in self.SUGGESTION_TABLES.values())
+
+    def decide_suggestion(self, kind: str, key, approve: bool) -> bool:
+        """Your OK on a coding agent's suggestion (it joins your record), or
+        not (it goes). Only a suggestion: nothing of yours is touched."""
+        if kind not in self.SUGGESTION_TABLES:
+            raise ValueError("not a kind of suggestion")
+        table, column = self.SUGGESTION_TABLES[kind]
+        # Safe: table and column come from the fixed map above; key is a parameter.
+        sql = (f"UPDATE {table} SET suggested_by = '' " if approve  # nosec B608
+               else f"DELETE FROM {table} ")  # nosec B608
+        cur = self.conn.execute(sql + f"WHERE {column} = ? AND suggested_by <> ''", (key,))
+        self.conn.commit()
+        return cur.rowcount > 0
+
     # ── skills you confirmed having (a job post's ATS match) ──────────────────
 
-    def confirmed_skills(self) -> list[str]:
+    def confirmed_skills(self, suggested: bool = False) -> list[str]:
+        """Skills you confirmed; with `suggested`, a coding agent's still waiting."""
         return [r["term"] for r in self.conn.execute(
-            "SELECT term FROM confirmed_skills ORDER BY term")]
+            f"SELECT term FROM confirmed_skills WHERE suggested_by {'<>' if suggested else '='} '' "  # nosec B608
+            "ORDER BY term")]
 
-    def confirm_skill(self, term: str, have: bool = True) -> bool:
-        """Say you have a skill, or take it back. Returns whether anything changed."""
+    def confirm_skill(self, term: str, have: bool = True, suggested_by: str = "") -> bool:
+        """Say you have a skill, or take it back. Returns whether anything changed.
+
+        A coding agent's (`suggested_by`) waits for your OK. Yours approves a
+        suggestion of the same skill; an agent's never undoes yours."""
         term = " ".join(str(term or "").split()).lower()
         if not term or len(term) > 80:
             raise ValueError("a skill is a short name, such as Python or Phlebotomy")
         if have:
             cur = self.conn.execute(
-                "INSERT OR IGNORE INTO confirmed_skills(term, created_at) VALUES(?, ?)",
-                (term, _now()))
+                "INSERT INTO confirmed_skills(term, created_at, suggested_by) VALUES(?, ?, ?) "
+                "ON CONFLICT(term) DO UPDATE SET suggested_by = '' "
+                "WHERE excluded.suggested_by = '' AND confirmed_skills.suggested_by <> ''",
+                (term, _now(), suggested_by))
         else:
             cur = self.conn.execute("DELETE FROM confirmed_skills WHERE term = ?", (term,))
         self.conn.commit()

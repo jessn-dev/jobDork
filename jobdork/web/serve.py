@@ -509,6 +509,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     "agent_only": ai["agent_only"],
                     "agent_fallback": ai["agent_fallback"],
                     "unkept_data": _unkept(cfg_holder["cfg"]),
+                    "suggested": api_mod.suggestions_count(cfg_holder["cfg"]),
                     "notifications": {
                         "enabled": cfg_holder["cfg"].notifications.enabled,
                         "sound": cfg_holder["cfg"].notifications.sound,
@@ -549,6 +550,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._send(200, body, kind)
             if path == "/api/letters":
                 return self._wrap(api_mod.list_letters, cfg_holder["cfg"])
+            if path == "/api/record/suggested":
+                return self._wrap(api_mod.list_suggestions, cfg_holder["cfg"])
             if path == "/api/applications":
                 return self._wrap(api_mod.list_applications, cfg_holder["cfg"])
             if path == "/api/resumes":
@@ -673,6 +676,24 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                         "/api/education/save", "/api/education/delete",
                         "/api/skills/confirm"):
                 return self._project(path)
+            if path == "/api/record/decide":
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                cfg = cfg_holder["cfg"]
+                try:
+                    done = api_mod.decide_suggestion(cfg, form)
+                except api_mod.ApiError as exc:
+                    return self._reject(exc.status, str(exc))
+                done["rescore"] = ""
+                # Approved, it is part of the record: job posts are re-scored with it.
+                if done["approved"] and cfg.resume_path and cfg.titles_include:
+                    # lambda: built when its turn comes, from the newest settings.
+                    now = runner.queue("re-score", lambda: api_mod.rescreen_job(cfg_holder["cfg"]),
+                                       why="Approved a suggestion from your coding agent")
+                    done["rescore"] = ("Re-scoring your job posts with it." if now else
+                                       f"Your job posts are re-scored with it after {runner.current}.")
+                return self._json(200, done)
             if path in ("/api/application", "/api/application/note"):
                 form = self._body()
                 if form is None:

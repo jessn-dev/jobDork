@@ -475,7 +475,10 @@ def from_agent(system: str, user: str, schema: dict, purpose: str) -> dict:
     if not hasattr(_agent, "client"):
         _agent.client = ""
     if not queued:
-        _agent.brief = {"purpose": purpose, "system": system, "user": user, "schema": schema}
+        # What a hosted model would read: hidden characters out, and the
+        # person's contact details (the agent sends it to its own cloud).
+        _agent.brief = {"purpose": purpose, "system": system,
+                        "user": redact(textutil.visible(user)), "schema": schema}
         raise AgentBrief(purpose)
     answer = queued.pop(0)
     if not isinstance(answer, dict):
@@ -488,6 +491,11 @@ def from_agent(system: str, user: str, schema: dict, purpose: str) -> dict:
                 "integer": int, "number": (int, float)}.get(spec.get("type", ""))
         if key in answer and want and not isinstance(answer[key], want):
             raise LLMError(f"{key} must be a {spec['type']}, as the brief's schema says")
+    # Counted with the AI calls on the Dashboard, under the agent's name.
+    from ..core import telemetry
+
+    telemetry.llm(AGENT_LABEL + (f" · {_agent.client}" if _agent.client else ""), 0.0,
+                  ok=True, purpose=purpose)
     return answer
 
 
