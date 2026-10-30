@@ -5764,7 +5764,30 @@ function showReadable(rep) {
         <span class="advice">${esc(c.advice)}</span></li>`).join('')}</ul>`
       : '<p class="hint" style="margin:.3rem 0 0">Nothing found that a tracking system trips on.</p>'}
     <p class="hint" style="margin:.4rem 0 0">Read the way a tracking system's text reader does,
-      on this computer. A tailored resume from jobdork is laid out to pass every check.</p>`;
+      on this computer. A tailored resume from jobdork is laid out to pass every check.</p>
+    ${writingHtml(rep.writing)}`;
+}
+
+// How the resume's lines are written (writing/style.py): each rule once,
+// with how many lines and up to three of them, the hard one first.
+function writingHtml(w) {
+  if (!w) return '';
+  const head = `<div class="rhead" style="margin-top:.9rem"><b>How its lines are written</b>${
+    w.score === null ? '' : `<span class="rscore ${band(w.score) || 'good'}">${w.score}/100</span>
+      <span class="hint">over ${w.lines} lines</span>`}</div>`;
+  if (w.score === null) return head + `<p class="hint" style="margin:.3rem 0 0">Not scored: ${esc(w.note)}.</p>`;
+  const rules = [];
+  for (const f of w.findings) {
+    const r = rules.find(x => x.rule === f.rule);
+    if (r) r.lines.push(f.line); else rules.push({...f, lines: [f.line]});
+  }
+  return head + (rules.length ? `<ul>${rules.map(r => `<li><b class="${r.severity === 'hard' ? 'fail' : 'warn'}">${
+      r.severity === 'hard' ? 'Fix' : 'Check'}: ${esc(r.title)}</b>, ${r.lines.length} line${r.lines.length > 1 ? 's' : ''}
+      <span class="advice">${esc(r.advice)}</span>
+      ${r.lines.slice(0, 3).map(l => `<span class="advice">"${esc(l)}"</span>`).join('')}</li>`).join('')}</ul>`
+    : '<p class="hint" style="margin:.3rem 0 0">Every line starts with what was done, with a figure.</p>') +
+    `<p class="hint" style="margin:.4rem 0 0">A tailored resume is written to these rules; a
+      figure only where your resume gives one.</p>`;
 }
 
 // Delete asks twice, like Remove: the first click arms it for three seconds.

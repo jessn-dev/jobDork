@@ -216,6 +216,9 @@ the resume writes them, "location" and "start"/"end" as the resume gives them \
 seven, more for the newest job and fewer for older ones, each an action verb, \
 what was done, and the result the resume states, at most two lines, the ones \
 this advert cares about first; a job the advert has no use for gets three. \
+No bullet starts "Responsible for", "Helped", "Assisted", "Worked on" or \
+"Involved in": start with what was done. No "I" or "my". Vary the opening \
+verbs within a job. \
 "education", "certifications", "projects": as the resume gives them, empty \
 when it has none. "awards": awards, recognition and volunteer work the \
 resume names, empty when none. The resume is to fill one page for up to ten \

@@ -194,6 +194,28 @@ def ai_tells(draft: str) -> Gate:
                 items=[t.line() for t in tells])
 
 
+def resume_writing(draft: str) -> Gate:
+    """How a resume's lines are written (writing/style.py): passed unless a
+    bullet starts by saying the person was near the work ("Responsible for");
+    the softer findings are listed to read."""
+    from . import style
+
+    report = style.check_markdown(draft)
+    if report.score is None:
+        return Gate("resume writing", True, report.note)
+    by_rule: dict[str, list] = {}
+    for f in report.findings:
+        by_rule.setdefault(f.title, []).append(f)
+    return Gate("resume writing", passed=not report.hard,
+                detail=f"{report.score}/100 over {report.lines} lines"
+                + (": " + "; ".join(f"{len(fs)} {t.lower()}" for t, fs in by_rule.items())
+                   if by_rule else ""),
+                # Each rule once, with up to three of its lines: "no figure"
+                # alone can be half the bullets.
+                items=[f"{t}: {' | '.join(f.line for f in fs[:3])}. {fs[0].advice}"
+                       for t, fs in by_rule.items()])
+
+
 def run_all(draft: str, kind: str, resume_text: str = "",
             sibling: str = "", sibling_name: str = "the CV") -> list[Gate]:
     """The checks that apply to this kind of document.
@@ -212,6 +234,8 @@ def run_all(draft: str, kind: str, resume_text: str = "",
     if kind == "screen":
         return gates
     gates += [unsupported_figures(draft, resume_text)]
+    if kind == "cv":
+        gates.append(resume_writing(draft))
     if kind == "cover_letter":
         gates.append(overlap(draft, sibling, sibling_name))
     return gates
