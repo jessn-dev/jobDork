@@ -41,7 +41,9 @@ docker run -d --name "$name" -p "127.0.0.1:$PORT:8765" \
   "$IMAGE" serve --no-open --token "$TOKEN" >/dev/null
 trap 'docker rm -f "$name" >/dev/null 2>&1; rm -rf "$work"' EXIT
 
-for _ in $(seq 1 30); do
+# Up to 90 seconds: a busy CI runner once took past 30 to print it, and the
+# check failed with the address right there in the log (2026-10-30).
+for _ in $(seq 1 90); do
   docker logs "$name" 2>&1 | grep -q "jobdork dashboard: http" && break
   sleep 1
 done
