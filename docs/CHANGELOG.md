@@ -72,6 +72,17 @@ open item from the 2026-10-27 security review.
 
 ---
 
+## Changed — 2026-10-30 — "ATS keywords" is now "Keyword ideas (AI)"
+
+A job post's AI tools tab had **ATS keywords**, an AI tool, beside the
+post's **ATS match** tab, which scores the same advert by script and for
+free: two "ATS" things that are not the same. The AI tool is now **Keyword
+ideas (AI)**, with a different icon, and says how it differs: the AI's ten
+terms a tracking system would look for, which can go past the skills list
+the ATS match uses. Nothing else changed in it.
+
+---
+
 ## Fixed — 2026-10-30 — The banner's Update starts the update
 
 When a newer jobdork is out, a banner says so at the top of every page, with

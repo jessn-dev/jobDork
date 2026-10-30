@@ -11,8 +11,10 @@ returns is a suggestion for you to accept, change or ignore.
   lines of yours, which lines to move up, and a skills line built from
   skills you have that the ad asks for.
 
-  **ATS keywords** — the ten terms an applicant tracking system would look
-  for in the ad, each marked found or missing in your resume.
+  **Keyword ideas** — the ten terms an applicant tracking system would look
+  for in the ad, by the AI, each marked found or missing in your resume.
+  Beside the post's ATS match tab (search/ats.py), which scores by script
+  with the skills list: the AI can name terms that list does not know.
 
   **Skills to highlight** — the ad's three most relevant skills, the three
   experiences of yours that best show them, and action verbs for the role.
@@ -49,7 +51,7 @@ from .writer import OFF, _advert, _in, _one_line, _role_header
 # Kinds, as recorded in ai_outputs and artifacts, and what the page calls them.
 TOOLS = {
     "resume_edits": "Tailored resume edits",
-    "keywords": "ATS keywords",
+    "keywords": "keyword ideas",
     "highlight": "Skills to highlight",
     "feedback": "Recruiter feedback",
     "revise": "Revisions",
@@ -251,7 +253,7 @@ def tailor_resume(settings: Settings, row, resume_text: str,
     return result
 
 
-# ── ATS keywords ──────────────────────────────────────────────────────────────
+# ── keyword ideas ─────────────────────────────────────────────────────────────
 
 KEYWORDS_SCHEMA = {
     "type": "object",

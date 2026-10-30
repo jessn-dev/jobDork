@@ -1508,7 +1508,7 @@ OUTPUT_KINDS = {"judge": "verdicts", "page_read": "page reads",
                 "tailored_resume": "tailored resumes",
                 "draft": "Claude drafts", "resume_edits": "tailored resume edits",
                 "highlight": "skills to highlight", "feedback": "recruiter feedback",
-                "revise": "revisions", "keywords": "ATS keywords"}
+                "revise": "revisions", "keywords": "keyword ideas"}
 
 
 def _tool(job: str) -> str:
