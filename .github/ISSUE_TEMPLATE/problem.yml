@@ -1,0 +1,65 @@
+name: A problem
+description: Something does not work, or does not work as the guide says.
+title: "[Problem] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. The app's **Feedback** page can file this for you, with the version and system filled in.
+
+        **Keep private things out:** no resume, no email address or phone number, no API keys. A security problem goes through [SECURITY.md](https://github.com/jessn-dev/jobDork/blob/main/SECURITY.md), not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, including any message, word for word.
+      placeholder: I pressed Run a scan. It stopped after the Workday boards with no message.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      placeholder: It carries on to the other sources.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      description: The steps, from opening the app.
+      placeholder: |
+        1. Open Job posts
+        2. ...
+  - type: input
+    id: version
+    attributes:
+      label: jobdork version
+      description: Settings, Updates shows it.
+      placeholder: "0.16.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run it
+      options:
+        - The Mac app (Apple silicon)
+        - The Mac app (Intel)
+        - The Windows app
+        - Docker or a NAS
+        - From source, or pip
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Your system
+      placeholder: macOS 15.4, Windows 11, Ubuntu 24.04...
+  - type: textarea
+    id: log
+    attributes:
+      label: From the log, if you have it
+      description: The Dashboard's log, or `logs/app.log` in jobdork's folder. Take out anything private first.
+      render: text

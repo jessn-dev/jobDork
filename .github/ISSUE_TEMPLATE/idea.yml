@@ -1,0 +1,35 @@
+name: An idea
+description: Something jobdork could do, or do better.
+title: "[Idea] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        jobdork is for people looking for work in every field, not only tech, and in the US first. Ideas from any of them are welcome.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would it help with
+      description: What you are trying to do, and what gets in the way now.
+      placeholder: I apply to hospital jobs, and the boards I use most are not read.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+      description: How it could work. A rough idea is fine.
+    validations:
+      required: true
+  - type: input
+    id: field
+    attributes:
+      label: Your field and country
+      description: Optional. It helps to know who it is for.
+      placeholder: Nursing, US
+  - type: textarea
+    id: else
+    attributes:
+      label: Anything you do instead now
+      description: Optional. Another app, a workaround.

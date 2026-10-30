@@ -8,7 +8,7 @@ it and into an entry when the work is done.
 
 ## Changed — 2026-10-30 — version 0.16.1
 
-0.16.1 carries the 8 entries below, everything since 0.16.0 (earlier
+0.16.1 carries the 9 entries below, everything since 0.16.0 (earlier
 today). For you:
 
 - **Updates finish themselves.** After the download passes its checks, the
@@ -26,6 +26,8 @@ today). For you:
 - **Security:** a resume file is read only so far (30 PDF pages, 200,000
   characters, a `.docx` that would unpack past 20 MB refused); two
   code-scanning findings fixed.
+- **For the project:** a code of conduct, and forms for a new issue (a
+  problem, an idea, a question).
 
 Updating from 0.16.0 is the old way one last time: the update is done by
 the version you have. In 0.16.0 press **Update to 0.16.1** under Settings,
@@ -33,6 +35,22 @@ Updates (the banner's **Update** only opens that page), and on a Mac drag
 the new jobdork onto Applications in the Finder window, then open it again.
 From 0.16.1 on, updates finish by themselves. Nothing in the database or
 the config changes.
+
+---
+
+## Added — 2026-10-30 — A code of conduct, and issue forms
+
+The repository had neither. `CODE_OF_CONDUCT.md` says what is expected of
+everyone taking part (be kind, keep to the work, keep private things such
+as resumes and contact details out of public issues), what is not
+acceptable, how to report a problem privately (by email to the maintainer),
+and what can happen; it follows the Contributor Covenant 2.1, in jobdork's
+own words. A new issue now starts from one of three forms, as the app's
+Feedback page files them: **a problem** (what happened, what you expected,
+the version and how you run it, the log), **an idea**, and **a question**,
+each reminding you to leave your resume, contact details and keys out. A
+blank issue is off; a security problem is pointed to the private report, and
+questions to the user guide first. CONTRIBUTING.md and the README link both.
 
 ---
 
