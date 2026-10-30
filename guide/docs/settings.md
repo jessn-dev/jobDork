@@ -73,7 +73,10 @@ the keychain or **This time only**, and deletes the file either way.
 
 ## Updates
 
-Which version you have and whether a newer one is out.
+Which version you have and whether a newer one is out. When one is, a
+banner says so at the top of every page; its **Update** starts the update
+at once, in the same window as below (from jobdork 0.16.0; in 0.15.4 it only
+opened this page, so press **Update to** here).
 
 - **Check now** asks at once. When GitHub cannot be reached it says so and
   why (offline, GitHub limiting requests from your network, a certificate

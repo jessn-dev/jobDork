@@ -7056,7 +7056,8 @@ async function followUpdate() {
   updTimer = setTimeout(followUpdate, 400);
 }
 
-$('upd-install').onclick = async () => {
+// The update, started from Settings or the banner: the same window either way.
+async function startUpdate() {
   const r = await api('/api/update/install', {method: 'POST'});
   // 409: one is already running; the window follows that one.
   if (!r.ok && r.status !== 409) { toast(`Not started: ${await r.text()}`, 'err'); return; }
@@ -7064,7 +7065,8 @@ $('upd-install').onclick = async () => {
   drawUpdate({stage: 'asking', platform: ''});
   $('upddlg').showModal();
   followUpdate();
-};
+}
+$('upd-install').onclick = startUpdate;
 $('upd-dlg-close').onclick = () => $('upddlg').close();
 $('upddlg').addEventListener('close', () => clearTimeout(updTimer));
 $('upd-dlg-page').onclick = () => lastVersion && openOut(lastVersion.url);
@@ -7117,8 +7119,14 @@ async function checkVersion() {
     <a href="${esc(webHref(d.url))}" data-out>What is new</a>
     <button class="linkbtn x" aria-label="Dismiss until the next version">Not now</button>`;
   box.querySelector('[data-out]').onclick = e => { e.preventDefault(); openOut(d.url); };
-  box.querySelector('#update-go').onclick = () =>
+  // Update starts it here and now: 0.15.4's only opened Settings, and
+  // pressed there it looked like nothing happened (2026-10-30). How to
+  // update (a pip or Docker install) shows Settings' Updates, which says how.
+  box.querySelector('#update-go').onclick = () => {
+    if (d.can_install) { startUpdate(); return; }
     document.querySelector('nav button[data-view="prefs"]').click();
+    setTimeout(() => $('upd-state').scrollIntoView({block: 'center'}), 300);
+  };
   box.querySelector('.x').onclick = () => { store.set('jobdork-skip-version', d.latest); box.hidden = true; };
   box.hidden = false;
 }
