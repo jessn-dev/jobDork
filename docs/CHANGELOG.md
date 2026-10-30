@@ -25,6 +25,117 @@ check in the Windows build (#105).
 
 ---
 
+## Added — 2026-10-29 — My applications
+
+A new page, **My applications** (menu, under Job posts), lists every job
+you applied to, newest change first: one marked applied, submitted,
+interviewing or offer, or rejected or withdrawn after (and one closed or
+skipped after applying). Chips narrow it to a stage (All, Applied,
+Interviewing, Offer, Closed) with counts; each row has the job, its status,
+the day you applied and its next step with the date, red once past. A row
+opens beside the list, as on Job posts (in the window when narrower), on a
+new **Application** tab that any job post you applied to now has:
+
+- **Stages**: each status with its day. jobdork now dates every status
+  change (`status_history`); a post applied to before this version starts
+  from the status it had, dated when it was set.
+- **Next step** and its date, **Contact** (name, email, link) and
+  **Documents sent** (which of the post's tailored resumes and cover
+  letters), kept by **Save application** (`applications`).
+- **Notes**: dated, filed under the status at the time, newest first, with
+  **Delete** (asks first) (`application_notes`).
+
+Like a status, all of it belongs to the job, so copies of one job share it,
+and it goes with the job post when that is deleted. A follow-up past its
+date is counted in red beside My applications in the menu and named on the
+Dashboard, with **Open My applications**. Schema 15. API: `/api/applications`,
+`/api/application`, `/api/application/note`; the job post's own
+(`/api/role`) carries its application. Guide: a new My applications page,
+and the Dashboard and Statuses pages; demo data with four applications.
+
+---
+
+## Changed — 2026-10-29 — Job posts: the list with the chosen post beside it
+
+On a window 1180 pixels wide or more (the app's own size included), Job
+posts shows the list on the left and the post you chose on the right, as
+job boards do: click a card's title or any blank part of it and the whole
+post (the same tabs as its window) opens beside the list, scrolling on its
+own, with the list still there to choose the next. The chosen card is
+outlined; its Open button, status list and note step aside, as the post has
+them. The post's header gains **Apply** (opens the posting and marks it
+applied, as the card's does) and a **Note** field under the status buttons.
+**Close** empties the space. A narrower window, a list with nothing to open
+(posts dropped by your filters) and other pages (the Resume page's **Job
+post**) still open a post in a window over the page. Guide: Job posts and
+the job post window, pictures retaken.
+
+---
+
+## Changed — 2026-10-29 — The Resume page's preview uses the whole right side
+
+On a wide window the Resume page kept to 1060 pixels and its PDF to 68% of
+the window's height, leaving a band of blank page. The page now widens to
+1600 pixels, the preview takes the larger share of it, and the PDF is as tall
+as the window less the preview's tabs. The PDF opens fitted to the
+preview's width without the viewer's page list beside it, and a long
+*Stored at* path wraps instead of running under the preview.
+
+---
+
+## Added — 2026-10-29 — A job post's documents beside its tailored resume
+
+On the Resume page, a tailored resume's preview now has a tab for each of
+its job post's other documents, as Resume Matcher's builder has: **Cover
+letter**, **Recruiter message** (with **Copy message**), **Interview prep**,
+**Resume review** when there is one, and the post's **ATS match**, then the
+resume's **Checks**. Everything for one application is in one place. A
+document not written yet says so, with **Open AI tools** (the job post's
+window, where it is written). Choosing another tailored card keeps the tab,
+to compare two cover letters, say. `/api/resumes` gives each card the newest
+of each document for its job post (`docs`); the job post's window and the
+preview draw a document the same way (`docHtml`). The resume's **Job post**,
+**PDF** and **Word** moved beside its title, so the tabs have the row.
+Guide: Resume page, with a new picture of the interview prep tab.
+
+---
+
+## Added — 2026-10-29 — Interview prep and a recruiter message, by the AI
+
+Two more documents from a job post's window, written by the AI-page model
+and checked like a cover letter (`ai/writer.py`; `jobdork prep UID` and
+`jobdork message UID`; `/api/prep`, `/api/message`).
+
+**Interview prep (AI)**: why you fit (three to five points), questions
+about your resume (five to eight, each with what it tests and answer points
+from your resume), follow-ups on your work (three to six), gaps to prepare
+(three to five things the advert wants that your resume does not show, how
+to answer honestly) and talking points (five to eight). What it says about
+you gets the hallucination and figures checks; a new **gaps not claimed**
+check is READ when a gap's preparation reads as if you have it. It uses the
+Resume page's projects and education too. Saved as `interview-prep-ai.md`.
+
+**Recruiter message (AI)**: 70 to 100 words for LinkedIn or an email, its
+first sentence on something from the advert (never "I'm reaching out"),
+one on your strongest match, a figure only from your resume, and a small
+ask ("Worth a quick chat?"); no "excited" or "passionate", no greeting, no
+placeholders. A **word count** check joins the letter's checks (and its
+not-empty check takes 150 characters, not 400). **Copy message** copies it:
+jobdork never sends it. Saved as `recruiter-message-ai.md`.
+
+Both follow Resume Matcher's interview prep and outreach message
+(srbhr/resume-matcher, Apache-2.0), rewritten with jobdork's rules.
+
+Interview prep reads your whole record beside the resume: projects,
+education and the skills you confirmed with **I have this** (`store_notes`).
+
+The job window's heading is now *The main buttons* (there are more than four);
+the Resume page's link to it follows, and `tests/test_guide.py` now fails on
+any guide link to a part of a page that is not there (the docs build only
+warned).
+
+---
+
 ## Added — 2026-10-29 — A job post's ATS match, and "I have this"
 
 Each job post's window has a new **ATS match** tab: your resume file
@@ -4327,7 +4438,6 @@ move to an image other than the one signed and approved.
 The verify step now tries up to six times, ten seconds apart, before it calls
 a signature missing.
 
-
 ---
 
 ## Fixed — 2026-09-30 — no traceback when the browser hangs up
@@ -4453,7 +4563,6 @@ extracted text, with the skills found in it, is still there, folded under
 The page may now frame a `blob:` it made itself (`frame-src blob:` in the
 content security policy); it still loads nothing from anywhere else, and
 nothing may frame the page.
-
 
 ---
 

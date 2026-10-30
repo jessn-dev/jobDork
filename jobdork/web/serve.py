@@ -546,6 +546,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._send(200, body, kind)
             if path == "/api/letters":
                 return self._wrap(api_mod.list_letters, cfg_holder["cfg"])
+            if path == "/api/applications":
+                return self._wrap(api_mod.list_applications, cfg_holder["cfg"])
             if path == "/api/resumes":
                 return self._wrap(api_mod.list_resumes, cfg_holder["cfg"])
             if path == "/api/ats":
@@ -668,6 +670,12 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                         "/api/education/save", "/api/education/delete",
                         "/api/skills/confirm"):
                 return self._project(path)
+            if path in ("/api/application", "/api/application/note"):
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                fn = api_mod.save_application if path == "/api/application" else api_mod.application_note
+                return self._wrap(fn, cfg_holder["cfg"], form)
             if path == "/api/letters/delete":
                 form = self._body()
                 raw = str((form or {}).get("id") or "")
@@ -823,7 +831,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if path in ("/api/enrich", "/api/rescreen", "/api/discover",
                         "/api/generate", "/api/digest", "/api/judge",
                         "/api/check", "/api/letter", "/api/review", "/api/tool",
-                        "/api/tailor"):
+                        "/api/tailor", "/api/prep", "/api/message"):
                 return self._job(path.rsplit("/", 1)[1])
             return self._reject(404, "no such path")
 
@@ -1026,6 +1034,10 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 elif which == "tailor":
                     name = "tailored resume (AI)"
                     work = api_mod.tailor_job(cfg, str(form.get("uid") or ""))
+                elif which in ("prep", "message"):
+                    name = {"prep": "interview prep (AI)", "message": "recruiter message (AI)"}[which]
+                    work = (api_mod.prep_job if which == "prep" else api_mod.message_job)(
+                        cfg, str(form.get("uid") or ""))
                 elif which == "review":
                     name = "resume review"
                     work = api_mod.review_job(cfg, str(form.get("uid") or ""))

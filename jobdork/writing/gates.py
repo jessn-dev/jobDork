@@ -230,7 +230,9 @@ def run_all(draft: str, kind: str, resume_text: str = "",
     """
     # Every draft is read by you, so every draft is checked for AI tells —
     # a screen included, even though its figures are the advert's own.
-    gates = [not_empty(draft, 200 if kind == "screen" else 400), ai_tells(draft)]
+    # A recruiter message is 70 to 100 words: shorter than the rest by design.
+    least = {"screen": 200, "recruiter_message": 150}.get(kind, 400)
+    gates = [not_empty(draft, least), ai_tells(draft)]
     if kind == "screen":
         return gates
     gates += [unsupported_figures(draft, resume_text)]

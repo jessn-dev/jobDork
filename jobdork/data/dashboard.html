@@ -112,7 +112,33 @@ nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
 main{padding:1.5rem 1.75rem;min-width:0}
 /* The Dashboard uses the whole width; pages of forms and reading keep a
    measure that is comfortable to read. */
-main > section:not(#view-scan):not(#view-settings):not(#view-setup){max-width:1060px}
+main > section:not(#view-scan):not(#view-settings):not(#view-setup):not(#view-resume):not(.has-split){max-width:1060px}
+/* The Resume page's preview takes the room a wide window has. */
+#view-resume{max-width:1600px}
+#resumeinfo code{overflow-wrap:anywhere}
+/* A list beside the item chosen from it, as job boards show posts: the list
+   scrolls with the page, the item beside it on its own. Narrower than this,
+   the item opens in a window over the page and the list has the width. */
+.dpane{display:none}
+@media (min-width:1180px){
+  main > section.has-split{max-width:1500px}
+  .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:1rem;align-items:start}
+  .dpane{display:block;position:sticky;top:1rem;max-height:calc(100vh - 2rem);overflow:auto;
+    border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+  .dpane:focus{outline:none}
+  .dpane:empty::before{content:attr(data-empty);display:block;padding:2rem 1.25rem;
+    color:var(--muted);font-size:.9rem;text-align:center}
+  .dpane .dlg-body{max-height:none;overflow:visible}
+  .split.solo{display:block}.split.solo .dpane{display:none}
+  /* Narrower than the window: its title first, then Apply and the rest. */
+  .dpane .dh-top{flex-direction:column;gap:.65rem}
+  .split:not(.solo) .role{cursor:pointer}
+  .split:not(.solo) .role:hover{border-color:var(--accent)}
+  .split:not(.solo) .role.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .split:not(.solo) .apps tr.on td{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+  /* Its status and note are set beside it, in the post. */
+  .split:not(.solo) .role .acts :is(.open,select,.note){display:none}
+}
 h2{font-size:1.05rem;margin:0 0 .35rem}
 .bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
 /* The job post search takes the room left on its row, so a typed company
@@ -605,6 +631,38 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .atschip .act{font-size:.72rem;padding:.05rem .4rem}
 .atsadvice{margin:.2rem 0;padding-left:1.1rem;font-size:.85rem}
 .act.linkish{border:none;background:none;padding:0;color:var(--accent);text-decoration:underline;font-size:inherit}
+/* My applications: stage chips, the table, and a post's Application tab. */
+.appchips{display:flex;gap:.35rem;flex-wrap:wrap;margin:.6rem 0 .8rem}
+.appchips button{all:unset;cursor:pointer;font-size:.82rem;font-weight:600;padding:.3rem .7rem;
+  border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+.appchips button span{font-weight:500;margin-left:.2rem}
+.appchips button.on{border-color:var(--accent);color:var(--accent)}
+.appchips button:focus-visible{outline:2px solid var(--accent)}
+table.apps{width:100%;border-collapse:collapse;font-size:.85rem;background:var(--card);
+  border:1px solid var(--line);border-radius:8px}
+table.apps th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+  padding:.5rem .6rem;border-bottom:1px solid var(--line)}
+table.apps td{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+table.apps tr[data-uid]{cursor:pointer}
+table.apps tr[data-uid]:hover td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+table.apps tr[data-uid]:focus-visible{outline:2px solid var(--accent)}
+table.apps td b{display:block}
+table.apps .when{color:var(--muted);white-space:nowrap}
+.late,.late .when{color:var(--bad)}
+.appdetail h4{margin:1rem 0 .4rem;font-size:.85rem}
+.appdetail h4:first-child,.appdetail p.late + h4{margin-top:0}
+ol.stages{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.3rem .9rem}
+ol.stages li{display:flex;gap:.4rem;align-items:center}
+.appform{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:.5rem .75rem}
+.appform label{display:flex;flex-direction:column;gap:.2rem;font-size:.8rem;color:var(--muted)}
+.appnote{display:flex;gap:.5rem;align-items:flex-start}
+.appnote textarea{flex:1;min-height:3.2rem;font:inherit}
+.appdetail .bar{margin-top:.6rem}
+ul.appnotes{list-style:none;margin:.6rem 0 0;padding:0}
+ul.appnotes li{display:flex;flex-wrap:wrap;gap:.2rem .6rem;padding:.45rem 0;border-top:1px solid var(--line);font-size:.86rem}
+ul.appnotes .txt{flex-basis:100%;white-space:pre-wrap}
+nav .item .count.due{background:var(--bad);color:#fff}
+#apps-due{margin-bottom:.75rem}
 /* The Resume page: cards for your resume and each tailored one, then the
    details beside a preview of the chosen card (after Resume Matcher's
    dashboard and builder, in this page's own look). */
@@ -628,7 +686,7 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .rcard .meter i.mid{background:var(--warn)}.rcard .meter i.low{background:var(--bad)}
 .rcard.add{align-items:center;justify-content:center;border-style:dashed;color:var(--accent);text-align:center}
 .rcard.add .plus{font-size:1.6rem;line-height:1}
-.rpanes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:1.1rem;align-items:start}
+.rpanes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:1.1rem;align-items:start}
 @media (max-width:1150px){.rpanes{grid-template-columns:minmax(0,1fr)}.rpreview{order:-1}}
 .rpreview{position:sticky;top:1rem;max-height:calc(100vh - 2rem);overflow:auto;margin-top:1.25rem}
 .rptabs{display:flex;gap:.25rem;align-items:center;border-bottom:1px solid var(--line);margin:-.2rem 0 .55rem;flex-wrap:wrap}
@@ -638,7 +696,8 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .rptabs [data-rtab]:focus-visible{outline:2px solid var(--accent)}
 .rpact{margin-left:auto;display:flex;gap:.3rem;flex-wrap:wrap}
 .rp-head{display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap;margin-bottom:.5rem}
-.rpreview .pdfview{height:68vh}
+/* As tall as the window, less the preview's tabs and title. */
+.rpreview .pdfview{height:calc(100vh - 9.5rem);min-height:24rem}
 /* How a tracking system reads the resume (search/readable.py). */
 #resume-readable .rhead{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
 #resume-readable .rscore{font-weight:700;font-size:1.05rem}
@@ -784,6 +843,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <div class="brand"><span class="logo"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6" stroke="#38bdf8" stroke-width="1.8"/><rect x="3" y="6" width="18" height="14" rx="2.5" stroke="#0284c7" stroke-width="1.8" fill="#082f49" fill-opacity="0.3"/><circle cx="12" cy="13" r="4.2" stroke="#06b6d4" stroke-width="1.6" fill="#020617" fill-opacity="0.8"/><path d="M12 7.8v1M12 17.2v1M6.8 13h1M16.2 13h1" stroke="#06b6d4" stroke-width="1.6"/><path d="M10.2 11.8l1.3 1.2-1.3 1.2M12.5 14.2h1.5" stroke="#10b981" stroke-width="1.4"/></svg></span><span class="name">jobdork</span><button class="fold" id="fold" title="Collapse menu" aria-label="Collapse menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 1 0 1.4L10.4 12l4.3 4.3a1 1 0 0 1-1.4 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.4 0z"/></svg></button></div>
   <button class="item on" data-view="scan" title="Dashboard"><span class="pip"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 10v4h2.5v-4H7zm3.75-6v10h2.5V7h-2.5zM14.5 10v7H17v-7h-2.5z"/></svg><span id="act-dot" class="dot live" hidden></span></span><span class="label">Dashboard</span></button>
   <button class="item" data-view="roles" title="Job posts"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 3h6a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v4H2V8a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 1.8V6h6V4.8H9zM2 13.8h8v.7a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7h8V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.2z"/></svg><span class="label">Job posts</span><span class="count" id="nav-new" title="new since you last looked" hidden></span></button>
+  <button class="item" data-view="apps" title="My applications"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 2h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a1 1 0 0 1 1-1zm1 1.8v1.4h4V3.8h-4zm5.7 7.5-1.4-1.4-3.3 3.3-1.6-1.6-1.4 1.4 3 3 4.7-4.7z"/></svg><span class="label">My applications</span><span class="count due" id="nav-apps" title="follow-ups past their date" hidden></span></button>
   <div class="sec">Setup</div>
   <button class="item" data-view="settings" data-label="Search" data-info="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen." aria-description="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24a1 1 0 0 1-1.42 1.42l-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span class="label">Search</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
@@ -806,7 +866,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <p class="hint" id="setup-msg" role="status"></p>
   </section>
 
-  <section id="view-roles" hidden>
+  <section id="view-roles" class="has-split" hidden>
     <div class="bar">
       <select id="status"></select>
       <select id="scope">
@@ -868,7 +928,27 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <p class="count" id="count"></p>
     <div class="gjobs" id="gjobs" hidden></div>
     <div class="cleanup aged" id="aged-roles" role="status" hidden></div>
-    <div id="list"><p class="empty">Loading…</p></div>
+    <!-- The list, and beside it the job post you chose, when the window is
+         wide enough for both; narrower, a post opens in a window over the page. -->
+    <div class="split">
+      <div id="list"><p class="empty">Loading…</p></div>
+      <aside class="dpane" id="roles-pane" tabindex="-1" aria-label="The job post you chose"
+        data-empty="Choose a job post to read it here."></aside>
+    </div>
+  </section>
+
+  <section id="view-apps" class="has-split" hidden>
+    <h2>My applications</h2>
+    <p class="hint" style="margin-top:0">Every job you applied to, newest change first: a post
+      you marked applied, submitted, interviewing or offer, or that was turned down or withdrawn
+      from after. Choose one for its Application tab: the next step and its date, who you are
+      talking to, what you sent, and your notes.</p>
+    <div class="appchips" id="app-chips"></div>
+    <div class="split">
+      <div id="apps"><p class="empty">Loading…</p></div>
+      <aside class="dpane" id="apps-pane" tabindex="-1" aria-label="The application you chose"
+        data-empty="Choose an application to see it here."></aside>
+    </div>
   </section>
 
   <section id="view-scan">
@@ -879,6 +959,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <p class="hint" style="margin-top:0">Start a run here. Every run, whether started here or in the
       terminal, shows below. Scans are paced per host on
       purpose: running several in a day is how you earn a rate limit.</p>
+    <div class="cleanup" id="apps-due" role="status" hidden></div>
     <div class="bar">
       <button data-icon="play" class="act primary" id="run">Run a scan</button>
       <span class="warnwrap">
@@ -1540,14 +1621,12 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <div id="letters"></div>
     </div>
     <aside class="rpreview panel" id="rpreview" aria-label="Preview">
-      <div class="rptabs" role="tablist">
-        <button type="button" role="tab" data-rtab="doc" class="on">Resume</button>
-        <button type="button" role="tab" data-rtab="checks">Checks</button>
-        <span class="rpact" id="rp-acts"></span>
-      </div>
-      <div class="rp-head"><b id="rp-title"></b><span class="hint" id="rp-sub"></span></div>
+      <div class="rptabs" role="tablist" id="rp-tabs"></div>
+      <div class="rp-head"><b id="rp-title"></b><span class="hint" id="rp-sub"></span>
+        <span class="rpact" id="rp-acts"></span></div>
       <div id="rp-doc"></div>
       <div id="rp-checks" hidden><div id="resume-readable" hidden></div><div id="rp-gates"></div></div>
+      <div id="rp-other" hidden></div>
     </aside>
     </div>
   </section>
@@ -1843,7 +1922,7 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
   b.onclick = () => {
     document.querySelectorAll('nav button[data-view]').forEach(x =>
       x.classList.toggle('on', x === b));
-    ['roles','scan','tools','settings','resume','sources','ai','prefs'].forEach(v =>
+    ['roles','apps','scan','tools','settings','resume','sources','ai','prefs'].forEach(v =>
       $('view-' + v).hidden = v !== b.dataset.view);
     if (b.dataset.view === 'settings') drawConfig();
     if (b.dataset.view === 'sources') drawSources();
@@ -1851,6 +1930,7 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
     if (b.dataset.view === 'ai') drawAI();
     if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); }
     if (b.dataset.view === 'prefs') drawPrefs();
+    if (b.dataset.view === 'apps') loadApps();
   };
 });
 
@@ -1959,6 +2039,8 @@ function drawDropped() {
   $('count').textContent = `${shown.length.toLocaleString()} of ${droppedPosts.length.toLocaleString()} ` +
     `dropped by your filters in the last ${days} days · not stored, not scored` +
     (shown.length > DROPPED_SHOWN ? ` · first ${DROPPED_SHOWN} shown, search or filter to narrow` : '');
+  // A dropped post was never stored, so there is nothing to open beside it.
+  soloList(true);
   $('list').innerHTML = shown.length ? shown.slice(0, DROPPED_SHOWN).map(droppedCard).join('')
     : `<p class="empty">${droppedPosts.length ? 'Nothing matches.'
         : 'Nothing dropped yet. Posts your filters leave out are listed here after a scan.'}</p>`;
@@ -2082,6 +2164,8 @@ function drawRoles(d = rolesMeta) {
   $('nav-new').hidden = !fresh;
   $('nav-new').textContent = fresh > 999 ? '999+' : fresh;
   $('list').innerHTML = shown.length ? shown.map(card).join('') : '<p class="empty">Nothing matches.</p>';
+  soloList(!shown.length);
+  loadApps();
   drawGoogleJobs(!shown.length);
 }
 
@@ -2107,7 +2191,7 @@ function card(r) {
   const flags = (r.flags || []).map(f => `<span class="flag">${esc(flagLabel(f))}</span>`).join('');
   const opts = STATUSES.map(s =>
     `<option value="${s}"${s === r.status ? ' selected' : ''}>${cap(s)}</option>`).join('');
-  return `<div class="role" id="r-${r.uid}">
+  return `<div class="role${r.uid === chosen() ? ' on' : ''}" id="r-${r.uid}" data-uid="${r.uid}" onclick="cardClick(event, '${r.uid}')">
     <div class="head">
       ${matchTag(r.score, r.parts)}
       ${fitTag(r.fit, r.parts)}
@@ -2122,7 +2206,7 @@ function card(r) {
     ${flags ? `<div class="flags">${flags}</div>` : ''}
     ${overlapBox(r.overlap, false)}
     <div class="acts">
-      <button data-icon="eye" class="act" onclick="openRole('${r.uid}')">Open</button>
+      <button data-icon="eye" class="act open" onclick="openRole('${r.uid}')">Open</button>
       <button data-icon="star" class="act" onclick="act('${r.uid}','interested')">Interested</button>
       <button data-icon="external-link" class="act" data-url="${esc(r.url)}" onclick="apply('${r.uid}', this.dataset.url, this)">Apply</button>
       <button data-icon="skip-forward" class="act" onclick="act('${r.uid}','skipped')">Skip</button>
@@ -2139,7 +2223,7 @@ async function act(uid, status, note) {
   const r = await api('/api/action', {method: 'POST', body});
   if (!r.ok) { alert('Not saved: ' + await r.text()); if (el) el.classList.remove('busy'); return; }
   await loadRoles();
-  if (detail && detail.uid === uid && $('detail').open) openRole(uid, detailTab);
+  if (detail && detail.uid === uid && detailShown()) openRole(uid, detailTab);
 }
 
 // The posting is opened and then recorded. Marking applied without opening it
@@ -2211,12 +2295,70 @@ async function openRole(uid, tab = 'advert') {
   // and not decided on looks identical to one you never opened.
   if (detail.status === 'new') act(uid, 'viewed');
   // A tab is an artifact kind; fall back to the advert if this role lacks it.
-  const kinds = [...(detail.artifacts || []).map(a => a.kind), 'tools'];
+  const kinds = [...(detail.artifacts || []).map(a => a.kind), 'ats', 'tools',
+                 ...(detail.application && detail.application.is_application ? ['application'] : [])];
+  const pane = detailPane(), redraw = detail.uid === chosen() && detailShown();
+  if (pane) {
+    if ($('detail').open) $('detail').close();
+    if (!pane.contains($('dlg-head'))) pane.replaceChildren($('dlg-head'), $('dlg-body'));
+  } else if (!$('detail').contains($('dlg-head'))) $('detail').replaceChildren($('dlg-head'), $('dlg-body'));
   drawDetail(kinds.includes(tab) ? tab : 'advert');
+  markChosen();
+  if (pane) {
+    // A new post starts at its top; the same one, redrawn, stays put.
+    if (!redraw) { pane.scrollTop = 0; pane.focus({preventScroll: true}); }
+    return;
+  }
   // act() reopens the role to redraw it; showModal on an open dialog throws.
   if (!$('detail').open) $('detail').showModal();
   // Not the first focusable thing, the Match badge, whose tip a focus opens.
   $('detail').focus();
+}
+
+// Where a job post opens: beside the list on a page that has one and room
+// for it (the CSS hides the pane otherwise), else in the window over the page.
+function detailPane() {
+  const pane = document.querySelector('main > section:not([hidden]) .dpane');
+  return pane && getComputedStyle(pane).display !== 'none' ? pane : null;
+}
+
+function detailShown() {
+  const pane = $('dlg-head').closest('.dpane');
+  return $('detail').open || !!(pane && !pane.closest('section').hidden);
+}
+
+// The post showing, whose card in the list is marked.
+function chosen() { return detail && detailShown() ? detail.uid : null; }
+
+function markChosen() {
+  const uid = chosen();
+  document.querySelectorAll('.split [data-uid]').forEach(c => c.classList.toggle('on', c.dataset.uid === uid));
+}
+
+// The list alone, with no pane, when there is nothing in it to open.
+function soloList(solo, list = $('list')) {
+  const split = list.closest('.split');
+  split.classList.toggle('solo', solo);
+  if (solo && $('dlg-head').closest('.dpane') === split.querySelector('.dpane')) closeDetail();
+}
+
+// Narrowed until the pane hides: the post moves out of it.
+matchMedia('(min-width:1180px)').addEventListener('change', e => {
+  if (!e.matches && $('dlg-head').closest('.dpane')) closeDetail();
+});
+
+function closeDetail() {
+  if ($('detail').open) { $('detail').close(); return; }
+  // Out of the pane, back into the window, so the pane shows its hint.
+  $('detail').replaceChildren($('dlg-head'), $('dlg-body'));
+  markChosen();
+}
+
+// A click on a card's blank space opens it; its buttons, links and fields
+// do their own thing.
+function cardClick(e, uid) {
+  if (e.target.closest('button, a, select, input, textarea, label, .badge, .title')) return;
+  if (detailPane()) openRole(uid);
 }
 
 function openPosting() {
@@ -2327,9 +2469,10 @@ const ICONS = {
   "check": "<path d=\"M20 6 9 17l-5-5\"/>",
   "x": "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>"
 };
-const TAB_ICON = {tools: 'sparkles', advert: 'file-text', ats: 'search-check', screen: 'clipboard-check', cv: 'file-user',
+const TAB_ICON = {tools: 'sparkles', advert: 'file-text', ats: 'search-check', application: 'clipboard-check', screen: 'clipboard-check', cv: 'file-user',
                   cover_letter: 'mail', letter: 'mail', resume_review: 'file-search',
-                  tailored_resume: 'file-user'};
+                  tailored_resume: 'file-user', interview_prep: 'messages-square',
+                  recruiter_message: 'send'};
 const STATUS_ICON = {new: 'circle-dot', viewed: 'eye', interested: 'star', applied: 'send',
   submitted: 'file-check', interviewing: 'messages-square', offer: 'award',
   rejected: 'circle-x', withdrawn: 'undo-2', skipped: 'skip-forward', closed: 'archive'};
@@ -2348,8 +2491,9 @@ new MutationObserver(() => decorate(document.body))
 decorate(document.body);
 
 const TOOL_KINDS = ['resume_edits', 'keywords', 'highlight', 'feedback', 'revise'];
-const TAB_LABEL = {tools: 'AI tools', ats: 'ATS match', cover_letter: 'cover letter', resume_review: 'resume review', cv: 'CV',
-                   tailored_resume: 'tailored resume'};
+const TAB_LABEL = {tools: 'AI tools', ats: 'ATS match', application: 'application', cover_letter: 'cover letter', resume_review: 'resume review', cv: 'CV',
+                   tailored_resume: 'tailored resume', interview_prep: 'interview prep',
+                   recruiter_message: 'recruiter message'};
 // Documents that are resumes: shown formatted, with their PDF to open or save.
 const PDF_KINDS = ['tailored_resume', 'cv'];
 const tabLabel = t => TAB_LABEL[t] || t.replace('_', ' ');
@@ -2372,8 +2516,10 @@ function drawDetail(tab) {
         <h2 class="dh-title" id="detail-title">${esc(d.title)}</h2>
       </div>
       <div class="dh-btns">
-        <button data-icon="external-link" class="act primary" onclick="openPosting()">Open posting</button>
-        <button data-icon="x" class="act" onclick="document.getElementById('detail').close()">Close</button>
+        <button data-icon="send" class="act primary" data-url="${esc(d.url)}" onclick="apply('${d.uid}', this.dataset.url, this)"
+          title="Opens the posting and marks it applied">Apply</button>
+        <button data-icon="external-link" class="act" onclick="openPosting()">Open posting</button>
+        <button data-icon="x" class="act" onclick="closeDetail()">Close</button>
       </div>
     </div>
     <div class="meta" style="width:100%">${
@@ -2393,10 +2539,13 @@ function drawDetail(tab) {
       // new and viewed are recorded for you; these are the ones you decide.
       STATUSES.filter(s => s !== 'new' && s !== 'viewed').map(s => s === d.status
         ? `<button class="act cur" data-icon="${STATUS_ICON[s] || 'circle-dot'}" style="background:${COLOURS[s] || '#6b7280'};border-color:${COLOURS[s] || '#6b7280'}" disabled>${cap(s)}</button>`
-        : `<button class="act" data-icon="${STATUS_ICON[s] || 'circle-dot'}" onclick="act('${d.uid}','${s}')">${cap(s)}</button>`).join('')}</div>`;
+        : `<button class="act" data-icon="${STATUS_ICON[s] || 'circle-dot'}" onclick="act('${d.uid}','${s}')">${cap(s)}</button>`).join('')}
+      <input class="note" value="${esc(d.note)}" placeholder="Note (Enter saves)" aria-label="Your note on this job post"
+        onkeydown="if(event.key==='Enter')act('${d.uid}', null, this.value)"></div>`;
 
   // AI tool results live together under one tab rather than a tab each.
-  const tabs = ['advert', 'ats', ...(d.artifacts || []).map(a => a.kind).filter(k => !TOOL_KINDS.includes(k)), 'tools'];
+  const tabs = [...(d.application && d.application.is_application ? ['application'] : []),
+                'advert', 'ats', ...(d.artifacts || []).map(a => a.kind).filter(k => !TOOL_KINDS.includes(k)), 'tools'];
   const uniq = [...new Set(tabs)];
   const tabsBar = `<div class="tabs">${uniq.map(t =>
       `<button class="${t === tab ? 'on' : ''}" data-icon="${TAB_ICON[t] || 'file-text'}" onclick="drawDetail('${t}')">${esc(cap(tabLabel(t)))}</button>`).join('')}
@@ -2414,6 +2563,10 @@ function drawDetail(tab) {
         title="${esc(aiLabel ? `${aiLabel} rewrites your resume for this advert in the ATS template, then checks its claims` : 'set up a model on the AI page')}">Write tailored resume (AI)</button>
       <button data-icon="file-search" class="act spend" onclick="roleJob('review','${d.uid}','resume_review')"
         title="${esc(aiLabel ? `${aiLabel} reviews your resume against this advert` : 'set up a model on the AI page')}">Review resume for this post</button>
+      <button data-icon="messages-square" class="act spend" onclick="roleJob('prep','${d.uid}','interview_prep')"
+        title="${esc(aiLabel ? `${aiLabel} writes likely questions with answer points from your resume, and gaps to prepare` : 'set up a model on the AI page')}">Interview prep (AI)</button>
+      <button data-icon="send" class="act spend" onclick="roleJob('message','${d.uid}','recruiter_message')"
+        title="${esc(aiLabel ? `${aiLabel} writes a short message to a recruiter; you send it yourself` : 'set up a model on the AI page')}">Recruiter message (AI)</button>
       <span id="rolejob" class="hint"></span>
     </div>`;
   let body = tabsBar;
@@ -2421,6 +2574,11 @@ function drawDetail(tab) {
   if (tab === 'tools') {
     $('dlg-body').innerHTML = body + aiBars + toolsIntro(d.uid) + '<div id="tools-out"><p class="empty">Loading…</p></div>';
     drawTools(d.uid);
+    return;
+  }
+  if (tab === 'application') {
+    $('dlg-body').innerHTML = body + applicationHtml(d);
+    bindApplication(d);
     return;
   }
   if (tab === 'ats') {
@@ -2461,25 +2619,41 @@ function drawDetail(tab) {
     api('/api/artifact?id=' + art.id).then(async r => {
       if (!r.ok) { $('dlg-body').innerHTML = body + `<p class="err">${esc(await r.text())}</p>`; return; }
       const doc = await r.json();
-      const gates = Object.entries(doc.gates || {}).map(([n, g]) =>
-        `<div class="gate ${g.passed ? 'pass' : 'fail'}">${g.passed ? 'ok' : 'READ'}: ${esc(n)}, ${esc(g.detail)}${
-          !g.passed && (g.items || []).length
-            ? `<ul>${g.items.slice(0, 12).map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}</div>`).join('');
-      $('dlg-body').innerHTML = body +
-        (gates ? `<div style="margin-bottom:.75rem">${gates}</div>` : '') +
-        (doc.output ? `<div style="margin-bottom:.6rem">${fbButtons(doc.output.id, doc.output.feedback,
-          `Was this ${tabLabel(tab)} useful?`)}</div>` : '') +
-        `<div class="hint" style="margin-bottom:.5rem">${esc(doc.path)}</div>` +
-        (PDF_KINDS.includes(tab) ? `<div class="bar">
-            <button data-icon="external-link" class="act" onclick="artifactPdf(${doc.id}, false)">Open PDF</button>
-            <button data-icon="download" class="act primary" onclick="artifactPdf(${doc.id}, true)">Download PDF</button>
-            <button data-icon="download" class="act" onclick="artifactWord(${doc.id})" title="The same resume as a Word file, to edit before you send it">Download Word</button>
-            <span class="hint">Read it through before you send it.</span></div>` : '') +
-        (tab === 'resume_review' || PDF_KINDS.includes(tab)
-          ? `<div class="advert md-doc">${mdLite(tab === 'resume_review' ? untitled(doc.text) : doc.text)}</div>`
-          : `<div class="advert">${esc(doc.text)}</div>`);
+      $('dlg-body').innerHTML = body + docHtml(doc, tab);
+      bindDoc($('dlg-body'), doc);
     });
   }
+}
+
+// One drafted document: its checks, then PDF and Word for a resume or Copy
+// for a message, then its text. The job post's window and the Resume page's
+// preview both show one this way.
+function docHtml(doc, kind) {
+  const gates = Object.entries(doc.gates || {}).map(([n, g]) =>
+    `<div class="gate ${g.passed ? 'pass' : 'fail'}">${g.passed ? 'ok' : 'READ'}: ${esc(n)}, ${esc(g.detail)}${
+      !g.passed && (g.items || []).length
+        ? `<ul>${g.items.slice(0, 12).map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}</div>`).join('');
+  return (gates ? `<div style="margin-bottom:.75rem">${gates}</div>` : '') +
+    (doc.output ? `<div style="margin-bottom:.6rem">${fbButtons(doc.output.id, doc.output.feedback,
+      `Was this ${tabLabel(kind)} useful?`)}</div>` : '') +
+    `<div class="hint" style="margin-bottom:.5rem">${esc(doc.path)}</div>` +
+    (PDF_KINDS.includes(kind) ? `<div class="bar">
+        <button data-icon="external-link" class="act" onclick="artifactPdf(${doc.id}, false)">Open PDF</button>
+        <button data-icon="download" class="act primary" onclick="artifactPdf(${doc.id}, true)">Download PDF</button>
+        <button data-icon="download" class="act" onclick="artifactWord(${doc.id})" title="The same resume as a Word file, to edit before you send it">Download Word</button>
+        <span class="hint">Read it through before you send it.</span></div>` : '') +
+    (kind === 'recruiter_message' ? `<div class="bar">
+        <button type="button" class="act primary copy-msg">Copy message</button>
+        <span class="hint">jobdork never sends it: paste it into LinkedIn or an email yourself.</span></div>` : '') +
+    (['resume_review', 'interview_prep'].includes(kind) || PDF_KINDS.includes(kind)
+      ? `<div class="advert md-doc">${mdLite(PDF_KINDS.includes(kind) ? doc.text : untitled(doc.text))}</div>`
+      : `<div class="advert">${esc(doc.text)}</div>`);
+}
+
+function bindDoc(box, doc) {
+  const copy = box.querySelector('.copy-msg');
+  if (copy) copy.onclick = () => navigator.clipboard.writeText(doc.text.trim())
+    .then(() => toast('Copied'), () => toast('Copying was refused by the browser', 'err'));
 }
 
 // ── ATS match (search/ats.py) ────────────────────────────────────────────────
@@ -2487,8 +2661,7 @@ function drawDetail(tab) {
 // the score and its parts as bars, then the advert's skills you have, could
 // add (in your projects, education or confirmed skills) and lack, each of
 // the last with "I have this".
-async function drawAts(uid) {
-  const out = $('ats-out');
+async function drawAts(uid, out = $('ats-out')) {
   const r = await api('/api/ats?uid=' + encodeURIComponent(uid));
   if (!out.isConnected) return;
   if (!r.ok) { out.innerHTML = `<p class="hint">${esc(cap(await r.text()))}.</p>`; return; }
@@ -2515,13 +2688,14 @@ async function drawAts(uid) {
     ${a.confirmed.length ? `<p class="hint">You confirmed: ${a.confirmed.map(t => `${esc(skillName(t))}
       <button type="button" class="act linkish" data-unhave="${esc(t)}">take back</button>`).join(', ')}</p>` : ''}
     ${a.advice.length ? `<h4>What to do</h4><ul class="atsadvice">${a.advice.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
-    <p class="hint" id="ats-msg"></p>`;
+    <p class="hint ats-msg"></p>`;
   const send = async (term, have) => {
     const r = await api('/api/skills/confirm', {method: 'POST', body: form({term, have: have ? '1' : '0'})});
-    if (!r.ok) { $('ats-msg').className = 'err'; $('ats-msg').textContent = cap(await r.text()); return; }
+    const msg = out.querySelector('.ats-msg');
+    if (!r.ok) { msg.className = 'err ats-msg'; msg.textContent = cap(await r.text()); return; }
     const d = await r.json();
     toast(`${skillName(term)} ${have ? 'added to your skills' : 'taken back'}. ${d.rescore || ''}`);
-    drawAts(uid);
+    drawAts(uid, out);
   };
   out.querySelectorAll('[data-have]').forEach(b => b.onclick = () => send(b.dataset.have, true));
   out.querySelectorAll('[data-unhave]').forEach(b => b.onclick = () => send(b.dataset.unhave, false));
@@ -2561,7 +2735,7 @@ async function artifactWord(id) {
 async function generate(uid, kind) {
   const r = await api('/api/generate', {method: 'POST', body: form({uid, kind})});
   if (!r.ok) { alert(await r.text()); return; }
-  $('detail').close();
+  closeDetail();
   document.querySelector('nav button[data-view="scan"]').click();
   logLine(`${cap(tabLabel(kind))} started (this spends tokens)`, 'dim');
 }
@@ -2730,7 +2904,9 @@ async function roleJob(which, uid, tab) {
   $('rolejob').textContent = {judge: 'AI is reading…', check: 'checking…',
     letter: 'AI is writing the letter; it opens here when done…',
     tailor: 'AI is tailoring your resume; it opens here when done…',
-    review: 'AI is reviewing your resume; it opens here when done…'}[which];
+    review: 'AI is reviewing your resume; it opens here when done…',
+    prep: 'AI is preparing your interview notes; they open here when done…',
+    message: 'AI is writing the message; it opens here when done…'}[which];
   // The dialog redraws when the run finishes; land on what it made.
   if (tab) detailTab = tab;
   const r = await api('/api/' + which, {method: 'POST', body: form({uid, force: '1'})});
@@ -4679,7 +4855,7 @@ function listingTag(l, always) {
 }
 
 function redrawDetail() {
-  if (detail && $('detail').open) openRole(detail.uid, detailTab);
+  if (detail && detailShown()) openRole(detail.uid, detailTab);
 }
 
 // ── AI settings ──────────────────────────────────────────────────────────────
@@ -5609,6 +5785,126 @@ async function saveLocation() {
   return true;
 }
 
+// ── my applications ──────────────────────────────────────────────────────────
+// Every job applied to, as a table beside the chosen one (the same pane as
+// Job posts), with chips for its stages. Follow-ups past their date are
+// counted in the menu and said on the Dashboard.
+const APP_STAGES = [['', 'All'], ['applied', 'Applied'], ['interviewing', 'Interviewing'],
+                    ['offer', 'Offer'], ['closed', 'Closed']];
+let apps = null, appStage = '';
+const shortDay = iso => iso ? new Date(iso.slice(0, 10) + 'T12:00').toLocaleDateString(undefined,
+  {month: 'short', day: 'numeric'}) : '';
+
+async function loadApps() {
+  let d;
+  try {
+    const r = await api('/api/applications');
+    if (!r.ok) return;
+    d = await r.json();
+  } catch (e) { return; }
+  apps = d;
+  $('nav-apps').hidden = !d.overdue;
+  $('nav-apps').textContent = d.overdue;
+  const due = d.applications.filter(a => a.overdue);
+  $('apps-due').hidden = !due.length;
+  $('apps-due').innerHTML = due.length ? `<b>${due.length === 1 ? 'A follow-up is' : due.length + ' follow-ups are'}
+    past its date:</b> ${due.slice(0, 3).map(a => `${esc(a.next_step || 'next step')} for ${esc(a.title)} at
+    ${esc(a.company)} (${esc(shortDay(a.next_date))})`).join('; ')}${due.length > 3 ? '; and more' : ''}.
+    <div class="bar" style="margin:.5rem 0 0"><button type="button" class="act" data-icon="clipboard-check"
+      onclick="document.querySelector('nav button[data-view=apps]').click()">Open My applications</button></div>` : '';
+  decorate($('apps-due'));
+  if (!$('view-apps').hidden) drawApps();
+}
+
+function drawApps() {
+  const all = apps ? apps.applications : [];
+  $('app-chips').innerHTML = APP_STAGES.map(([k, label]) => `<button type="button" data-stage="${k}"
+      class="${k === appStage ? 'on' : ''}">${label} <span>${k ? (apps ? apps.counts[k] : 0) : all.length}</span></button>`).join('');
+  $('app-chips').querySelectorAll('[data-stage]').forEach(b => b.onclick = () => { appStage = b.dataset.stage; drawApps(); });
+  const shown = all.filter(a => !appStage || a.stage === appStage);
+  $('apps').innerHTML = shown.length ? `<table class="apps"><thead><tr><th>Job</th><th>Stage</th>
+      <th>Applied</th><th>Next step</th></tr></thead><tbody>${shown.map(a => `<tr data-uid="${a.uid}"
+        class="${a.uid === chosen() ? 'on' : ''}" tabindex="0">
+      <td><b>${esc(a.title)}</b><span class="hint">${esc(a.company)}${a.contact ? ' · ' + esc(a.contact) : ''}</span></td>
+      <td><span class="pill" style="background:${COLOURS[a.status] || '#6b7280'}">${esc(a.status)}</span></td>
+      <td>${esc(shortDay(a.applied_at)) || '<span class="hint">not dated</span>'}</td>
+      <td class="${a.overdue ? 'late' : ''}">${a.next_step || a.next_date ? `${esc(a.next_step)}${a.next_date
+        ? ` <span class="when">${esc(shortDay(a.next_date))}${a.overdue ? ' · past' : ''}</span>` : ''}` : '<span class="hint">none</span>'}</td>
+      </tr>`).join('')}</tbody></table>`
+    : `<p class="empty">${all.length ? 'None at this stage.' : 'No applications yet. Mark a job post applied (its Apply button does) and it is listed here.'}</p>`;
+  soloList(!shown.length, $('apps'));
+  $('apps').querySelectorAll('tr[data-uid]').forEach(tr => {
+    tr.onclick = () => openRole(tr.dataset.uid, 'application');
+    tr.onkeydown = e => { if (e.key === 'Enter') openRole(tr.dataset.uid, 'application'); };
+  });
+}
+
+// A job post's Application tab: its stages with their dates, then the next
+// step, contact and documents sent (one Save), then the notes.
+function applicationHtml(d) {
+  const a = d.application, k = a.details;
+  const docOpt = (list, sel, none) => `<option value="">${none}</option>` + list.map(x =>
+    `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(cap(tabLabel(x.kind)))} · ${esc(shortDay(x.created_at))}</option>`).join('');
+  return `<div class="appdetail">
+    ${a.overdue ? `<p class="late"><b>The next step is past its date.</b> Follow up, or set a new date.</p>` : ''}
+    <h4>Stages</h4>
+    ${a.history.length ? `<ol class="stages">${a.history.map(h => `<li><span class="pill"
+      style="background:${COLOURS[h.status] || '#6b7280'}">${esc(h.status)}</span>
+      <span class="hint">${esc(day(h.at))}</span></li>`).join('')}</ol>`
+      : '<p class="hint">No changes recorded yet: from now on each status is dated here.</p>'}
+    <h4>Next step</h4>
+    <div class="appform">
+      <label>What <input id="ap-step" maxlength="120" value="${esc(k.next_step)}" placeholder="e.g. Phone screen, or follow up"></label>
+      <label>When <input id="ap-date" type="date" value="${esc(k.next_date)}"></label>
+    </div>
+    <h4>Contact</h4>
+    <div class="appform">
+      <label>Name <input id="ap-name" maxlength="120" value="${esc(k.contact_name)}" placeholder="Recruiter or hiring manager"></label>
+      <label>Email <input id="ap-email" type="email" maxlength="200" value="${esc(k.contact_email)}"></label>
+      <label>Link <input id="ap-link" type="url" maxlength="500" value="${esc(k.contact_link)}" placeholder="https://www.linkedin.com/in/..."></label>
+    </div>
+    <h4>Documents sent</h4>
+    <div class="appform">
+      <label>Resume <select id="ap-resume">${docOpt(a.resumes, k.resume_id, a.resumes.length ? 'Not chosen' : 'None written for this post')}</select></label>
+      <label>Cover letter <select id="ap-letter">${docOpt(a.letters, k.letter_id, a.letters.length ? 'Not chosen' : 'None written for this post')}</select></label>
+    </div>
+    <div class="bar"><button type="button" class="act primary" data-icon="save" id="ap-save">Save application</button>
+      <span class="hint" id="ap-msg"></span></div>
+    <h4>Notes</h4>
+    <div class="appnote"><textarea id="ap-note" maxlength="2000" placeholder="e.g. Interview went well; they asked about telemetry"></textarea>
+      <button type="button" class="act" data-icon="plus" id="ap-add">Add note</button></div>
+    ${a.notes.length ? `<ul class="appnotes">${a.notes.map(n => `<li><span class="hint">${esc(day(n.at))} ·
+      ${esc(n.stage)}</span><span class="txt">${esc(n.note)}</span>
+      <button type="button" class="act linkish" data-note="${n.id}">Delete</button></li>`).join('')}</ul>` : ''}
+  </div>`;
+}
+
+function bindApplication(d) {
+  const after = async (r, done) => {
+    if (!r.ok) { $('ap-msg').className = 'err'; $('ap-msg').textContent = cap(await r.text()); return; }
+    toast(done);
+    loadApps();
+    openRole(d.uid, 'application');
+  };
+  $('ap-save').onclick = async () => after(await api('/api/application', {method: 'POST', body: form({
+    uid: d.uid, next_step: $('ap-step').value, next_date: $('ap-date').value,
+    contact_name: $('ap-name').value, contact_email: $('ap-email').value, contact_link: $('ap-link').value,
+    resume_id: $('ap-resume').value, letter_id: $('ap-letter').value})}), 'Application saved');
+  $('ap-add').onclick = async () => {
+    if (!$('ap-note').value.trim()) { $('ap-note').focus(); return; }
+    after(await api('/api/application/note', {method: 'POST', body: form({uid: d.uid, note: $('ap-note').value})}), 'Note added');
+  };
+  // Delete asks twice, like the others: the first click arms it.
+  document.querySelectorAll('.appnotes [data-note]').forEach(b => b.onclick = async () => {
+    if (!b.classList.contains('armed')) {
+      b.classList.add('armed'); b.textContent = 'Delete note?';
+      setTimeout(() => { b.classList.remove('armed'); b.textContent = 'Delete'; }, 3000);
+      return;
+    }
+    after(await api('/api/application/note', {method: 'POST', body: form({uid: d.uid, delete: b.dataset.note})}), 'Note deleted');
+  });
+}
+
 // ── resume ───────────────────────────────────────────────────────────────────
 async function drawResume() {
   if (!cfg) cfg = await (await api('/api/config')).json();
@@ -5678,13 +5974,63 @@ function renderResumeCards() {
   });
 }
 
-document.querySelectorAll('[data-rtab]').forEach(b => b.onclick = () => {
-  rtab = b.dataset.rtab;
-  document.querySelectorAll('[data-rtab]').forEach(x => {
-    x.classList.toggle('on', x === b); x.setAttribute('aria-selected', String(x === b)); });
+// The preview's tabs. Your resume: the file and how a tracking system reads
+// it. A tailored one: the resume, then the job post's other documents and
+// its ATS match, then the resume's checks.
+const RDOCS = ['cover_letter', 'recruiter_message', 'interview_prep', 'resume_review'];
+function rtabsFor(doc) {
+  if (!doc) return ['doc', 'checks'];
+  return ['doc', ...RDOCS.filter(k => k !== 'resume_review' || (doc.docs || {})[k]),
+          ...(doc.uid ? ['ats'] : []), 'checks'];
+}
+
+function drawRTabs() {
+  const doc = rsel === 'master' ? null : rdocs.find(x => x.id === rsel);
+  const tabs = rtabsFor(doc);
+  if (!tabs.includes(rtab)) rtab = 'doc';
+  $('rp-tabs').innerHTML = tabs.map(k => `<button type="button" role="tab" data-rtab="${k}"
+      class="${k === rtab ? 'on' : ''}" aria-selected="${k === rtab}">${
+      k === 'doc' ? 'Resume' : k === 'checks' ? 'Checks' : esc(cap(tabLabel(k)))}</button>`).join('');
+  $('rp-tabs').querySelectorAll('[data-rtab]').forEach(b => b.onclick = () => {
+    rtab = b.dataset.rtab;
+    drawRTabs();
+    showRTab();
+  });
+}
+
+function showRTab() {
   $('rp-doc').hidden = rtab !== 'doc';
   $('rp-checks').hidden = rtab !== 'checks';
-});
+  $('rp-other').hidden = ['doc', 'checks'].includes(rtab);
+  if (!$('rp-other').hidden) drawRDoc(rtab);
+}
+
+// A job post's document or its ATS match, for the chosen tailored resume.
+// One not written yet points to the job post's AI tools, where it is.
+async function drawRDoc(kind) {
+  const box = $('rp-other'), doc = rdocs.find(x => x.id === rsel) || {};
+  const still = () => rtab === kind && rsel === doc.id;
+  if (kind === 'ats') {
+    box.innerHTML = '<p class="hint">Loading…</p>';
+    drawAts(doc.uid, box);
+    return;
+  }
+  const id = (doc.docs || {})[kind];
+  if (!id) {
+    box.innerHTML = `<p class="hint">No ${esc(tabLabel(kind))} for this job post yet.
+      ${doc.uid ? `Write one from the job post's AI tools.</p>
+      <button type="button" class="act" data-icon="sparkles" id="rp-write">Open AI tools</button>` : '</p>'}`;
+    if ($('rp-write')) $('rp-write').onclick = () => openRole(doc.uid, 'tools');
+    return;
+  }
+  box.innerHTML = '<p class="hint">Loading…</p>';
+  const r = await api('/api/artifact?id=' + id);
+  if (!still()) return;
+  if (!r.ok) { box.innerHTML = `<p class="err">${esc(cap(await r.text()))}</p>`; return; }
+  const d = await r.json();
+  box.innerHTML = docHtml(d, kind);
+  bindDoc(box, d);
+}
 
 // A PDF in the preview, from a blob: fetched with the token like every call.
 async function previewPdf(path, title) {
@@ -5692,10 +6038,13 @@ async function previewPdf(path, title) {
   if (!f.ok) { $('rp-doc').innerHTML = `<p class="err">${esc(cap(await f.text()))}</p>`; return; }
   if (rpUrl) URL.revokeObjectURL(rpUrl);
   rpUrl = URL.createObjectURL(new Blob([await f.blob()], {type: 'application/pdf'}));
-  $('rp-doc').innerHTML = `<iframe class="pdfview" src="${rpUrl}" title="${esc(title)}"></iframe>`;
+  // The page at the preview's width, without the viewer's page list beside it.
+  $('rp-doc').innerHTML = `<iframe class="pdfview" src="${rpUrl}#navpanes=0&view=FitH" title="${esc(title)}"></iframe>`;
 }
 
 async function drawPreview() {
+  drawRTabs();
+  showRTab();
   $('rp-doc').innerHTML = '<p class="hint">Loading…</p>';
   $('rp-gates').innerHTML = '';
   if (rsel === 'master') {

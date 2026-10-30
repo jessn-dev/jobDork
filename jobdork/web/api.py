@@ -129,6 +129,7 @@ def role_detail(cfg, uid: str) -> dict:
             for c in store.copies(uid)
         ]
         ai = ai_fields(row)
+        application = application_detail(store, uid, artifacts)
         posted_by = recruiters(store, [row])[uid]
         board_state = own_board_states(store, [row]).get(uid, "")
         unlisted = board_state == "missing"
@@ -171,6 +172,7 @@ def role_detail(cfg, uid: str) -> dict:
         **posted_by,
         "artifacts": artifacts,
         "copies": copies,
+        "application": application,
     }
 
 
@@ -357,6 +359,14 @@ def list_resumes(cfg) -> dict:
             "r.company FROM artifacts a LEFT JOIN roles r ON r.uid = a.uid "
             "WHERE a.kind IN ('tailored_resume', 'cv') ORDER BY a.created_at DESC, a.id DESC"
         ).fetchall()
+        # The newest of each other document for the same job post: the
+        # preview's tabs beside a tailored resume.
+        docs: dict[str, dict[str, int]] = {}
+        for d in store.conn.execute(
+                "SELECT uid, kind, MAX(id) AS id FROM artifacts WHERE kind IN "
+                "('cover_letter', 'recruiter_message', 'interview_prep', 'resume_review') "
+                "GROUP BY uid, kind").fetchall():
+            docs.setdefault(d["uid"], {})[d["kind"]] = d["id"]
     out = []
     for r in rows:
         gates, _ = _gates(r["gates_json"])
@@ -369,7 +379,8 @@ def list_resumes(cfg) -> dict:
                     "checks": len(gates),
                     "to_read": sum(1 for g in gates.values()
                                    if isinstance(g, dict) and not g.get("passed", True)),
-                    "readable": int(score.group(1)) if score else None})
+                    "readable": int(score.group(1)) if score else None,
+                    "docs": docs.get(r["uid"], {})})
     return {"resumes": out}
 
 
@@ -553,6 +564,136 @@ def role_ats(cfg, uid: str) -> dict:
                       row["description"] or "", row["title"] or "")
     return {**found.to_dict(), "confirmed": confirmed,
             "advert_chars": len(row["description"] or "")}
+
+
+# ── my applications ───────────────────────────────────────────────────────────
+
+# The page's stages, each a few statuses: what the chips at its top count.
+APP_STAGES = {"applied": ("applied", "submitted"), "interviewing": ("interviewing",),
+              "offer": ("offer",), "closed": ("rejected", "withdrawn", "skipped", "closed")}
+APP_TEXT = {"next_step": 120, "contact_name": 120, "contact_email": 200, "contact_link": 500}
+DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _stage(status: str) -> str:
+    return next((k for k, v in APP_STAGES.items() if status in v), "applied")
+
+
+def _overdue(details, status: str, today: str) -> bool:
+    """A next step whose date has passed, on an application still going."""
+    when = (details["next_date"] if details else "") or ""
+    return bool(when) and when < today and _stage(status) != "closed"
+
+
+def list_applications(cfg) -> dict:
+    """My applications: every job applied to, newest change first, with
+    its stage, when you applied, its next step and who you are talking to."""
+    import datetime
+
+    from ..db.store import Store
+
+    today = datetime.date.today().isoformat()
+    with Store(cfg.db_path) as store:
+        apps = store.applications()
+    out = []
+    for a in apps:
+        r, d = a["row"], a["details"]
+        out.append({
+            "uid": r["uid"], "title": r["title"] or "", "company": r["company"] or "",
+            "location": r["location_raw"] or "", "status": r["status"],
+            "stage": _stage(r["status"]),
+            "applied_at": a["applied_at"][:10], "changed_at": a["changed_at"][:10],
+            "next_step": (d["next_step"] if d else "") or "",
+            "next_date": (d["next_date"] if d else "") or "",
+            "overdue": _overdue(d, r["status"], today),
+            "contact": (d["contact_name"] if d else "") or "",
+            "notes": a["notes"]})
+    counts = {k: sum(1 for a in out if a["stage"] == k) for k in APP_STAGES}
+    return {"applications": out, "counts": counts,
+            "overdue": sum(1 for a in out if a["overdue"])}
+
+
+def application_detail(store, uid: str, artifacts: list[dict]) -> dict:
+    """One job post's application, for its window's Application tab: the
+    statuses it went through, what you keep about it and its notes."""
+    import datetime
+
+    from ..core.config import PURSUING_STATUSES
+
+    row = store.get(uid)
+    history = [{"status": h["status"], "at": h["at"]} for h in store.history(uid)]
+    d = store.application(uid)
+    status = (row["status"] if row else "") or "new"
+    return {
+        "is_application": status in (*PURSUING_STATUSES, "rejected", "withdrawn")
+                          or any(h["status"] in PURSUING_STATUSES for h in history),
+        "history": history,
+        "details": {k: (d[k] if d else None) or ("" if k not in ("resume_id", "letter_id") else None)
+                    for k in ("next_step", "next_date", "contact_name", "contact_email",
+                              "contact_link", "resume_id", "letter_id")},
+        "overdue": _overdue(d, status, datetime.date.today().isoformat()),
+        "notes": [{"id": n["id"], "stage": n["stage"], "note": n["note"], "at": n["at"]}
+                  for n in store.application_notes(uid)],
+        # What could have been sent: this post's resumes and cover letters.
+        "resumes": [a for a in artifacts if a["kind"] in ("tailored_resume", "cv")],
+        "letters": [a for a in artifacts if a["kind"] == "cover_letter"],
+    }
+
+
+def save_application(cfg, form: dict) -> dict:
+    """An application's next step, contact and documents sent."""
+    from ..db.store import Store
+
+    uid = str(form.get("uid") or "")
+    if not UID.match(uid):
+        raise ApiError("not a job post id")
+    fields: dict = {}
+    for key, most in APP_TEXT.items():
+        value = " ".join(str(form.get(key) or "").split())
+        if len(value) > most:
+            raise ApiError(f"{key.replace('_', ' ')} is at most {most} characters")
+        fields[key] = value
+    if fields["contact_email"] and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", fields["contact_email"]):
+        raise ApiError("that email address does not look right")
+    if fields["contact_link"] and not re.match(r"^https?://", fields["contact_link"], re.I):
+        raise ApiError("a link starts with https://")
+    when = str(form.get("next_date") or "").strip()
+    if when and not DATE.match(when):
+        raise ApiError("the date is written as YYYY-MM-DD")
+    fields["next_date"] = when
+    with Store(cfg.db_path) as store:
+        if store.get(uid) is None:
+            raise ApiError("no such job post", 404)
+        mine = {a["id"]: a["kind"] for a in store.artifacts(uid)}
+        for key, kinds in (("resume_id", ("tailored_resume", "cv")), ("letter_id", ("cover_letter",))):
+            raw = str(form.get(key) or "")
+            if raw and not (raw.isdigit() and mine.get(int(raw)) in kinds):
+                raise ApiError("not a document of this job post")
+            fields[key] = int(raw) if raw else None
+        store.save_application(uid, fields)
+    return {"saved": True}
+
+
+def application_note(cfg, form: dict) -> dict:
+    """A dated note on an application, added, or deleted by its id."""
+    from ..db.store import Store
+
+    uid = str(form.get("uid") or "")
+    if not UID.match(uid):
+        raise ApiError("not a job post id")
+    with Store(cfg.db_path) as store:
+        if store.get(uid) is None:
+            raise ApiError("no such job post", 404)
+        gone = str(form.get("delete") or "")
+        if gone:
+            if not gone.isdigit() or not store.delete_application_note(uid, int(gone)):
+                raise ApiError("no such note", 404)
+            return {"deleted": True}
+        try:
+            store.add_application_note(uid, str(form.get("note") or ""))
+        except ValueError as exc:
+            raise ApiError(str(exc)) from None
+    return {"added": True}
 
 
 def confirm_skill(cfg, form: dict) -> dict:
@@ -1327,7 +1468,8 @@ def _tool(job: str) -> str:
     if job in ("judge", "ai judging"):
         return "AI judging"
     if (job in ("letter", "review", "generate", "screen", "cv", "cover letter",
-                "cover letter (ai)", "resume review", "tailor", "tailored resume (ai)")
+                "cover letter (ai)", "resume review", "tailor", "tailored resume (ai)",
+                "prep", "interview prep (ai)", "message", "recruiter message (ai)")
             or job.startswith("ai tool")):
         return "AI writing"
     if job == "enrich":
@@ -2583,6 +2725,35 @@ def letter_job(cfg, uid: str):
         return (f"wrote {draft.path.name}"
                 + (f"; {len(failed)} gate(s) to read before sending"
                    if failed else "; all gates clean"))
+    return work
+
+
+def prep_job(cfg, uid: str):
+    """Interview prep for one post, from the AI-page model (ai/writer.py)."""
+    return _draft_job(cfg, uid, "prep", "interview prep")
+
+
+def message_job(cfg, uid: str):
+    """A short message to a recruiter about one post (ai/writer.py)."""
+    return _draft_job(cfg, uid, "message", "recruiter message")
+
+
+def _draft_job(cfg, uid: str, which: str, what: str):
+    if not UID.match(uid or ""):
+        raise ApiError("not a job post id")
+
+    def work(progress):
+        from ..ai import llm, writer
+        from ..db.store import Store
+
+        with Store(cfg.db_path) as store:
+            try:
+                draft = getattr(writer, which)(cfg, store, uid, progress=progress)
+            except llm.LLMError as exc:
+                raise ApiError(str(exc)) from exc
+        failed = [g for g in draft.gates if not g.passed]
+        return (f"wrote the {what}, {draft.path.name}"
+                + (f"; {len(failed)} gate(s) to read" if failed else "; all gates clean"))
     return work
 
 

@@ -232,6 +232,7 @@ def build(folder: Path) -> Path:
                               "location": "Chicago, IL", "start": "Aug 2025",
                               "end": "Expected May 2027"})
         _tailored(store, folder, uids)
+        _applications(store, uids, now)
         _runs(store, now)
     _checked_for_updates(Path(cfg.db_path).parent, now)
     return config
@@ -266,6 +267,90 @@ def _tailored(store, folder: Path, uids: list[str]) -> None:
                                          "detail": "1 of 9 claims not found in your resume or "
                                          "the advert" if to_read else "every claim found"}}
         store.add_artifact(uid, "tailored_resume", str(path), gates=gates)
+    _documents(store, folder, uids[1])
+
+
+def _documents(store, folder: Path, uid: str) -> None:
+    """The newest tailored resume's job post also has a cover letter, a
+    recruiter message and interview prep: the preview's other tabs."""
+    passed = {"hallucination check": {"passed": True, "detail": "every claim found",
+                                      "items": []}}
+    texts = {
+        "cover_letter": (
+            "Dear Hiring Manager,\n\nI am applying for the Registered Nurse, Telemetry "
+            "role at Lakeview Regional Hospital. Since 2021 I have led a team of "
+            "eight nurses per shift on a 32-bed medical-surgical unit, where a bedside "
+            "barcode scanning rollout I ran cut medication errors by 30%.\n\nI hold BLS "
+            "and ACLS and chart in Epic every day. I would welcome the chance to bring "
+            "that to your telemetry unit.\n\nSincerely,\nJordan Rivera\n"),
+        "recruiter_message": (
+            "Hi, I saw the Registered Nurse, Telemetry opening at Lakeview Regional "
+            "Hospital. I am a charge nurse at Lakeshore Community Hospital, where I "
+            "lead eight nurses per shift on a 32-bed unit and ran a barcode scanning "
+            "rollout that cut medication errors by 30%. I hold BLS and ACLS and work "
+            "in Epic daily. Telemetry is where I want to grow next. Would you have ten "
+            "minutes this week to tell me more about the team? Thank you, Jordan\n"),
+        "interview_prep": (
+            "# Interview prep: Registered Nurse, Telemetry at Lakeview Regional Hospital\n\n"
+            "## Why you fit\n\n- Seven years in acute care, five as charge nurse.\n"
+            "- BLS and ACLS current.\n\n"
+            "## Questions about your resume\n\n"
+            "**How did the barcode scanning rollout cut errors by 30%?**\n\n"
+            "- Who you trained, how you tracked errors before and after.\n\n"
+            "**How do you run a shift with eight nurses?**\n\n"
+            "- Assignments, huddles, and one shift that went wrong.\n\n"
+            "## Gaps to prepare\n\n"
+            "- **Telemetry monitoring**: the advert asks for it as a main duty. Say "
+            "what you have done with cardiac patients and how you would learn the rest.\n\n"
+            "## Talking points\n\n- The 30% fall in medication errors.\n"
+            "- Precepting twelve new graduate nurses.\n"),
+    }
+    for kind, text in texts.items():
+        path = folder / "job-applications" / "demo-1" / f"{kind}.md"
+        path.write_text(text, encoding="utf-8")
+        store.add_artifact(uid, kind, str(path), gates=passed)
+
+
+def _applications(store, uids: list[str], now: float) -> None:
+    """My applications: four jobs applied to, their stages dated over the
+    last three weeks, one follow-up past its date, a contact, the documents
+    sent and notes."""
+    def ago(days: float) -> str:
+        return time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now - days * 86400))
+
+    def on(days: float) -> str:
+        return time.strftime("%Y-%m-%d", time.localtime(now + days * 86400))
+
+    stages = {
+        uids[4]: [("applied", 12), ("interviewing", 5)],
+        uids[3]: [("applied", 9)],
+        uids[1]: [("interested", 4), ("applied", 3), ("submitted", 2)],
+        uids[2]: [("applied", 20), ("rejected", 6)],
+    }
+    for uid, steps in stages.items():
+        store.set_status(uid, steps[-1][0])
+        store.conn.execute("DELETE FROM status_history WHERE uid = ?", (uid,))
+        store.conn.executemany("INSERT INTO status_history(uid, status, at) VALUES(?,?,?)",
+                               [(uid, status, ago(days)) for status, days in steps])
+        store.conn.execute("UPDATE role_state SET updated_at = ? WHERE uid = ?",
+                           (ago(steps[-1][1]), uid))
+    store.conn.commit()
+    blank = dict.fromkeys(("contact_email", "contact_link", "resume_id", "letter_id"))
+    store.save_application(uids[4], {
+        **blank, "next_step": "Panel interview", "next_date": on(4),
+        "contact_name": "Dana Brooks", "contact_email": "dana.brooks@example.com"})
+    store.save_application(uids[3], {**blank, "next_step": "Follow up", "next_date": on(-2),
+                                     "contact_name": ""})
+    resume = store.artifacts(uids[1], "tailored_resume")[0]["id"]
+    letter = store.artifacts(uids[1], "cover_letter")[0]["id"]
+    store.save_application(uids[1], {**blank, "next_step": "Hear back", "next_date": on(7),
+                                     "contact_name": "", "resume_id": resume, "letter_id": letter})
+    for uid, note, days in ((uids[4], "Phone screen went well; they asked about telemetry.", 5),
+                            (uids[4], "Panel is three charge nurses and the unit manager.", 1)):
+        store.add_application_note(uid, note)
+        store.conn.execute("UPDATE application_notes SET at = ? WHERE uid = ? AND note = ?",
+                           (ago(days), uid, note))
+    store.conn.commit()
 
 
 def _checked_for_updates(folder: Path, now: float) -> None:

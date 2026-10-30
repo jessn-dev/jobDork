@@ -74,9 +74,24 @@ async function open(address) {
 // Go to a page of the dashboard by its menu button.
 const view = name => `document.querySelector('nav [data-view=${name}]').click();`;
 
-async function shoot(name, {clip, full, pad = 8, height} = {}) {
+async function shoot(name, {clip, full, pad = 8, height, tall} = {}) {
   await sleep(700);
   let params = {format: 'png'};
+  if (tall) {
+    // A window this tall for the picture, not one taken beyond the window:
+    // that renders at the part's own width, narrow enough to fold the page
+    // into its one-column layout.
+    await send('Emulation.setDeviceMetricsOverride', {width: WIDTH, height: tall, deviceScaleFactor: 1, mobile: false});
+    await sleep(600);
+    const r = await run(`window.scrollTo(0, 0); const r = document.querySelector(${lit(clip)}).getBoundingClientRect();
+      return {x: r.x, y: r.y, w: r.width, h: r.height};`);
+    const shot = await send('Page.captureScreenshot', {format: 'png',
+      clip: {x: Math.max(0, r.x - pad), y: Math.max(0, r.y - pad), width: r.w + 2 * pad, height: r.h + 2 * pad, scale: 1}});
+    await send('Emulation.setDeviceMetricsOverride', {width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false});
+    writeFileSync(join(out, `${name}.png`), Buffer.from(shot.result.data, 'base64'));
+    console.log(`  ${name}.png`);
+    return;
+  }
   if (clip) {
     const box = await run(`const el = document.querySelector(${lit(clip)});
       if (!el) return null; el.scrollIntoView({block: 'start'});
@@ -128,7 +143,7 @@ try {
   await open(url);
   await shoot('dashboard');
   await shoot('dashboard-usage', {clip: '#m-usage'});
-  await shoot('dashboard-buttons', {clip: '#view-scan > .bar:nth-of-type(2)'});
+  await shoot('dashboard-buttons', {clip: '#view-scan > .bar:has(#run)'});
 
   await run(view('roles'));
   await sleep(1500);
@@ -147,18 +162,32 @@ try {
   await sleep(1200);
   await shoot('job-window');
   await shoot('job-window-statuses', {clip: '#dlg-head .statusbar'});
-  await run(`drawDetail('tools');`);
+  // Opened again, not only redrawn: a picture taken beyond the window
+  // resizes it for a moment, and a pane narrowed away gives its post back.
+  // A tab's picture is the post beside the list, at its full length.
+  const whole = `const p = document.getElementById('roles-pane'); p.style.maxHeight = 'none'; p.style.position = 'static';`;
+  await run(`await openRole(${lit(uid)}, 'tools'); ${whole}`);
   await sleep(1500);
-  await shoot('job-window-ai-tools');
-  await run(`drawDetail('ats');`);
+  await shoot('job-window-ai-tools', {clip: '#roles-pane', tall: 2400});
+  await run(`await openRole(${lit(uid)}, 'ats'); ${whole}`);
   await sleep(1500);
-  await shoot('job-window-ats');
-  await run(`document.getElementById('detail').close();`);
+  await shoot('job-window-ats', {clip: '#roles-pane', tall: 2400});
+  await run(`document.getElementById('roles-pane').removeAttribute('style');`);
+  await run(`closeDetail();`);
 
   await run(`document.getElementById('scope').value = 'dropped'; await loadRoles();`);
   await sleep(1200);
   await shoot('job-posts-dropped');
   await run(`document.getElementById('scope').value = 'open'; await loadRoles();`);
+
+  // My applications, with the interviewing one chosen: its Application tab.
+  await run(view('apps'));
+  await sleep(1500);
+  await run(`[...document.querySelectorAll('#apps tr[data-uid]')].find(t => t.textContent.includes('Remote Care')).click()`);
+  await sleep(1500);
+  await shoot('applications');
+  await shoot('application-tab', {clip: '#apps-pane', tall: 2000});
+  await run(`closeDetail();`);
 
   await run(view('settings'));
   await sleep(1500);
@@ -175,6 +204,10 @@ try {
   await run(`document.querySelector('[data-rtab="checks"]').click()`);
   await sleep(500);
   await shoot('resume-checks', {clip: '#rpreview'});
+  // The job post's other documents, as tabs beside its tailored resume.
+  await run(`document.querySelector('[data-rtab="interview_prep"]').click()`);
+  await sleep(1000);
+  await shoot('resume-interview-prep', {clip: '#rpreview'});
   await run(`document.querySelector('[data-rtab="doc"]').click()`);
 
   await run(view('sources'));

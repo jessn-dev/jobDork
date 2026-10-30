@@ -29,12 +29,13 @@ import time
 import urllib.parse
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from operator import itemgetter
 from pathlib import Path
 from typing import Any
 
-from ..core.config import SETTLED_STATUSES, STATUSES
+from ..core.config import PURSUING_STATUSES, SETTLED_STATUSES, STATUSES
 from . import grouping
-from .migrations import SCHEMA_VERSION, migrate
+from .migrations import APPLICATION_TABLES, SCHEMA_VERSION, migrate
 
 # Dropped job posts (the `dropped` table) are kept this long, and at most this
 # many: enough to look back over the last few scans, not a second database.
@@ -293,6 +294,9 @@ CREATE INDEX IF NOT EXISTS idx_roles_url        ON roles(url);
 CREATE INDEX IF NOT EXISTS idx_state_status     ON role_state(status);
 CREATE INDEX IF NOT EXISTS idx_artifacts_uid    ON artifacts(uid);
 """
+# My applications' tables: the history of statuses, an application's
+# details and its notes (written once, in migrations.py, for both).
+SCHEMA += APPLICATION_TABLES
 
 
 # ── Role ───────────────────────────────────────────────────────────────────────
@@ -838,14 +842,24 @@ class Store:
                 f"{status!r} is not a status. Accepted: {', '.join(STATUSES)}"
             )
         now = _now()
+        members = grouping.uids(self.conn, uid)
+        # The history keeps each change, dated: when you applied, when they
+        # called. The same status set again is not a change.
+        was = dict(self.conn.execute(
+            # Safe: only ? placeholders are formatted in; the uids are parameters.
+            f"SELECT uid, status FROM role_state WHERE uid IN ({','.join('?' * len(members))})",  # nosec B608
+            members).fetchall())
+        self.conn.executemany(
+            "INSERT INTO status_history(uid, status, at) VALUES(?,?,?)",
+            [(m, status, now) for m in members
+             if was.get(m, "new") != status and status not in ("new", "viewed")])
         self.conn.executemany(
             "INSERT INTO role_state(uid, status, note, updated_at) VALUES(?,?,?,?) "
             "ON CONFLICT(uid) DO UPDATE SET "
             "  status = excluded.status, "
             "  note = COALESCE(NULLIF(excluded.note, ''), role_state.note), "
             "  updated_at = excluded.updated_at",
-            [(member, status, note, now)
-             for member in grouping.uids(self.conn, uid)],
+            [(member, status, note, now) for member in members],
         )
         self.conn.commit()
 
@@ -1000,6 +1014,95 @@ class Store:
         cur = self.conn.execute("DELETE FROM education WHERE id = ?", (int(entry_id),))
         self.conn.commit()
         return cur.rowcount > 0
+
+    # ── my applications ────────────────────────────────────────────────────────
+
+    def history(self, uid: str) -> list[sqlite3.Row]:
+        """Every status this job post was given, oldest first."""
+        return self.conn.execute(
+            "SELECT status, at FROM status_history WHERE uid = ? ORDER BY at, id",
+            (uid,)).fetchall()
+
+    def applications(self) -> list[dict]:
+        """Every job you applied to, one per job (copies grouped), newest
+        change first: a post you are pursuing, turned down by them or
+        withdrawn from, or that was ever applied to before it settled."""
+        rows = self.list_roles(include_settled=True)
+        uids = [r["uid"] for r in rows]
+        if not uids:
+            return []
+        marks = ",".join("?" * len(uids))
+        history: dict[str, list[tuple[str, str]]] = {}
+        for h in self.conn.execute(
+                f"SELECT uid, status, at FROM status_history WHERE uid IN ({marks}) "  # nosec B608
+                "ORDER BY at, id", uids):
+            history.setdefault(h["uid"], []).append((h["status"], h["at"]))
+        details = {d["uid"]: d for d in self.conn.execute(
+            f"SELECT * FROM applications WHERE uid IN ({marks})", uids)}  # nosec B608
+        notes = dict(self.conn.execute(
+            f"SELECT uid, COUNT(*) FROM application_notes WHERE uid IN ({marks}) "  # nosec B608
+            "GROUP BY uid", uids).fetchall())
+        applied = set(PURSUING_STATUSES) | {"rejected", "withdrawn"}
+        out = []
+        for r in rows:
+            steps = history.get(r["uid"], [])
+            if r["status"] not in applied and not any(s in PURSUING_STATUSES for s, _ in steps):
+                continue
+            first = next((at for s, at in steps if s in PURSUING_STATUSES), "")
+            out.append({"row": r, "history": steps, "applied_at": first,
+                        "changed_at": steps[-1][1] if steps else (r["updated_at"] or ""),
+                        "details": details.get(r["uid"]), "notes": notes.get(r["uid"], 0)})
+        out.sort(key=itemgetter("changed_at"), reverse=True)
+        return out
+
+    def application(self, uid: str) -> sqlite3.Row | None:
+        return self.conn.execute("SELECT * FROM applications WHERE uid = ?", (uid,)).fetchone()
+
+    def save_application(self, uid: str, fields: dict) -> None:
+        """An application's details, for every copy of the job, as a status is."""
+        cols = ("next_step", "next_date", "contact_name", "contact_email",
+                "contact_link", "resume_id", "letter_id")
+        now = _now()
+        # Safe: the column names are the fixed tuple above; values are parameters.
+        self.conn.executemany(
+            f"INSERT INTO applications(uid, {', '.join(cols)}, updated_at) "  # nosec B608
+            f"VALUES(?, {', '.join('?' * len(cols))}, ?) ON CONFLICT(uid) DO UPDATE SET "
+            + ", ".join(f"{c} = excluded.{c}" for c in cols) + ", updated_at = excluded.updated_at",
+            [(m, *(fields.get(c) for c in cols), now) for m in grouping.uids(self.conn, uid)])
+        self.conn.commit()
+
+    def application_notes(self, uid: str) -> list[sqlite3.Row]:
+        return self.conn.execute(
+            "SELECT id, stage, note, at FROM application_notes WHERE uid = ? ORDER BY at DESC, id DESC",
+            (uid,)).fetchall()
+
+    def add_application_note(self, uid: str, note: str) -> None:
+        """A dated note, filed under the status the job has now."""
+        note = str(note or "").strip()
+        if not note:
+            raise ValueError("a note needs some words")
+        if len(note) > 2000:
+            raise ValueError("a note is at most 2,000 characters")
+        state = self.conn.execute("SELECT status FROM role_state WHERE uid = ?", (uid,)).fetchone()
+        stage, now = state["status"] if state else "new", _now()
+        self.conn.executemany(
+            "INSERT INTO application_notes(uid, stage, note, at) VALUES(?,?,?,?)",
+            [(m, stage, note, now) for m in grouping.uids(self.conn, uid)])
+        self.conn.commit()
+
+    def delete_application_note(self, uid: str, note_id: int) -> bool:
+        """A note, and its twins on the job's other copies."""
+        row = self.conn.execute(
+            "SELECT note, at FROM application_notes WHERE id = ? AND uid = ?",
+            (int(note_id), uid)).fetchone()
+        if row is None:
+            return False
+        members = grouping.uids(self.conn, uid)
+        self.conn.execute(
+            f"DELETE FROM application_notes WHERE note = ? AND at = ? "  # nosec B608
+            f"AND uid IN ({','.join('?' * len(members))})", (row["note"], row["at"], *members))
+        self.conn.commit()
+        return True
 
     # ── skills you confirmed having (a job post's ATS match) ──────────────────
 

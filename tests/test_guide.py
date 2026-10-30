@@ -64,7 +64,8 @@ def test_every_status_is_explained():
 def test_every_page_of_the_menu_has_a_page_in_the_guide():
     html = PAGE.read_text(encoding="utf-8")
     menu = re.findall(r'<button class="item[^"]*" data-view="(\w+)"', html)
-    page_for = {"scan": "dashboard.md", "roles": "job-posts.md", "settings": "search.md",
+    page_for = {"scan": "dashboard.md", "roles": "job-posts.md", "apps": "applications.md",
+                "settings": "search.md",
                 "resume": "resume.md", "sources": "sources.md", "ai": "ai.md",
                 "tools": "feedback.md", "prefs": "settings.md"}
     assert set(menu) == set(page_for), (
@@ -86,6 +87,31 @@ def test_every_picture_is_taken_by_the_script_and_used_by_a_page():
                            f"they would go stale: {sorted(used - shots)}")
     assert have <= used, f"pictures no page shows: {sorted(have - used)}"
 
+
+
+def _anchors(page: Path) -> set[str]:
+    """The anchors a page has, as MkDocs makes them: each heading's slug
+    (python-markdown's toc), a heading's own {#id}, and <span id="...">."""
+    text = page.read_text(encoding="utf-8")
+    found = set(re.findall(r'\{#([\w-]+)\}', text)) | set(re.findall(r'id="([\w-]+)"', text))
+    for heading in re.findall(r"^#{1,6} (.+?)\s*(?:\{#[\w-]+\})?$", text, re.M):
+        plain = re.sub(r"[*`]|\[([^\]]*)\]\([^)]*\)", r"\1", heading)
+        slug = re.sub(r"[^\w\s-]", "", plain).strip().lower()
+        found.add(re.sub(r"[-\s]+", "-", slug))
+    return found
+
+
+def test_every_link_to_a_part_of_a_page_finds_it():
+    """A heading renamed leaves links to its old anchor pointing nowhere; the
+    docs build only warns (2026-10-30: #the-four-main-buttons)."""
+    broken = []
+    for page in DOCS.glob("*.md"):
+        for target, anchor in re.findall(r"\]\(([\w-]*\.md)?#([\w-]+)\)",
+                                         page.read_text(encoding="utf-8")):
+            other = DOCS / target if target else page
+            if other.exists() and anchor not in _anchors(other):
+                broken.append(f"{page.name} -> {target or page.name}#{anchor}")
+    assert not broken, broken
 
 if __name__ == "__main__":
     import traceback
