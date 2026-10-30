@@ -34,6 +34,16 @@ Finder window.
 
 ---
 
+## Fixed — 2026-10-30 — Saving a pasted advert no longer throws a page error
+
+After **Save and re-screen** on a job post's pasted advert, the page looked
+for a fold-out around the message, found none (the paste box is a plain
+box), and threw `null is not an object (evaluating
+'m.closest('details').open = true')`, logged as a page error every time. The
+advert was saved; the message now shows in its box with no error.
+
+---
+
 ## Fixed — 2026-10-30 — The banner's Update starts the update
 
 When a newer jobdork is out, a banner says so at the top of every page, with

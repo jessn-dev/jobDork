@@ -2299,7 +2299,11 @@ async function saveAdvert(uid) {
     m.textContent = d.dropped
       ? `Saved, and it no longer passes: ${d.dropped}. Marked skipped.`
       : `Saved ${d.advert_chars.toLocaleString()} characters. Score ${Math.round(d.score)}, fit ${d.fit == null ? '-' : Math.round(d.fit)}/25.`;
-    m.closest('details').open = true;
+    // The box it sits in is a plain one, shown or hidden: open it, so the
+    // message is seen. It was taken for a fold-out (details), which threw
+    // "null is not an object" after every save.
+    const box = m.closest('.paste');
+    if (box) box.hidden = false;
   }
 }
 
