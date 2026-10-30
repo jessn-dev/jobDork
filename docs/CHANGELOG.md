@@ -6,6 +6,19 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-10-30 — The banner's Update starts the update
+
+When a newer jobdork is out, a banner says so at the top of every page, with
+**Update**. That button only opened Settings; pressed while Settings was
+already open, nothing seemed to happen, and the update itself waited on a
+second button there, **Update to X.Y.Z**. Now the banner's **Update** starts
+the update at once, in the same window that follows each step. Where the
+app cannot install it (pip, Docker), it opens Settings at **Updates**, which
+says how. 0.15.4's banner still only opens Settings: there, press **Update
+to 0.16.0**.
+
+---
+
 ## Changed — 2026-10-30 — version 0.16.0
 
 0.16.0 carries the 19 entries below, everything since 0.15.4 (28 October).
