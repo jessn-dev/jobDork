@@ -79,6 +79,27 @@ checked. Every tailored resume jobdork writes is checked the same way (the
 **readable by tracking systems** check in its tab), and is laid out to pass.
 The checks follow [Resume Matcher](https://github.com/srbhr/resume-matcher)'s.
 
+### How its lines are written
+
+Under it, **How its lines are written** reads your resume's bullets as a
+recruiter does, also with no AI, and scores them out of 100:
+
+| Rule | What it means | Costs a line |
+|---|---|---|
+| **Starts by saying you were near the work** | "Responsible for", "Helped with", "Assisted", "Worked on", "Involved in": say what you did instead ("Led", "Built", "Cut") | 40 |
+| **Written in the first person** | "I", "my", "me" | 10 |
+| **Over 35 words** | More than two lines | 10 |
+| **Same first word as other bullets of this job** | Three or more bullets of one job starting alike | 10 |
+| **No figure** | No number, where a result could be counted | 5 |
+
+Each rule is shown once, with how many lines it found and three of them.
+A PDF's bullet marks are usually drawn rather than written, so from a PDF
+the lines of your Experience section are read as its bullets. Only English
+is scored. A tailored resume is told the same rules, and its tab has a
+**resume writing** check that is READ when a bullet starts by saying you
+were near the work; "no figure" stays a note, since a figure may only come
+from your resume.
+
 - **View resume** shows it, and under *The text the fit score and the AI
   read*, exactly what jobdork could read from it, with the skills it found.
   If something is missing there, the file's layout hid it (usually a table,
