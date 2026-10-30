@@ -19,6 +19,17 @@ to 0.16.0**.
 
 ---
 
+## Fixed — 2026-10-30 — The image check waits for a slow start
+
+The Docker image check (`scripts/check_image.sh`) gave the dashboard 30
+seconds to print its address. On a busy runner, `main`'s run after the
+0.16.0 merge took longer, so the check failed with the address right below
+the failure. The image was fine: the same check passed on the release tag's
+run. It now waits up to 90 seconds, and still stops as soon as the address
+shows.
+
+---
+
 ## Changed — 2026-10-30 — version 0.16.0
 
 0.16.0 carries the 19 entries below, everything since 0.15.4 (28 October).
