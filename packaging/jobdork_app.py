@@ -16,7 +16,9 @@ silently). No window.
 `--mcp` is what a coding agent starts (Claude Code, Codex, Cursor, Claude
 Desktop): jobdork's tools over stdio, in the app's folder (web/mcp.py).
 `--agent TOOL JSON` runs one of them and prints its answer, for an agent
-that only runs commands. No window for either.
+that only runs commands. No window for either. On Windows an agent starts
+jobdork-agent.exe, this same program built with a console (jobdork.spec):
+jobdork.exe, built without one, has no streams to answer on.
 
 `--self-test` checks the build has everything it needs, writes what is
 missing to <report> (a Windows app has no stdout to print it to), and exits

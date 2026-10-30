@@ -304,9 +304,9 @@ def agent_server(argv: list[str] | None = None, home: Path | None = None) -> int
     or one of them from the command line (`argv` ["agent", TOOL, JSON]), in
     the app's folder, so the agent works on what the window shows.
 
-    A Windows app is built without a console, so Python gives it no
-    standard streams even when the agent hands it pipes. The pipes are
-    there, as the process's standard handles: they are opened from those.
+    On Windows the agent starts jobdork-agent.exe, the same program built
+    with a console (packaging/jobdork.spec): the window's jobdork.exe has
+    no standard streams to talk on, and says so by stopping at once.
     """
     from ..cli import main
 
@@ -314,17 +314,7 @@ def agent_server(argv: list[str] | None = None, home: Path | None = None) -> int
     home.mkdir(parents=True, exist_ok=True)
     os.chdir(home)
     if sys.stdin is None or sys.stdout is None:
-        try:
-            import ctypes
-            import msvcrt
-
-            kernel = ctypes.windll.kernel32
-            sys.stdin = open(msvcrt.open_osfhandle(kernel.GetStdHandle(-10), os.O_RDONLY),  # noqa: SIM115
-                             encoding="utf-8")
-            sys.stdout = open(msvcrt.open_osfhandle(kernel.GetStdHandle(-11), 0), "w",  # noqa: SIM115
-                              encoding="utf-8")
-        except (ImportError, OSError, AttributeError):
-            return 2
+        return 2
     if sys.stderr is None:
         sys.stderr = open(os.devnull, "w")  # noqa: SIM115 - logs have nowhere else to go
     return main(argv or ["mcp"])

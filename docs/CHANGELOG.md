@@ -62,6 +62,10 @@ model of its own.
   with `--mcp`), with its workflow sent as the server's instructions; and
   `jobdork agent TOOL JSON` (the app: `--agent`) for agents that only run
   commands. The build checks the built app answers MCP (`packaging/build.py`).
+  On Windows the agent starts `jobdork-agent.exe`, the same program built
+  with a console beside `jobdork.exe` (`packaging/jobdork.spec`): the
+  window's program has no standard streams for an agent to talk on, which
+  that check found.
 - **How it fits** (`ai/llm.py`): `agent` is a provider whose calls are
   answered from a queue (the agent's own answer, never passed on). What
   jobdork asks for itself (a button, judging after a scan, a page read)
