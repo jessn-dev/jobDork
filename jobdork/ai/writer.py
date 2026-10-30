@@ -1061,7 +1061,7 @@ def prep(cfg, store, uid: str, root: str = "", progress=None) -> Draft:
         progress(f"{settings.label} preparing you for an interview for "
                  f"{row['title']} at {row['company']}")
     draft = interview_prep(settings, row, resume_text,
-                           notes=resume_doc.record_notes(store.projects(), store.education()),
+                           notes=resume_doc.store_notes(store),
                            check=cfg.llm.guard)
     _save(cfg, store, uid, "interview_prep", draft, PREP_FILE, root, settings.label)
     if progress:
