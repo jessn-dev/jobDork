@@ -150,6 +150,9 @@ try {
   await run(`drawDetail('tools');`);
   await sleep(1500);
   await shoot('job-window-ai-tools');
+  await run(`drawDetail('ats');`);
+  await sleep(1500);
+  await shoot('job-window-ats');
   await run(`document.getElementById('detail').close();`);
 
   await run(`document.getElementById('scope').value = 'dropped'; await loadRoles();`);

@@ -844,7 +844,9 @@ def tailor(cfg, store, uid: str, root: str = "", progress=None) -> Tailored:
                  f"{row['title']} at {row['company']}")
     own, schooling = store.projects(), store.education()
     result = tailored_resume(settings, row, resume_text, check=cfg.llm.guard,
-                             notes=resume_doc.record_notes(own, schooling), projects=own,
+                             notes=resume_doc.record_notes(own, schooling,
+                                                           store.confirmed_skills()),
+                             projects=own,
                              education=schooling)
 
     name = resume_doc.contact(resume_text)["name"]

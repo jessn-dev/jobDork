@@ -58,6 +58,40 @@ paid by the word with Anthropic, Gemini, OpenAI or Groq.
     your email, phone number and profile links are removed before anything
     is sent.
 
+### ATS match
+
+The **ATS match** tab scores your resume file against this advert the way
+an applicant tracking system searches it, out of 100, by script and with
+no AI (the parts and weights follow
+[Resume Matcher](https://github.com/srbhr/resume-matcher)'s):
+
+![The ATS match tab](images/job-window-ats.png)
+
+| Part | Weight | What it measures |
+|---|---|---|
+| Keywords | 40% | The advert's skills your resume names |
+| Required skills | 20% | The same, of the skills under the advert's *Requirements* or *Qualifications* (the whole advert when it has no such part) |
+| Job title | 15% | The post's title at the top of your resume (100), in its summary (75), or some of its words at the top (up to 50) |
+| Sections | 15% | An email or phone, and the summary, experience, education and skills headings |
+| Dates in one format | 10% | How many of your dates are written the same way |
+
+A part that cannot be judged is left out and the rest weighed to 100. The
+skills come from the same list as Fit, and only those in your field count.
+
+Below the score, the advert's skills in three groups:
+
+- **On your resume**.
+- **Safe to add**: in your projects, education or confirmed skills on the
+  Resume page, but not in your resume file. A tailored resume for this post
+  can name them.
+- **Missing**: nowhere in your record. **I have this** adds one to your
+  confirmed skills: from then on it counts as part of your record, so Fit
+  scores count it (job posts are re-scored) and a tailored resume may name
+  it. Tick it only for a skill you really have; an interviewer may ask.
+  **take back** removes one.
+
+**What to do** lists the changes that would raise the score.
+
 ### The four main buttons
 
 | Button | What you get |

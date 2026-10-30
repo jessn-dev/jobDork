@@ -85,7 +85,7 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
     work = span.line() if span else ""
     # What the person added on the Resume page: read with the resume, and
     # accepted by the claim check as part of their record.
-    notes = resume_doc.record_notes(store.projects(), store.education())
+    notes = resume_doc.store_notes(store)
     record = resume_text + ("\n\n" + notes if notes else "")
 
     checker = settings.checker_chain()
