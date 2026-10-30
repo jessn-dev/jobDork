@@ -193,9 +193,17 @@ def education_notes(rows) -> str:
     return "\n\n".join(out)
 
 
-def record_notes(projects, education) -> str:
-    """Everything added on the Resume page, as one source beside the resume."""
-    return "\n\n".join(x for x in (project_notes(projects), education_notes(education)) if x)
+def record_notes(projects, education, confirmed=()) -> str:
+    """Everything added on the Resume page, as one source beside the resume:
+    projects, education, and the skills confirmed with "I have this"."""
+    skills = (f"Skills I confirm I have: {', '.join(confirmed)}." if confirmed else "")
+    return "\n\n".join(x for x in (project_notes(projects), education_notes(education),
+                                    skills) if x)
+
+
+def store_notes(store) -> str:
+    """record_notes from what the database holds."""
+    return record_notes(store.projects(), store.education(), store.confirmed_skills())
 
 
 # For `claude -p`, which writes the Markdown itself (generate.py).

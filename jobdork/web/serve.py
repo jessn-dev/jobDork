@@ -548,6 +548,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._wrap(api_mod.list_letters, cfg_holder["cfg"])
             if path == "/api/resumes":
                 return self._wrap(api_mod.list_resumes, cfg_holder["cfg"])
+            if path == "/api/ats":
+                uid = parse_qs(urlsplit(self.path).query).get("uid", [""])[0]
+                return self._wrap(api_mod.role_ats, cfg_holder["cfg"], uid)
             if path == "/api/projects":
                 return self._wrap(api_mod.list_projects, cfg_holder["cfg"])
             if path == "/api/education":
@@ -662,7 +665,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     return self._reject(400, f"not removed: {exc}")
                 return self._json(200, gone)
             if path in ("/api/projects/save", "/api/projects/delete",
-                        "/api/education/save", "/api/education/delete"):
+                        "/api/education/save", "/api/education/delete",
+                        "/api/skills/confirm"):
                 return self._project(path)
             if path == "/api/letters/delete":
                 form = self._body()
@@ -941,9 +945,17 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             """Save or delete a project or an education entry, then re-score
             the job posts with it: fit scores count them as the resume."""
             cfg = cfg_holder["cfg"]
-            what = "project" if "/projects/" in path else "education"
+            what = ("project" if "/projects/" in path else
+                    "skill" if "/skills/" in path else "education")
             try:
-                if path.endswith("/save"):
+                if what == "skill":
+                    form = self._body()
+                    if form is None:
+                        return self._reject(400, "bad request body")
+                    done = api_mod.confirm_skill(cfg, form)
+                    if not done["changed"]:
+                        return self._json(200, {**done, "rescore": ""})
+                elif path.endswith("/save"):
                     form = self._body(limit=24 * 1024)
                     if form is None:
                         return self._reject(400, "bad request body")
@@ -962,13 +974,14 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             done["rescore"] = ""
             if cfg.resume_path and cfg.titles_include:
                 # lambda: built when its turn comes, from the newest settings.
-                saved = path.endswith("/save")
+                saved = path.endswith(("/save", "/confirm"))
                 given = form if saved else {}
-                named = str(given.get("name") or given.get("credential") or "")
-                verb = "saved" if saved else "deleted"
+                named = str(given.get("name") or given.get("credential") or given.get("term") or "")
+                verb = ("confirmed" if done.get("have") else "taken back") if what == "skill" \
+                    else "saved" if saved else "deleted"
+                section = {"project": "Projects", "skill": "Skills you have"}.get(what, "Education")
                 now = runner.queue("re-score", lambda: api_mod.rescreen_job(cfg_holder["cfg"]),
-                                   why=f"{'Projects' if what == 'project' else 'Education'}: "
-                                       f"{verb}{f' {named}' if named else ''}")
+                                   why=f"{section}: {verb}{f' {named}' if named else ''}")
                 done["rescore"] = ("Re-scoring your job posts with it." if now else
                                    f"Your job posts are re-scored with it after {runner.current}.")
             return self._json(200, done)

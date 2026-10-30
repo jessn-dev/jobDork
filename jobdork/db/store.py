@@ -280,6 +280,13 @@ CREATE TABLE IF NOT EXISTS board_reads (
     PRIMARY KEY (platform, token)
 );
 
+-- Skills the person confirmed having ("I have this", on a job post's ATS
+-- match): part of their record, as projects are.
+CREATE TABLE IF NOT EXISTS confirmed_skills (
+    term        TEXT PRIMARY KEY,
+    created_at  TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_roles_first_seen ON roles(first_seen);
 CREATE INDEX IF NOT EXISTS idx_roles_company    ON roles(company);
 CREATE INDEX IF NOT EXISTS idx_roles_url        ON roles(url);
@@ -991,6 +998,26 @@ class Store:
 
     def delete_education(self, entry_id: int) -> bool:
         cur = self.conn.execute("DELETE FROM education WHERE id = ?", (int(entry_id),))
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    # ── skills you confirmed having (a job post's ATS match) ──────────────────
+
+    def confirmed_skills(self) -> list[str]:
+        return [r["term"] for r in self.conn.execute(
+            "SELECT term FROM confirmed_skills ORDER BY term")]
+
+    def confirm_skill(self, term: str, have: bool = True) -> bool:
+        """Say you have a skill, or take it back. Returns whether anything changed."""
+        term = " ".join(str(term or "").split()).lower()
+        if not term or len(term) > 80:
+            raise ValueError("a skill is a short name, such as Python or Phlebotomy")
+        if have:
+            cur = self.conn.execute(
+                "INSERT OR IGNORE INTO confirmed_skills(term, created_at) VALUES(?, ?)",
+                (term, _now()))
+        else:
+            cur = self.conn.execute("DELETE FROM confirmed_skills WHERE term = ?", (term,))
         self.conn.commit()
         return cur.rowcount > 0
 
