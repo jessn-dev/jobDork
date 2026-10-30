@@ -64,7 +64,8 @@ def test_every_status_is_explained():
 def test_every_page_of_the_menu_has_a_page_in_the_guide():
     html = PAGE.read_text(encoding="utf-8")
     menu = re.findall(r'<button class="item[^"]*" data-view="(\w+)"', html)
-    page_for = {"scan": "dashboard.md", "roles": "job-posts.md", "settings": "search.md",
+    page_for = {"scan": "dashboard.md", "roles": "job-posts.md", "apps": "applications.md",
+                "settings": "search.md",
                 "resume": "resume.md", "sources": "sources.md", "ai": "ai.md",
                 "tools": "feedback.md", "prefs": "settings.md"}
     assert set(menu) == set(page_for), (

@@ -180,6 +180,15 @@ try {
   await shoot('job-posts-dropped');
   await run(`document.getElementById('scope').value = 'open'; await loadRoles();`);
 
+  // My applications, with the interviewing one chosen: its Application tab.
+  await run(view('apps'));
+  await sleep(1500);
+  await run(`[...document.querySelectorAll('#apps tr[data-uid]')].find(t => t.textContent.includes('Remote Care')).click()`);
+  await sleep(1500);
+  await shoot('applications');
+  await shoot('application-tab', {clip: '#apps-pane', tall: 2000});
+  await run(`closeDetail();`);
+
   await run(view('settings'));
   await sleep(1500);
   await shoot('search');

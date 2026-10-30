@@ -31,6 +31,10 @@ in [Job posts](job-posts.md#finding-a-post) to see them again.
 *interviewing* and *offer* are never removed by a clean-up, an age limit or
 a change to your rules: a decision you made outranks a rule.
 
+**Every change is dated.** From *interested* on, each status a job is given
+is kept with its day: [My applications](applications.md) lists the jobs you
+applied to with when, and each one's stages.
+
 **A status belongs to the job, not the link.** When one job is posted in
 several places, the copies share one status.
 
