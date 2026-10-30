@@ -6,6 +6,18 @@ it and into an entry when the work is done.
 
 ---
 
+## Security — 2026-10-30 — A resume file is read only so far
+
+A resume file could make jobdork read without end: a PDF of thousands of
+pages, or a `.docx` (a zip) whose text unpacks to gigabytes from a 10 MB
+upload. Now jobdork reads the first 30 pages of a PDF, keeps at most 200,000
+characters of any resume's text, and refuses a `.docx` whose text part would
+unpack past 20 MB, before unpacking it (`search/resume.py`, used by the
+readability check too). Every real resume is far inside all three. The last
+open item from the 2026-10-27 security review.
+
+---
+
 ## Fixed — 2026-10-30 — The banner's Update starts the update
 
 When a newer jobdork is out, a banner says so at the top of every page, with
