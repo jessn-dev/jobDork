@@ -32,6 +32,9 @@ jobdork never sends it. Saved as `recruiter-message-ai.md`.
 Both follow Resume Matcher's interview prep and outreach message
 (srbhr/resume-matcher, Apache-2.0), rewritten with jobdork's rules.
 
+
+Interview prep reads your whole record beside the resume: projects,
+education and the skills you confirmed with **I have this** (`store_notes`).
 ---
 
 ## Added — 2026-10-29 — A job post's ATS match, and "I have this"

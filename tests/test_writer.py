@@ -47,6 +47,7 @@ class _Script:
 
     def __call__(self, *a, purpose="", **k):
         self.purposes.append(purpose)
+        self.prompts = [*getattr(self, "prompts", []), a[2] if len(a) > 2 else ""]
         return self.answers.pop(0)
 
     def __enter__(self):
@@ -130,12 +131,14 @@ def test_interview_prep_is_laid_out_checked_and_recorded_and_gaps_are_never_clai
         saved = _patched_settings()
         try:
             with _Script(PREP, *GUARD_OK) as script, Store(cfg.db_path) as store:
+                store.confirm_skill("terraform")
                 draft = writer.prep(cfg, store, uid, root=tmp)
                 artifact = store.artifacts(uid, "interview_prep")[0]
                 output = store.ai_output(draft.output_id)
         finally:
             writer._settings = saved
         assert script.purposes == ["interview_prep", "guard_extract", "guard_verify"]
+        assert "Skills I confirm I have: terraform" in script.prompts[0], "the whole record"
         text = draft.text
         assert text.startswith("# Interview prep: Platform Engineer at Initech\n")
         order = [text.index(h) for h in ("## Why you fit", "## Questions about your resume",
