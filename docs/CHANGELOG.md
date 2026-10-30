@@ -81,31 +81,6 @@ Guide: Resume page, with a new picture of the interview prep tab.
 
 ---
 
-## Added — 2026-10-29 — A job post's ATS match, and "I have this"
-
-Each job post's window has a new **ATS match** tab: your resume file
-against its advert the way an applicant tracking system searches it, out of
-100, by script (`search/ats.py`, `/api/ats`). Keywords 40% (the advert's
-skills your resume names), required skills 20% (those under its
-Requirements or Qualifications), job title 15% (at the top of your resume,
-in its summary, or some of its words), sections 15% (contact details and
-the summary, experience, education and skills headings) and dates in one
-format 10%; a part that cannot be judged is left out. The parts and
-weights follow Resume Matcher's ATS score (srbhr/resume-matcher,
-rewritten); where it asks a model for the advert's keywords, jobdork uses
-the skills list the Fit score uses, so it stays offline and free.
-
-Below, the advert's skills in three groups: on your resume; **safe to
-add**, in your projects, education or confirmed skills but not the file (a
-tailored resume can name them); and **missing**, each with **I have this**.
-A confirmed skill is kept in a new table (schema 14, `confirmed_skills`,
-`/api/skills/confirm`) and joins the record the Resume page's projects and
-education already make (`resume_doc.store_notes`): Fit scores count it,
-job posts are re-scored, and a tailored resume may name it. **take back**
-removes one. **What to do** says what would raise the score.
-
----
-
 ## Added — 2026-10-29 — Interview prep and a recruiter message, by the AI
 
 Two more documents from a job post's window, written by the AI-page model
