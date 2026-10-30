@@ -45,9 +45,17 @@ a duplicate candidate.
 
 **The buttons:**
 
+On a wide window (1180 pixels or more, the app's own size included), the
+list has the post you chose beside it, as job boards show one: click a
+card's title or any blank part of it, and the whole post opens on the right,
+scrolling on its own while the list stays where it was. The chosen card is
+outlined. Its status list and note move into the post, beside the status
+buttons. On a narrower window a post opens in a
+[window](job-window.md) over the page instead, and the card keeps them all.
+
 | Button | Does |
 |---|---|
-| **Open** | Opens the post's [window](job-window.md): the whole advert and the AI tools |
+| **Open** | Opens the post's [window](job-window.md): the whole advert and the AI tools. Beside the list on a wide window, a click on the card does this |
 | **Interested** | Marks it *interested*: worth applying to |
 | **Apply** | Opens the employer's posting in your browser so you can apply there, and marks the post *applied*. If it may be a job you already applied to (see above), it asks first: **Apply anyway?** |
 | **Skip** | Marks it *skipped*: not for you. It is hidden from now on |
