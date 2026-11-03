@@ -66,6 +66,18 @@ on the guide's made-up data.
 
 ---
 
+## Security — 2026-11-03 — pypdf 6.21.4
+
+CI's security job failed on every pull request: pip-audit found seven
+known vulnerabilities (CVE-2026-119203 to -119209) in pypdf 6.21.2, the
+version in `requirements.lock` and `requirements-desktop.lock` (the CI lock
+had 6.21.3, still short of four of the fixes). pypdf reads a PDF resume, so
+these are in what the installers carry. All three locks now pin 6.21.4 with
+its PyPI hashes, and `pyproject.toml` asks for at least 6.21.4. pip-audit
+finds nothing in any of them; the tests pass on it.
+
+---
+
 ## Changed — 2026-10-30 — version 0.16.1
 
 0.16.1 carries the 9 entries below, everything since 0.16.0 (earlier
