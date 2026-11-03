@@ -17,6 +17,7 @@ from jobdork.core import config, keystore  # noqa: E402
 from jobdork.web import api  # noqa: E402
 
 GEMINI = "AIzaFakeKeyForTests0123456789"
+OLLAMA = "ollama-test-key-0123456789"                   # gitleaks:allow
 
 
 def _fresh():
@@ -98,7 +99,7 @@ def test_removing_an_ai_line_forgets_its_key_in_memory_and_the_keychain():
             cfg = _config(tmp, "remember_keys: true\n")
             api.llm_key("gemini", GEMINI)
             api.llm_key("openai", openai)                # held for a line not saved yet
-            api.llm_key(llm.OLLAMA_KEY, "ollama-test-key-0123456789")
+            api.llm_key(llm.OLLAMA_KEY, OLLAMA)
             state = api.llm_state(cfg)
             assert {"gemini", "openai"} <= set(state["kept"])
             # Saved with the Gemini line only: OpenAI's and Ollama's keys go,
@@ -112,7 +113,7 @@ def test_removing_an_ai_line_forgets_its_key_in_memory_and_the_keychain():
 
             # The Gemini line moved to an Ollama line that sends the Ollama key:
             # Gemini's key goes, the Ollama key, held again, stays.
-            api.llm_key(llm.OLLAMA_KEY, "ollama-test-key-0123456789")
+            api.llm_key(llm.OLLAMA_KEY, OLLAMA)
             Path("config.yaml").write_text(
                 "titles: {include: [nurse]}\nlocations: {countries: [US]}\nremember_keys: true\n"
                 "llm: {readers: [{provider: ollama, model: m, ollama_key: true}]}\n")

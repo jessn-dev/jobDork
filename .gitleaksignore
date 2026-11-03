@@ -8,3 +8,8 @@ b3f5f87170b43b98f9b8cb8c9c505ec266e846f8:tests/test_serve.py:generic-api-key:415
 # _FAKE_KEY and marked gitleaks:allow. Still in that branch's history.
 8153228c4690f4c67d3e3dd93b5b14a7a0e15468:tests/test_ai.py:generic-api-key:560
 8153228c4690f4c67d3e3dd93b5b14a7a0e15468:tests/test_ai.py:generic-api-key:595
+
+# A made-up Ollama key in the keystore tests (PR #123), before it was named
+# OLLAMA and marked gitleaks:allow. Still in that branch's history.
+ec17a985784362e2aad810ba0fa296ea4c413f31:tests/test_keystore.py:generic-api-key:101
+ec17a985784362e2aad810ba0fa296ea4c413f31:tests/test_keystore.py:generic-api-key:115
