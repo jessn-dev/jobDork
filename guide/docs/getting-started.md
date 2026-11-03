@@ -37,7 +37,7 @@ keychain so you enter each once ([Your keys](settings.md#your-keys)).
    file. Every job post is scored against it. It stays on your computer.
 2. **AI** (optional). Connect Ollama, a free AI that runs on your own
    computer, paste a key for Anthropic, Gemini, OpenAI or Groq, or choose
-   **Coding agent** to have Claude Code, Codex, Gemini CLI or Cursor do the
+   **Coding agent** to have Claude Code, Codex, Antigravity CLI or Cursor do the
    writing ([how](ai.md#coding-agent)). **Skip for now**
    leaves it for later, on the [AI page](ai.md). jobdork works without it; the
    AI adds a second opinion and writing help.

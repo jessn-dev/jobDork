@@ -17,6 +17,7 @@ from jobdork.core import config, keystore  # noqa: E402
 from jobdork.web import api  # noqa: E402
 
 GEMINI = "AIzaFakeKeyForTests0123456789"
+OLLAMA = "ollama-test-key-0123456789"                   # gitleaks:allow
 
 
 def _fresh():
@@ -83,6 +84,70 @@ def test_an_ai_key_is_kept_only_when_you_chose_it_and_comes_back_after_a_wipe():
             api.llm_forget("gemini")                         # Forget takes the kept copy too
             assert keystore.load("ai:gemini") == "" and llm.key_for("gemini") == ("", "")
             assert [m["name"] for m in api.keys_state(cfg)["missing"]] == ["gemini"]
+    finally:
+        os.chdir(here)
+        _fresh()
+        keystore.remembering = False
+
+
+def test_removing_an_ai_line_forgets_its_key_in_memory_and_the_keychain():
+    here = os.getcwd()
+    openai = "sk-FakeKeyForTests0123456789"            # gitleaks:allow
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            _fresh()
+            cfg = _config(tmp, "remember_keys: true\n")
+            api.llm_key("gemini", GEMINI)
+            api.llm_key("openai", openai)                # held for a line not saved yet
+            api.llm_key(llm.OLLAMA_KEY, OLLAMA)
+            state = api.llm_state(cfg)
+            assert {"gemini", "openai"} <= set(state["kept"])
+            # Saved with the Gemini line only: OpenAI's and Ollama's keys go,
+            # from memory and the keychain; Gemini's stays.
+            gone = api.forget_unused_keys(cfg)
+            assert gone == [llm.PROVIDERS["ollama"], llm.PROVIDERS["openai"]]
+            assert llm.VAULT.get("openai") == "" and keystore.load("ai:openai") == ""
+            assert keystore.load("ai:" + llm.OLLAMA_KEY) == ""
+            assert llm.VAULT.get("gemini") == GEMINI and keystore.load("ai:gemini") == GEMINI
+            assert api.llm_state(cfg)["kept"] == ["gemini"]
+
+            # The Gemini line moved to an Ollama line that sends the Ollama key:
+            # Gemini's key goes, the Ollama key, held again, stays.
+            api.llm_key(llm.OLLAMA_KEY, OLLAMA)
+            Path("config.yaml").write_text(
+                "titles: {include: [nurse]}\nlocations: {countries: [US]}\nremember_keys: true\n"
+                "llm: {readers: [{provider: ollama, model: m, ollama_key: true}]}\n")
+            cfg = config.load()
+            assert api.forget_unused_keys(cfg) == [llm.PROVIDERS["gemini"]]
+            assert keystore.load("ai:gemini") == "" and llm.VAULT.get(llm.OLLAMA_KEY)
+    finally:
+        os.chdir(here)
+        _fresh()
+        keystore.remembering = False
+
+
+def test_a_source_key_says_whether_the_keychain_keeps_it_and_remove_takes_it_out():
+    here = os.getcwd()
+    keys = {"ADZUNA_APP_ID": "id123", "ADZUNA_APP_KEY": "key456"}
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            _fresh()
+            cfg = _config(tmp)
+            config.write_source_keys(cfg, keys)          # not chosen: memory only
+            adzuna = next(k for k in api.setup_sources(cfg)["keyed"] if k["name"] == "adzuna")
+            assert adzuna["held"] == "app" and adzuna["kept"] is False
+            assert keystore.load("ADZUNA_APP_KEY") == ""
+
+            cfg = _config(tmp, "remember_keys: true\n")
+            config.write_source_keys(cfg, keys)
+            adzuna = next(k for k in api.setup_sources(cfg)["keyed"] if k["name"] == "adzuna")
+            assert adzuna["kept"] is True and keystore.load("ADZUNA_APP_KEY") == "key456"
+
+            config.write_source_keys(cfg, dict.fromkeys(keys, ""))   # Remove
+            adzuna = next(k for k in api.setup_sources(cfg)["keyed"] if k["name"] == "adzuna")
+            assert adzuna["held"] == "" and adzuna["kept"] is False
+            assert keystore.load("ADZUNA_APP_ID") == keystore.load("ADZUNA_APP_KEY") == ""
+            assert not os.environ.get("ADZUNA_APP_KEY")
     finally:
         os.chdir(here)
         _fresh()

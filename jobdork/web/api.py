@@ -2183,10 +2183,12 @@ def agent_setup(cfg, platform: str = "") -> dict:
         "command": command, "args": mcp_args,
         "claude_code": f"claude mcp add jobdork -- {line}",
         "codex": f"codex mcp add jobdork -- {line}",
-        # Gemini CLI reads flags after the command as its own: `--` first.
-        # -s user: for every folder, not only the one it is run in.
-        "gemini": join(["gemini", "mcp", "add", "-s", "user", "jobdork", command, "--", *mcp_args]),
-        "gemini_json": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
+        # Antigravity CLI (`agy`), which took over from Gemini CLI. It reads
+        # flags after the name as its own, so `--` before the command. It
+        # adds to the user-level ~/.gemini/config/mcp_config.json: for every
+        # folder, not only the one it is run in (checked on agy 1.4.8).
+        "antigravity": join(["agy", "mcp", "add", "jobdork", "--", command, *mcp_args]),
+        "antigravity_json": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
         "claude_desktop": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
         "cursor": json.dumps({"mcpServers": {"jobdork": server}}, indent=2),
         "vscode": json.dumps({"servers": {"jobdork": {"type": "stdio", **server}}}, indent=2),
@@ -2197,6 +2199,7 @@ def agent_setup(cfg, platform: str = "") -> dict:
 def llm_state(cfg) -> dict:
     """AI settings for the page. Says which keys are held, never what they are."""
     from ..ai import limits, llm
+    from ..core import keystore
     from ..core.config import MAX_READERS, SETUP_MAX_READERS
 
     settings = llm.Settings.from_config(cfg)
@@ -2237,6 +2240,10 @@ def llm_state(cfg) -> dict:
                      for p in llm.KEYED},
         # Where the Ollama key is held from, for lines that send it.
         "ollama_key": llm.key_for(llm.OLLAMA_KEY)[1],
+        # Which of those keys are kept in the keychain too (saved there or
+        # found there this run), so the page can say so. Names only.
+        "kept": sorted(p for p in (*llm.KEYED, llm.OLLAMA_KEY)
+                       if keystore.AI_PREFIX + p in keystore.kept),
         "problem": settings.problem(),
         "label": settings.label if cfg.llm.provider else "",
         "agent_mode": agent_mode(cfg),
@@ -2283,7 +2290,8 @@ def llm_key(provider: str, key: str) -> dict:
             note = "kept in this computer's keychain"
         except keystore.KeystoreError as exc:
             note = f"held until jobdork closes: {exc}"
-    return {"held": llm.VAULT.held(), "note": note}
+    return {"held": llm.VAULT.held(), "note": note,
+            "kept": keystore.AI_PREFIX + provider in keystore.kept}
 
 
 def _note_key_source(cfg, source: str, given: bool) -> None:
@@ -2406,6 +2414,35 @@ def llm_connection(code: str) -> dict:
             "note": held["note"]}
 
 
+def keys_in_use(cfg) -> set[str]:
+    """The AI keys the saved readers and checkers need: their providers',
+    and the Ollama key when a line sends it."""
+    from ..ai import llm
+
+    lines = [*cfg.llm.readers, *cfg.llm.checkers]
+    used = {p for p in ([r.provider for r in lines] or [cfg.llm.provider]) if p in llm.KEYED}
+    if any(r.provider == "ollama" and r.ollama_key for r in lines):
+        used.add(llm.OLLAMA_KEY)
+    return used
+
+
+def forget_unused_keys(cfg) -> list[str]:
+    """After the AI page is saved: a key no reader or checker uses any more
+    (its line removed, or moved to another provider) is forgotten, in memory
+    and in the keychain, as Forget does. A key set in the environment is not
+    jobdork's to remove and is left alone. Returns the providers' names, as
+    the page shows them."""
+    from ..ai import llm
+    from ..core import keystore
+
+    have = set(llm.VAULT.held()) | {n[len(keystore.AI_PREFIX):] for n in keystore.kept
+                                    if n.startswith(keystore.AI_PREFIX)}
+    gone = sorted(have - keys_in_use(cfg))
+    for provider in gone:
+        llm_forget(provider)
+    return [llm.PROVIDERS.get(p, p.capitalize()) for p in gone]
+
+
 def llm_forget(provider: str) -> dict:
     """Stop holding a key, and remove any copy kept in the keychain."""
     from ..ai import llm
@@ -2483,6 +2520,7 @@ def setup_choices(cfg) -> dict:
 
 def setup_sources(cfg) -> dict:
     """What a scan will read, in plain words, and the two optional keys."""
+    from ..core import keystore
     from ..core.config import APP_KEYS
     from ..fetch.adzuna import ISO_TO_INDEX
     from ..search import directory
@@ -2502,6 +2540,10 @@ def setup_sources(cfg) -> dict:
             return ""
         return "app" if all(n in APP_KEYS for n in names) else "environment"
 
+    def kept(names: tuple[str, ...]) -> bool:
+        """Typed here and kept in the keychain too, not only in memory."""
+        return all(n in keystore.kept for n in names)
+
     adzuna_here = not countries or any(c in ISO_TO_INDEX for c in countries)
     keyed = [
         {"name": "adzuna", "label": "Adzuna",
@@ -2511,6 +2553,7 @@ def setup_sources(cfg) -> dict:
          "why_not": "" if adzuna_here else "Adzuna does not cover your countries",
          "ready": cfg.sources.adzuna_ready(),
          "held": where(("ADZUNA_APP_ID", "ADZUNA_APP_KEY")),
+         "kept": kept(("ADZUNA_APP_ID", "ADZUNA_APP_KEY")),
          "fields": [{"name": "ADZUNA_APP_ID", "label": "App ID"},
                     {"name": "ADZUNA_APP_KEY", "label": "App key"}],
          "signup": "https://developer.adzuna.com/signup"},
@@ -2522,6 +2565,7 @@ def setup_sources(cfg) -> dict:
                                                        "is not in your countries",
          "ready": cfg.sources.usajobs_ready(),
          "held": where(("USAJOBS_API_KEY", "USAJOBS_EMAIL")),
+         "kept": kept(("USAJOBS_API_KEY", "USAJOBS_EMAIL")),
          "fields": [{"name": "USAJOBS_API_KEY", "label": "API key"},
                     {"name": "USAJOBS_EMAIL", "label": "Email you signed up with"}],
          "signup": "https://developer.usajobs.gov/APIRequest/Index"},

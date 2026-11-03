@@ -38,9 +38,15 @@ your choice ([Settings, Your keys](settings.md#your-keys)):
   Manager, or the Secret Service on Linux), encrypted with your login: you
   enter it once. **Forget** removes the kept copy too.
 
+Beside each key the line says which: **key held until jobdork closes** or
+**key kept in this computer's keychain**. Remove a line, or switch it to
+another provider, and **Save**: a key no line uses any more is forgotten,
+the keychain's copy too, and a note says so. A key set in your computer's
+environment, outside jobdork, is not jobdork's to remove and stays.
+
 ## Coding agent {#coding-agent}
 
-Already use a coding agent (Claude Code, Codex, Gemini CLI, Cursor, GitHub
+Already use a coding agent (Claude Code, Codex, Antigravity CLI, Cursor, GitHub
 Copilot, Claude Desktop)? It can do jobdork's AI work, so you need no API
 key and no Ollama. Choose **Coding agent** for a reader, usually Reader 1.
 It can be on one reader line, and is never a checker. Other readers can
@@ -69,14 +75,15 @@ projects, education and skills you tell it about to your record.
 **Connecting it.** The page shows the line for each agent, filled in for
 this computer, each with **Copy**:
 
-- **Claude Code**, **Codex** and **Gemini CLI**: a command to run once in a
-  terminal. In Gemini CLI, `/mcp` then shows jobdork connected.
+- **Claude Code**, **Codex** and **Antigravity CLI** (`agy`, which took
+  over from Gemini CLI): a command to run once in a terminal. Then
+  `agy mcp list` shows jobdork.
 - **Claude Desktop**, **Cursor**, **VS Code with GitHub Copilot**, and
-  **Gemini CLI by hand**: a few lines for the file the page names. Restart
+  **Antigravity CLI by hand**: a few lines for the file the page names. Restart
   the app afterwards.
 - **The Gemini app** (gemini.google.com and its desktop app) has no way
   documented by Google to add a tool like this one, so it is not listed;
-  Gemini CLI is.
+  Antigravity CLI is.
 - **Without MCP**: for an agent that only runs commands, the command that
   runs one tool with its arguments (`list_job_posts`, `get_brief`,
   `save_document` and the rest). Running it with no tool lists them.

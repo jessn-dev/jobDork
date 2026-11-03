@@ -85,7 +85,7 @@ a minor release).
 
 ## A coding agent calls jobdork, never the other way — 2026-10-29
 
-**Decided.** A coding agent (Claude Code, Codex, Gemini CLI, Cursor, GitHub
+**Decided.** A coding agent (Claude Code, Codex, Antigravity CLI, Cursor, GitHub
 Copilot, Claude Desktop) can do jobdork's AI work, after Resume Matcher's
 agent mode. jobdork serves it tools (an MCP server on stdio, and the same
 tools as `jobdork agent`, in the standard library) and never calls the agent

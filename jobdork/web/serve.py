@@ -424,7 +424,11 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 # A PDF shown in the page is a blob the page made itself from
                 # a document fetched with the token; nothing else may frame.
                 "frame-src blob:; "
-                "form-action 'none'; base-uri 'none'; frame-ancestors 'none'")
+                # 'self', not 'none': the blob PDF inherits this policy, and
+                # WebKit (the Mac app's window) then refused to show it in
+                # its own page, a blank white preview. Another site still
+                # cannot frame the page.
+                "form-action 'none'; base-uri 'none'; frame-ancestors 'self'")
             self.end_headers()
             self.wfile.write(body)
 
@@ -970,7 +974,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     fresh = self._write_config({"llm": form})
                 except Exception as exc:
                     return self._reject(400, f"not saved: {exc}")
-                return self._json(200, api_mod.llm_state(fresh))
+                # A line removed takes its key with it, keychain copy too.
+                forgot = api_mod.forget_unused_keys(fresh)
+                return self._json(200, {**api_mod.llm_state(fresh), "forgot": forgot})
             return self._reject(404, "no such path")
 
         def _project(self, path: str) -> None:

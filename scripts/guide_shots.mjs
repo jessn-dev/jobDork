@@ -226,8 +226,8 @@ try {
   const app = '/Applications/jobdork.app/Contents/MacOS/jobdork';
   await run(`ai.agent_setup = {claude_code: 'claude mcp add jobdork -- ${app} --mcp',
       codex: 'codex mcp add jobdork -- ${app} --mcp',
-      gemini: 'gemini mcp add -s user jobdork ${app} -- --mcp',
-      gemini_json: JSON.stringify({mcpServers: {jobdork: {command: '${app}', args: ['--mcp']}}}, null, 2),
+      antigravity: 'agy mcp add jobdork -- ${app} --mcp',
+      antigravity_json: JSON.stringify({mcpServers: {jobdork: {command: '${app}', args: ['--mcp']}}}, null, 2),
       claude_desktop: JSON.stringify({mcpServers: {jobdork: {command: '${app}', args: ['--mcp']}}}, null, 2),
       cursor: JSON.stringify({mcpServers: {jobdork: {command: '${app}', args: ['--mcp']}}}, null, 2),
       vscode: JSON.stringify({servers: {jobdork: {type: 'stdio', command: '${app}', args: ['--mcp']}}}, null, 2),

@@ -337,7 +337,10 @@ def test_the_page_refuses_to_be_framed():
         with urllib.request.urlopen(request, timeout=5) as response:
             assert response.headers["X-Frame-Options"] == "DENY"
             policy = response.headers["Content-Security-Policy"]
-            assert "frame-ancestors 'none'" in policy
+            # 'self' so the page's own blob PDF can be shown inside it:
+            # the blob inherits this policy, and WebKit enforces it there.
+            assert "frame-ancestors 'self'" in policy
+            assert "frame-ancestors 'none'" not in policy
             # The tab icon is inline (data:); no image comes from the network.
             assert "img-src data:;" in policy and "http" not in policy
     _with_server(check)

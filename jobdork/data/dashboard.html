@@ -3611,8 +3611,11 @@ function keyCardsHtml(keyed) {
   return keyed.map(k => `<div class="keycard">
     <b>Use ${esc(k.label)}?</b> ${esc(k.offer)}
     ${k.ready ? `<div class="bar"><span class="saved">Ready</span>
-        ${k.held === 'app' ? `<button type="button" class="act" data-replace="${k.name}">Replace</button>
-          <button type="button" class="act" data-forget="${k.name}">Remove</button>`
+        ${k.held === 'app' ? `<span class="hint">${k.kept ? "kept in this computer's keychain"
+            : 'held until jobdork closes'}</span>
+          <button type="button" class="act" data-replace="${k.name}">Replace</button>
+          <button type="button" class="act" data-forget="${k.name}"
+            title="Removes the key from jobdork${k.kept ? ' and the keychain' : ''}">Remove</button>`
         : '<span class="hint">set in .env or the environment, which the app does not change</span>'}</div>`
       : `<div class="bar"><button type="button" class="act" data-want="${k.name}">Yes, add a free key</button></div>`}
     <div class="keyform" data-keyform="${k.name}" hidden>
@@ -4977,10 +4980,14 @@ function syncReaders() {
 const keyOf = r => r.provider === 'ollama' ? 'ollama' : r.provider;
 const needsKey = r => r.provider === 'ollama' ? !!r.ollama_key : r.provider in ai.keys;
 
+// "keychain" is a kept key read back after a restart or the idle wipe: held
+// now, like "memory". Forget removes the keychain's copy too.
 function keyState(p) {
   const where = ai.keys[p];
-  return where === 'memory'
-    ? `<span class="saved">key held in memory</span> <button data-icon="eraser" class="act r-forget" type="button">Forget</button>`
+  return where === 'memory' || where === 'keychain'
+    ? `<span class="saved">${(ai.kept || []).includes(p) ? "key kept in this computer's keychain"
+        : 'key held until jobdork closes'}</span> <button data-icon="eraser" class="act r-forget" type="button"
+        title="Removes the key from jobdork${(ai.kept || []).includes(p) ? ' and the keychain' : ''}">Forget</button>`
     : where === 'environment' ? `<span class="hint">using ${esc((ai.env_vars || {})[p] || 'the key')} from
       your computer's environment, set outside jobdork; a key saved here is used instead</span>`
     : '<span class="hint">No key held</span>';
@@ -5059,7 +5066,7 @@ function drawAgentSetup(on) {
   // The apps set up from a file, folded: each is a screenful.
   const folded = (title, where, text) => `<details class="agentcmd"><summary><b>${title}</b>
     <span class="hint">${where}</span></summary>${row(text)}</details>`;
-  box.innerHTML = `<p><b>Your coding agent does the AI work.</b> Claude Code, Codex, Gemini CLI,
+  box.innerHTML = `<p><b>Your coding agent does the AI work.</b> Claude Code, Codex, Antigravity CLI,
       Cursor, GitHub Copilot or Claude Desktop reads your resume and the advert through jobdork's tools, writes the
       document itself, and saves it back: jobdork checks it, makes the PDF and Word files and keeps it,
       as it does a model's. jobdork asks no model and needs no API key; it never calls your agent,
@@ -5072,9 +5079,9 @@ function drawAgentSetup(on) {
       the check says so. Your agent never checks its own writing.</p>
     ${block('Claude Code', 'run once, in a terminal', s.claude_code || '')}
     ${block('Codex', 'run once, in a terminal', s.codex || '')}
-    ${block('Gemini CLI', 'run once, in a terminal; then /mcp in Gemini shows it connected', s.gemini || '')}
+    ${block('Antigravity CLI (agy)', 'run once, in a terminal; then <code>agy mcp list</code> shows it', s.antigravity || '')}
     ${folded('Claude Desktop', 'in claude_desktop_config.json, then restart it', s.claude_desktop || '')}
-    ${folded('Gemini CLI, by hand', 'in ~/.gemini/settings.json, then restart it', s.gemini_json || '')}
+    ${folded('Antigravity CLI, by hand', 'in ~/.gemini/config/mcp_config.json, then restart it', s.antigravity_json || '')}
     ${folded('Cursor', 'in ~/.cursor/mcp.json', s.cursor || '')}
     ${folded('VS Code with GitHub Copilot', 'in .vscode/mcp.json', s.vscode || '')}
     ${folded('Without MCP', 'any agent that runs commands: this, then a tool and its JSON', s.cli || '')}`;
@@ -5118,13 +5125,16 @@ function wireReader(card, load) {
       card.querySelector('.r-key-state').innerHTML = `<span class="err">${esc(await res.text())}</span>`;
       return;
     }
+    const held = await res.json();
     ai.keys[keyOf(r)] = 'memory';
+    ai.kept = (ai.kept || []).filter(p => p !== keyOf(r)).concat(held.kept ? [keyOf(r)] : []);
     syncReaders(); drawReaders(true); refreshState();
   };
   const forget = card.querySelector('.r-forget');
   if (forget) forget.onclick = async () => {
     await api('/api/llm/forget', {method: 'POST', body: form({provider: keyOf(r)})});
     ai.keys[keyOf(r)] = '';
+    ai.kept = (ai.kept || []).filter(p => p !== keyOf(r));
     syncReaders(); drawReaders(false);
   };
   if (load) loadReaderModels(card, true);
@@ -5257,6 +5267,10 @@ async function saveAI() {
   showAIState(fresh, true);
   drawReaders(false);
   refreshState();
+  // A removed line's key goes with it, from the keychain too.
+  if ((fresh.forgot || []).length)
+    toast(`Removed the ${fresh.forgot.join(' and ')} key${fresh.forgot.length > 1 ? 's' : ''}: no line uses ${
+      fresh.forgot.length > 1 ? 'them' : 'it'} now`);
   return !ai.problem;
 }
 
