@@ -302,8 +302,8 @@ def test_the_setup_commands_start_jobdork_on_this_computer():
     assert s["args"][:3] == ["-m", "jobdork.cli", "--config"] and s["args"][-1] == "mcp"
     assert s["args"][3].endswith("config.yaml")
     assert s["claude_code"].startswith("claude mcp add jobdork -- ")
-    assert s["gemini"].startswith("gemini mcp add -s user jobdork ") and " -- -m jobdork.cli" in s["gemini"]
-    assert json.loads(s["gemini_json"])["mcpServers"]["jobdork"]["args"] == s["args"]
+    assert s["antigravity"].startswith("agy mcp add jobdork -- ") and " -m jobdork.cli" in s["antigravity"]
+    assert json.loads(s["antigravity_json"])["mcpServers"]["jobdork"]["args"] == s["args"]
     assert json.loads(s["claude_desktop"])["mcpServers"]["jobdork"]["command"] == sys.executable
     frozen, was = getattr(sys, "frozen", None), sys.executable
     sys.frozen = True

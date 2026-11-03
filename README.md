@@ -85,7 +85,7 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
 - **Uses an AI model only when you set one up.** Ollama on your own computer,
   or Anthropic, Gemini, OpenAI or Groq with your key, held in memory or, if
   you choose, in your computer's keychain; never in a file. Or your own
-  coding agent (Claude Code, Codex, Gemini CLI, Cursor, GitHub Copilot,
+  coding agent (Claude Code, Codex, Antigravity CLI, Cursor, GitHub Copilot,
   Claude Desktop) does the writing through jobdork's MCP server or command
   line, with no key, within guardrails: jobdork checks and keeps what it
   writes, and what it adds to your record waits for your OK

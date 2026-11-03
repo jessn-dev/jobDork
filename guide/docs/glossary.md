@@ -30,7 +30,7 @@
 : A second AI model that checks the first one's work. [AI](ai.md#checkers)
 
 **Coding agent**
-: An AI assistant you already use for code (Claude Code, Codex, Gemini CLI,
+: An AI assistant you already use for code (Claude Code, Codex, Antigravity CLI,
   Cursor, GitHub Copilot, Claude Desktop), connected to jobdork to do its
   writing with no API key. [AI](ai.md#coding-agent)
 

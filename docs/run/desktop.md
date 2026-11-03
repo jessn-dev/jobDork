@@ -105,7 +105,7 @@ After that it opens on the Dashboard.
   there, and nothing else is sent
   ([PRIVACY.md](../../PRIVACY.md#the-version-check)).
 
-- **A coding agent** (Claude Code, Codex, Gemini CLI, Cursor, Claude
+- **A coding agent** (Claude Code, Codex, Antigravity CLI, Cursor, Claude
   Desktop) can do the AI work with no key: **AI → Coding agent** shows the
   line to connect each one, filled in for your computer
   ([how](https://jessn-dev.github.io/jobDork/ai/#coding-agent)). On Windows

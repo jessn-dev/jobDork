@@ -27,8 +27,11 @@ Two sources need a free key: **Adzuna** (many job boards at once, in 20
 countries) and **USAJOBS** (US federal government jobs). **Yes, add a free
 key** shows where to get one and where to paste it; **Show** shows a saved
 key, **Replace** and **Remove** change it. A key is tested with the source
-before it is saved, and kept in a file only you can read, never in your
-settings.
+before it is saved, and never written to a file or your settings: it is
+held until jobdork closes, or kept in this computer's keychain if you chose
+that ([Settings, Your keys](settings.md#your-keys)). Beside **Ready** the
+card says which. **Remove** takes the key out of jobdork and the keychain
+both.
 
 ## Add a job post
 

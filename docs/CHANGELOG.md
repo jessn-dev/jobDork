@@ -6,6 +6,66 @@ it and into an entry when the work is done.
 
 ---
 
+## Fixed — 2026-11-03 — A removed AI line takes its key with it
+
+Removing a reader or checker on the AI page (or switching it to another
+provider) left its key held, and kept in the keychain when you chose
+Remember keys, with nothing on the page that used or showed it any more:
+only **Forget saved keys** in Settings took it out. Now **Save** forgets
+every AI key no line uses (OpenAI, Anthropic, Gemini, Groq, and the Ollama
+key once no Ollama line sends it), in memory and in the keychain, as
+**Forget** does, and a note names it ("Removed the Groq key: no line uses
+it now"). A key set in the environment, outside jobdork, is left alone
+(`api.forget_unused_keys`, after the AI page is saved).
+
+---
+
+## Fixed — 2026-11-03 — Keys say where they are kept
+
+An AI key read back from the keychain after a restart or the idle wipe
+showed **No key held** on its line, though it was held and used: the page
+knew "memory" and "environment" only. And neither the AI page nor the
+Sources page said whether a key was kept in the keychain or only until
+jobdork closes. Now an AI line says **key kept in this computer's
+keychain** or **key held until jobdork closes**, and the Adzuna and USAJOBS
+cards say the same beside **Ready**. **Forget** and **Remove** say on hover
+that they take the keychain's copy too (they always did). jobdork knows
+which keys are kept from what it saved there or found there this run
+(`keystore.kept`), so the page never asks the keychain on a poll, which can
+prompt on a Mac. The Sources page of the guide no longer says keys are kept
+in a file: that stopped in 0.15.2.
+
+---
+
+## Changed — 2026-11-03 — Gemini CLI is now Antigravity CLI (`agy`)
+
+Google moved Gemini CLI's people onto Antigravity CLI, whose command is
+`agy`, so the AI page's `gemini mcp add -s user ...` line no longer ran for
+most people. The page now gives **Antigravity CLI (agy)**:
+`agy mcp add jobdork -- <jobdork> --mcp`, which adds jobdork for every
+folder, and `agy mcp list` then shows it. **Antigravity CLI, by hand**
+names the file `agy` really writes, `~/.gemini/config/mcp_config.json`
+(Gemini CLI's was `~/.gemini/settings.json`). Both checked against `agy`
+1.4.8 in a scratch home folder. The guide, README and run notes say
+Antigravity CLI.
+
+---
+
+## Fixed — 2026-11-03 — The Resume page's preview was blank in the Mac app
+
+In the app on a Mac, choosing a tailored resume (or a PDF resume of your
+own) on the Resume page showed a blank white box where the PDF should be,
+with no error. The browser dashboard showed it. The page shows a PDF from a
+`blob:` address it makes itself, and that blob takes on the page's
+Content-Security-Policy, whose `frame-ancestors 'none'` WebKit (the app
+window's engine) then applied to the PDF too: it would not be shown inside
+any page, its own included. Chrome does not apply it there. Now the policy
+says `frame-ancestors 'self'`: the page can show its own PDF, and no other
+site can frame the page (`web/serve.py`). Checked in the app window itself
+on the guide's made-up data.
+
+---
+
 ## Changed — 2026-10-30 — version 0.16.1
 
 0.16.1 carries the 9 entries below, everything since 0.16.0 (earlier

@@ -38,6 +38,12 @@ class KeystoreError(Exception):
 remembering = False
 
 
+# The names this run saved to the keychain or found there, so the page can
+# say a key is kept without asking the keychain on every poll (which can
+# prompt on a Mac). Removing a key takes its name out.
+kept: set[str] = set()
+
+
 # The `keyring` module, or a stand-in with get_password, set_password and
 # delete_password: tests put one here so no test reaches a real keychain.
 _backend = None
@@ -80,6 +86,7 @@ def save(name: str, value: str) -> None:
         _keyring().set_password(SERVICE, name, value)
     except Exception as exc:                     # the store refused (denied, locked)
         raise KeystoreError(f"the keychain did not keep it: {type(exc).__name__}") from None
+    kept.add(name)
 
 
 def load(name: str) -> str:
@@ -87,12 +94,16 @@ def load(name: str) -> str:
     if unavailable():
         return ""
     try:
-        return _keyring().get_password(SERVICE, name) or ""
+        value = _keyring().get_password(SERVICE, name) or ""
     except Exception:                            # denied or locked: ask instead
         return ""
+    if value:
+        kept.add(name)
+    return value
 
 
 def delete(name: str) -> None:
+    kept.discard(name)
     if unavailable():
         return
     # Not there, or already gone: either way it is not kept.
