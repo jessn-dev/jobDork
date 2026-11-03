@@ -62,7 +62,7 @@ dev = [
     # Exact: each ruff release adds rules, and an open range let CI pick up
     # 0.17.2 and fail on RUF059 that a 0.16 install here passed (#43).
     # Dependabot proposes the next one as a pull request.
-    "ruff==0.17.2",
+    "ruff==0.17.3",
     # The update check's attestation tests verify a real bundle offline.
     "sigstore>=4.5.1",
 ]
