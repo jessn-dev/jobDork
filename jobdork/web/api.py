@@ -1187,6 +1187,61 @@ def add_by_text(cfg, url: str, title: str, company: str, location: str,
     return _store_added(cfg, role)
 
 
+# Statuses past "applied": tracking an application leaves these as they are.
+FURTHER_THAN_APPLIED = ("interviewing", "offer")
+
+
+def track_application(cfg, form: dict) -> dict:
+    """A job you applied to outside jobdork, tracked from its link: the post
+    is added (read from the link, from its pasted advert, or with only its
+    title and employer when you have neither) and marked applied, dated the
+    day you applied. Listed on My applications from then on."""
+    import datetime
+
+    from ..db.store import Role, Store, canonical_url
+
+    def get(key: str) -> str:
+        return str(form.get(key) or "").strip()
+
+    url, text, title = get("url"), get("text"), get("title")
+    today = datetime.date.today()
+    applied = get("applied_on") or today.isoformat()
+    if not DATE.match(applied):
+        raise ApiError("the date you applied is written as YYYY-MM-DD")
+    try:
+        day = datetime.date.fromisoformat(applied)
+    except ValueError as exc:
+        raise ApiError("the date you applied is not a real date") from exc
+    if day > today:
+        raise ApiError("the date you applied is in the future")
+    if text:
+        added = add_by_text(cfg, url, title, get("company"), get("location"), text)
+    elif title:
+        # No advert: tracked all the same, scored against nothing.
+        link = canonical_url(url)
+        if not link.startswith(("http://", "https://")):
+            raise ApiError("give the job post's link too, so you can open it again")
+        if not get("company"):
+            raise ApiError("give the employer, so you can tell it from the others")
+        role = Role(platform="site", company=get("company"), title=title, url=link,
+                    location_raw=get("location"), description="")
+        role.flags.append("tracked without its advert")
+        added = _store_added(cfg, role)
+    else:
+        added = add_by_url(cfg, url, get("token"))
+    with Store(cfg.db_path) as store:
+        row = store.get(added["uid"])
+        status = (row["status"] if row else "") or "new"
+        if status in FURTHER_THAN_APPLIED:
+            added.update(status=status, tracked=False)
+        else:
+            store.set_status(added["uid"], "applied", "tracked from its link",
+                             when=f"{applied}T12:00:00")
+            added.update(status="applied", tracked=True)
+    added["applied_on"] = applied
+    return added
+
+
 def _store_added(cfg, wanted) -> dict:
     from ..db.store import Store
     from ..search import screen

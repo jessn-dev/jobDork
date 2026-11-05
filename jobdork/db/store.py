@@ -836,11 +836,14 @@ class Store:
 
     # ── state ──────────────────────────────────────────────────────────────────
 
-    def set_status(self, uid: str, status: str, note: str = "", by: str = "") -> None:
+    def set_status(self, uid: str, status: str, note: str = "", by: str = "",
+                   when: str = "") -> None:
         """Record a decision — for every copy of the job, not just this one.
 
         A decision about a job is about the job. Set on one copy only, it was
         lost the moment another copy became the one shown (see grouping.py).
+        `when` dates the change in its history, for one made before it was
+        recorded here (an application tracked after you sent it); now if empty.
         """
         if status not in STATUSES:
             raise ValueError(
@@ -856,7 +859,7 @@ class Store:
             members).fetchall())
         self.conn.executemany(
             "INSERT INTO status_history(uid, status, at, by) VALUES(?,?,?,?)",
-            [(m, status, now, by) for m in members
+            [(m, status, when or now, by) for m in members
              if was.get(m, "new") != status and status not in ("new", "viewed")])
         self.conn.executemany(
             "INSERT INTO role_state(uid, status, note, updated_at) VALUES(?,?,?,?) "
