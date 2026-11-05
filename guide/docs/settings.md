@@ -57,7 +57,8 @@ USAJOBS) go. Never into a file or the settings.
   login, so you enter each key once. Turning it on keeps the keys you have
   entered so far; turning it off removes the kept copies.
     - **On a Mac**, after each jobdork update the Mac asks once to let jobdork
-      use the keychain: choose **Always Allow**. Until you do, a scheduled scan
+      use the keychain (once for all your keys, which are kept together):
+      enter your Mac login password and choose **Always Allow**. Until you do, a scheduled scan
       runs without the kept keys.
     - **In a container** or on Linux without a Secret Service, there is no
       keychain to keep them in; the page says so. In a container, give keys in

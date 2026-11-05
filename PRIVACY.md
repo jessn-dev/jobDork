@@ -110,7 +110,7 @@ provider to be judged, reviewed or written from:
 - **A question on the Ask page** (the desktop app, with Claude Code) goes
   to Anthropic through your own Claude Code installation, under your
   account: once to check it is about your job search, then, if it is, to
-  answer it, with what Claude Code reads through jobdork's tools (with your
+  answer it, on the Claude model you chose in the box, with what Claude Code reads through jobdork's tools (with your
   email, phone number and profile links removed, as above). The
   conversation is kept in memory only, and forgotten when jobdork closes.
 

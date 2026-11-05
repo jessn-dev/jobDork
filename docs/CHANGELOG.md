@@ -26,7 +26,9 @@ grows as you type.
 - **+** starts a new conversation and a square button stops one, in the box.
 
 The guide's Ask page shows both views and says that Ask does not use the
-readers and checkers on the AI page.
+readers and checkers on the AI page. SECURITY.md (the model list), PRIVACY.md,
+the desktop notes and DECISIONS.md (the Ask decision, with why a coding
+agent is still not a checker) say so too.
 
 ---
 
@@ -45,7 +47,8 @@ then removed. Forget saved keys, Remove jobdork and removing an AI line take
 keys out of the one item, and any left the old way (`core/keystore.py`).
 Tests check that every key lands in one item, that old items move and go,
 that reading every key asks the keychain for one item, and that a damaged
-item reads as no keys kept.
+item reads as no keys kept. The guide's Settings page and DECISIONS.md say
+it asks once for all keys.
 
 ---
 
