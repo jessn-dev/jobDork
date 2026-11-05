@@ -30,9 +30,12 @@ The pull request template has the checklist. In short:
   with the security scans; `main` takes nothing that fails. Ruff is pinned
   in `pyproject.toml`, so the same version passes here and in CI; after a
   Dependabot update, `pip install -e '.[dev]'` again.
-- **An entry in [docs/CHANGELOG.md](docs/CHANGELOG.md)**, at the top: what
-  was wrong or missing, and what changed. Release pages are built from these
-  entries, so write for the person reading the release.
+- **A changelog entry, as a file of its own in [docs/changes/](docs/changes/)**
+  (not at the top of `docs/CHANGELOG.md`, so two pull requests never
+  conflict): what was wrong or missing, and what changed. Release pages are
+  built from these entries, so write for the person reading the release.
+  [docs/changes/README.md](docs/changes/README.md) has the format;
+  `python scripts/changelog.py check` checks it.
 - **The user guide**, when the change shows in the app: a new button,
   setting, page or status is explained in `guide/docs/`, and the pictures
   are retaken with `python scripts/guide_screenshots.py`. `tests/test_guide.py`

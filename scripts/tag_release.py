@@ -165,6 +165,12 @@ def main(argv: list[str]) -> int:
         stop(f"pyproject.toml says {have}, not {ver}. Set the version in a release "
              f"pull request first (scripts/set_version.py {ver}), or choose the kind "
              f"that gives {have}.")
+    left = sorted(p.name for p in (ROOT / "docs" / "changes").glob("*.md")
+                  if p.name.lower() != "readme.md")
+    if left:
+        stop("changelog entries are still waiting in docs/changes/ ("
+             + ", ".join(left) + "): the release page would leave them out. Run "
+             "scripts/changelog.py collect in a release pull request first.")
     pages = subprocess.run([sys.executable, str(ROOT / "scripts" / "set_version.py"), "--check"],
                            cwd=ROOT, capture_output=True, text=True)
     if pages.returncode:

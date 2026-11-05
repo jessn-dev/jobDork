@@ -1,6 +1,9 @@
 # Changelog
 
-Each finished piece of work gets its own entry here, newest first.
+Each finished piece of work gets its own entry here, newest first. Until a
+release, new entries wait in [changes/](changes/), one file each, so pull
+requests never edit the same lines; the release moves them here
+(`scripts/changelog.py collect`).
 [Still outstanding](#still-outstanding) is the backlog: a bullet moves out of
 it and into an entry when the work is done.
 
