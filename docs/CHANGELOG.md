@@ -6,6 +6,31 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-11-05 — One command tags a release
+
+`python scripts/tag_release.py` tags a release once its pull request is
+merged. It asks whether the release is major, minor or patch (or take it as
+an argument) and counts the version on from the last release tag: from
+v0.16.2, patch is 0.16.3, minor 0.17.0, major 1.0.0. It tags only when:
+
+- `pyproject.toml` and every page name that version (a tag that differs is
+  refused by the release run anyway, and a tag can never be moved);
+- main's last commit is the merge of `release/<version>`, from a merged
+  pull request;
+- every check on that commit finished and passed (a skipped one is fine; one
+  still running stops it, to run again later);
+- the tag exists neither locally nor on GitHub.
+
+Then you type the version to confirm, it tags and pushes, and opens the
+release run in the browser. Approving the `release` environment stays
+yours: that is the sign-off. A working copy with changes is refused, so
+nothing is lost by its `git checkout main` and `git pull --ff-only`.
+SECURITY.md's release steps name it. Tests cover the version count, the
+release merge and the checks (`tests/test_tag_release.py`); nothing in them
+runs git or reaches GitHub.
+
+---
+
 ## Changed — 2026-11-05 — version 0.16.2
 
 0.16.2 carries the 8 entries below, everything since 0.16.1. For you:
