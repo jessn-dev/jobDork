@@ -80,6 +80,11 @@ only after the owner approves it in the `release` environment. A push to
    before the pull lands on the old commit for good (as `v0.14.0`,
    `v0.14.1` and `v0.14.2` did). Pushing a branch or opening a pull request does not put
    anything on `main`; merging it does.
+   `python scripts/tag_release.py` does this step and checks it first: you
+   say major, minor or patch, it counts the version on from the last
+   release tag, and it tags only when that is the version `main` says, the
+   last commit is the merge of `release/<version>` and every check on it
+   passed. It then opens the run for step 3.
 3. The workflow runs every check again on the tag, then stops at **Review
    deployments**: open the run under Actions and approve it. Nothing is
    published, and the Docker Hub token is not handed out, until you do.
