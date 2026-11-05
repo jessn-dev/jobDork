@@ -361,18 +361,22 @@ def test_without_pywebview_it_says_what_to_install():
 
 
 def test_self_test_passes_with_everything_present():
-    backend = app.WINDOW_BACKENDS.get(sys.platform)
-    saved = sys.modules.get(backend) if backend else None
+    # The window's backend and the platform's own modules (PyQt6 and
+    # secretstorage on Linux) are the built app's, not the test run's.
+    names = [n for n in (app.WINDOW_BACKENDS.get(sys.platform),
+                         *app.PLATFORM_MODULES.get(sys.platform, ())) if n]
+    saved = {n: sys.modules.get(n) for n in names}
     with _fake_webview():
-        if backend:
-            sys.modules[backend] = types.ModuleType(backend)
+        for name in names:
+            sys.modules[name] = types.ModuleType(name)
         try:
             assert app.self_test() == []
         finally:
-            if backend and saved is None:
-                sys.modules.pop(backend, None)
-            elif backend:
-                sys.modules[backend] = saved
+            for name, module in saved.items():
+                if module is None:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = module
 
 
 def test_self_test_names_what_a_build_is_missing():
