@@ -13,6 +13,24 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy
 ROOT = Path(SPECPATH).parent
 VERSION = os.environ.get("JOBDORK_VERSION", "0.0.0")
 ICON = str(ROOT / "packaging" / "icon.png")       # converted per platform (Pillow)
+LINUX = sys.platform.startswith("linux")
+
+
+def linux_libraries():
+    """System libraries the Linux build carries: libxcb-cursor, which Qt 6.5
+    and later needs to draw on X11 and many desktops do not install. The
+    build machine's copy goes beside the app's own, which the program finds
+    first. The .deb asks for the system's too (packaging/build.py)."""
+    import ctypes.util
+    import glob
+
+    name = ctypes.util.find_library("xcb-cursor")
+    found = sorted(glob.glob(f"/usr/lib/*/{name}*")) if name else []
+    if not found:
+        raise SystemExit("libxcb-cursor is not installed on the build machine "
+                         "(apt install libxcb-cursor0)")
+    return [(found[0], ".")]
+
 
 a = Analysis(
     [str(ROOT / "packaging" / "jobdork_app.py")],
@@ -30,9 +48,9 @@ a = Analysis(
     # keyring finds the keychain it talks to (macOS Keychain, Windows
     # Credential Manager) through its package metadata's entry points.
     + copy_metadata("keyring")
-    # Windows has no time zone database: the tzdata package's travels with
+    # Windows has no time zone database, nor a bare Linux: the tzdata package's travels with
     # the app (ai/limits.py), checked by the self-test.
-    + (collect_data_files("tzdata") if sys.platform == "win32" else []),
+    + (collect_data_files("tzdata") if sys.platform == "win32" or LINUX else []),
     # Imported only inside functions or behind a try, so named here: the
     # Claude provider and the PDF reader are extras a pip install may skip,
     # and an app user cannot add them afterwards. The command line runs the
@@ -43,13 +61,42 @@ a = Analysis(
                    # Keys you choose to keep (core/keystore.py): every backend,
                    # each loaded by name from its entry point.
                    *collect_submodules("keyring.backends"),
-                   *(collect_submodules("tzdata") if sys.platform == "win32" else []),
+                   *(collect_submodules("tzdata") if sys.platform == "win32" or LINUX else []),
                    # Imported inside a function, for notifications on macOS.
-                   *(["UserNotifications"] if sys.platform == "darwin" else [])],
+                   *(["UserNotifications"] if sys.platform == "darwin" else []),
+                   # The Linux window: pywebview loads its Qt engine by name.
+                   *(["webview.platforms.qt", "qtpy", "PyQt6.QtWebEngineWidgets",
+                      "PyQt6.QtWebEngineCore", "PyQt6.QtWebChannel", "PyQt6.QtNetwork"]
+                     if LINUX else [])],
+    binaries=linux_libraries() if LINUX else [],
     # The dork generator is a terminal tool; the app never runs it.
     excludes=["tkinter", "jobdork.dork"],
     noarchive=False,
 )
+# The Linux build carries Qt, and PyInstaller takes every part of it a part it
+# found might load: QML modules, 3D, multimedia, speech, SQL drivers, sensors.
+# The window is a widget with a web page in it and uses none of them, so they
+# are left out (about a third of the build). Qt's web engine, its widgets and
+# what they load stay; the self-test imports them and desktop.yml opens the
+# window, so a part cut that was needed fails the build, not someone's start.
+if LINUX:
+    import re
+
+    UNUSED_QT = re.compile(
+        r"PyQt6/Qt6/(qml/"
+        r"|lib/libQt6(Quick3D|Multimedia|SpatialAudio|TextToSpeech|Charts|DataVisualization"
+        r"|Graphs|Sensors|Bluetooth|Nfc|SerialPort|SerialBus|Location|RemoteObjects|Scxml"
+        r"|StateMachine|Designer|Help|Sql|VirtualKeyboard|3D|QuickControls2|QuickDialogs2"
+        r"|QuickTemplates2|QuickParticles|QuickTimeline|QuickEffects|QuickVectorImage"
+        r"|LabsAnimation|Lottie|ShaderTools)"
+        r"|plugins/(multimedia|sqldrivers|sensors|position|geoservices|texttospeech|canbus"
+        r"|designer|qmltooling|renderers|sceneparsers|assetimporters|geometryloaders"
+        r"|renderplugins|qmllint)/)")
+    # The system's own libraries PyInstaller also took are removed after the
+    # build instead (packaging/build.py, prune_linux).
+    a.binaries = [x for x in a.binaries if not UNUSED_QT.search(x[0].replace("\\", "/"))]
+    a.datas = [x for x in a.datas if not UNUSED_QT.search(x[0].replace("\\", "/"))]
+
 pyz = PYZ(a.pure)
 
 exe = EXE(

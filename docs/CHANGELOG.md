@@ -6,6 +6,51 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-11-04 — The desktop app for Linux: an AppImage and a .deb
+
+jobdork now installs on 64-bit Linux like on a Mac or Windows, from the
+next release on: **`jobdork-<version>-linux-x86_64.AppImage`**, one file
+that runs on any distribution from 2022 on with no password, and
+**`jobdork_<version>_amd64.deb`** for Ubuntu 22.04+, Debian 12+ and Mint,
+installed with `sudo apt install ./jobdork_<version>_amd64.deb`, in the menu
+and on the `PATH`. Until now Linux meant running it from source.
+
+- **The window** is pywebview's Qt engine, carried inside (PyQt6 and Qt's
+  web engine; DECISIONS.md, 2026-11-04): nothing else to install. The
+  system's own libraries are left to the system; the .deb names them. Qt
+  parts the window never uses (QML, 3D, multimedia, speech, SQL) are left
+  out.
+- **Update** works as on the others: checked against the release's
+  checksums and build attestation, then the AppImage is swapped in once
+  jobdork has quit and opens again; a .deb is installed by
+  `pkexec apt-get install` once jobdork has quit (the desktop asks for the
+  password), then jobdork opens again, the old version if the password was
+  not given. Where it cannot, the Downloads folder opens and the update
+  window says what to do.
+- **The scheduled scan and a coding agent** start the AppImage by its own
+  file (`$APPIMAGE`), not the folder it unpacks to for one run, which is
+  gone when it quits.
+- **Removal:** Settings, Remove jobdork, then delete the AppImage or
+  `sudo apt remove jobdork`.
+- **Built and checked in CI** (desktop.yml): on Ubuntu 22.04 (the oldest
+  glibc Qt runs on), attested like the other installers, the AppImage tool
+  and runtime fetched pinned by version and SHA-256. Then the .deb is
+  installed with apt on bare Ubuntu 22.04, 24.04 and Debian 12 containers,
+  every library its files need is looked for (none may be missing), its
+  self-test runs and it is removed; the AppImage's self-test runs; and the
+  window is opened on a virtual screen and photographed. The release page
+  lists both downloads and `SHA256SUMS.txt` covers them.
+
+Tried before CI, in emulated x86-64 containers: those checks found a .deb
+missing `libwayland-server0` on Ubuntu 24.04; a time zone database missing
+on a bare system (the Linux build now carries tzdata, as Windows does); the
+build machine's NSS, X11 and graphics libraries clashing with a newer
+system's, which kept Qt from starting OpenGL; and Ubuntu 24.04's apt picking
+a stand-in sound library for `libasound2`. All fixed, and the window drew
+the setup page on Ubuntu 24.04. ARM Linux stays from source.
+
+---
+
 ## Fixed — 2026-11-03 — A removed AI line takes its key with it
 
 Removing a reader or checker on the AI page (or switching it to another
@@ -7778,9 +7823,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   tokens per verdict against each free tier's daily and per-minute limits,
   so the guide can say which free models to pick and how many job posts a
   day a free key covers before it is capped.
-- **Linux installers: an AppImage and a .deb** (chosen 2026-10-27, both),
-  built and attested by the release workflow beside the Mac and Windows
-  ones, with removal (`jobdork uninstall`, Settings) and Update for each.
 - **Guardrails, from Guardrails AI's ideas** (guardrails-ai/guardrails, used
   as reference, not as a dependency): measure `bespoke-minicheck` (4.7 GB,
   already in Ollama) as the checker with scripts/hallucination_benchmark.py,

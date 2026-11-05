@@ -10,6 +10,48 @@ Newest first.
 
 ---
 
+## Linux: an AppImage and a .deb, carrying Qt's window — 2026-11-04
+
+**Decided.** The desktop app ships for 64-bit Linux in two forms from one
+build: an AppImage (one file, any distribution from 2022 on, no password,
+updates itself in place) and a .deb (Ubuntu 22.04+, Debian 12+, Mint;
+installed for everyone, in the menu and on the `PATH`). The window is
+pywebview's Qt engine, with PyQt6 and Qt's web engine inside the build,
+plus `libxcb-cursor`, which Qt needs on X11 and many desktops lack. The
+system's own libraries (X11 and xcb, OpenGL, fonts, glib, D-Bus, sound,
+NSS, the C++ runtime) are left to the system, never carried: a copy from
+the build machine beside a newer system's graphics drivers kept Qt from
+starting OpenGL. The .deb names them; every Linux desktop has them. Built on
+Ubuntu 22.04 (glibc 2.35, the oldest Qt's wheels run on) and attested like
+the other installers. **Update:** the AppImage is swapped in after jobdork
+quits, as on a Mac; the .deb is installed once jobdork has quit, with
+`pkexec apt-get install`, so the desktop asks for the password, then
+jobdork opens again. Anything the scheduler or a coding agent starts names
+the AppImage's own file (`$APPIMAGE`), not the folder it unpacks to for one
+run. Run from source, pywebview keeps choosing GTK or Qt, whichever the
+system has.
+
+**Why.** The 2026-10-21 decision left Linux out because the window needed
+WebKitGTK from the user's system, which cannot travel inside a build: a
+person who installs an app should not have to install its web engine too.
+Qt's engine can travel inside, at the cost of size. The AppImage reaches
+every distribution; the .deb is what Ubuntu and Debian users expect, and
+what lets apt fetch the few system libraries Qt does not carry.
+
+**Ruled out.** WebKitGTK bundled into the build (its helper processes are
+found by fixed paths, and the libraries are many and tied to the system);
+Flatpak (a runtime of its own, a Flathub review, and a sandbox that would
+hide the scheduler and the documents folder); Snap (Canonical's store and
+confinement, for one distribution family); an apt repository of our own (a
+signing key to keep and a server to run, for automatic updates the
+in-app Update already gives); ARM Linux builds for now (Qt's ARM wheels need
+glibc 2.39, so Ubuntu 24.04 and later only; from source serves them).
+
+**Revisit when** Linux users ask for Flathub, an ARM build, or an RPM for
+Fedora; or the download size is reported as a problem.
+
+---
+
 ## What 1.0 promises, and when it comes — 2026-10-27
 
 **Decided.** jobdork stays at 0.x until its public launch, and 1.0.0 is
@@ -177,7 +219,8 @@ Windows certificate) before anyone has asked for the app.
 (simpler, but feels like a website and still needs packaging); Electron or
 Tauri (a second front end to keep, for the same page); a Linux build in the
 first release (the window needs WebKitGTK on the user's system; Docker and
-`pip install` already serve Linux users); an Intel macOS build (added in
+`pip install` already serve Linux users; added 2026-11-04 with Qt's engine
+inside, above); an Intel macOS build (added in
 0.15.3 for a user on an Intel Mac, keeping `cryptography` at 48.0.1 there).
 
 **Revisit when** users report the unsigned warnings stop them installing

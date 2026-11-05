@@ -329,8 +329,21 @@ def test_only_the_desktop_app_on_a_known_system_gets_an_installer():
                 assert updates.installer_name("9.0.0") == f"jobdork-9.0.0-macos-{arch}.dmg"
     finally:
         updates.platform.machine = saved
-    with _platform("linux", frozen=True):
-        assert updates.installer_name("9.0.0") == ""
+    try:
+        # lambda: a Linux computer's processor, which only x86-64 has builds for.
+        updates.platform.machine = lambda: "aarch64"
+        with _platform("linux", frozen=True):
+            assert updates.installer_name("9.0.0") == ""
+        # lambda: an x86-64 Linux computer.
+        updates.platform.machine = lambda: "x86_64"
+        with _platform("linux", frozen=True):
+            os.environ.pop("APPIMAGE", None)
+            assert updates.installer_name("9.0.0") == "jobdork_9.0.0_amd64.deb"
+            os.environ["APPIMAGE"] = "/home/me/Apps/jobdork.AppImage"
+            assert updates.installer_name("9.0.0") == "jobdork-9.0.0-linux-x86_64.AppImage"
+    finally:
+        updates.platform.machine = saved
+        os.environ.pop("APPIMAGE", None)
     try:
         updates._download("https://example.com/evil.exe", Path("x"))
     except updates.UpdateError as exc:
@@ -481,6 +494,106 @@ def test_the_apps_are_swapped_once_jobdork_has_quit_and_the_new_one_opens():
         assert opened.read_text().strip() == str(app), "the new one is opened"
         assert not list(app.parent.glob("jobdork.app.previous-*")), "the old one is gone"
         assert "replaced" in log.read_text()
+
+
+def _appimage(path: Path, text: str) -> Path:
+    """A stand-in AppImage: the format's first bytes, then `text`."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"\x7fELF\x02\x01\x01\x00AI\x02" + text.encode())
+    return path
+
+
+def test_an_appimage_update_is_put_beside_the_old_one_and_swapped_in_after_quitting():
+    import subprocess
+    import time
+
+    with tempfile.TemporaryDirectory() as tmp:
+        apps = Path(tmp) / "Apps"
+        old = _appimage(apps / "jobdork.AppImage", "old")
+        new = _appimage(Path(tmp) / "Downloads" / "jobdork-9.0.0-linux-x86_64.AppImage", "new")
+        staged = updates.stage_appimage_update(new, old, "9.0.0")
+        assert staged == apps / ".jobdork-9.0.0.AppImage" and not new.exists()
+        assert os.access(staged, os.X_OK), "made a program"
+
+        opened = Path(tmp) / "opened"
+        opener = Path(tmp) / "opener.sh"
+        opener.write_text(f'#!/bin/sh\necho "$1" > "{opened}"\n', encoding="utf-8")
+        opener.chmod(0o755)
+        still_open = subprocess.Popen(["sleep", "1"])
+        log = Path(tmp) / "logs" / "update.log"
+        updates.swap_after_quit(old, staged, log, pid=still_open.pid, opener=str(opener))
+        assert old.read_bytes().endswith(b"old"), "not while it runs"
+        still_open.wait()
+        for _ in range(60):
+            if opened.exists():
+                break
+            time.sleep(0.1)
+        assert old.read_bytes().endswith(b"new") and not staged.exists()
+        assert opened.read_text().strip() == str(old), "the new one is started"
+        assert sorted(p.name for p in apps.iterdir()) == ["jobdork.AppImage"]
+
+        # A download that is not an AppImage is refused, and nothing moves.
+        bad = Path(tmp) / "Downloads" / "jobdork-9.0.1-linux-x86_64.AppImage"
+        bad.write_bytes(b"<html>not found</html>")
+        with contextlib.suppress(updates.UpdateError):
+            updates.stage_appimage_update(bad, old, "9.0.1")
+            raise AssertionError("a file that is not an AppImage was staged")
+        assert bad.exists() and not (apps / ".jobdork-9.0.1.AppImage").exists()
+
+
+def test_only_an_appimage_in_a_folder_of_yours_replaces_itself():
+    with tempfile.TemporaryDirectory() as tmp:
+        app = _appimage(Path(tmp) / "jobdork.AppImage", "x")
+        try:
+            os.environ["APPIMAGE"] = str(app)
+            assert updates.running_appimage() is None, "not the desktop app"
+            with _platform("linux", frozen=True):
+                assert updates.running_appimage() == app
+                os.environ["APPIMAGE"] = str(Path(tmp) / "gone.AppImage")
+                assert updates.running_appimage() is None
+        finally:
+            os.environ.pop("APPIMAGE", None)
+
+
+def test_a_deb_update_is_installed_by_apt_after_quitting_then_jobdork_opens():
+    """DEB_SCRIPT run for real, with pkexec, apt-get and jobdork stood in for
+    by scripts that write down how they were called."""
+    import subprocess
+    import time
+
+    with tempfile.TemporaryDirectory() as tmp:
+        bin_ = Path(tmp) / "bin"
+        bin_.mkdir()
+        calls = Path(tmp) / "calls"
+        for name, code in (("pkexec", 0), ("apt-get", 0)):
+            tool = bin_ / name
+            tool.write_text(f'#!/bin/sh\necho "{name} $*" >> "{calls}"\n'
+                            + ('exec "$@"\n' if name == "pkexec" else f"exit {code}\n"),
+                            encoding="utf-8")
+            tool.chmod(0o755)
+        program = bin_ / "jobdork"
+        program.write_text(f'#!/bin/sh\necho "jobdork opened" >> "{calls}"\n', encoding="utf-8")
+        program.chmod(0o755)
+        deb = Path(tmp) / "jobdork_9.0.0_amd64.deb"
+        deb.write_bytes(b"!<arch>")
+        still_open = subprocess.Popen(["sleep", "1"])
+        log = Path(tmp) / "update.log"
+        script = Path(tmp) / "deb.sh"
+        script.write_text(updates.DEB_SCRIPT, encoding="utf-8")
+        env = {**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}"}
+        subprocess.Popen(["/bin/sh", str(script), str(still_open.pid), str(deb), str(program),
+                          str(log)], env=env)
+        time.sleep(0.3)
+        assert not calls.exists(), "nothing is installed while jobdork runs"
+        still_open.wait()
+        for _ in range(60):
+            if calls.exists() and "opened" in calls.read_text():
+                break
+            time.sleep(0.1)
+        said = calls.read_text().splitlines()
+        assert said[0] == f"pkexec apt-get install -y --allow-downgrades {deb}"
+        assert said[-1] == "jobdork opened" and not deb.exists()
+        assert "installed" in log.read_text()
 
 
 def test_the_windows_installer_runs_on_its_own_and_reopens_jobdork():

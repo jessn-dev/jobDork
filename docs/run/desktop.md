@@ -9,7 +9,8 @@ Nothing to type, no Python to install. Other ways to run it:
 | Mac with Apple Silicon (M1 or later), macOS 12 or newer | `jobdork-0.16.1-macos-arm64.dmg` |
 | Mac with an Intel processor, macOS 12 or newer | `jobdork-0.16.1-macos-x86_64.dmg` (from 0.15.3) |
 | Windows 10 or 11, 64-bit | `jobdork-0.16.1-windows-x64-setup.exe` |
-| Linux | No installer: run the same window [from source](source.md#the-desktop-window-from-source) |
+| Linux, 64-bit (x86-64), any distribution from 2022 on | `jobdork-0.16.1-linux-x86_64.AppImage` (from the next release) |
+| Ubuntu 22.04 or newer, Debian 12 or newer, Linux Mint 21 or newer | `jobdork_0.16.1_amd64.deb` (from the next release) |
 
 **Which Mac do I have?** Apple menu → **About This Mac**. "Chip: Apple M…"
 is Apple Silicon; "Processor: … Intel" is Intel.
@@ -21,8 +22,18 @@ exception in `.github/workflows/docker.yml`.
 
 Installers are attached to the
 [Releases](https://github.com/jessn-dev/jobDork/releases) page from 0.14.4
-on. Until a release has them, a pull request's CI run builds both; they are
-under that run's **Artifacts** for a week.
+on. Until a release has them, a pull request's CI run builds them all; they
+are under that run's **Artifacts** for a week.
+
+**Linux: AppImage or .deb?** The AppImage is one file you keep anywhere of
+yours (a folder such as `~/Applications`), needs no password, and updates
+itself in place. The .deb installs for everyone on the computer, puts
+jobdork in the menu and on the `PATH`, and asks for your password to install
+and to update. Both are the same app (about 190 MB and 150 MB: they carry
+Qt's web engine). On another Linux (Fedora, Arch, openSUSE), use the
+AppImage. Both carry their own window engine (Qt's), so
+nothing else needs installing; computers with an ARM processor run it
+[from source](source.md#the-desktop-window-from-source).
 
 ---
 
@@ -51,6 +62,24 @@ and keys are not in the app and are not touched.
 administrator password, and it shows what jobdork keeps and sends before
 installing ([PRIVACY.md](../../PRIVACY.md) in full).
 
+**Linux, the AppImage.** Put it in a folder of yours, make it a program
+(right-click → **Properties → Permissions → Allow executing file as
+program**, or `chmod +x jobdork-*.AppImage`) and open it. It needs FUSE,
+which desktop Linux has; where it does not (a container, some minimal
+installs), start it with `--appimage-extract-and-run`. To have it in the
+menu, a tool such as [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever)
+or AppImageLauncher adds it.
+
+**Linux, the .deb.** In a terminal, in the folder you downloaded it to:
+
+```bash
+sudo apt install ./jobdork_0.16.1_amd64.deb
+```
+
+It installs to `/opt/jobdork`, with **jobdork** in the menu and the
+`jobdork` command. apt fetches the few system libraries it uses, if the
+computer does not have them yet.
+
 ### The first-open warning
 
 The installers are not code-signed (see
@@ -63,6 +92,8 @@ above):
   line about jobdork and click **Open Anyway**, then **Open Anyway** again.
 - **Windows** shows "Windows protected your PC". Click **More info**, then
   **Run anyway**.
+- **Linux** does not warn; the AppImage only needs to be made a program,
+  above.
 
 **Check a download is the one this repository built**, with the
 [GitHub CLI](https://cli.github.com/):
@@ -86,17 +117,23 @@ After that it opens on the Dashboard.
   forgotten. While a scan is running it asks first.
 - **Scans that run by themselves:** **Settings → Schedule a run** puts a
   daily, weekday or weekly scan in your computer's own scheduler (launchd on
-  macOS, Task Scheduler on Windows), so it runs whether or not the window is
-  open. **Run a scan now** sits beside it.
+  macOS, Task Scheduler on Windows, your crontab on Linux), so it runs
+  whether or not the window is open. An AppImage is scheduled by its own
+  file, so leave it where it was when you scheduled the scan, or schedule
+  again after moving it. **Run a scan now** sits beside it.
 - **Notifications:** new job posts, a failed scan and a newer jobdork show in
-  Notification Center (macOS) or as a toast (Windows). **Settings →
+  Notification Center (macOS), as a toast (Windows) or through your
+  desktop's notifications (Linux, `notify-send`). **Settings →
   Notifications** turns them, or their sound, off.
 - **Updates:** once a day the app asks GitHub whether a newer release is
   out, and a banner says so. Its **Update**, or **Settings → Updates →
   Update**, downloads the installer and, only once it is shown to be this
   project's, puts it in place and restarts jobdork as the new version: on a
   Mac the new app replaces this one once it has quit and opens by itself; on
-  Windows the installer runs on its own and opens the new version. The
+  Windows the installer runs on its own and opens the new version; on Linux
+  the new AppImage replaces this one the same way, and a .deb is installed
+  once jobdork has quit, after your computer asks for your password, then
+  jobdork opens again. The
   checks: uploaded
   by the release workflow, matching the release's checksums, and carrying a
   build attestation from this repository's workflow at that version's tag
@@ -119,6 +156,7 @@ After that it opens on the Dashboard.
 |---|---|---|
 | macOS | `~/Library/Application Support/jobdork` | `~/Documents/job-applications` |
 | Windows | `%LOCALAPPDATA%\jobdork` | `Documents\job-applications` |
+| Linux | `~/.local/share/jobdork` (or `$XDG_DATA_HOME/jobdork`) | `~/Documents/job-applications` |
 
 **Settings → Where your files are** opens them. To keep them somewhere else,
 start the program with `--home <folder>` or set `JOBDORK_HOME`.
@@ -126,7 +164,8 @@ start the program with `--home <folder>` or set `JOBDORK_HOME`.
 ## Uninstalling
 
 macOS: drag jobdork from Applications to the Bin. Windows: **Settings →
-Apps → jobdork → Uninstall**. Either way your settings, job posts and resume
+Apps → jobdork → Uninstall**. Linux: delete the AppImage, or
+`sudo apt remove jobdork` for the .deb. Either way your settings, job posts and resume
 stay where they are, so a reinstall finds them; delete the folder above to
 remove them too. Turn a schedule off first (**Settings → Schedule a run → Never by
 itself**, then **Save**), or the system keeps trying to start a program that
@@ -142,6 +181,8 @@ with `--debug`, which adds the window's developer tools (right-click,
 ```bash
 /Applications/jobdork.app/Contents/MacOS/jobdork --debug     # macOS
 "%LOCALAPPDATA%\Programs\jobdork\jobdork.exe" --debug        # Windows, default install
+./jobdork-0.16.1-linux-x86_64.AppImage --debug                # Linux, the AppImage
+jobdork --debug                                                # Linux, the .deb
 ```
 
 [Report it](../../SECURITY.md#reporting-a-problem) if it is a security
@@ -154,14 +195,20 @@ pip install --require-hashes -r requirements-desktop.lock
 pip install --no-deps --no-build-isolation -e .
 python packaging/build.py   # macOS: dist/jobdork-0.16.1-macos-arm64.dmg
                             # Windows: dist/jobdork-0.16.1-windows-x64-setup.exe
+                            # Linux: dist/jobdork-0.16.1-linux-x86_64.AppImage
+                            #        and dist/jobdork_0.16.1_amd64.deb
 ```
 
 The lock pins every package by version and hash, as the release builds do;
 `pip install -e '.[pdf,ai,app,package]'` also works, with whatever versions
 PyPI has that day. It builds for the machine it runs on; Windows also needs
-[Inno Setup 6](https://jrsoftware.org/isdl.php). Before packaging, the built
+[Inno Setup 6](https://jrsoftware.org/isdl.php), and Linux `dpkg-deb`,
+the system libraries in `DEB_DEPENDS` (packaging/build.py), and
+appimagetool and the AppImage runtime as files named by `APPIMAGETOOL` and
+`APPIMAGE_RUNTIME` (desktop.yml fetches pinned ones). Before packaging, the built
 app runs its own `--self-test`, and the build stops if a module or data file
 is missing from it or it cannot verify a build attestation (the check its
 Update button relies on). CI builds both in
 [desktop.yml](../../.github/workflows/desktop.yml), after the tests and
-security scans pass.
+security scans pass, then installs the .deb on bare Ubuntu 22.04, 24.04 and
+Debian 12 and opens the Linux window on a virtual screen.

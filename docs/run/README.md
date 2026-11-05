@@ -6,7 +6,7 @@ folder (see [Moving between them](#moving-between-them)).
 
 | | You get | You need | Guide |
 |---|---|---|---|
-| **The desktop app** | The dashboard in a window of its own, from an installer. Scheduled scans, notifications, an Update button | A Mac with Apple Silicon, or Windows 10/11 (64-bit) | [desktop.md](desktop.md) |
+| **The desktop app** | The dashboard in a window of its own, from an installer. Scheduled scans, notifications, an Update button | A Mac (Apple Silicon or Intel), Windows 10/11 (64-bit), or 64-bit Linux (an AppImage, or a .deb for Ubuntu and Debian) | [desktop.md](desktop.md) |
 | **From source, in your browser** | The same dashboard, in a browser tab, started from a terminal | Python 3.10 or newer, on macOS, Windows or Linux | [source.md](source.md) |
 | **From source, in the terminal** | Every command (`scan`, `list`, `applied`, `judge`…) with no dashboard at all; good for cron and scripts | The same install as above | [cli.md](cli.md) |
 | **Docker, on your computer** | The dashboard from the published image, nothing installed but Docker | Docker | [docker.md](docker.md) |
@@ -16,10 +16,12 @@ folder (see [Moving between them](#moving-between-them)).
 run on another computer of yours, one model on each when one computer cannot
 hold both: [ai-on-two-computers.md](ai-on-two-computers.md).
 
-**Not sure?** Take the desktop app on a Mac (Apple Silicon or Intel) or a
-Windows PC. On Linux there is no installer: run it [from source](source.md), which
-also gives you the desktop window (`jobdork app`). Use the NAS guide only if
-you want it running while your computer is off.
+**Not sure?** Take the desktop app: on a Mac (Apple Silicon or Intel), a
+Windows PC, or a 64-bit Linux computer (the AppImage anywhere, the .deb on
+Ubuntu, Debian and Mint). On Linux with an ARM processor, run it
+[from source](source.md), which also gives you the desktop window
+(`jobdork app`). Use the NAS guide only if you want it running while your
+computer is off.
 
 `jobdork dork`, the original Google search builder, works in every one of
 them from a terminal; its flags are in [../DORK.md](../DORK.md).
@@ -54,7 +56,7 @@ Once it is open, the app is the same whichever way you run it: the
 
 | | Settings and database | Resume, letters, CVs |
 |---|---|---|
-| Desktop app | `~/Library/Application Support/jobdork` (macOS), `%LOCALAPPDATA%\jobdork` (Windows), `~/.local/share/jobdork` (Linux, from source) | `~/Documents/job-applications` |
+| Desktop app | `~/Library/Application Support/jobdork` (macOS), `%LOCALAPPDATA%\jobdork` (Windows), `~/.local/share/jobdork` (Linux) | `~/Documents/job-applications` |
 | From source | The folder you start it in: `config.yaml` (or `config.local.yaml`, which wins), `data/`, `out/` | Resume in `data/`, documents in `~/Documents/job-applications` |
 | Docker | The folder mapped to `/app/data` | `data/documents` in the same folder |
 
