@@ -83,6 +83,40 @@ it is a 2.0, planned, not a reason to drop the promise), or something not
 on the list turns out to be what people build on (then it joins the list in
 a minor release).
 
+## Ask: Claude Code from the desktop app, for the job search only — 2026-11-05
+
+**Decided.** The desktop app's **Ask** page sends a question the person
+types to their own Claude Code (`claude -p`, `jobdork/ai/ask.py`), and only
+a question about their job search. A separate check on a small model, with
+no tools, decides first and fails closed; the run has jobdork's MCP tools
+and nothing else (built-in tools off, no other MCP servers, the person's
+own settings, hooks and plugins not read, dontAsk for anything else) and a
+system prompt of jobdork's that repeats the scope. Anything else gets
+"jobdork doesn't allow this". Claude Code only; the desktop app only.
+
+**Why.** People asked to talk to their agent from jobdork, as they do in
+its own chat. Scope is held twice, by the check and by the run's tools,
+because either alone fails: a check can be argued past, and an agent
+limited to jobdork's tools would still answer homework from what it knows.
+The check fails closed, unlike the claim checks, because an unchecked
+question sent is the thing being prevented. It narrows the decision below
+rather than reversing it: jobdork still never asks an agent anything by
+itself; this starts the person's own Claude Code on their computer when
+they ask, as the Screen, CV and Cover letter buttons' `claude -p` already
+did.
+
+**Ruled out.** Antigravity CLI (`agy`): it has no way to switch its own
+tools off or limit it to one MCP server (agy 1.4.8), so a typed question
+would reach an agent that can run commands. A word list instead of a model
+check: it cannot tell "salary for this role" from "salary statistics essay".
+Docker and server installs: there is no Claude Code beside them to start.
+
+**Revisit when** agy can be limited to jobdork's tools, Anthropic's terms
+for using a subscription through Claude Code's `-p` mode change, or the
+check refuses too many real job-search questions.
+
+---
+
 ## A coding agent calls jobdork, never the other way — 2026-10-29
 
 **Decided.** A coding agent (Claude Code, Codex, Antigravity CLI, Cursor, GitHub

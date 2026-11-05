@@ -1228,6 +1228,29 @@ def test_the_desktop_apps_calls_go_through_the_server_with_the_token():
     _with_server(check)
 
 
+def test_asking_claude_code_is_the_desktop_apps_only():
+    """Ask (ai/ask.py) starts a program on this computer: a browser on a
+    jobdork in Docker or on a server has no Claude Code beside it, so only
+    the app answers. In the app, a question is still checked first."""
+    from jobdork.ai import ask
+
+    def check(run):
+        code, _ = run.get("/api/ask")
+        assert code == 404
+        code, _ = _post_json(run, "/api/ask", {"prompt": "my best job posts?"})
+        assert code == 404
+        run.server.RequestHandlerClass = serve_mod.make_handler(
+            run.holder, run.session, run.runner, object())
+        code, body = run.get("/api/ask")
+        state = json.loads(body)
+        assert code == 200 and state["stage"] == "idle" and state["messages"] == []
+        code, body = _post_json(run, "/api/ask", {"prompt": "x" * (ask.MAX_PROMPT + 1)})
+        assert code == 400 and "fewer words" in body
+        code, _ = run.post("/api/ask", {"prompt": "jobs?"}, token=None)
+        assert code == 401
+    _with_server(check)
+
+
 # ── keep this block LAST ───────────────────────────────────────────────────────
 
 if __name__ == "__main__":

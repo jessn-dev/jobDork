@@ -107,6 +107,12 @@ provider to be judged, reviewed or written from:
   links are removed from what it reads, as for a hosted model; what it then
   sends to its own provider is under that agent's terms, and your account
   with it.
+- **A question on the Ask page** (the desktop app, with Claude Code) goes
+  to Anthropic through your own Claude Code installation, under your
+  account: once to check it is about your job search, then, if it is, to
+  answer it, with what Claude Code reads through jobdork's tools (with your
+  email, phone number and profile links removed, as above). The
+  conversation is kept in memory only, and forgotten when jobdork closes.
 
 Nothing is sent to an AI provider unless you chose one.
 

@@ -6,6 +6,24 @@ it and into an entry when the work is done.
 
 ---
 
+## Added — 2026-11-05 — Ask Claude Code, from the desktop app
+
+A new **Ask** page in the desktop app: type a question about your job
+search and Claude Code answers through jobdork's tools, from your job posts,
+resume and applications, and can save documents and suggest resume
+additions for your OK. Follow-ups continue the conversation; **Stop** and
+**New conversation** are beside **Ask**. Only job-search questions are
+sent: each is checked first by a small Claude model with no tools, which
+fails closed, and anything else gets "jobdork doesn't allow this". The run
+has jobdork's tools and nothing else (no commands, files, web, other MCP
+servers or your own Claude Code settings), and a system prompt that repeats
+the rule. At most 2,000 characters a question and 30 questions an hour.
+Claude Code only (`agy` cannot be limited to jobdork's tools); the desktop
+app only (`jobdork/ai/ask.py`, `/api/ask`). The guide has a page for it,
+and the AI page no longer says jobdork never calls your agent.
+
+---
+
 ## Fixed — 2026-11-03 — A removed AI line takes its key with it
 
 Removing a reader or checker on the AI page (or switching it to another

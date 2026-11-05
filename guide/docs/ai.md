@@ -54,8 +54,10 @@ still be added after it (below).
 
 ![Coding agent chosen](images/ai-agent.png)
 
-jobdork never calls your agent; your agent calls jobdork, through jobdork's
-tools. Ask it, in its own chat, for instance *"Use jobdork to write a cover
+Your agent calls jobdork, through jobdork's tools; jobdork does not call
+it by itself. (In the desktop app, the [Ask](ask.md) page sends Claude Code a
+question you type there, and only one about your job search.) Ask it, in its
+own chat, for instance *"Use jobdork to write a cover
 letter for my best job post"*. It then:
 
 1. Finds the post, and asks jobdork for the **brief**: exactly what jobdork
@@ -93,7 +95,7 @@ jobdork starts on your computer when the agent asks for it: it reads and
 writes the same data the window shows, and opens no network port.
 
 **What jobdork asks for itself goes to the next reader.** Your agent
-answers what you ask in its chat; jobdork cannot ask it anything. So with
+answers what you ask it; jobdork never asks it anything on its own. So with
 the agent as Reader 1, a job post's **Write cover letter (AI)**, **Write
 tailored resume (AI)**, **Interview prep (AI)** and the rest show what to ask
 your agent, with **Copy**, and, when another reader is listed, a button to

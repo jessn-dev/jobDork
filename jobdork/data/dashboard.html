@@ -636,6 +636,16 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .sugglist li{display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:center;padding:.4rem 0;border-top:1px solid var(--line)}
 .sugglist .pill{background:var(--accent)}
 .sugglist .acts{margin-left:auto;display:flex;gap:.3rem}
+/* Ask: a conversation with Claude Code, in the desktop app. */
+.asklog{max-width:44rem;display:flex;flex-direction:column;gap:.6rem;margin:.8rem 0}
+.asklog .msg{border:1px solid var(--line);border-radius:8px;padding:.55rem .8rem;
+  white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;font-size:.9rem}
+.asklog .msg.you{align-self:flex-end;background:var(--card);max-width:85%}
+.asklog .msg.agent{border-left:3px solid var(--accent)}
+.asklog .msg.no{border-left:3px solid var(--flag);background:var(--flagbg)}
+.asklog .who{display:block;font-size:.75rem;color:var(--muted);margin-bottom:.15rem}
+.askform{max-width:44rem}
+.askform textarea{width:100%;box-sizing:border-box}
 /* A coding agent as the writer: how to connect each one, and what to ask. */
 .agentbox{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;
   padding:.7rem .9rem;margin:-.2rem 0 .8rem;font-size:.86rem;line-height:1.5}
@@ -859,6 +869,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <button class="item on" data-view="scan" title="Dashboard"><span class="pip"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 10v4h2.5v-4H7zm3.75-6v10h2.5V7h-2.5zM14.5 10v7H17v-7h-2.5z"/></svg><span id="act-dot" class="dot live" hidden></span></span><span class="label">Dashboard</span></button>
   <button class="item" data-view="roles" title="Job posts"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 3h6a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v4H2V8a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 1.8V6h6V4.8H9zM2 13.8h8v.7a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7h8V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.2z"/></svg><span class="label">Job posts</span><span class="count" id="nav-new" title="new since you last looked" hidden></span></button>
   <button class="item" data-view="apps" title="My applications"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 2h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a1 1 0 0 1 1-1zm1 1.8v1.4h4V3.8h-4zm5.7 7.5-1.4-1.4-3.3 3.3-1.6-1.6-1.4 1.4 3 3 4.7-4.7z"/></svg><span class="label">My applications</span><span class="count due" id="nav-apps" title="follow-ups past their date" hidden></span></button>
+  <button class="item" data-view="ask" hidden data-label="Ask" data-info="Ask Claude Code about your job search, in the desktop app: it answers from your job posts, resume and applications through jobdork's tools, and can draft and save documents. Every question is checked first, and only job-search questions are sent." aria-description="Ask Claude Code about your job search, in the desktop app: it answers from your job posts, resume and applications through jobdork's tools, and can draft and save documents. Every question is checked first, and only job-search questions are sent."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5 3h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-7.6l-4.7 3.8A1 1 0 0 1 5 20v-3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 5v1.8h10V8H7zm0 3.4v1.8h7v-1.8H7z"/></svg><span class="label">Ask</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <div class="sec">Setup</div>
   <button class="item" data-view="settings" data-label="Search" data-info="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen." aria-description="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24a1 1 0 0 1-1.42 1.42l-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span class="label">Search</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="count" id="nav-sugg" title="suggestions from your coding agent, waiting for your OK" hidden></span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
@@ -1388,6 +1399,33 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <button data-icon="flask-conical" class="act" id="ai-test">Save and test</button>
       <span id="ai-msg"></span>
     </div>
+  </section>
+
+  <section id="view-ask" hidden>
+    <h2>Ask Claude Code</h2>
+    <p class="hint" style="max-width:44rem">Ask about your job search: which job posts
+      suit you best, what to change in your resume, a cover letter for a job post, how to
+      prepare for an interview or answer a recruiter. Claude Code answers through jobdork's
+      tools, from your job posts, resume and applications, and can save documents and
+      suggest resume additions for your OK.</p>
+    <p class="hint" style="max-width:44rem">Only job-search questions are sent: each is
+      checked first, and anything else gets "jobdork doesn't allow this". Claude Code here
+      has jobdork's tools and nothing else: no commands, no files, no web. Each question
+      spends your Claude plan, a little more for the check.</p>
+    <div id="ask-none" class="agentbox" hidden><p>Claude Code is not installed on this
+      computer. Install it from claude.com/claude-code and sign in, then come back here.</p></div>
+    <div id="ask-log" class="asklog" aria-live="polite"></div>
+    <p id="ask-doing" class="hint" hidden></p>
+    <form id="ask-form" class="askform" onsubmit="return false">
+      <textarea id="ask-text" rows="3" maxlength="2000" aria-label="Your question"
+        placeholder="Which three job posts suit me best, and why?"></textarea>
+      <div class="bar">
+        <button type="submit" data-icon="send" class="act primary" id="ask-send">Ask</button>
+        <button type="button" data-icon="x" class="act" id="ask-stop" hidden>Stop</button>
+        <button type="button" data-icon="plus" class="act" id="ask-new">New conversation</button>
+        <span id="ask-count" class="hint"></span>
+      </div>
+    </form>
   </section>
 
   <section id="view-settings" hidden>
@@ -1939,8 +1977,9 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
   b.onclick = () => {
     document.querySelectorAll('nav button[data-view]').forEach(x =>
       x.classList.toggle('on', x === b));
-    ['roles','apps','scan','tools','settings','resume','sources','ai','prefs'].forEach(v =>
+    ['roles','apps','scan','tools','settings','resume','sources','ai','ask','prefs'].forEach(v =>
       $('view-' + v).hidden = v !== b.dataset.view);
+    if (b.dataset.view === 'ask') drawAsk();
     if (b.dataset.view === 'settings') drawConfig();
     if (b.dataset.view === 'sources') drawSources();
     if (b.dataset.view === 'resume') { drawResume(); drawProjects(); drawEducation(); drawReview(); drawLetters(); }
@@ -1950,6 +1989,54 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
     if (b.dataset.view === 'apps') loadApps();
   };
 });
+
+// ── ask (the desktop app's): Claude Code about your job search (ai/ask.py) ───
+// The server answers only in the app, where Claude Code is on the same
+// computer; pywebview may arrive after this script, hence the event too.
+const showAsk = () => { if (desk()) document.querySelector('nav .item[data-view="ask"]').hidden = false; };
+showAsk();
+window.addEventListener('pywebviewready', showAsk);
+let askTimer = null;
+const ASK_WHO = {you: 'You', agent: 'Claude Code', jobdork: 'jobdork'};
+function drawAskState(d) {
+  $('ask-none').hidden = d.claude;
+  $('ask-log').innerHTML = d.messages.map(m =>
+    `<div class="msg ${m.role === 'you' ? 'you' : m.refused ? 'no' : 'agent'}"><span class="who">${
+      ASK_WHO[m.role] || ''}</span>${esc(m.text)}</div>`).join('');
+  $('ask-doing').hidden = !d.busy;
+  $('ask-doing').textContent = d.busy ? `${d.doing || 'Working'}…` : '';
+  $('ask-send').disabled = d.busy || !d.claude;
+  $('ask-stop').hidden = !d.busy;
+  $('ask-new').disabled = d.busy || !d.messages.length;
+  clearTimeout(askTimer);
+  if (d.busy) askTimer = setTimeout(drawAsk, 1000);
+}
+async function drawAsk() {
+  const r = await api('/api/ask');
+  if (r.ok) drawAskState(await r.json());
+}
+async function askPost(path, body = {}) {
+  const r = await api(path, {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)});
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return false; }
+  drawAskState(await r.json());
+  return true;
+}
+$('ask-form').onsubmit = async () => {
+  const text = $('ask-text').value.trim();
+  if (text && await askPost('/api/ask', {prompt: text})) { $('ask-text').value = ''; $('ask-count').textContent = ''; }
+  return false;
+};
+// Ctrl+Enter (Cmd+Enter on a Mac) asks; Enter alone is a new line.
+$('ask-text').onkeydown = e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('ask-form').requestSubmit(); }
+};
+$('ask-text').oninput = e => {
+  const n = e.target.value.length;
+  $('ask-count').textContent = n > 1800 ? `${n.toLocaleString()} of 2,000 characters` : '';
+};
+$('ask-stop').onclick = () => askPost('/api/ask/stop');
+$('ask-new').onclick = () => askPost('/api/ask/new');
 
 // ── roles ────────────────────────────────────────────────────────────────────
 $('status').innerHTML = '<option value="">Any status</option>' +

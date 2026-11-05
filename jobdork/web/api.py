@@ -2196,6 +2196,50 @@ def agent_setup(cfg, platform: str = "") -> dict:
     }
 
 
+# The env a jobdork MCP server started for an Ask keeps: where the app's
+# folder is (`--home`), and where documents go.
+ASK_ENV = ("JOBDORK_HOME", "JOBDORK_DOCS_DIR", "PYTHONPATH")
+
+
+def ask_server(cfg) -> dict:
+    """How Claude Code, asked from the desktop app (ai/ask.py), starts
+    jobdork's tools: as the AI page's setup line does, on this same folder."""
+    import os
+    import sys
+
+    setup = agent_setup(cfg)
+    env = {k: os.environ[k] for k in ASK_ENV if os.environ.get(k)}
+    if getattr(sys, "frozen", False) and cfg.path:
+        # The installed app's server finds its folder by JOBDORK_HOME or the
+        # usual place; started with --home, the window's folder is elsewhere.
+        env.setdefault("JOBDORK_HOME", str(Path(cfg.path).resolve().parent))
+    return {"command": setup["command"], "args": setup["args"], "env": env}
+
+
+def ask_folder(cfg) -> Path:
+    """The empty folder Claude Code runs in for an Ask: beside the database,
+    so no project's .claude settings are picked up from elsewhere."""
+    return Path(cfg.db_path).expanduser().resolve().parent / "ask"
+
+
+def ask_start(cfg, prompt) -> dict:
+    from ..ai import ask
+
+    try:
+        return ask.CONVERSATION.start(str(prompt or ""), ask_server(cfg), ask_folder(cfg))
+    except ask.AskError as exc:
+        raise ApiError(str(exc)) from exc
+
+
+def ask_forget() -> dict:
+    from ..ai import ask
+
+    try:
+        return ask.CONVERSATION.forget()
+    except ask.AskError as exc:
+        raise ApiError(str(exc), 409) from exc
+
+
 def llm_state(cfg) -> dict:
     """AI settings for the page. Says which keys are held, never what they are."""
     from ..ai import limits, llm
