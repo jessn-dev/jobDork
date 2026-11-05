@@ -3343,10 +3343,22 @@ def uninstall_now(form: dict) -> dict:
     choose = form.get("remove") if isinstance(form, dict) else None
     if not isinstance(choose, list) or not all(isinstance(c, str) for c in choose):
         raise ApiError("remove is a list of items")
+    global REMOVED
     out = uninstall.remove(set(choose))
+    # From here the server answers nothing but quitting (web/serve.py), so
+    # the page cannot open the database again; quitting removes the same
+    # once more, then moves the program to the Trash (web/app.py).
+    REMOVED = set(choose)
     out["finish"] = _finish_removing()
     out["appimage"] = os.environ.get("APPIMAGE", "")
+    out["trash"] = uninstall.app_location()[0]
     return out
+
+
+# What Settings' "Remove jobdork" was asked to remove, once it has: None
+# until then. Read by the server (only quitting is answered after it) and by
+# the app when it quits (the same removal again, then the Trash).
+REMOVED: set | None = None
 
 
 # Where the update the page's window follows has got to (update_progress).

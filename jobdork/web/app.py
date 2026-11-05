@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import contextlib
 import logging
 import os
 import re
@@ -437,9 +438,42 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
     webview.start(gui=window_gui(), private_mode=False, storage_path=str(home / "window"),
                   debug=debug)
 
-    # shutdown() waits for the server loop to notice, so it runs on a thread
-    # that a stuck request cannot hold the app open with.
+    # The window is closed: nothing of jobdork goes on running. Ask's Claude
+    # Code run is stopped, then the server; shutdown() waits for the server
+    # loop to notice, so it runs on a thread a stuck request cannot hold the
+    # app open with. The program then ends with exit_now (no thread, such as
+    # a scan's fetches, keeps it alive).
+    from ..ai import ask
+    ask.CONVERSATION.stop()
     threading.Thread(target=running["stop"], daemon=True).start()
     thread.join(10)
     bridge.forget()
+    finish_removal(api_mod.REMOVED)
     return running.get("code", 0)
+
+
+def finish_removal(chosen) -> str:
+    """After Settings removed jobdork (`chosen`, or None if it did not):
+    the same removal once more, now that nothing can open the database
+    again, then the program to the Trash where it can go there. Returns
+    where it went, or ""."""
+    if chosen is None:
+        return ""
+    from ..core import uninstall
+    try:
+        uninstall.remove(set(chosen), unschedule=False)
+        return uninstall.trash_app()
+    except Exception:                        # quitting must never fail on this
+        logging.exception("finishing the removal")
+        return ""
+
+
+def exit_now(code: int) -> None:
+    """End the program at once, after the logs are written: no thread left
+    running (a scan's fetches, a timer) can keep it open once the window is
+    closed, on a Mac, on Windows or on Linux."""
+    logging.shutdown()
+    for stream in (sys.stdout, sys.stderr):
+        with contextlib.suppress(AttributeError, OSError, ValueError):
+            stream.flush()
+    os._exit(code)

@@ -777,6 +777,7 @@ td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
 .shell.setup{grid-template-columns:1fr}
 .shell.setup nav{display:none}
 main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
+main.removed > section{max-width:40rem;margin:4rem auto 0}
 #view-setup h2{font-size:1.375rem;margin-bottom:.6rem}
 #view-setup p{line-height:1.55}
 #view-setup ol{padding-left:1.3rem;line-height:1.8}
@@ -1861,7 +1862,11 @@ function serverProblem(what, status, body) {
     ? `${what}: another service did not answer (HTTP 502)`
     : `${what} failed on the server (HTTP ${status})`) + (why ? `: ${why}` : ''));
 }
+// Set once Settings removed jobdork: the page then asks the server nothing
+// but quitting (which the server alone still answers, web/serve.py).
+let removedApp = false;
 const api = (p, o = {}) => {
+  if (removedApp && p !== '/api/desk') return new Promise(() => {});
   const what = `${o.method || 'GET'} ${String(p).split('?')[0]}`;
   return fetch(p, {...o, headers: {...(o.headers || {}), 'X-Jobdork-Token': TOKEN}}).then(r => {
     // A copy is read, so the caller still reads the answer itself.
@@ -3393,10 +3398,12 @@ $('add-paste').onsubmit = async ev => {
   showAdded(await r.json());
 };
 
+let liveEvents = null;
 function connect() {
   // EventSource cannot set headers, so the stream carries the token in the
   // query. It never leaves this machine.
   const s = new EventSource(`/api/events?t=${encodeURIComponent(TOKEN)}`);
+  liveEvents = s;
   // Silent while connected. Shown only when the server has gone away, which
   // is the one time it matters: everything you click will fail until it's back.
   s.onopen = () => { $('net').hidden = true; };
@@ -7098,18 +7105,29 @@ function askRemove(d) {
 }
 
 function finishRemove(out) {
+  // Nothing more is asked of the server, and the page shows only this: the
+  // rest of it (job posts, settings) is gone, and showing it would say not.
+  removedApp = true;
+  if (liveEvents) liveEvents.close();
   const failed = out.failed.length ? `<p class="err">Could not remove:
     ${out.failed.map(([p, why]) => `<code>${esc(p)}</code> (${esc(why)})`).join(', ')}</p>` : '';
-  const last = {
-    mac: 'click <b>Quit jobdork</b>, then drag jobdork from <b>Applications</b> to the Trash.',
-    appimage: `click <b>Quit jobdork</b>, then delete <code>${esc(out.appimage)}</code>.`,
-    linux: 'click <b>Quit jobdork</b>, then in a terminal: <code>sudo apt remove jobdork</code>.',
+  const trash = {mac: 'jobdork closes and moves itself from Applications to the Trash.',
+    appimage: `jobdork closes and moves <code>${esc(out.appimage)}</code> to the Trash.`}[out.trash];
+  const last = trash || {
+    mac: 'quit jobdork, then drag jobdork from <b>Applications</b> to the Trash (it was not opened from there, so it cannot move itself).',
+    appimage: `quit jobdork, then delete <code>${esc(out.appimage)}</code>.`,
+    linux: 'quit jobdork, then in a terminal: <code>sudo apt remove jobdork</code>.',
   }[out.finish] || 'quit jobdork and delete the program.';
-  $('rm-box').innerHTML = `<p class="saved"><b>Removed${out.unscheduled ? ' the scheduled scan,' : ''}
+  const quit = trash ? 'Quit and move to the Trash' : 'Quit jobdork';
+  document.querySelector('.shell').innerHTML = `<main class="removed"><section>
+    <h2>jobdork was removed</h2>
+    <p class="saved"><b>Removed${out.unscheduled ? ' the scheduled scan,' : ''}
       ${out.removed.length} item${out.removed.length === 1 ? '' : 's'}.</b>
       ${out.left.length ? 'What you did not tick is kept.' : ''}</p>${failed}
-    <p>Last step: ${last}</p>
-    ${desk() ? '<button data-icon="power" class="act primary" id="rm-quit" type="button">Quit jobdork</button>' : ''}`;
+    <p>${trash ? `When you quit, ${trash}` : `Last step: ${last}`}</p>
+    ${desk() ? `<button data-icon="power" class="act main" id="rm-quit" type="button">${quit}</button>` : ''}
+  </section></main>`;
+  document.querySelector('.shell').classList.add('setup');
   if ($('rm-quit')) $('rm-quit').onclick = () => desk().quit_app();
 }
 
