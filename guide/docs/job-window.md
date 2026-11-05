@@ -23,15 +23,15 @@ window over the page. Both hold the same things.
   is. **Also posted at** lists the other places the same job was found,
   and whether each is still up.
 - **The status buttons** ([what each means](statuses.md#statuses)). The
-  coloured one is the current status. Under them, your **Note** on the post
+  current status is outlined in its colour. Under them, your **Note** on the post
   (Enter saves), the same one the card has.
 
 ## Advert
 
 The whole job advert, with:
 
-- **Yellow tags**: what to know before you apply
-  ([tags](statuses.md#yellow-tags)).
+- **Tags to know**: what to know before you apply
+  ([tags](statuses.md#tags-to-know)).
 - **On the employer's own board?** For a post from Adzuna, Himalayas,
   Arbeitnow or Kalibrr: what the last scan found on the employer's own board
   (on it, not on it, read only partly, or not read). **Check the employer's
@@ -50,8 +50,8 @@ The whole job advert, with:
 
 ## AI tools
 
-Everything the AI does for one post is on the **AI tools** tab. Orange
-buttons use the AI model from the [AI page](ai.md): free with a local model,
+Everything the AI does for one post is on the **AI tools** tab. Buttons
+with an amber icon use the AI model from the [AI page](ai.md): free with a local model,
 paid by the word with Anthropic, Gemini, OpenAI or Groq.
 
 ![The AI tools tab](images/job-window-ai-tools.png)
@@ -122,7 +122,7 @@ From your resume, your Resume page entries and this advert:
 - **Gaps to prepare**: three to five things the advert wants that your
   resume does not show, why they may come up, and how to answer honestly.
   A gap is never written as something you have: the **gaps not claimed**
-  check is READ if one reads that way.
+  check says **Read this** if one reads that way.
 - **Talking points**: five to eight lines to work into your answers.
 
 What it says about you (the fit, the answer points, the talking points) gets
@@ -188,8 +188,8 @@ Before you see anything the AI wrote, jobdork checks it:
 - **Figures**: any number or "large team" in a draft that is not in your
   resume.
 
-In a document's tab, each check shows **ok** or **READ**: READ means look at
-it before you send anything. The thumbs on a document say whether it helped.
+In a document's tab, each check shows **Passed**, with a green dot, or
+**Read this**, with an amber one: look at it before you send anything. The thumbs on a document say whether it helped.
 **Open PDF** and **Download PDF** are on resumes and CVs, and **Download
 Word** gives the same resume as a `.docx` to edit in Word, Pages or Google
 Docs before you send it.

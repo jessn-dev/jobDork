@@ -115,7 +115,7 @@ Each rule is shown once, with how many lines it found and three of them.
 A PDF's bullet marks are usually drawn rather than written, so from a PDF
 the lines of your Experience section are read as its bullets. Only English
 is scored. A tailored resume is told the same rules, and its tab has a
-**resume writing** check that is READ when a bullet starts by saying you
+**resume writing** check that says **Read this** when a bullet starts by saying you
 were near the work; "no figure" stays a note, since a figure may only come
 from your resume.
 

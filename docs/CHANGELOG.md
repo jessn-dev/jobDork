@@ -6,6 +6,63 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-11-05 — A quieter, plainer look
+
+The dashboard's look, polished after an audit with
+[unslop](https://github.com/heydamir/unslop) by Damir Sokolovsky (CC BY
+4.0). Nothing moved between pages and no feature changed:
+
+- **Labels in sentence case.** *Last scan*, *Match*, *Progress* and the
+  table headers were capitals with wide spacing.
+- **One type scale.** 25 font sizes became 9, and nothing is heavier than
+  semibold.
+- **Figures line up.** Scores, counts and run figures use fixed-width
+  digits, the one detail used everywhere.
+- **The Dashboard's buttons.** **Run a scan** is the one filled button.
+  The three that delete sit apart at the end of the row, plain until
+  pointed at, then red. AI buttons say they may cost money with an amber
+  icon instead of an orange outline.
+- **Status.** A coloured dot and the word (*Interested*), not a filled
+  capitals pill. The current status in a post is outlined in its colour.
+- **Tags.** The yellow boxes on a job post are plain tags; a warning has
+  an amber dot. In the guide they are now *Tags to know*.
+- **Run figures** sit in one strip split by hairlines, not five equal
+  cards.
+- **The mark** is one colour on a plain tile; the AI page's icon is a chip,
+  not a sparkle. The menu uses the same greys as the pages.
+- **Welcome page** left-aligned: no capitals line above the headline, the
+  three points as plain lines under a rule, the start button filled, with
+  no lift or glow on hover.
+- **One main button a page.** Each setup step's **Continue**, **Start the
+  first scan**, **Ask** and a job post's **Apply** are filled; *Apply
+  anyway?* turns it amber.
+- **Deleting.** The first step of a delete (the Dashboard's three,
+  **Remove all** on the Search page, **Remove N job posts**, **Remove
+  jobdork**) is a plain button with a red icon; the step that confirms it
+  stays red.
+- **Choices** (provider, period, feedback kind) are separate buttons that
+  wrap cleanly, the chosen one tinted like the menu, not filled blue.
+- **No coloured side stripes** on notes, the coding-agent box, Ask's
+  answers, notices and warnings: a whole hairline box, amber-tinted for a
+  warning.
+- **Resume cards**: plain initials instead of rainbow tiles, and a bar
+  coloured only when something falls short; the same for the parts of an
+  ATS match.
+- **Checks** on a document read **Passed** or **Read this** with a green
+  or amber dot, not *ok* and *READ* in coloured text.
+- **Small fixes**: the file pickers drawn like the buttons; notes, Ask and
+  feedback typed in the interface's font, not a code font; **Remove** in a
+  list no longer in the figures' font; **Active** sources a dot, not 15
+  green words; the dark mode switch says *On* and *Off*; the Cover letters
+  table's buttons fit the Resume page's column; setup's *What will be
+  searched* no longer ends in ": ." before any job title is added.
+
+Checked on every page and setup step, light and dark, and at phone width.
+The guide's pictures were retaken, and its Dashboard, Job posts, job post,
+Resume and AI pages say what the buttons, tags and checks look like now.
+
+---
+
 ## Added — 2026-11-05 — Ask Claude Code, from the desktop app
 
 A new **Ask** page in the desktop app: type a question about your job

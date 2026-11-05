@@ -33,10 +33,10 @@ ones you have not opened yet.
 hybrid or on-site (or *Arrangement not stated*), the pay if the post states
 it, the source it came from, and when jobdork first saw it.
 
-**Yellow tags** are things worth knowing before you apply: *Arrangement not
+**Tags to know**, each with an amber dot, are things worth knowing before you apply: *Arrangement not
 stated*, *Unconfirmed salary* (no pay given), a dealbreaker that cost points,
 an older post, a post from Adzuna, Himalayas, Arbeitnow or Kalibrr missing from the employer's own board, and the **Fit** line (which of the advert's skills you have,
-and which you do not). See [tags](statuses.md#yellow-tags).
+and which you do not). See [tags](statuses.md#tags-to-know).
 
 **May be a job you have already applied to** appears when a post looks like
 one you are already pursuing, reached another way (directly and through a

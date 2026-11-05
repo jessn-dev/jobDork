@@ -13,16 +13,20 @@ date, a note above the buttons says which, with **Open My applications**.
 
 ![The Dashboard's buttons](images/dashboard-buttons.png)
 
+**Run a scan** is the one filled button. The three that delete sit apart at
+the end of the row, with a red icon, and turn red when you point at one; the
+button that confirms a delete is red throughout.
+
 | Button | What it does |
 |---|---|
 | **Run a scan** | Reads every source for new job posts and checks them against your rules. Posts you have seen before are updated, not repeated. Once a day is plenty: boards are read slowly on purpose, and scanning more often gets you blocked for a while |
-| **Run fresh scan** | *Red: deletes.* Deletes every job post scans found (with its status, notes and AI verdict, including posts you applied to), then scans from nothing. The database is backed up first, and you confirm the number before anything goes |
-| **Delete all scanned posts** | *Red: deletes.* The same delete, without a scan after it |
-| **Start over** | *Red: deletes.* Deletes everything: settings, job posts, your uploaded resume, documents and keys. Then setup opens from the start. You see exactly what goes, then confirm with **Delete everything and start setup**, or **Cancel** |
 | **Fetch missing adverts** | Some sources send only a short summary. This fetches the full advert from the posting page, so the rules and the scores can read it |
 | **Re-apply filters** | Checks every stored post against your current [Search](search.md) settings again. Changing a setting does this by itself; this is for when you want to be sure |
 | **Check still open** | Asks each posting whether the job is still up, and closes the ones that are gone (see [listing tags](statuses.md#is-it-still-open)) |
-| **AI: judge top job posts** | The AI reads your best-scored posts against your resume and gives each an [AI score](scores.md#ai-the-models-opinion). Needs an AI on the [AI page](ai.md). Orange buttons use the AI, which may cost money with a paid provider |
+| **AI: judge top job posts** | The AI reads your best-scored posts against your resume and gives each an [AI score](scores.md#ai-the-models-opinion). Needs an AI on the [AI page](ai.md). Buttons with an amber icon use the AI, which may cost money with a paid provider |
+| **Run fresh scan** | *Deletes.* Deletes every job post scans found (with its status, notes and AI verdict, including posts you applied to), then scans from nothing. The database is backed up first, and you confirm the number before anything goes |
+| **Delete all scanned posts** | *Deletes.* The same delete, without a scan after it |
+| **Start over** | *Deletes.* Deletes everything: settings, job posts, your uploaded resume, documents and keys. Then setup opens from the start. You see exactly what goes, then confirm with **Delete everything and start setup**, or **Cancel** |
 
 While a job runs, a progress line shows under the buttons; only one runs at
 a time. A yellow or red box under them says what went wrong, if anything did:

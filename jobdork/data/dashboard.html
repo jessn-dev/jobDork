@@ -7,13 +7,15 @@
   --bg:#fff; --fg:#18181b; --muted:#71717a; --line:#e4e4e7; --card:#fafafa;
   --accent:#1d4ed8; --flag:#92400e; --flagbg:#fef3c7; --btn:#fff;
   --ok:#15803d; --bad:#991b1b; --warn:#b45309;
-  --nav-bg:#fff; --nav-fg:#4b5563; --nav-icon:#64748b; --nav-hover:#f1f5f9;
+  --nav-bg:#fff; --nav-fg:#3f3f46; --nav-icon:#71717a; --nav-hover:#f4f4f5;
   --nav-on-bg:#e8f1fd; --nav-on-fg:#1d4ed8; --nav-badge-bg:#e8f1fd; --nav-badge-fg:#1d4ed8;
   --logo:#3b82f6;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;
   /* charts (dataviz reference palette, validated on #fff): tools in fixed
      order, then thumbs up / down as a diverging pair */
   --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
-  --fb-up:#2a78d6; --fb-down:#e34948; --grid:#e4e4e7; --axis:#a1a1aa; }
+  --fb-up:#2a78d6; --fb-down:#e34948; --grid:#e4e4e7; --axis:#a1a1aa}
 /* Dark: the system's choice, unless the toggle chose light (and vice versa). */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark;
   --bg:#0b0b0d; --fg:#e7e7ea; --muted:#a1a1aa; --line:#27272a; --card:#141417;
@@ -22,7 +24,7 @@
   --nav-bg:#151518; --nav-fg:#e4e4e7; --nav-icon:#d4d4d8; --nav-hover:#202025;
   --nav-on-bg:#34343c; --nav-on-fg:#fff; --nav-badge-bg:#e4e4e7; --nav-badge-fg:#151518;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
-  --fb-up:#3987e5; --fb-down:#e66767; --grid:#27272a; --axis:#52525b; } }
+  --fb-up:#3987e5; --fb-down:#e66767; --grid:#27272a; --axis:#52525b} }
 :root[data-theme="dark"] { color-scheme: dark;
   --bg:#0b0b0d; --fg:#e7e7ea; --muted:#a1a1aa; --line:#27272a; --card:#141417;
   --accent:#93b4ff; --flag:#fde68a; --flagbg:#3f2d0a; --btn:#1c1c20;
@@ -30,10 +32,16 @@
   --nav-bg:#151518; --nav-fg:#e4e4e7; --nav-icon:#d4d4d8; --nav-hover:#202025;
   --nav-on-bg:#34343c; --nav-on-fg:#fff; --nav-badge-bg:#e4e4e7; --nav-badge-fg:#151518;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
-  --fb-up:#3987e5; --fb-down:#e66767; --grid:#27272a; --axis:#52525b; }
+  --fb-up:#3987e5; --fb-down:#e66767; --grid:#27272a; --axis:#52525b}
 [hidden]{display:none!important}
 *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
-  font:15px/1.55 ui-sans-serif,-apple-system,Segoe UI,Roboto,sans-serif}
+  font:15px/1.55 var(--sans)}
+b,strong,h2,h3,h4,th{font-weight:600}
+/* Figures, the one detail used everywhere: fixed-width digits that line up. */
+.score,.badge .v,.badge .of,.tile .v,.atsscore,nav .item .count,table.data td.n{
+  font-family:var(--mono);font-variant-numeric:tabular-nums}
+/* A button or field in a figures column keeps the interface's own font. */
+table.data td.n :is(button,select,input){font-family:var(--sans)}
 
 /* ── nav: icon + label rows, a filled pill for the page you are on ─────────── */
 .shell{display:grid;grid-template-columns:248px 1fr;min-height:100vh;
@@ -43,21 +51,21 @@ nav{position:sticky;top:0;height:100vh;overflow:auto;background:var(--nav-bg);
   border-right:1px solid var(--line);display:flex;flex-direction:column;
   padding:1.25rem .9rem}
 .brand{display:flex;align-items:center;gap:.75rem;padding:0 .35rem;margin-bottom:1.6rem}
-.brand .logo{width:38px;height:38px;border-radius:9px;background:#020b17;
-  border:1px solid rgba(255,255,255,.08);display:grid;place-items:center;flex:none}
+.logo{background:var(--card);border:1px solid var(--line);color:var(--accent)}
+.brand .logo{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;flex:none}
 .brand .logo svg{width:24px;height:24px}
-.brand .name{font-size:1.2rem;font-weight:700;color:var(--nav-fg);letter-spacing:-.01em}
+.brand .name{font-size:1.375rem;font-weight:600;color:var(--nav-fg);letter-spacing:-.01em}
 .brand .fold{margin-left:auto;background:none;border:0;color:var(--nav-icon);
   cursor:pointer;padding:.25rem;border-radius:6px;display:grid;place-items:center}
 .brand .fold:hover{background:var(--nav-hover)}
 .brand .fold svg{width:18px;height:18px;fill:currentColor;transition:transform .2s}
 nav .item{display:flex;align-items:center;gap:.85rem;width:100%;border:0;
-  background:none;color:var(--nav-fg);font:inherit;font-size:.95rem;text-align:left;
+  background:none;color:var(--nav-fg);font:inherit;font-size:.9375rem;text-align:left;
   padding:.62rem .75rem;border-radius:8px;cursor:pointer;margin:.12rem 0;
   white-space:nowrap}
 nav .item svg{width:22px;height:22px;flex:none;fill:var(--nav-icon)}
 nav .item:hover{background:var(--nav-hover)}
-nav .item.on{background:var(--nav-on-bg);color:var(--nav-on-fg);font-weight:650}
+nav .item.on{background:var(--nav-on-bg);color:var(--nav-on-fg);font-weight:500}
 nav .item.on svg{fill:var(--nav-on-fg)}
 nav .item .count{margin-left:auto;min-width:1.5rem;padding:.05rem .4rem;border-radius:5px;
   background:var(--nav-badge-bg);color:var(--nav-badge-fg);font-size:.75rem;
@@ -65,10 +73,9 @@ nav .item .count{margin-left:auto;min-width:1.5rem;padding:.05rem .4rem;border-r
 nav .item .pip{position:relative}
 nav .item .pip .dot{position:absolute;top:-2px;right:-3px;width:9px;height:9px;
   margin:0;border:2px solid var(--nav-bg)}
-nav .sec{color:var(--nav-icon);opacity:.75;font-size:.68rem;text-transform:uppercase;
-  letter-spacing:.08em;padding:1rem .75rem .3rem}
+nav .sec{color:var(--nav-icon);font-size:.75rem;padding:1.5rem .75rem .5rem}
 nav .foot{margin-top:auto;padding-top:1rem}
-nav .status{display:flex;align-items:center;gap:.45rem;color:var(--warn);font-size:.78rem;
+nav .status{display:flex;align-items:center;gap:.45rem;color:var(--warn);font-size:.8125rem;
   font-weight:600;padding:.45rem .75rem;margin-bottom:.4rem;border-radius:8px;
   background:color-mix(in srgb, var(--warn) 12%, transparent)}
 nav .status .dot{margin:0;background:var(--warn);animation:blink 1.2s ease-in-out infinite}
@@ -79,14 +86,14 @@ nav .item .info svg{width:15px;height:15px}
 nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
 .navtip{position:fixed;z-index:50;width:17rem;padding:.65rem .8rem;border-radius:8px;
   background:var(--card);color:var(--fg);border:1px solid var(--line);
-  box-shadow:0 10px 28px rgba(0,0,0,.28);font-size:.8rem;line-height:1.45;pointer-events:none}
-.navtip b{display:block;margin-bottom:.2rem;font-size:.82rem}
+  box-shadow:0 10px 28px rgba(0,0,0,.28);font-size:.8125rem;line-height:1.45;pointer-events:none}
+.navtip b{display:block;margin-bottom:.2rem;font-size:.8125rem}
 .navtip::before{content:"";position:absolute;left:-6px;top:var(--arrow,1rem);width:10px;height:10px;
   background:var(--card);border-left:1px solid var(--line);border-bottom:1px solid var(--line);
   transform:rotate(45deg)}
 .switch{margin-left:auto;display:inline-flex;align-items:center;gap:.4rem;
   padding:.18rem .5rem .18rem .2rem;border-radius:999px;border:1px solid var(--line);
-  background:var(--nav-hover);font-size:.72rem;font-weight:600;color:var(--nav-fg)}
+  background:var(--nav-hover);font-size:.75rem;font-weight:600;color:var(--nav-fg)}
 .switch i{width:16px;height:16px;border-radius:50%;background:var(--nav-icon)}
 .switch.on i{background:var(--logo)}
 /* The rail: icons only, labels on hover through the title attribute. */
@@ -127,7 +134,7 @@ main > section:not(#view-scan):not(#view-settings):not(#view-setup):not(#view-re
     border:1px solid var(--line);border-radius:10px;background:var(--bg)}
   .dpane:focus{outline:none}
   .dpane:empty::before{content:attr(data-empty);display:block;padding:2rem 1.25rem;
-    color:var(--muted);font-size:.9rem;text-align:center}
+    color:var(--muted);font-size:.875rem;text-align:center}
   .dpane .dlg-body{max-height:none;overflow:visible}
   .split.solo{display:block}.split.solo .dpane{display:none}
   /* Narrower than the window: its title first, then Apply and the rest. */
@@ -139,64 +146,79 @@ main > section:not(#view-scan):not(#view-settings):not(#view-setup):not(#view-re
   /* Its status and note are set beside it, in the post. */
   .split:not(.solo) .role .acts :is(.open,select,.note){display:none}
 }
-h2{font-size:1.05rem;margin:0 0 .35rem}
+h2{font-size:1.125rem;margin:0 0 .35rem}
 .bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
 /* The job post search takes the room left on its row, so a typed company
    name reads in full rather than scrolling inside a narrow box. */
 #q{flex:1 1 22rem;min-width:min(100%,16rem);max-width:40rem}
 select,input,textarea{background:var(--btn);color:var(--fg);
   border:1px solid var(--line);border-radius:6px;padding:.4rem .55rem;
-  font:inherit;font-size:.85rem}
-textarea{width:100%;min-height:5rem;font-family:ui-monospace,Menlo,monospace}
+  font:inherit;font-size:.875rem}
+textarea{width:100%;min-height:5rem;font-family:var(--sans)}
+/* The file picker drawn like the buttons beside it, not the browser's own. */
+input[type=file]{font-size:.8125rem;color:var(--muted);max-width:100%}
+input[type=file]::file-selector-button{font:inherit;color:var(--fg);background:var(--btn);
+  border:1px solid var(--line);border-radius:6px;padding:.25rem .75rem;margin-right:.75rem;cursor:pointer}
+input[type=file]::file-selector-button:hover{border-color:var(--accent);color:var(--accent)}
 button.act{background:var(--btn);color:var(--fg);border:1px solid var(--line);
-  border-radius:6px;padding:.35rem .7rem;font:inherit;font-size:.82rem;cursor:pointer}
+  border-radius:6px;padding:.35rem .7rem;font:inherit;font-size:.8125rem;cursor:pointer}
 button.act:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
 button.act:disabled{opacity:.4;cursor:default}
 button[data-icon]{display:inline-flex;align-items:center;gap:.35rem}
 svg.bi{width:14px;height:14px;flex:none}
 .linkbtn svg.bi{width:13px;height:13px}
-button.primary{border-color:var(--accent);color:var(--accent);font-weight:600}
-button.spend{border-color:var(--warn);color:var(--warn)}
-.count{color:var(--muted);font-size:.85rem;margin-left:auto}
+button.primary{border-color:var(--accent);color:var(--accent);font-weight:500}
+/* The one main action on a page: filled. A hover is a darker step, nothing moves. */
+button.act.main{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:500;
+  transition:background-color .15s ease-out}
+button.act.main:hover:not(:disabled){color:var(--bg);background:color-mix(in srgb,var(--accent) 85%,var(--fg))}
+/* Uses the AI, which may cost money: said by the icon's colour, not the whole button's. */
+button.spend svg.bi{color:var(--warn)}
+/* Apply asking again ("Apply anyway?"): the filled button turns amber. */
+button.act.main.armed,button.act.main.armed:hover:not(:disabled){background:var(--warn);border-color:var(--warn);color:var(--bg)}
+.count{color:var(--muted);font-size:.875rem;margin-left:auto}
 .role{border:1px solid var(--line);border-radius:8px;padding:.85rem 1rem;
   margin-bottom:.6rem;background:var(--card)}
 .role.busy{opacity:.45}
 #role-filters{margin-top:-.4rem}
-#role-filters .fnum{font-size:.85rem;color:var(--muted);display:inline-flex;gap:.3rem;align-items:center}
+#role-filters .fnum{font-size:.875rem;color:var(--muted);display:inline-flex;gap:.3rem;align-items:center}
 p#count{margin:-.4rem 0 .8rem}
 p#count a{cursor:pointer}
-.role .why{font-size:.82rem;color:var(--muted);margin-top:.3rem}
+.role .why{font-size:.8125rem;color:var(--muted);margin-top:.3rem}
 .role .why b{color:var(--fg)}
 .head{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
 .score{font-variant-numeric:tabular-nums;font-weight:600;color:var(--accent);min-width:3ch}.title{font-weight:600;cursor:pointer}
 .title:hover{text-decoration:underline}
-.age{font-size:.7rem;padding:.08rem .45rem;border-radius:999px;border:1px solid var(--line);
+.age{font-size:.75rem;padding:.08rem .45rem;border-radius:999px;border:1px solid var(--line);
   color:var(--muted);white-space:nowrap}
-.age.new{color:var(--ok);border-color:var(--ok);font-weight:600}
+.age.new{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
 .age.older{color:var(--warn);border-color:var(--warn)}
 .age.stale,.age.ghost{color:var(--bad);border-color:var(--bad)}
 .age.ghost{text-decoration:line-through}
-.pill{padding:.1rem .5rem;border-radius:999px;font-size:.7rem;font-weight:600;
-  color:#fff;text-transform:uppercase;letter-spacing:.02em}
-.meta{color:var(--muted);font-size:.85rem;margin-top:.3rem;display:flex;
+.pill{display:inline-flex;align-items:center;gap:.375rem;padding:.0625rem .5rem;border-radius:999px;
+  font-size:.75rem;font-weight:500;color:var(--fg);border:1px solid var(--line);white-space:nowrap}
+.pill::before{content:"";width:.5rem;height:.5rem;border-radius:50%;background:var(--c,var(--muted));flex:none}
+.meta{color:var(--muted);font-size:.875rem;margin-top:.3rem;display:flex;
   gap:.3rem 1rem;flex-wrap:wrap}
 .thin{color:var(--bad)}
-.recr{font-size:.72rem;border:1px solid var(--muted);color:var(--muted);
+.recr{font-size:.75rem;border:1px solid var(--muted);color:var(--muted);
   border-radius:999px;padding:0 .45rem}
-.overlap{margin-top:.4rem;font-size:.82rem;color:var(--warn);border-left:3px solid var(--warn);
-  padding:.25rem .6rem;background:color-mix(in srgb, var(--warn) 8%, transparent)}
+.overlap{margin-top:.5rem;font-size:.8125rem;color:var(--warn);border-radius:8px;
+  border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));padding:.375rem .625rem}
 .overlap a{color:inherit;text-decoration:underline;cursor:pointer}
 .flags{margin-top:.4rem;display:flex;gap:.3rem;flex-wrap:wrap}
-.flag{background:var(--flagbg);color:var(--flag);font-size:.72rem;
-  padding:.1rem .45rem;border-radius:4px}
+.flag.w{display:inline-flex;align-items:center;gap:.375rem}
+.flag.w::before{content:"";width:.375rem;height:.375rem;border-radius:50%;background:var(--warn);flex:none}
+.flag{background:var(--card);color:var(--fg);border:1px solid var(--line);font-size:.75rem;
+  padding:.1rem .45rem;border-radius:6px}
 .acts{margin-top:.6rem;display:flex;gap:.35rem;flex-wrap:wrap;align-items:center}
 .note{flex:1;min-width:11rem}
-.uid{font-family:ui-monospace,Menlo,monospace;font-size:.72rem;color:var(--muted)}
+.uid{font-family:ui-monospace,Menlo,monospace;font-size:.75rem;color:var(--muted)}
 .empty{color:var(--muted);padding:2rem 0}
 .log{background:#0b0b0d;color:#d4d4d8;font-family:ui-monospace,Menlo,monospace;
-  font-size:.78rem;padding:.85rem 1rem;border-radius:8px;height:20rem;
+  font-size:.8125rem;padding:.85rem 1rem;border-radius:8px;height:20rem;
   overflow:auto;white-space:pre-wrap;border:1px solid var(--line)}
-.badge .disagree{color:var(--warn);font-weight:700}
+.badge .disagree{color:var(--warn);font-weight:600}
 .log .ok{color:#4ade80}.log .bad{color:#f87171}.log .dim{color:#71717a}.log .warn{color:#fbbf24}
 .log .tag{display:inline-block;min-width:4.2em;font-weight:600}
 .field{margin-bottom:1rem}
@@ -210,7 +232,7 @@ p#count a{cursor:pointer}
 @media (max-width:700px){.sgrid,#cfgform,#view-settings .picker{grid-template-columns:1fr}}
 .sgroup{min-width:0}
 .sgroup.wide{grid-column:1/-1}
-#view-settings h3{margin:1.4rem 0 .3rem;font-size:.95rem}
+#view-settings h3{margin:1.4rem 0 .3rem;font-size:.9375rem}
 #view-settings .hint,#view-settings .pathelp p{max-width:75ch}
 #view-settings table.editor{max-width:none}
 #view-settings .pathelp{max-width:none}
@@ -220,12 +242,12 @@ p#count a{cursor:pointer}
 /* Save is for the fields above it only: centred under them, larger than the
    list buttons, with its message on the line below so it never shifts. */
 .savebar{display:flex;flex-direction:column;align-items:center;gap:.4rem;margin:.75rem 0 1rem}
-.savebar #save{padding:.55rem 2.4rem;font-size:.95rem}
+.savebar #save{padding:.55rem 2.4rem;font-size:.9375rem}
 .savebar #save svg.bi{width:16px;height:16px}
 .field label.mode{display:inline-flex;align-items:center;gap:.4rem;margin:0 1.25rem .25rem 0;
-  color:var(--fg);font-size:.88rem}
+  color:var(--fg);font-size:.875rem}
 .field label.mode svg{width:16px;height:16px;flex:none;color:var(--muted)}
-.savestate{display:inline-flex;align-items:center;gap:.35rem;font-size:.8rem;color:var(--muted)}
+.savestate{display:inline-flex;align-items:center;gap:.35rem;font-size:.8125rem;color:var(--muted)}
 .savestate.dirty{color:var(--warn)}
 .savestate.err{color:var(--bad)}
 .savestate svg{width:14px;height:14px}
@@ -258,9 +280,8 @@ nav .item.dirty::after{content:"";position:absolute;top:.45rem;left:1.55rem;widt
 .toasts{position:fixed;right:1rem;bottom:1rem;display:flex;flex-direction:column;gap:.5rem;
   z-index:50;max-width:min(26rem,calc(100vw - 2rem))}
 .toast{display:flex;align-items:flex-start;gap:.55rem;padding:.6rem .8rem;border-radius:8px;
-  background:var(--card);border:1px solid var(--line);border-left:3px solid var(--ok);
-  box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:.85rem;animation:toastin .18s ease-out}
-.toast.err{border-left-color:var(--bad)}
+  background:var(--card);border:1px solid var(--line);
+  box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:.875rem;animation:toastin .18s ease-out}
 .toast svg{width:16px;height:16px;flex:none;margin-top:.1rem}
 .toast.ok svg{color:var(--ok)} .toast.err svg{color:var(--bad)}
 .toast .x{margin-left:auto;background:none;border:0;color:var(--muted);cursor:pointer;padding:0 .1rem}
@@ -269,7 +290,7 @@ nav .item.dirty::after{content:"";position:absolute;top:.45rem;left:1.55rem;widt
 #view-settings .picker select,#view-settings .picker input{width:100%}
 #view-settings .picker label{margin-bottom:.4rem}
 table.editor{max-width:48rem;margin-bottom:.5rem}
-table.editor code{font-size:.78rem;word-break:break-all}
+table.editor code{font-size:.8125rem;word-break:break-all}
 table.editor td{vertical-align:top}
 table.editor td:first-child{min-width:10rem}
 table.editor td:nth-last-child(2){white-space:nowrap}
@@ -277,12 +298,12 @@ table.editor td:nth-last-child(2){white-space:nowrap}
 .pager{display:flex;align-items:center;gap:.5rem;margin:-.2rem 0 .5rem}
 .pager .act{padding:.15rem .5rem;font-size:.75rem}
 button.del{padding:.15rem .55rem;font-size:.75rem}
-.pathelp{max-width:48rem;margin:.25rem 0 .75rem;font-size:.85rem}
-.pathelp summary{cursor:pointer;color:var(--accent);font-size:.85rem}
+.pathelp{max-width:48rem;margin:.25rem 0 .75rem;font-size:.875rem}
+.pathelp summary{cursor:pointer;color:var(--accent);font-size:.875rem}
 .pathelp table{margin:.5rem 0}
 .pathelp td{vertical-align:top}
 .samples{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.5rem}
-.samples .act{font-size:.78rem;padding:.2rem .6rem}
+.samples .act{font-size:.8125rem;padding:.2rem .6rem}
 button.del.armed{color:var(--bad);border-color:var(--bad);font-weight:600}
 button.armed:not(.del){color:var(--warn);border-color:var(--warn);font-weight:600}
 .clearall{margin:.2rem 0 .4rem}
@@ -292,7 +313,7 @@ button.armed:not(.del){color:var(--warn);border-color:var(--warn);font-weight:60
 .delconfirm button{padding:.15rem .45rem;font-size:.75rem}
 .delconfirm button svg.bi{margin:0}
 .delconfirm .del-yes{color:var(--bad);border-color:var(--bad)}
-.field label{display:block;font-size:.82rem;color:var(--muted);margin-bottom:.25rem}
+.field label{display:block;font-size:.8125rem;color:var(--muted);margin-bottom:.25rem}
 .picker{display:flex;flex-wrap:wrap;gap:.6rem}
 .picker label{display:flex;flex-direction:column;gap:.2rem;font-size:.75rem;margin:0}
 .picker select,.picker input{width:14rem;max-width:100%}
@@ -301,12 +322,12 @@ button.armed:not(.del){color:var(--warn);border-color:var(--warn);font-weight:60
 .pchips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.45rem 0 .2rem}
 .pchips:empty{display:none}
 .pchip{display:inline-flex;align-items:center;gap:.25rem;padding:.12rem .2rem .12rem .6rem;
-  border:1px solid var(--line);border-radius:999px;font-size:.8rem}
+  border:1px solid var(--line);border-radius:999px;font-size:.8125rem}
 .pchip.bad{border-color:var(--bad);color:var(--bad)}
 .pchip button{border:0;background:none;padding:0 .3rem;cursor:pointer;color:inherit;
   font-size:1rem;line-height:1}
-.hint{color:var(--muted);font-size:.78rem;margin-top:.25rem}
-.saved{color:var(--ok);font-size:.85rem}.err{color:var(--bad);font-size:.85rem}
+.hint{color:var(--muted);font-size:.8125rem;margin-top:.25rem}
+.saved{color:var(--ok);font-size:.875rem}.err{color:var(--bad);font-size:.875rem}
 .dot{width:.5rem;height:.5rem;border-radius:50%;display:inline-block;
   background:var(--muted);margin-right:.4rem}
 .dot.live{background:var(--ok)}
@@ -316,26 +337,26 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .dlg-head{padding:1rem 1.25rem;border-bottom:1px solid var(--line);
   display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
 .dlg-body{padding:1rem 1.25rem;max-height:66vh;overflow:auto}
-.toolsnote{font-size:.82rem;line-height:1.5;padding:.6rem .8rem;border:1px solid var(--line);
-  border-left:3px solid var(--accent);border-radius:6px;margin:.2rem 0 .75rem;max-width:75ch}
+.toolsnote{font-size:.8125rem;line-height:1.5;padding:.6rem .8rem;border:1px solid var(--line);
+  background:var(--card);border-radius:8px;margin:.2rem 0 .75rem;max-width:75ch}
 .toolbar{flex-wrap:wrap}
-.toolcard{border:1px solid var(--line);border-radius:8px;padding:.75rem .9rem;margin:.75rem 0;font-size:.86rem}
-.toolcard h4{margin:.8rem 0 .3rem;font-size:.85rem}
+.toolcard{border:1px solid var(--line);border-radius:8px;padding:.75rem .9rem;margin:.75rem 0;font-size:.875rem}
+.toolcard h4{margin:.8rem 0 .3rem;font-size:.875rem}
 .toolcard ul{margin:.2rem 0;padding-left:1.1rem} .toolcard li{margin:.25rem 0}
 .toolhead{display:flex;gap:.6rem;align-items:baseline;margin-bottom:.4rem}
 .chks{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.5rem}
-.chk{font-size:.72rem;padding:.1rem .45rem;border-radius:4px;border:1px solid currentColor}
+.chk{font-size:.75rem;padding:.1rem .45rem;border-radius:4px;border:1px solid currentColor}
 .chk.ok{color:var(--ok)} .chk.warn{color:var(--warn)} .chk.bad{color:var(--bad)}
 div.chk{display:inline-block;margin-top:.25rem}
-.flagged{color:var(--bad);font-size:.8rem}
+.flagged{color:var(--bad);font-size:.8125rem}
 label.edit{display:flex;gap:.55rem;align-items:flex-start;padding:.45rem 0;border-top:1px solid var(--line)}
 label.edit > span{display:flex;flex-direction:column;gap:.2rem}
 .was{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
 p.was{text-decoration:none}
 .now{color:var(--fg)}
 .kw{display:flex;flex-wrap:wrap;gap:.4rem}
-.kwi{padding:.2rem .55rem;border-radius:5px;border:1px solid var(--line);font-size:.8rem}
-.kwi b{font-weight:600;font-size:.7rem;margin-left:.3rem}
+.kwi{padding:.2rem .55rem;border-radius:5px;border:1px solid var(--line);font-size:.8125rem}
+.kwi b{font-weight:600;font-size:.75rem;margin-left:.3rem}
 .kwi.yes b{color:var(--ok)} .kwi.no b{color:var(--warn)}
 .ver{display:flex;flex-wrap:wrap;gap:.6rem;align-items:flex-start;padding:.45rem 0;border-top:1px solid var(--line)}
 .ver .chk{flex-basis:100%}
@@ -343,63 +364,66 @@ p.was{text-decoration:none}
 q{quotes:"\201C" "\201D";color:var(--muted)}
 .dlg-foot{padding:.75rem 1.25rem;border-top:1px solid var(--line);display:flex;
   gap:.5rem;justify-content:flex-end}
-table.letters td.acts{white-space:nowrap;text-align:right}
-table.letters td.acts .acts-in{display:flex;gap:.35rem;justify-content:flex-end;align-items:center}
+table.letters td.acts{text-align:right}
+table.letters td.acts .acts-in{display:flex;flex-direction:column;gap:.25rem;align-items:stretch}
+/* In the Resume page's narrow column: the date may wrap, so View and Delete fit. */
+table.letters td:first-child{min-width:7rem}
+table.letters td:nth-last-child(2){white-space:normal}
 table.letters td.acts .act{padding:.15rem .55rem;font-size:.75rem}
-.advert{white-space:pre-wrap;font-size:.88rem;line-height:1.6}
+.advert{white-space:pre-wrap;font-size:.875rem;line-height:1.6}
 /* A job post's header: badges and title on the left, wrapping as long as the
    title needs; Open posting and Close stay put at the top right. */
 .dh-top{display:flex;gap:1rem;align-items:flex-start;width:100%}
 .dh-main{flex:1;min-width:0}
 .dh-badges{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
-.dh-title{font-size:1.05rem;line-height:1.35;margin:.45rem 0 0;overflow-wrap:anywhere}
+.dh-title{font-size:1.125rem;line-height:1.35;margin:.45rem 0 0;overflow-wrap:anywhere}
 .dh-btns{display:flex;gap:.4rem;flex:none}
 #detail:focus{outline:none}
 /* The advert as read: headings, lists and paragraphs from plain text. */
 .advert.read{white-space:normal;max-width:78ch}
-.advert.read h4{font-size:.9rem;margin:1.1rem 0 .35rem}
+.advert.read h4{font-size:.875rem;margin:1.1rem 0 .35rem}
 .advert.read h4:first-child{margin-top:0}
 .advert.read p{margin:.45rem 0}
 .advert.read ul{margin:.3rem 0 .6rem;padding-left:1.2rem}
 .advert.read li{margin:.25rem 0}
 .advbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.6rem}
-.creds{border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:8px;
+.creds{border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));border-radius:8px;
   padding:.6rem .85rem;margin:0 0 .9rem;background:var(--card);max-width:78ch}
-.creds h4{margin:0 0 .35rem;font-size:.86rem}
-.creds ul{margin:0;padding-left:1.1rem;font-size:.86rem;line-height:1.5}
+.creds h4{margin:0 0 .35rem;font-size:.875rem}
+.creds ul{margin:0;padding-left:1.1rem;font-size:.875rem;line-height:1.5}
 .creds li{margin:.3rem 0}
-.creds .need{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.03em;
+.creds .need{font-size:.75rem;font-weight:600;
   padding:.05rem .4rem;border-radius:4px;margin-right:.35rem;border:1px solid currentColor}
 .creds .need.required{color:var(--bad)} .creds .need.preferred{color:var(--muted)}
 .cred-names{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.2rem}
-.cred-name{font-size:.72rem;padding:.05rem .45rem;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.cred-name{font-size:.75rem;padding:.05rem .45rem;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
 .cred-name.have{color:var(--ok);border-color:var(--ok)}
 mark.cred{background:var(--flagbg);color:var(--fg);border-radius:3px;padding:0 .15rem}
 .tabs{display:flex;gap:.3rem;margin-bottom:.75rem;flex-wrap:wrap}
 /* match and fit: one badge style, so the two read as a pair */
 .badge{position:relative;display:inline-flex;align-items:baseline;gap:.35rem;
   padding:.12rem .55rem;border:1px solid var(--line);border-radius:6px;
-  background:var(--bg);font-size:.9rem;line-height:1.4;
+  background:var(--bg);font-size:.875rem;line-height:1.4;
   font-variant-numeric:tabular-nums;cursor:help;white-space:nowrap}
 .badge:hover,.badge:focus{border-color:var(--accent);outline:none}
-.badge .k{font-size:.68rem;font-weight:600;letter-spacing:.06em;
-  text-transform:uppercase;color:var(--muted)}
-.badge .v{font-weight:700;color:var(--fg)}
+.badge .k{font-size:.75rem;font-weight:500;
+  color:var(--muted)}
+.badge .v{font-weight:600;color:var(--fg)}
 .badge.match .v{color:var(--accent)}
-.badge .of{font-size:.8rem;font-weight:500;color:var(--muted)}
+.badge .of{font-size:.8125rem;font-weight:500;color:var(--muted)}
 .tip{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:30;
   width:min(27rem,82vw);padding:.65rem .8rem;background:var(--card);
   border:1px solid var(--line);border-radius:8px;
   box-shadow:0 10px 28px rgba(0,0,0,.28);white-space:normal;cursor:default;
-  font-size:.8rem;line-height:1.45;color:var(--fg)}
+  font-size:.8125rem;line-height:1.45;color:var(--fg)}
 .badge:hover .tip,.badge:focus .tip{display:block}
-.tip h4{margin:0 0 .4rem;font-size:.8rem}
+.tip h4{margin:0 0 .4rem;font-size:.8125rem}
 .tip table{width:100%;border-collapse:collapse}
 .tip td{padding:.25rem 0;vertical-align:top}
-.tip td.pts{text-align:right;font-weight:700;white-space:nowrap;padding-left:.8rem}
+.tip td.pts{text-align:right;font-weight:600;white-space:nowrap;padding-left:.8rem}
 .tip .part{font-weight:600;display:block}
 .tip .why{color:var(--muted)}
-.tip tfoot td{border-top:1px solid var(--line);padding-top:.4rem;font-weight:700}
+.tip tfoot td{border-top:1px solid var(--line);padding-top:.4rem;font-weight:600}
 .tip .skills{display:flex;flex-wrap:wrap;gap:.25rem;margin:.2rem 0 .45rem}
 .tip .sk{padding:.05rem .4rem;border-radius:4px;font-size:.75rem;
   border:1px solid var(--line)}
@@ -410,17 +434,15 @@ mark.cred{background:var(--flagbg);color:var(--fg);border-radius:3px;padding:0 .
 .badge.ai.weak .v{color:var(--bad)}
 .tip ul{margin:.15rem 0 .45rem;padding-left:1.1rem}
 .tip li{margin:.1rem 0}
-.tip .meta-line{color:var(--muted);font-size:.72rem;margin-top:.3rem}
-.listing{font-size:.78rem;padding:.05rem .45rem;border-radius:4px;
+.tip .meta-line{color:var(--muted);font-size:.75rem;margin-top:.3rem}
+.listing{font-size:.8125rem;padding:.05rem .45rem;border-radius:4px;
   border:1px solid currentColor}
 .listing.closed{color:var(--bad)}
 .listing.unlisted,.listing.stale{color:var(--warn)}
 .listing.open{color:var(--ok)}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;
-  flex-wrap:wrap}
-.seg button{background:var(--btn);color:var(--fg);border:0;border-right:1px solid var(--line);
-  padding:.4rem .85rem;font:inherit;font-size:.85rem;cursor:pointer}
-.seg button:last-child{border-right:0}
+.seg{display:inline-flex;flex-wrap:wrap;gap:.25rem}
+.seg button{background:var(--btn);color:var(--fg);border:1px solid var(--line);border-radius:8px;
+  padding:.4rem .85rem;font:inherit;font-size:.875rem;cursor:pointer}
 #ai-readers .seg button,#ai-checkers .seg button{display:inline-flex;align-items:center;gap:.4rem}
 .reader{border:1px solid var(--line);border-radius:8px;padding:.7rem .9rem .3rem;margin:0 0 .8rem;
   background:var(--card)}
@@ -433,19 +455,22 @@ mark.cred{background:var(--flagbg);color:var(--fg);border-radius:3px;padding:0 .
    colour, so the mark keeps its contrast on the accent background. */
 .seg button:not(.on) .plogo.gemini{fill:#8E75B2}
 .seg button:not(.on) .plogo.groq{fill:#F55036}
-.seg button.on{background:var(--accent);color:var(--bg);font-weight:600}
-label.check{display:block;font-size:.88rem;color:var(--fg);margin:.35rem 0}
+.seg button.on{background:var(--nav-on-bg);color:var(--nav-on-fg);border-color:var(--nav-on-bg);font-weight:500}
+label.check{display:block;font-size:.875rem;color:var(--fg);margin:.35rem 0}
 /* activity */
-h3{font-size:.9rem;margin:1.2rem 0 .45rem}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.6rem;margin:.6rem 0}
-.tile{border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem;background:var(--card)}
-.tile .k{font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.tile .v{font-size:1.45rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.25;margin-top:.15rem}
+h3{font-size:.875rem;margin:1.2rem 0 .45rem}
+/* Run figures: one strip split by hairlines, not a row of equal cards. */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));margin:.75rem 0;
+  border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.tile{border-left:1px solid var(--line);padding:.75rem 1rem}
+.tile:first-child{border-left:0}
+.tile .k{font-size:.75rem;color:var(--muted)}
+.tile .v{font-size:1.375rem;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.25;margin-top:.15rem}
 .tile .s{font-size:.75rem;color:var(--muted)}
 .jobhead{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
 .jobhead strong{font-size:1rem}
-.state{font-size:.72rem;font-weight:600;padding:.1rem .5rem;border-radius:999px;
-  border:1px solid currentColor;text-transform:uppercase;letter-spacing:.04em}
+.state{font-size:.75rem;font-weight:500;padding:.1rem .5rem;border-radius:999px;
+  border:1px solid currentColor}
 .state.running{color:var(--accent)} .state.done{color:var(--ok)}
 .state.failed,.state.died{color:var(--bad)} .state.stopped,.state.quiet{color:var(--warn)}
 .pbar{height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin:.2rem 0 .3rem}
@@ -456,14 +481,14 @@ h3{font-size:.9rem;margin:1.2rem 0 .45rem}
 @keyframes slide{0%{margin-left:-30%}100%{margin-left:100%}}
 .stack{display:flex;height:12px;gap:2px;margin:.3rem 0 .4rem}
 .stack > span{border-radius:3px;min-width:3px}
-.legend{display:flex;flex-wrap:wrap;gap:.3rem 1rem;font-size:.8rem;color:var(--fg)}
+.legend{display:flex;flex-wrap:wrap;gap:.3rem 1rem;font-size:.8125rem;color:var(--fg)}
 .legend i{display:inline-block;width:.65rem;height:.65rem;border-radius:2px;margin-right:.35rem;vertical-align:-.05rem}
 .act-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:1.25rem}
 @media (max-width:900px){.act-grid{grid-template-columns:1fr}}
 .tbl-wrap{overflow-x:auto}
-table.data{width:100%;border-collapse:collapse;font-size:.8rem;font-variant-numeric:tabular-nums}
-table.data th{text-align:left;font-weight:600;color:var(--muted);font-size:.72rem;
-  text-transform:uppercase;letter-spacing:.04em;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+table.data{width:100%;border-collapse:collapse;font-size:.8125rem;font-variant-numeric:tabular-nums}
+table.data th{text-align:left;font-weight:500;color:var(--muted);font-size:.75rem;
+  padding:.3rem .5rem;border-bottom:1px solid var(--line)}
 table.data td{padding:.3rem .5rem;border-bottom:1px solid var(--line)}
 table.data td.n,table.data th.n{text-align:right}
 table.data tr.pick{cursor:pointer} table.data tr.pick:hover td{background:var(--card)}
@@ -474,38 +499,38 @@ table.data td.n{white-space:nowrap}
 .okc{color:var(--ok);font-weight:600}
 .chart .band{opacity:.09} .chart .band.ok{fill:var(--ok)} .chart .band.warn{fill:var(--warn)}
 .chart .band.bad{fill:var(--bad)}
-.legend .bands{color:var(--muted);font-size:.72rem}
+.legend .bands{color:var(--muted);font-size:.75rem}
 /* a modal dialog clips overflow by default, which would cut the tip off */
 dialog{overflow:visible}
 .paste{margin:.25rem 0 1rem}
-.paste summary{cursor:pointer;color:var(--accent);font-size:.85rem}
+.paste summary{cursor:pointer;color:var(--accent);font-size:.875rem}
 .paste textarea{width:100%;min-height:12rem;margin:.5rem 0;box-sizing:border-box;
-  font:inherit;font-size:.85rem}
-.copies{font-size:.72rem;padding:.05rem .45rem;border-radius:4px;
+  font:inherit;font-size:.875rem}
+.copies{font-size:.75rem;padding:.05rem .45rem;border-radius:4px;
   border:1px solid var(--line);color:var(--muted)}
 .alsoat{width:100%;display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:center;
-  margin-top:.45rem;font-size:.82rem}
+  margin-top:.45rem;font-size:.8125rem}
 .alsoat a{display:inline-flex;gap:.35rem;align-items:center;padding:.1rem .5rem;
   border:1px solid var(--line);border-radius:6px;text-decoration:none;color:var(--accent)}
 .alsoat a:hover{border-color:var(--accent)}
 .lastruns{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.6rem;
   margin:.2rem 0 1rem}
 .lastrun{border:1px solid var(--line);border-radius:8px;padding:.55rem .75rem;background:var(--card);
-  font-size:.84rem}
+  font-size:.8125rem}
 .lastrun.warn{border-color:color-mix(in srgb, var(--warn) 55%, var(--line))}
 .lastrun .top{display:flex;gap:.5rem;align-items:baseline}
-.lastrun .top b{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
-.lastrun .top .ago{margin-left:auto;color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums}
+.lastrun .top b{font-size:.8125rem}
+.lastrun .top .ago{margin-left:auto;color:var(--muted);font-size:.8125rem;font-variant-numeric:tabular-nums}
 .lastrun .sum{color:var(--muted);margin-top:.15rem}
 .lastrun ul{margin:.35rem 0 0;padding-left:1rem;color:var(--warn);font-weight:600}
 .lastrun.pick{cursor:pointer} .lastrun.pick:hover{border-color:var(--accent)}
-.allruns summary{cursor:pointer;font-weight:600;font-size:.9rem}
+.allruns summary{cursor:pointer;font-weight:600;font-size:.875rem}
 /* the fresh-scan warning */
 .warnwrap{position:relative;display:inline-flex}
 .warntip{display:none;position:absolute;top:calc(100% + 8px);left:0;z-index:40;width:21rem;
   padding:.6rem .75rem;border-radius:8px;background:var(--card);color:var(--fg);
   border:1px solid color-mix(in srgb, var(--bad) 55%, var(--line));
-  box-shadow:0 10px 28px rgba(0,0,0,.28);font-size:.8rem;line-height:1.45;font-weight:400}
+  box-shadow:0 10px 28px rgba(0,0,0,.28);font-size:.8125rem;line-height:1.45;font-weight:400}
 .warntip b{display:flex;align-items:center;gap:.35rem;color:var(--bad);margin-bottom:.25rem}
 .warntip svg{width:15px;height:15px;fill:currentColor;flex:none}
 .warnwrap:hover .warntip,.warnwrap:has(:focus-visible) .warntip{display:block}
@@ -515,7 +540,7 @@ dialog{overflow:visible}
   max-width:60rem}
 .datawarn code{white-space:nowrap}
 #start-over-confirm:not(:empty),#fresh-confirm:not(:empty){border:1px solid var(--bad);border-radius:8px;padding:.7rem .85rem;
-  margin:.4rem 0 .8rem;background:color-mix(in srgb, var(--bad) 7%, var(--bg));font-size:.86rem}
+  margin:.4rem 0 .8rem;background:color-mix(in srgb, var(--bad) 7%, var(--bg));font-size:.875rem}
 #fresh-confirm .bar,#start-over-confirm .bar{margin:.55rem 0 0}
 .seg.small button{padding:.15rem .55rem;font-size:.75rem}
 .legend.lines i{width:.9rem;height:2px;border-radius:1px;vertical-align:.22rem}
@@ -530,7 +555,7 @@ dialog{overflow:visible}
   background:color-mix(in srgb, var(--fb-up) 12%, var(--btn))}
 .fb button[aria-pressed="true"].down{color:var(--fb-down);border-color:var(--fb-down);
   background:color-mix(in srgb, var(--fb-down) 12%, var(--btn))}
-.fb .ack{font-size:.72rem;color:var(--muted);min-width:3.5rem}
+.fb .ack{font-size:.75rem;color:var(--muted);min-width:3.5rem}
 .review-out{margin-top:.75rem}
 .md-doc{white-space:normal}
 .projform textarea{min-height:3.5rem;font-family:inherit}
@@ -539,20 +564,20 @@ dialog{overflow:visible}
 /* Google Jobs for your titles: above the list, where it is seen, as chips. */
 .gjobs{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;margin:.1rem 0 .9rem;
   padding:.55rem .75rem;border:1px solid var(--line);border-radius:10px;background:var(--card)}
-.gjobs .lead{font-size:.88rem;color:var(--fg);margin-right:.2rem}
+.gjobs .lead{font-size:.875rem;color:var(--fg);margin-right:.2rem}
 .gjobs .lead svg{width:15px;height:15px;vertical-align:-.15em;margin-right:.3rem;color:var(--muted)}
-.gjobs a{font-size:.84rem;padding:.2rem .65rem;border:1px solid var(--line);border-radius:999px;
+.gjobs a{font-size:.8125rem;padding:.2rem .65rem;border:1px solid var(--line);border-radius:999px;
   background:var(--btn);color:var(--accent);text-decoration:none;cursor:pointer}
 .gjobs a:hover{border-color:var(--accent)}
 .proj{border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem;margin-bottom:.5rem}
 .proj .bar{margin:.4rem 0 0}
-.proj .tag{font-size:.72rem;color:var(--accent);border:1px solid var(--accent);
+.proj .tag{font-size:.75rem;color:var(--muted);border:1px solid var(--line);
   border-radius:999px;padding:0 .45rem;margin-left:.2rem}
 .projform select{width:100%;box-sizing:border-box}
 .pdfview{width:100%;height:70vh;border:1px solid var(--line);border-radius:8px;background:#fff}
-.md-doc h4{margin:.9rem 0 .35rem;font-size:.95rem}
-.md-doc h4.h1{margin-top:0;font-size:1.05rem}
-.md-doc h4.h3{font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.md-doc h4{margin:.9rem 0 .35rem;font-size:.9375rem}
+.md-doc h4.h1{margin-top:0;font-size:1.125rem}
+.md-doc h4.h3{font-size:.875rem;color:var(--muted)}
 .md-doc ul{margin:.2rem 0 .5rem;padding-left:1.2rem}
 .md-doc li{margin:.25rem 0}
 .md-doc p{margin:.3rem 0}
@@ -567,8 +592,8 @@ dialog{overflow:visible}
 .panel{border:1px solid var(--line);border-radius:8px;padding:.7rem .85rem .6rem;background:var(--bg);min-width:0}
 .panel-head{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
 .panel-head h3{margin:0}
-.panel-head .sub{color:var(--muted);font-size:.78rem}
-.linkbtn{margin-left:auto;background:none;border:0;padding:0;font:inherit;font-size:.78rem;
+.panel-head .sub{color:var(--muted);font-size:.8125rem}
+.linkbtn{margin-left:auto;background:none;border:0;padding:0;font:inherit;font-size:.8125rem;
   color:var(--accent);cursor:pointer}
 .linkbtn:hover{text-decoration:underline}
 .chart{position:relative;margin-top:.45rem}
@@ -584,17 +609,17 @@ dialog{overflow:visible}
 .chart .base{stroke:var(--axis);stroke-width:1}
 .chart-tip{position:absolute;pointer-events:none;z-index:20;min-width:9rem;padding:.45rem .6rem;
   background:var(--card);border:1px solid var(--line);border-radius:6px;
-  box-shadow:0 8px 22px rgba(0,0,0,.22);font-size:.76rem;line-height:1.4}
+  box-shadow:0 8px 22px rgba(0,0,0,.22);font-size:.75rem;line-height:1.4}
 .chart-tip .d{color:var(--muted);margin-bottom:.2rem}
 .chart-tip .r{display:flex;align-items:center;gap:.4rem}
 .chart-tip .r i{display:inline-block;width:.8rem;height:2px;border-radius:1px}
 .chart-tip .r b{min-width:1.6rem;text-align:right;font-variant-numeric:tabular-nums}
 .chart-tip .r span{color:var(--muted)}
-.chart .none{color:var(--muted);font-size:.82rem;padding:2.2rem 0;text-align:center}
+.chart .none{color:var(--muted);font-size:.8125rem;padding:2.2rem 0;text-align:center}
 .chart polyline.rate{stroke-width:2;fill:none;stroke-linejoin:round;stroke-linecap:round}
 .chart .rate{pointer-events:none}   /* the day's column under it takes the pointer */
 .u-head{margin-top:1.2rem;align-items:center}
-.u-pick{margin-left:auto;display:flex;gap:.4rem;align-items:center;font-size:.8rem;color:var(--muted)}
+.u-pick{margin-left:auto;display:flex;gap:.4rem;align-items:center;font-size:.8125rem;color:var(--muted)}
 .u-pick select{max-width:16rem}
 .u-three{grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr))}
 .cleanup{border:1px solid var(--line);border-radius:8px;padding:.75rem .9rem;background:var(--card)}
@@ -602,70 +627,83 @@ dialog{overflow:visible}
 .aged{margin:.5rem 0}
 .aged p{margin:0 0 .45rem}
 .cleanup .row + .row{border-top:1px solid var(--line);margin-top:.3rem;padding-top:.65rem}
-.check-inline{display:inline-flex;gap:.3rem;align-items:center;font-size:.88rem}
-#cl-result{margin-top:.5rem;font-size:.86rem}
+.check-inline{display:inline-flex;gap:.3rem;align-items:center;font-size:.875rem}
+#cl-result{margin-top:.5rem;font-size:.875rem}
 #cl-result ul{margin:.3rem 0 .5rem;padding-left:1.1rem;color:var(--muted)}
-button.danger{border-color:var(--bad);color:var(--bad);font-weight:600}
+button.danger{border-color:var(--bad);color:var(--bad);font-weight:500}
+/* The first step of a delete: plain, its icon red, red when pointed at. The
+   step that confirms it stays red. */
+button.act.danger.later{border-color:var(--line);color:var(--fg);font-weight:400}
+button.act.danger.later svg.bi{color:var(--bad)}
+button.act.danger.later:hover:not(:disabled){background:none;border-color:var(--bad);color:var(--bad)}
+.warnwrap.end .warntip{left:auto;right:0}
+/* Kept together at the right of the row, and together on a line of their own when it wraps. */
+.bar .endacts{display:flex;gap:.5rem;flex-wrap:wrap;margin-left:auto}
+#scanstate{margin-left:.25rem}
 button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .statusbar{width:100%;display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.5rem}
-.statusbar button.cur:disabled{color:#fff;font-weight:600;opacity:1}
+.statusbar button.cur:disabled{color:var(--fg);background:var(--card);border-color:var(--c);
+  font-weight:500;opacity:1}
+.statusbar button.cur svg{color:var(--c)}
 .tabs button{background:none;border:1px solid var(--line);border-radius:999px;
-  padding:.2rem .7rem;font:inherit;font-size:.78rem;color:var(--muted);cursor:pointer}
+  padding:.2rem .7rem;font:inherit;font-size:.8125rem;color:var(--muted);cursor:pointer}
 .tabs button.on{color:var(--accent);border-color:var(--accent)}
-.gate{font-size:.8rem;margin:.15rem 0}
-.gate.pass{color:var(--ok)}.gate.fail{color:var(--warn)}
+.gate{font-size:.8125rem;margin:.25rem 0;padding-left:1rem;position:relative}
+.gate::before{content:"";position:absolute;left:0;top:.45em;width:.5rem;height:.5rem;border-radius:50%}
+.gate.pass::before{background:var(--ok)}.gate.fail::before{background:var(--warn)}
 /* A job post's ATS match: score, its parts as bars, the skill chips. */
 .atshead{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;margin-bottom:.3rem}
-.atsscore{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums}
+.atsscore{font-size:1.75rem;font-weight:600;font-variant-numeric:tabular-nums}
 .atsbar{display:block;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .atsbar i{display:block;height:100%;background:var(--ok)}.atsbar i.mid{background:var(--warn)}.atsbar i.low{background:var(--bad)}
 .atsparts{display:grid;gap:.55rem;margin:.7rem 0 .9rem}
-.atspart{display:grid;grid-template-columns:1fr auto;gap:.15rem .6rem;font-size:.85rem}
+.atspart{display:grid;grid-template-columns:1fr auto;gap:.15rem .6rem;font-size:.875rem}
 .atspart .atsbar{grid-column:1/-1;height:4px}
-#ats-out h4{margin:.8rem 0 .35rem;font-size:.85rem}
+/* A part's bar is coloured only when it falls short; the score above leads. */
+.atspart .atsbar i:not(.mid):not(.low){background:color-mix(in srgb,var(--fg) 55%,transparent)}
+#ats-out h4{margin:.8rem 0 .35rem;font-size:.875rem}
 .atschips{display:flex;flex-wrap:wrap;gap:.35rem}
-.atschip{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;padding:.15rem .5rem;
+.atschip{display:inline-flex;align-items:center;gap:.35rem;font-size:.8125rem;padding:.15rem .5rem;
   border-radius:6px;border:1px solid var(--line)}
 .atschip.have{border-color:var(--ok);color:var(--ok)}.atschip.add{border-color:var(--accent);color:var(--accent)}
 .atschip.missing{border-color:var(--bad);color:var(--bad)}
-.atschip .act{font-size:.72rem;padding:.05rem .4rem}
-.atsadvice{margin:.2rem 0;padding-left:1.1rem;font-size:.85rem}
+.atschip .act{font-size:.75rem;padding:.05rem .4rem}
+.atsadvice{margin:.2rem 0;padding-left:1.1rem;font-size:.875rem}
 .act.linkish{border:none;background:none;padding:0;color:var(--accent);text-decoration:underline;font-size:inherit}
 /* A coding agent's suggestions for the record, waiting for your OK. */
 .sugglist{list-style:none;margin:.5rem 0 0;padding:0}
 .sugglist li{display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:center;padding:.4rem 0;border-top:1px solid var(--line)}
-.sugglist .pill{background:var(--accent)}
+.sugglist .pill{--c:var(--accent)}
 .sugglist .acts{margin-left:auto;display:flex;gap:.3rem}
 /* Ask: a conversation with Claude Code, in the desktop app. */
 .asklog{max-width:44rem;display:flex;flex-direction:column;gap:.6rem;margin:.8rem 0}
 .asklog .msg{border:1px solid var(--line);border-radius:8px;padding:.55rem .8rem;
-  white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;font-size:.9rem}
+  white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;font-size:.875rem}
 .asklog .msg.you{align-self:flex-end;background:var(--card);max-width:85%}
-.asklog .msg.agent{border-left:3px solid var(--accent)}
-.asklog .msg.no{border-left:3px solid var(--flag);background:var(--flagbg)}
+.asklog .msg.no{border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}
 .asklog .who{display:block;font-size:.75rem;color:var(--muted);margin-bottom:.15rem}
 .askform{max-width:44rem}
 .askform textarea{width:100%;box-sizing:border-box}
 /* A coding agent as the writer: how to connect each one, and what to ask. */
-.agentbox{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;
-  padding:.7rem .9rem;margin:-.2rem 0 .8rem;font-size:.86rem;line-height:1.5}
+.agentbox{border:1px solid var(--line);background:var(--card);border-radius:12px;
+  padding:.7rem .9rem;margin:-.2rem 0 .8rem;font-size:.875rem;line-height:1.5}
 .agentbox p{margin:.2rem 0 .5rem}
 .agentcmd{margin:.55rem 0}
 .agentcmd summary{cursor:pointer}
 .agentcmd .cmdrow{display:flex;gap:.4rem;align-items:flex-start;margin-top:.2rem}
 .agentcmd pre{flex:1;margin:0;padding:.45rem .6rem;border:1px solid var(--line);border-radius:6px;
-  background:var(--card);font-size:.76rem;white-space:pre-wrap;overflow-wrap:anywhere}
+  background:var(--card);font-size:.75rem;white-space:pre-wrap;overflow-wrap:anywhere}
 .agentask{display:inline-flex;flex-wrap:wrap;gap:.35rem;align-items:center}
 /* My applications: stage chips, the table, and a post's Application tab. */
 .appchips{display:flex;gap:.35rem;flex-wrap:wrap;margin:.6rem 0 .8rem}
-.appchips button{all:unset;cursor:pointer;font-size:.82rem;font-weight:600;padding:.3rem .7rem;
+.appchips button{all:unset;cursor:pointer;font-size:.8125rem;font-weight:600;padding:.3rem .7rem;
   border:1px solid var(--line);border-radius:999px;color:var(--muted)}
 .appchips button span{font-weight:500;margin-left:.2rem}
 .appchips button.on{border-color:var(--accent);color:var(--accent)}
 .appchips button:focus-visible{outline:2px solid var(--accent)}
-table.apps{width:100%;border-collapse:collapse;font-size:.85rem;background:var(--card);
+table.apps{width:100%;border-collapse:collapse;font-size:.875rem;background:var(--card);
   border:1px solid var(--line);border-radius:8px}
-table.apps th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+table.apps th{text-align:left;font-size:.75rem;color:var(--muted);
   padding:.5rem .6rem;border-bottom:1px solid var(--line)}
 table.apps td{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
 table.apps tr[data-uid]{cursor:pointer}
@@ -674,17 +712,17 @@ table.apps tr[data-uid]:focus-visible{outline:2px solid var(--accent)}
 table.apps td b{display:block}
 table.apps .when{color:var(--muted);white-space:nowrap}
 .late,.late .when{color:var(--bad)}
-.appdetail h4{margin:1rem 0 .4rem;font-size:.85rem}
+.appdetail h4{margin:1rem 0 .4rem;font-size:.875rem}
 .appdetail h4:first-child,.appdetail p.late + h4{margin-top:0}
 ol.stages{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.3rem .9rem}
 ol.stages li{display:flex;gap:.4rem;align-items:center}
 .appform{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:.5rem .75rem}
-.appform label{display:flex;flex-direction:column;gap:.2rem;font-size:.8rem;color:var(--muted)}
+.appform label{display:flex;flex-direction:column;gap:.2rem;font-size:.8125rem;color:var(--muted)}
 .appnote{display:flex;gap:.5rem;align-items:flex-start}
 .appnote textarea{flex:1;min-height:3.2rem;font:inherit}
 .appdetail .bar{margin-top:.6rem}
 ul.appnotes{list-style:none;margin:.6rem 0 0;padding:0}
-ul.appnotes li{display:flex;flex-wrap:wrap;gap:.2rem .6rem;padding:.45rem 0;border-top:1px solid var(--line);font-size:.86rem}
+ul.appnotes li{display:flex;flex-wrap:wrap;gap:.2rem .6rem;padding:.45rem 0;border-top:1px solid var(--line);font-size:.875rem}
 ul.appnotes .txt{flex-basis:100%;white-space:pre-wrap}
 nav .item .count.due{background:var(--bad);color:#fff}
 #apps-due{margin-bottom:.75rem}
@@ -699,23 +737,24 @@ nav .item .count.due{background:var(--bad);color:#fff}
 .rcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .rcard .top{display:flex;align-items:center;justify-content:space-between;gap:.4rem}
 .rcard .ini{display:inline-grid;place-items:center;min-width:2.1rem;height:2.1rem;padding:0 .3rem;
-  border-radius:7px;color:#fff;font-weight:700;font-size:.8rem;letter-spacing:.03em}
-.rcard .st{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  border-radius:8px;color:var(--fg);background:var(--bg);border:1px solid var(--line);
+  font-weight:500;font-size:.8125rem;font-family:var(--mono)}
+.rcard .st{font-size:.75rem;font-weight:600}
 .rcard .st::before{content:"";display:inline-block;width:.55rem;height:.55rem;margin-right:.3rem;
   border-radius:2px;background:currentColor;vertical-align:-.02rem}
 .rcard .st.ok{color:var(--ok)}.rcard .st.read{color:var(--warn)}.rcard .st.none{color:var(--muted)}
-.rcard b{font-size:.9rem;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.rcard .sub{font-size:.74rem;color:var(--muted)}
+.rcard b{font-size:.875rem;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rcard .sub{font-size:.75rem;color:var(--muted)}
 .rcard .meter{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:auto}
-.rcard .meter i{display:block;height:100%;background:var(--ok)}
+.rcard .meter i{display:block;height:100%;background:color-mix(in srgb,var(--fg) 55%,transparent)}
 .rcard .meter i.mid{background:var(--warn)}.rcard .meter i.low{background:var(--bad)}
 .rcard.add{align-items:center;justify-content:center;border-style:dashed;color:var(--accent);text-align:center}
-.rcard.add .plus{font-size:1.6rem;line-height:1}
+.rcard.add .plus{font-size:1.75rem;line-height:1}
 .rpanes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:1.1rem;align-items:start}
 @media (max-width:1150px){.rpanes{grid-template-columns:minmax(0,1fr)}.rpreview{order:-1}}
 .rpreview{position:sticky;top:1rem;max-height:calc(100vh - 2rem);overflow:auto;margin-top:1.25rem}
 .rptabs{display:flex;gap:.25rem;align-items:center;border-bottom:1px solid var(--line);margin:-.2rem 0 .55rem;flex-wrap:wrap}
-.rptabs [data-rtab]{all:unset;cursor:pointer;padding:.4rem .7rem;font-size:.82rem;font-weight:600;
+.rptabs [data-rtab]{all:unset;cursor:pointer;padding:.4rem .7rem;font-size:.8125rem;font-weight:600;
   color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
 .rptabs [data-rtab].on{color:var(--accent);border-bottom-color:var(--accent)}
 .rptabs [data-rtab]:focus-visible{outline:2px solid var(--accent)}
@@ -725,20 +764,20 @@ nav .item .count.due{background:var(--bad);color:#fff}
 .rpreview .pdfview{height:calc(100vh - 9.5rem);min-height:24rem}
 /* How a tracking system reads the resume (search/readable.py). */
 #resume-readable .rhead{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
-#resume-readable .rscore{font-weight:700;font-size:1.05rem}
+#resume-readable .rscore{font-weight:600;font-size:1.125rem}
 #resume-readable .rscore.good{color:var(--ok)}#resume-readable .rscore.mid{color:var(--warn)}
 #resume-readable .rscore.low{color:var(--bad)}
 #resume-readable ul{list-style:none;margin:.4rem 0 0;padding:0}
-#resume-readable li{margin:.35rem 0;font-size:.88rem}
+#resume-readable li{margin:.35rem 0;font-size:.875rem}
 #resume-readable li b.fail{color:var(--bad)}#resume-readable li b.warn{color:var(--warn)}
 #resume-readable li .advice{display:block;color:var(--muted);margin-left:1.4rem}
-table{border-collapse:collapse;width:100%;font-size:.85rem}
+table{border-collapse:collapse;width:100%;font-size:.875rem}
 td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
 /* First run: no menu, one step at a time, until setup is finished. */
 .shell.setup{grid-template-columns:1fr}
 .shell.setup nav{display:none}
 main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
-#view-setup h2{font-size:1.35rem;margin-bottom:.6rem}
+#view-setup h2{font-size:1.375rem;margin-bottom:.6rem}
 #view-setup p{line-height:1.55}
 #view-setup ol{padding-left:1.3rem;line-height:1.8}
 #view-setup .count{margin:0 0 .4rem;display:block}
@@ -761,20 +800,20 @@ main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
 .sortbtn:hover{color:var(--accent)}
 .update{display:flex;flex-wrap:wrap;gap:.4rem .8rem;align-items:center;
   border:1px solid var(--accent);border-radius:8px;padding:.55rem .85rem;margin:0 0 .9rem;
-  background:color-mix(in srgb, var(--accent) 7%, var(--bg));font-size:.88rem}
-.update .how{flex-basis:100%;color:var(--muted);font-size:.82rem}
+  background:color-mix(in srgb, var(--accent) 7%, var(--bg));font-size:.875rem}
+.update .how{flex-basis:100%;color:var(--muted);font-size:.8125rem}
 .update .x{margin-left:auto}
 #sched .row select,#sched .row input[type=time]{min-width:0}
-#sched .said{font-size:.86rem;flex-direction:column;align-items:flex-start;gap:.3rem}
+#sched .said{font-size:.875rem;flex-direction:column;align-items:flex-start;gap:.3rem}
 .folders{display:grid;gap:.1rem;margin:0}
 .folders .row{display:grid;grid-template-columns:minmax(7rem,auto) 1fr auto;gap:.3rem .8rem;
   align-items:center;padding:.45rem 0;border-top:1px solid var(--line)}
 .folders .row:first-child{border-top:0}
-.folders code{font-size:.8rem;overflow-wrap:anywhere}
-.folders .what{grid-column:2;color:var(--muted);font-size:.8rem}
+.folders code{font-size:.8125rem;overflow-wrap:anywhere}
+.folders .what{grid-column:2;color:var(--muted);font-size:.8125rem}
 @media (max-width:640px){.folders .row{grid-template-columns:1fr}.folders .what{grid-column:1}}
 #dir .inds{display:flex;flex-wrap:wrap;gap:.35rem .5rem;margin:.4rem 0 .8rem}
-#dir .inds label{display:inline-flex;gap:.3rem;align-items:center;font-size:.84rem;
+#dir .inds label{display:inline-flex;gap:.3rem;align-items:center;font-size:.8125rem;
   border:1px solid var(--line);border-radius:999px;padding:.15rem .6rem;cursor:pointer}
 #dir .inds label:has(input:checked){border-color:var(--accent)}
 #dir .inds .n{color:var(--muted);font-variant-numeric:tabular-nums}
@@ -785,87 +824,75 @@ main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
 #dir tr.off td:not(:last-child){color:var(--muted)}
 #dir td:last-child{white-space:nowrap}
 #view-prefs h3.psec{margin:1.5rem 0 .4rem}
-#view-prefs .said-line{font-size:.88rem;margin-right:auto}
+#view-prefs .said-line{font-size:.875rem;margin-right:auto}
 #view-prefs #theme .switch{margin-left:0;background:var(--card);color:var(--fg)}
 .bgscan.ready{border-color:var(--ok)}
 .bgscan .act,.bgscan .linkbtn{margin-left:.4rem;vertical-align:middle}
 .q-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem;
-  padding:.35rem 0;border-bottom:1px solid var(--line);font-size:.86rem}
+  padding:.35rem 0;border-bottom:1px solid var(--line);font-size:.875rem}
 .q-list{margin:.2rem 0 0;padding-left:1.2rem}
 .q-list .q-row .hint{margin-left:.35rem}
 .bgscan{border:1px solid var(--accent);border-radius:8px;padding:.6rem .8rem;
-  color:var(--fg);background:var(--card);font-size:.88rem}
+  color:var(--fg);background:var(--card);font-size:.875rem}
 .keycard{border:1px solid var(--line);border-radius:8px;
   padding:.7rem .9rem;margin:.6rem 0;background:var(--card)}
 .keycard .bar{margin:.4rem 0 0}
 .keycard .secret{display:inline-flex;gap:.25rem;align-items:center}
 #setup-slot .sgroup{margin-top:1rem}
-#view-setup h3{font-size:.95rem;margin:1.4rem 0 .2rem}
+#view-setup h3{font-size:.9375rem;margin:1.4rem 0 .2rem}
 #view-setup .ticks label.check{display:inline-flex;gap:.35rem;align-items:center;
   margin:.2rem .9rem .2rem 0}
-#view-setup .ticks .tag{font-size:.7rem;color:var(--accent)}
+#view-setup .ticks .tag{font-size:.75rem;color:var(--accent)}
 #setup-nav:empty{display:none}
 /* Welcome: what jobdork does, what setup asks, then one way forward. */
 main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
-#view-setup .wel > *{animation:welin .45s ease both}
-#view-setup .wel > :nth-child(2){animation-delay:.06s}
-#view-setup .wel > :nth-child(3){animation-delay:.12s}
-#view-setup .wel > :nth-child(n+4){animation-delay:.18s}
+#view-setup .wel > *{animation:welin .3s ease-out both}
+#view-setup .wel > :nth-child(2){animation-delay:.04s}
+#view-setup .wel > :nth-child(3){animation-delay:.08s}
+#view-setup .wel > :nth-child(n+4){animation-delay:.12s}
 @keyframes welin{from{opacity:0;transform:translateY(.5rem)}}
 @media (prefers-reduced-motion:reduce){#view-setup .wel > *{animation:none}}
-.wel .hero{text-align:center;margin-bottom:2rem}
-.wel .hero .logo{width:56px;height:56px;border-radius:14px;background:#020b17;
-  border:1px solid rgba(255,255,255,.12);
-  display:inline-grid;place-items:center;margin-bottom:1rem;
-  box-shadow:0 8px 24px rgba(2,11,23,.45)}
-.wel .hero .logo svg{width:34px;height:34px}
-.wel .eyebrow{margin:0 0 .5rem;color:var(--accent);font-size:.75rem;font-weight:650;
-  text-transform:uppercase;letter-spacing:.09em}
-#view-setup .wel .hero h2{font-size:clamp(1.6rem,4vw,2.1rem);line-height:1.2;
-  letter-spacing:-.02em;margin:0 0 .75rem}
-.wel .lead{color:var(--muted);font-size:1.02rem;max-width:34rem;margin:0 auto}
-.wel .pillars{list-style:none;padding:0;margin:0 0 2.2rem;display:grid;gap:.75rem;
-  grid-template-columns:repeat(3,minmax(0,1fr))}
-@media (max-width:640px){.wel .pillars{grid-template-columns:1fr}}
-.wel .pillars li{background:var(--card);border:1px solid var(--line);border-radius:10px;
-  padding:1rem}
-.wel .pillars .ic{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;
-  background:color-mix(in srgb, var(--accent) 13%, transparent);margin-bottom:.6rem}
-.wel .pillars .ic svg{width:19px;height:19px;fill:var(--accent)}
-.wel .pillars b{display:block;font-size:.92rem;margin-bottom:.2rem}
-.wel .pillars span{color:var(--muted);font-size:.84rem;line-height:1.45;display:block}
-#view-setup .wel h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;
-  color:var(--muted);margin:0 0 .7rem}
+/* Left-aligned, like a letter: the mark, what jobdork does, then the steps. */
+.wel .hero{margin-bottom:2rem}
+.wel .hero .logo{width:44px;height:44px;border-radius:10px;margin-bottom:1.25rem;
+  display:grid;place-items:center}
+.wel .hero .logo svg{width:28px;height:28px}
+#view-setup .wel .hero h2{font-size:clamp(1.75rem,4vw,2rem);line-height:1.2;
+  letter-spacing:-.01em;margin:0 0 .75rem}
+.wel .lead{color:var(--muted);font-size:1rem;max-width:36rem;margin:0}
+/* What it does: three plain lines under a hairline, not three cards. */
+.wel .pillars{list-style:none;margin:0 0 2.5rem;padding:1.25rem 0 0;display:grid;gap:1.5rem;
+  grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line)}
+@media (max-width:640px){.wel .pillars{grid-template-columns:1fr;gap:1rem}}
+.wel .pillars .ic{display:block;margin-bottom:.5rem;color:var(--muted)}
+.wel .pillars .ic svg{width:18px;height:18px;fill:currentColor;display:block}
+.wel .pillars b{display:block;font-size:.875rem;margin-bottom:.25rem}
+.wel .pillars span{color:var(--muted);font-size:.8125rem;line-height:1.45;display:block}
+#view-setup .wel h3{font-size:.8125rem;font-weight:500;color:var(--muted);margin:0 0 .75rem}
 #view-setup .wel ol.route{list-style:none;padding:0;margin:0 0 2rem;
-  border:1px solid var(--line);border-radius:10px;overflow:hidden;line-height:1.45}
-.wel .route li{display:grid;grid-template-columns:auto 1fr auto;gap:.85rem;align-items:start;
-  padding:.8rem 1rem;border-top:1px solid var(--line)}
+  border:1px solid var(--line);border-radius:12px;overflow:hidden;line-height:1.45}
+.wel .route li{display:grid;grid-template-columns:auto 1fr auto;gap:.75rem;align-items:start;
+  padding:.75rem 1rem;border-top:1px solid var(--line)}
 .wel .route li:first-child{border-top:0}
-.wel .route .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
-  font-size:.78rem;font-weight:700;font-variant-numeric:tabular-nums;
-  border:1.5px solid var(--line);color:var(--muted)}
-.wel .route b{display:block;font-size:.92rem;font-weight:600}
-.wel .route span{color:var(--muted);font-size:.84rem}
-.wel .route .opt{font-size:.7rem;font-weight:600;padding:.1rem .45rem;border-radius:999px;
-  color:var(--muted);border:1px solid var(--line);white-space:nowrap;margin-top:.15rem}
-.wel .route .opt.req{color:var(--accent);
-  border-color:color-mix(in srgb, var(--accent) 45%, transparent)}
-.wel .go{display:flex;flex-direction:column;align-items:center;gap:.7rem;text-align:center}
-.wel .go .need{color:var(--muted);font-size:.86rem;margin:0}
+.wel .route .n{min-width:1.5rem;font-family:var(--mono);font-size:.8125rem;
+  font-variant-numeric:tabular-nums;color:var(--muted);line-height:1.6}
+.wel .route b{display:block;font-size:.875rem;font-weight:500}
+.wel .route span{color:var(--muted);font-size:.8125rem}
+.wel .route .opt{font-size:.75rem;color:var(--muted);white-space:nowrap;line-height:1.6}
+.wel .route .opt.req{color:var(--fg)}
+.wel .go{display:flex;flex-direction:column;align-items:flex-start;gap:.75rem}
+.wel .go .need{color:var(--muted);font-size:.875rem;margin:0}
 #view-setup .wel .go button.start{display:inline-flex;align-items:center;gap:.5rem;
-  background:#2563eb;border-color:#2563eb;color:#fff;font-size:1rem;
-  font-weight:650;padding:.7rem 1.6rem;border-radius:9px;transition:transform .15s,box-shadow .15s}
-#view-setup .wel .go button.start:hover{color:#fff;transform:translateY(-1px);
-  background:#1d4ed8;box-shadow:0 6px 18px color-mix(in srgb, #2563eb 40%, transparent)}
+  font-size:.9375rem;padding:.625rem 1.5rem;border-radius:8px}
 #view-setup .wel .go button.start:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 #view-setup .wel .go button.start svg{width:18px;height:18px;fill:currentColor}
 #view-setup .setup-text{max-height:18rem;overflow:auto;white-space:pre-wrap;
   background:var(--card);border:1px solid var(--line);border-radius:6px;
-  padding:.7rem .8rem;font-size:.8rem;margin:.4rem 0 1rem}
+  padding:.7rem .8rem;font-size:.8125rem;margin:.4rem 0 1rem}
 </style></head><body>
 <div class="shell">
 <nav aria-label="Main">
-  <div class="brand"><span class="logo"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6" stroke="#38bdf8" stroke-width="1.8"/><rect x="3" y="6" width="18" height="14" rx="2.5" stroke="#0284c7" stroke-width="1.8" fill="#082f49" fill-opacity="0.3"/><circle cx="12" cy="13" r="4.2" stroke="#06b6d4" stroke-width="1.6" fill="#020617" fill-opacity="0.8"/><path d="M12 7.8v1M12 17.2v1M6.8 13h1M16.2 13h1" stroke="#06b6d4" stroke-width="1.6"/><path d="M10.2 11.8l1.3 1.2-1.3 1.2M12.5 14.2h1.5" stroke="#10b981" stroke-width="1.4"/></svg></span><span class="name">jobdork</span><button class="fold" id="fold" title="Collapse menu" aria-label="Collapse menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 1 0 1.4L10.4 12l4.3 4.3a1 1 0 0 1-1.4 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.4 0z"/></svg></button></div>
+  <div class="brand"><span class="logo"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="6" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="13" r="4.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.8v1M12 17.2v1M6.8 13h1M16.2 13h1" stroke="currentColor" stroke-width="1.6"/><path d="M10.2 11.8l1.3 1.2-1.3 1.2M12.5 14.2h1.5" stroke="currentColor" stroke-width="1.4"/></svg></span><span class="name">jobdork</span><button class="fold" id="fold" title="Collapse menu" aria-label="Collapse menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 1 0 1.4L10.4 12l4.3 4.3a1 1 0 0 1-1.4 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.4 0z"/></svg></button></div>
   <button class="item on" data-view="scan" title="Dashboard"><span class="pip"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 10v4h2.5v-4H7zm3.75-6v10h2.5V7h-2.5zM14.5 10v7H17v-7h-2.5z"/></svg><span id="act-dot" class="dot live" hidden></span></span><span class="label">Dashboard</span></button>
   <button class="item" data-view="roles" title="Job posts"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 3h6a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v4H2V8a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 1.8V6h6V4.8H9zM2 13.8h8v.7a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7h8V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.2z"/></svg><span class="label">Job posts</span><span class="count" id="nav-new" title="new since you last looked" hidden></span></button>
   <button class="item" data-view="apps" title="My applications"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 2h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a1 1 0 0 1 1-1zm1 1.8v1.4h4V3.8h-4zm5.7 7.5-1.4-1.4-3.3 3.3-1.6-1.6-1.4 1.4 3 3 4.7-4.7z"/></svg><span class="label">My applications</span><span class="count due" id="nav-apps" title="follow-ups past their date" hidden></span></button>
@@ -874,7 +901,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <button class="item" data-view="settings" data-label="Search" data-info="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen." aria-description="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24a1 1 0 0 1-1.42 1.42l-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span class="label">Search</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="count" id="nav-sugg" title="suggestions from your coding agent, waiting for your OK" hidden></span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="sources" data-label="Sources" data-info="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, holds the keys for Adzuna and USAJOBS, adds a job post from a link, and adds or removes employer boards." aria-description="Where job posts come from: boards searched by keyword (Adzuna, Workable, USAJOBS) and employers' own boards (Greenhouse, Ashby, Lever and others). Shows which are active and why any are not, holds the keys for Adzuna and USAJOBS, adds a job post from a link, and adds or removes employer boards."><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 8.2C5.6 9.3 8.6 10 12 10s6.4-.7 8-1.8V12c0 1.66-3.6 3-8 3s-8-1.34-8-3V8.2zm0 7c1.6 1.1 4.6 1.8 8 1.8s6.4-.7 8-1.8V19c0 1.66-3.6 3-8 3s-8-1.34-8-3v-3.8z"/></svg><span class="label">Sources</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
-  <button class="item" data-view="ai" data-label="AI" data-info="Choose a model (local through Ollama, or Anthropic, Gemini, OpenAI or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are never written to a file: held in memory, or kept in your keychain if you choose." aria-description="Choose a model (local through Ollama, or Anthropic, Gemini, OpenAI or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are never written to a file: held in memory, or kept in your keychain if you choose."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2l1.9 5.6 5.6 1.9-5.6 1.9L11 17l-1.9-5.6-5.6-1.9 5.6-1.9L11 2zm7.5 11l.95 2.55 2.55.95-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95L18.5 13z"/></svg><span class="label">AI</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="ai" data-label="AI" data-info="Choose a model (local through Ollama, or Anthropic, Gemini, OpenAI or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are never written to a file: held in memory, or kept in your keychain if you choose." aria-description="Choose a model (local through Ollama, or Anthropic, Gemini, OpenAI or Groq) to judge fit against your resume and read posting pages that do not say whether a job is open. API keys are never written to a file: held in memory, or kept in your keychain if you choose."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M7 5h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm2.5 4.5v5h5v-5h-5zM8 2h2v3H8zm6 0h2v3h-2zM8 19h2v3H8zm6 0h2v3h-2zM2 8h3v2H2zm0 6h3v2H2zm17-6h3v2h-3zm0 6h3v2h-3z"/></svg><span class="label">AI</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="tools" data-label="Feedback" data-info="Send a problem, an idea or a question to the people who make jobdork." aria-description="Send a problem, an idea or a question to the people who make jobdork."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><rect x="11" y="5.75" width="10" height="2.5" rx="1.25"/><circle cx="18" cy="17" r="3"/><rect x="3" y="15.75" width="10" height="2.5" rx="1.25"/></svg><span class="label">Feedback</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <div class="foot">
     <div class="status" id="net" role="status" hidden><span class="dot"></span><span id="net-text"></span></div>
@@ -987,47 +1014,49 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       purpose: running several in a day is how you earn a rate limit.</p>
     <div class="cleanup" id="apps-due" role="status" hidden></div>
     <div class="bar">
-      <button data-icon="play" class="act primary" id="run">Run a scan</button>
-      <span class="warnwrap">
-        <button data-icon="rotate-ccw" class="act danger" id="btn-fresh" aria-describedby="fresh-tip">Run fresh scan</button>
-        <span class="warntip" id="fresh-tip" role="tooltip">
-          <b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.5 21h21L12 2.5zm-1 7h2v6h-2v-6zm0 8h2v2h-2v-2z"/></svg>
-            Deletes all job posts</b>
-          Every job post found by scans is deleted, with its status, notes, AI
-          verdict and document records, then a new scan starts from nothing.
-          Posts you applied to or are interviewing for go too. The database is
-          backed up first, and you confirm the number before anything is deleted.
-        </span>
-      </span>
-      <span class="warnwrap">
-        <button data-icon="trash-2" class="act danger" id="btn-delete-scanned" aria-describedby="delete-tip">Delete all scanned posts</button>
-        <span class="warntip" id="delete-tip" role="tooltip">
-          <b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.5 21h21L12 2.5zm-1 7h2v6h-2v-6zm0 8h2v2h-2v-2z"/></svg>
-            Deletes all job posts</b>
-          Every job post found by scans is deleted, with its status, notes, AI
-          verdict and document records, and no scan follows: run one when you
-          are ready. Posts you applied to or are interviewing for go too. The
-          database is backed up first, and you confirm the number before
-          anything is deleted.
-        </span>
-      </span>
-      <span class="warnwrap">
-        <button data-icon="rotate-ccw" class="act danger" id="btn-start-over" aria-describedby="start-over-tip">Start over</button>
-        <span class="warntip" id="start-over-tip" role="tooltip">
-          <b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.5 21h21L12 2.5zm-1 7h2v6h-2v-6zm0 8h2v2h-2v-2z"/></svg>
-            Deletes everything and runs setup again</b>
-          Your settings, every job post with its status, notes and AI verdict,
-          your uploaded resume, the documents written for job posts, reports,
-          and every AI and job-source key, those kept in your computer's keychain
-          included. Then setup opens from the start. You
-          see exactly what goes, and confirm, before anything is deleted.
-        </span>
-      </span>
+      <button data-icon="play" class="act main" id="run">Run a scan</button>
       <button data-icon="download" class="act" id="btn-enrich">Fetch missing adverts</button>
       <button data-icon="filter" class="act" id="btn-rescreen">Re-apply filters</button>
       <button data-icon="circle-check" class="act" id="btn-check" title="Ask each posting whether the job is still up; close the ones that are gone">Check still open</button>
-      <button data-icon="sparkles" class="act spend" id="btn-judge" title="The model on the AI page reads the best job posts against your resume">AI: judge top job posts</button>
+      <button data-icon="cpu" class="act spend" id="btn-judge" title="The model on the AI page reads the best job posts against your resume">AI: judge top job posts</button>
       <span class="count" id="scanstate"></span>
+      <div class="endacts">
+        <span class="warnwrap end">
+          <button data-icon="rotate-ccw" class="act danger later" id="btn-fresh" aria-describedby="fresh-tip">Run fresh scan</button>
+          <span class="warntip" id="fresh-tip" role="tooltip">
+            <b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.5 21h21L12 2.5zm-1 7h2v6h-2v-6zm0 8h2v2h-2v-2z"/></svg>
+              Deletes all job posts</b>
+            Every job post found by scans is deleted, with its status, notes, AI
+            verdict and document records, then a new scan starts from nothing.
+            Posts you applied to or are interviewing for go too. The database is
+            backed up first, and you confirm the number before anything is deleted.
+          </span>
+        </span>
+        <span class="warnwrap end">
+          <button data-icon="trash-2" class="act danger later" id="btn-delete-scanned" aria-describedby="delete-tip">Delete all scanned posts</button>
+          <span class="warntip" id="delete-tip" role="tooltip">
+            <b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.5 21h21L12 2.5zm-1 7h2v6h-2v-6zm0 8h2v2h-2v-2z"/></svg>
+              Deletes all job posts</b>
+            Every job post found by scans is deleted, with its status, notes, AI
+            verdict and document records, and no scan follows: run one when you
+            are ready. Posts you applied to or are interviewing for go too. The
+            database is backed up first, and you confirm the number before
+            anything is deleted.
+          </span>
+        </span>
+        <span class="warnwrap end">
+          <button data-icon="rotate-ccw" class="act danger later" id="btn-start-over" aria-describedby="start-over-tip">Start over</button>
+          <span class="warntip" id="start-over-tip" role="tooltip">
+            <b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 1.5 21h21L12 2.5zm-1 7h2v6h-2v-6zm0 8h2v2h-2v-2z"/></svg>
+              Deletes everything and runs setup again</b>
+            Your settings, every job post with its status, notes and AI verdict,
+            your uploaded resume, the documents written for job posts, reports,
+            and every AI and job-source key, those kept in your computer's keychain
+            included. Then setup opens from the start. You
+            see exactly what goes, and confirm, before anything is deleted.
+          </span>
+        </span>
+      </div>
     </div>
     <div class="datawarn" id="datawarn" role="alert" hidden></div>
     <p class="bgscan" id="bgscan" role="status" hidden></p>
@@ -1157,7 +1186,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <h3 class="psec">Appearance</h3>
     <div class="cleanup"><div class="row">
       <span>Dark mode</span>
-      <button class="act" id="theme" type="button"><span class="switch" id="theme-switch"><i></i><span id="theme-state">OFF</span></span></button>
+      <button class="act" id="theme" type="button"><span class="switch" id="theme-switch"><i></i><span id="theme-state">Off</span></span></button>
     </div></div>
 
     <h3 class="psec">Schedule a run</h3>
@@ -1420,7 +1449,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <textarea id="ask-text" rows="3" maxlength="2000" aria-label="Your question"
         placeholder="Which three job posts suit me best, and why?"></textarea>
       <div class="bar">
-        <button type="submit" data-icon="send" class="act primary" id="ask-send">Ask</button>
+        <button type="submit" data-icon="send" class="act main" id="ask-send">Ask</button>
         <button type="button" data-icon="x" class="act" id="ask-stop" hidden>Stop</button>
         <button type="button" data-icon="plus" class="act" id="ask-new">New conversation</button>
         <span id="ask-count" class="hint"></span>
@@ -2158,7 +2187,7 @@ function droppedCard(r) {
     <div class="head">
       <span class="title">${esc(r.title)}</span>
       ${ageTag(r.age)}
-      <span class="pill" style="background:#6b7280">dropped</span>
+      <span class="pill" style="--c:#6b7280">Dropped</span>
     </div>
     <div class="meta">${meta.filter(Boolean).map(m => `<span>${esc(m)}</span>`).join('')}</div>
     <div class="why"><b>${esc(cap(RULE_WORDS[r.rule] || r.rule))}:</b> ${esc(r.reason)}</div>
@@ -2201,7 +2230,7 @@ async function offerAged(id) {
   const n = d.count.toLocaleString(), posts = d.count === 1 ? 'job post' : 'job posts';
   box.innerHTML = `<p><b>${n} ${posts} you have not acted on ${d.count === 1 ? 'is' : 'are'} risky or stale:</b>
       ${esc(parts.join(', '))}. They stay listed, ranked lower, unless you remove them.</p>
-    <button data-icon="trash-2" class="act danger" data-go>Remove ${n} ${posts}</button>
+    <button data-icon="trash-2" class="act danger later" data-go>Remove ${n} ${posts}</button>
     <button data-icon="x" class="act" data-no>Not now</button>`;
   box.hidden = false;
   box.querySelector('[data-no]').onclick = () => { agedDismissed[id] = d.count; box.hidden = true; };
@@ -2292,7 +2321,7 @@ function card(r) {
   // the difference between a screened role and a guess.
   const thin = r.advert_chars && r.advert_chars <= THIN_ADVERT
     ? `<span class="thin">Advert is only ${r.advert_chars} chars, too short to screen</span>` : '';
-  const flags = (r.flags || []).map(f => `<span class="flag">${esc(flagLabel(f))}</span>`).join('');
+  const flags = (r.flags || []).map(f => `<span class="flag w">${esc(flagLabel(f))}</span>`).join('');
   const opts = STATUSES.map(s =>
     `<option value="${s}"${s === r.status ? ' selected' : ''}>${cap(s)}</option>`).join('');
   return `<div class="role${r.uid === chosen() ? ' on' : ''}" id="r-${r.uid}" data-uid="${r.uid}" onclick="cardClick(event, '${r.uid}')">
@@ -2303,7 +2332,7 @@ function card(r) {
       <span class="title" onclick="openRole('${r.uid}')">${esc(r.title)}</span>
       ${ageTag(r.age)}
       ${recrTag(r.poster)}
-      <span class="pill" style="background:${colour}">${esc(r.status)}</span>
+      <span class="pill" style="--c:${colour}">${esc(cap(r.status))}</span>
       ${r.copies > 1 ? `<span class="copies" title="Posted in ${r.copies} places. Open it to see every link.">+${r.copies - 1} ${r.copies === 2 ? 'copy' : 'copies'}</span>` : ''}
     </div>
     <div class="meta">${listingTag(r.listing)}${meta.filter(Boolean).map(m => `<span>${esc(m)}</span>`).join('')}${thin}</div>
@@ -2578,7 +2607,7 @@ const ICONS = {
   "check": "<path d=\"M20 6 9 17l-5-5\"/>",
   "x": "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>"
 };
-const TAB_ICON = {tools: 'sparkles', advert: 'file-text', ats: 'search-check', application: 'clipboard-check', screen: 'clipboard-check', cv: 'file-user',
+const TAB_ICON = {tools: 'cpu', advert: 'file-text', ats: 'search-check', application: 'clipboard-check', screen: 'clipboard-check', cv: 'file-user',
                   cover_letter: 'mail', letter: 'mail', resume_review: 'file-search',
                   tailored_resume: 'file-user', interview_prep: 'messages-square',
                   recruiter_message: 'send'};
@@ -2620,12 +2649,12 @@ function drawDetail(tab) {
           ${fitTag(d.fit == null ? null : Math.round(d.fit), d.parts)}
           ${aiTag(d.ai)}
           ${d.ai ? fbButtons(d.ai.ai_output_id, d.ai.feedback, 'Was the AI verdict useful?', true) : ''}
-          <span class="pill" style="background:${COLOURS[d.status] || '#6b7280'}">${esc(d.status)}</span>
+          <span class="pill" style="--c:${COLOURS[d.status] || '#6b7280'}">${esc(cap(d.status))}</span>
         </div>
         <h2 class="dh-title" id="detail-title">${esc(d.title)}</h2>
       </div>
       <div class="dh-btns">
-        <button data-icon="send" class="act primary" data-url="${esc(d.url)}" onclick="apply('${d.uid}', this.dataset.url, this)"
+        <button data-icon="send" class="act main" data-url="${esc(d.url)}" onclick="apply('${d.uid}', this.dataset.url, this)"
           title="Opens the posting and marks it applied">Apply</button>
         <button data-icon="external-link" class="act" onclick="openPosting()">Open posting</button>
         <button data-icon="x" class="act" onclick="closeDetail()">Close</button>
@@ -2647,7 +2676,7 @@ function drawDetail(tab) {
     <div class="statusbar">${
       // new and viewed are recorded for you; these are the ones you decide.
       STATUSES.filter(s => s !== 'new' && s !== 'viewed').map(s => s === d.status
-        ? `<button class="act cur" data-icon="${STATUS_ICON[s] || 'circle-dot'}" style="background:${COLOURS[s] || '#6b7280'};border-color:${COLOURS[s] || '#6b7280'}" disabled>${cap(s)}</button>`
+        ? `<button class="act cur" data-icon="${STATUS_ICON[s] || 'circle-dot'}" style="--c:${COLOURS[s] || '#6b7280'}" disabled>${cap(s)}</button>`
         : `<button class="act" data-icon="${STATUS_ICON[s] || 'circle-dot'}" onclick="act('${d.uid}','${s}')">${cap(s)}</button>`).join('')}
       <input class="note" value="${esc(d.note)}" placeholder="Note (Enter saves)" aria-label="Your note on this job post"
         onkeydown="if(event.key==='Enter')act('${d.uid}', null, this.value)"></div>`;
@@ -2664,7 +2693,7 @@ function drawDetail(tab) {
       ? '<span class="hint">The claude CLI is not on PATH, so drafting is unavailable. Everything else works.</span>'
       : 'Draft: ' + ['screen','cv','cover_letter'].map(gen).join(' ')}</div>
     <div class="bar">
-      <button data-icon="sparkles" class="act spend" onclick="roleJob('judge','${d.uid}')"
+      <button data-icon="cpu" class="act spend" onclick="roleJob('judge','${d.uid}')"
         title="${esc(aiLabel || 'set up a model on the AI page')}">${d.ai ? 'Ask AI again' : 'Ask AI'}</button>
       <button data-icon="pen-line" class="act spend" onclick="roleJob('letter','${d.uid}','cover_letter')"
         title="${esc(aiLabel ? `${aiLabel} writes it from your resume and this advert, then checks its claims` : 'set up a model on the AI page')}">Write cover letter (AI)</button>
@@ -2698,7 +2727,7 @@ function drawDetail(tab) {
   if (tab === 'advert') {
     body += (d.flags || []).length
       ? `<div class="flags" style="margin-bottom:.6rem">${
-          d.flags.map(f => `<span class="flag">${esc(flagLabel(f))}</span>`).join('')}</div>` : '';
+          d.flags.map(f => `<span class="flag w">${esc(flagLabel(f))}</span>`).join('')}</div>` : '';
     body += ownBoardLine(d);
     // Some sources cannot be fetched whole (Adzuna refuses scripts), but the
     // person reading the posting in a browser can copy it.
@@ -2739,7 +2768,7 @@ function drawDetail(tab) {
 // preview both show one this way.
 function docHtml(doc, kind) {
   const gates = Object.entries(doc.gates || {}).map(([n, g]) =>
-    `<div class="gate ${g.passed ? 'pass' : 'fail'}">${g.passed ? 'ok' : 'READ'}: ${esc(n)}, ${esc(g.detail)}${
+    `<div class="gate ${g.passed ? 'pass' : 'fail'}">${g.passed ? 'Passed' : 'Read this'}: ${esc(n)}, ${esc(g.detail)}${
       !g.passed && (g.items || []).length
         ? `<ul>${g.items.slice(0, 12).map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}</div>`).join('');
   return (gates ? `<div style="margin-bottom:.75rem">${gates}</div>` : '') +
@@ -3224,7 +3253,7 @@ async function drawReview() {
   out.innerHTML = `<div class="bar" style="margin-bottom:.4rem">
       <span class="hint" style="margin:0">${esc(o.model)} · ${esc(o.created_at.replace('T', ' '))} · ${esc(check)}</span>
       <span style="margin-left:auto">${fbButtons(o.id, o.feedback, 'Was this review useful?')}</span></div>
-    ${(g.flagged || []).length ? `<div class="gate fail">READ: not in your resume<ul>${
+    ${(g.flagged || []).length ? `<div class="gate fail">Read this: not in your resume<ul>${
       g.flagged.map(f => `<li>${esc(f.claim)}</li>`).join('')}</ul></div>` : ''}
     <div class="advert md-doc">${mdLite(untitled(o.text))}</div>`;
 }
@@ -3567,7 +3596,7 @@ function drawSetup(st) {
     $('view-ai').hidden = false;
     drawAI();
     $('setup-nav').innerHTML = `
-      <button type="button" class="act primary" id="setup-next" hidden>Continue</button>
+      <button type="button" class="act main" id="setup-next" hidden>Continue</button>
       <button type="button" class="act" id="setup-skip">Skip for now</button>`;
     // Continue shows only once the model answered: then every scan has it
     // read the best new job posts too. Skip leaves that off.
@@ -3587,7 +3616,7 @@ function drawSetup(st) {
       The radius and kinds of work can stay as they are.</p>`;
     setupLocationForm();
     $('setup-nav').innerHTML =
-      '<button type="button" class="act primary" id="setup-next">Continue</button>';
+      '<button type="button" class="act main" id="setup-next">Continue</button>';
     $('setup-next').onclick = async () => {
       // The one required field by name, and the cursor put in it.
       const missing = !$('c_pcountry').value ? ['c_pcountry', 'Choose your country. States and cities are optional.']
@@ -3622,7 +3651,7 @@ function drawSetup(st) {
         <option value="90">Up to 3 months old</option>
         <option value="0">Any age</option>
       </select></p>
-      <button type="button" class="act primary" id="setup-scan">Start the first scan</button>`;
+      <button type="button" class="act main" id="setup-scan">Start the first scan</button>`;
     const go = $('setup-scan');
     go.onclick = async () => {
       go.disabled = true; go.textContent = 'Starting…';
@@ -3654,7 +3683,7 @@ function drawSetup(st) {
     setupLocationForm();
     drawSetupSources();
     $('setup-nav').innerHTML =
-      '<button type="button" class="act primary" id="setup-next">Continue</button>';
+      '<button type="button" class="act main" id="setup-next">Continue</button>';
     $('setup-next').onclick = async () => {
       if (await saveLocation()) setupGo(next);
     };
@@ -3675,8 +3704,8 @@ async function drawSetupSources(d) {
   const where = b.countries.length ? b.countries.join(', ') : 'every country';
   const usable = d.keyed.filter(k => k.applies);
   $('setup-extra').innerHTML = `<h3>What will be searched</h3>
-    <p>Every scan reads these, then keeps only the job posts that pass what you chose:
-    ${d.titles.map(t => `<b>${esc(t)}</b>`).join(', ')}.</p>
+    <p>Every scan reads these, then keeps only the job posts that pass what you chose${d.titles.length
+    ? `: ${d.titles.map(t => `<b>${esc(t)}</b>`).join(', ')}` : ''}.</p>
     <ul class="searched">
       ${d.searched.map(x => `<li><b>${esc(x.name)}</b>: ${esc(x.what)}</li>`).join('')}
       <li><b>Employers' own job boards</b>: ${b.enabled ? `${b.count} built in, for
@@ -3843,7 +3872,7 @@ async function setupShowResume(st) {
       `<span class="flag">${esc(x)}</span>`).join('')}</div>` : ''}
     <p class="hint">This is the text jobdork read. Check that it is all there.</p>
     <pre class="setup-text">${esc(d.text)}</pre>
-    <button type="button" class="act primary" id="setup-next">Continue</button>
+    <button type="button" class="act main" id="setup-next">Continue</button>
     <span class="hint">or choose another file above to replace it.</span>`;
   $('setup-next').onclick = () => setupGo(st.steps[at + 1].name);
 }
@@ -4020,7 +4049,6 @@ function drawSetupWelcome(st) {
   $('setup-body').innerHTML = `<div class="wel">
     <div class="hero">
       ${document.querySelector('.brand .logo').outerHTML}
-      <p class="eyebrow">Welcome to jobdork</p>
       <h2>Find the job posts worth your time</h2>
       <p class="lead">jobdork reads job boards and employers' own career sites, checks
       every job post against your resume and what you ask for, and keeps only the
@@ -4036,7 +4064,7 @@ function drawSetupWelcome(st) {
     ${keysChoiceHtml('wel-keys')}
     <div class="go">
       <p class="need">Have your resume ready: PDF, Word, Markdown or plain text.</p>
-      <button type="button" class="act start" id="setup-start">Get started ${svg(WEL_ICON.arrow)}</button>
+      <button type="button" class="act main start" id="setup-start">Get started ${svg(WEL_ICON.arrow)}</button>
     </div></div>`;
   $('setup-start').onclick = () => setupGo(st.steps[1].name,
     {remember_keys: keysChoice('wel-keys')});
@@ -4077,7 +4105,7 @@ async function drawSetupSearch(st, at) {
       the rest lower its score.</p>
     <div class="ticks" id="sl-dealbreakers"></div>`;
   $('setup-nav').innerHTML =
-    '<button type="button" class="act primary" id="setup-next">Continue</button>';
+    '<button type="button" class="act main" id="setup-next">Continue</button>';
   $('setup-next').onclick = () => saveSetupSearch(next);
   $('setup-body').querySelectorAll('[data-add]').forEach(b => {
     const list = b.dataset.add, input = $('add-' + list);
@@ -4282,7 +4310,7 @@ function drawActivity(d) {
   } else {
     const state = j.health === 'ok' ? j.state : j.health;
     $('act-head').innerHTML = `<div class="jobhead">
-      <strong>${esc(cap(j.job))}</strong><span class="state ${esc(state)}">${esc(state)}</span>
+      <strong>${esc(cap(j.job))}</strong><span class="state ${esc(state)}">${esc(cap(state))}</span>
       <span class="hint">From the ${esc(j.origin)}${j.pid ? ' · pid ' + j.pid : ''} · started ${esc(j.started_at.replace('T', ' '))}</span></div>
       ${j.health === 'died' ? '<p class="err">Its process ended before the job finished: it was stopped or it crashed.</p>' : ''}
       ${j.health === 'quiet' ? `<p class="warnc">No heartbeat for ${fmtDur(j.heartbeat_age)} ; it is busy or stuck.</p>` : ''}
@@ -4373,7 +4401,7 @@ function drawActivity(d) {
     d.recent.map(x => `<tr class="pick ${j && x.id === j.id ? 'on' : ''}" onclick="actPick=${x.id};pollActivity()">
       <td>${esc(cap(x.job))}</td><td>${esc(cap(x.origin))}</td><td>${esc(x.started_at.replace('T', ' ').slice(5, 16))}</td>
       <td class="n">${fmtDur(x.elapsed)}</td><td class="n">${n(x.done)}${x.total ? ' / ' + n(x.total) : ''}</td>
-      <td><span class="state ${esc(x.health === 'ok' ? x.state : x.health)}">${esc(x.health === 'ok' ? x.state : x.health)}</span></td>
+      <td><span class="state ${esc(x.health === 'ok' ? x.state : x.health)}">${esc(cap(x.health === 'ok' ? x.state : x.health))}</span></td>
       <td class="hint">${esc(cap((x.summary || x.last_line).slice(0, 90)))}</td></tr>`).join('')}</tbody></table></div>`
     : '<p class="hint">Nothing yet.</p>';
 }
@@ -5562,7 +5590,7 @@ function wireRemove(box, rows, save) {
 function drawClearAll(boxId, key, msgId, noun, replace) {
   const box = $(boxId), rows = cfg[key] || [];
   if (!rows.length) { box.innerHTML = ''; return; }
-  box.innerHTML = `<button type="button" class="act danger" data-icon="trash-2">Remove all ${rows.length}</button>`;
+  box.innerHTML = `<button type="button" class="act danger later" data-icon="trash-2">Remove all ${rows.length}</button>`;
   box.querySelector('button').onclick = () => {
     const n = rows.length;
     box.innerHTML = `<div class="confirm"><b>${replace ? 'Replace' : 'Remove'} all ${n} ${noun}.</b>
@@ -6022,7 +6050,7 @@ function drawApps() {
       <th>Applied</th><th>Next step</th></tr></thead><tbody>${shown.map(a => `<tr data-uid="${a.uid}"
         class="${a.uid === chosen() ? 'on' : ''}" tabindex="0">
       <td><b>${esc(a.title)}</b><span class="hint">${esc(a.company)}${a.contact ? ' · ' + esc(a.contact) : ''}</span></td>
-      <td><span class="pill" style="background:${COLOURS[a.status] || '#6b7280'}">${esc(a.status)}</span></td>
+      <td><span class="pill" style="--c:${COLOURS[a.status] || '#6b7280'}">${esc(cap(a.status))}</span></td>
       <td>${esc(shortDay(a.applied_at)) || '<span class="hint">not dated</span>'}</td>
       <td class="${a.overdue ? 'late' : ''}">${a.next_step || a.next_date ? `${esc(a.next_step)}${a.next_date
         ? ` <span class="when">${esc(shortDay(a.next_date))}${a.overdue ? ' · past' : ''}</span>` : ''}` : '<span class="hint">none</span>'}</td>
@@ -6045,7 +6073,7 @@ function applicationHtml(d) {
     ${a.overdue ? `<p class="late"><b>The next step is past its date.</b> Follow up, or set a new date.</p>` : ''}
     <h4>Stages</h4>
     ${a.history.length ? `<ol class="stages">${a.history.map(h => `<li><span class="pill"
-      style="background:${COLOURS[h.status] || '#6b7280'}">${esc(h.status)}</span>
+      style="--c:${COLOURS[h.status] || '#6b7280'}">${esc(cap(h.status))}</span>
       <span class="hint">${esc(day(h.at))}${h.by ? ' · by ' + esc(h.by) : ''}</span></li>`).join('')}</ol>`
       : '<p class="hint">No changes recorded yet: from now on each status is dated here.</p>'}
     <h4>Next step</h4>
@@ -6166,11 +6194,9 @@ async function drawResume() {
 // card to tailor one. Choosing a card shows it on the right: the document,
 // or its checks (for your resume, how a tracking system reads it).
 let rsel = 'master', rtab = 'doc', rdocs = [], lastReadable = null, rpUrl = '';
-const RCOLOURS = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6'];
 const initials = t => (String(t || '').replace(/\(.*?\)/g, ' ').match(/[A-Za-z0-9]+/g) || ['?'])
   .filter(w => !/^(of|and|the|for|at|in|ii|iii|iv)$/i.test(w)).slice(0, 3)
   .map(w => w[0].toUpperCase()).join('');
-const hue = t => RCOLOURS[[...String(t)].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7) % RCOLOURS.length];
 const band = n => n >= 85 ? '' : n >= 60 ? 'mid' : 'low';
 const day = iso => new Date(String(iso).replace(' ', 'T')).toLocaleDateString(undefined,
   {year: 'numeric', month: 'short', day: 'numeric'});
@@ -6189,7 +6215,7 @@ function renderResumeCards() {
   const have = !!cfg.resume_path, score = lastReadable && !lastReadable.error ? lastReadable.score : null;
   const file = (cfg.resume_file || cfg.resume_path || '').split(/[\\/]/).pop();
   const master = `<button type="button" class="rcard${rsel === 'master' ? ' on' : ''}" data-card="master">
-      <span class="top"><span class="ini" style="background:var(--accent)">M</span>
+      <span class="top"><span class="ini">M</span>
         <span class="st ${have ? 'ok' : 'none'}">${have ? 'Ready' : 'None yet'}</span></span>
       <b>Your resume</b><span class="sub">${have ? esc(file) : 'Upload one below'}</span>
       ${score === null ? '' : `<span class="sub">Readable: ${score}/100</span>
@@ -6197,7 +6223,7 @@ function renderResumeCards() {
   const docs = rdocs.map(d => {
     const name = d.title || 'A job post no longer listed';
     return `<button type="button" class="rcard${rsel === d.id ? ' on' : ''}" data-card="${d.id}">
-      <span class="top"><span class="ini" style="background:var(${hue(name)})">${esc(initials(name))}</span>
+      <span class="top"><span class="ini">${esc(initials(name))}</span>
         <span class="st ${!d.exists ? 'none' : d.to_read ? 'read' : 'ok'}">${!d.exists ? 'File gone'
           : d.to_read ? `Read ${d.to_read}` : 'Ready'}</span></span>
       <b>${esc(name)}${d.company ? ` @ ${esc(d.company)}` : ''}</b>
@@ -6260,7 +6286,7 @@ async function drawRDoc(kind) {
   if (!id) {
     box.innerHTML = `<p class="hint">No ${esc(tabLabel(kind))} for this job post yet.
       ${doc.uid ? `Write one from the job post's AI tools.</p>
-      <button type="button" class="act" data-icon="sparkles" id="rp-write">Open AI tools</button>` : '</p>'}`;
+      <button type="button" class="act" data-icon="cpu" id="rp-write">Open AI tools</button>` : '</p>'}`;
     if ($('rp-write')) $('rp-write').onclick = () => openRole(doc.uid, 'tools');
     return;
   }
@@ -6322,7 +6348,7 @@ async function drawPreview() {
   const [, a] = await Promise.all([previewPdf('/api/artifact/pdf?id=' + doc.id, $('rp-title').textContent),
     api('/api/artifact?id=' + doc.id).then(r => r.ok ? r.json() : null)]);
   $('rp-gates').innerHTML = a ? Object.entries(a.gates || {}).map(([n, g]) =>
-    `<div class="gate ${g.passed ? 'pass' : 'fail'}">${g.passed ? 'ok' : 'READ'}: ${esc(n)}, ${esc(g.detail)}${
+    `<div class="gate ${g.passed ? 'pass' : 'fail'}">${g.passed ? 'Passed' : 'Read this'}: ${esc(n)}, ${esc(g.detail)}${
       !g.passed && (g.items || []).length
         ? `<ul>${g.items.slice(0, 12).map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}</div>`).join('')
     : '';
@@ -6665,7 +6691,7 @@ async function drawSources() {
     <p class="hint">Active sources run on every scan. A dormant one says why it
       will not, rather than silently finding nothing.</p>
     <table><tr><th>Source</th><th>State</th></tr>
-    ${d.active.map(s => `<tr><td>${esc(platformName(s))}</td><td class="saved">Active</td></tr>`).join('')}
+    ${d.active.map(s => `<tr><td>${esc(platformName(s))}</td><td><span class="pill" style="--c:var(--ok)">Active</span></td></tr>`).join('')}
     ${d.dormant.map(s => `<tr><td>${esc(platformName(s.name))}</td><td class="hint">${esc(cap(s.why))}</td></tr>`).join('')}
     </table>`;
   drawSourceKeys();
@@ -6782,7 +6808,7 @@ function isDark() {
   return t ? t === 'dark' : systemDark.matches;
 }
 function paintTheme() {
-  $('theme-state').textContent = isDark() ? 'ON' : 'OFF';
+  $('theme-state').textContent = isDark() ? 'On' : 'Off';
   $('theme-switch').classList.toggle('on', isDark());
 }
 function setTheme(t) {
@@ -7045,7 +7071,7 @@ async function drawRemove(look) {
     <div class="row">${d.finish === 'windows'
       ? `<span class="hint">On Windows, uninstall from <b>Settings, Apps, jobdork,
           Uninstall</b>: it asks the same questions, and can remove files jobdork has open.</span>`
-      : '<button data-icon="trash-2" class="act danger" id="rm-start" type="button">Remove jobdork…</button>'}
+      : '<button data-icon="trash-2" class="act danger later" id="rm-start" type="button">Remove jobdork…</button>'}
       <span id="rm-confirm"></span></div>
     <div id="rm-result" aria-live="polite"></div>`;
   const start = $('rm-start');

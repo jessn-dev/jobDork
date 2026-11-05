@@ -228,7 +228,7 @@ So every verdict, letter, review and tailored resume is checked:
    round: a script makes sure the missing thing really is nowhere in your
    resume. If it is there after all, the gap is flagged as wrong.
 4. Facts found in neither are **flagged**: struck out in an AI verdict,
-   listed on a letter, marked **READ** on a document.
+   listed on a letter, marked **Read this** on a document.
 
 Your years of experience are counted by jobdork from the dates in your
 resume (roles that overlap counted once, study left out). The AI is given
