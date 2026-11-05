@@ -132,14 +132,18 @@ def test_the_linux_build_leaves_the_systems_own_libraries_to_the_system():
         (internal / "PyQt6" / "Qt6" / "lib").mkdir(parents=True)
         for name in ("libX11.so.6", "libxcb-glx.so.0", "libglib-2.0.so.0", "libstdc++.so.6",
                      "libnss3.so", "libfreeblpriv3.chk", "libpython3.13.so.1.0", "libssl.so.3",
-                     "libxcb-cursor.so.0", "libxcb-9065bb12.so.1.1.0", "libicudata.so.73"):
+                     "libxcb-cursor.so.0", "libxcb-9065bb12.so.1.1.0", "libicudata.so.73",
+                     # GitHub's runner has GTK and CUPS, which two Qt plugins pulled in
+                     "libgtk-3.so.0", "libpangocairo-1.0.so.0", "libcairo.so.2", "libcups.so.2",
+                     "libgnutls.so.30", "libharfbuzz-fb49c9fc.so.0.61450.0"):
             (internal / name).write_text("x")
         (internal / "PyQt6" / "Qt6" / "lib" / "libQt6Core.so.6").write_text("x")
         (internal / "libQt6Core.so.6").symlink_to("PyQt6/Qt6/lib/libQt6Core.so.6")
         (internal / "libQt6Quick3D.so.6").symlink_to("PyQt6/Qt6/lib/libQt6Quick3D.so.6")
         gone = build.prune_linux(internal.parent)
         left = sorted(p.name for p in internal.iterdir())
-        assert left == ["PyQt6", "libQt6Core.so.6", "libicudata.so.73", "libpython3.13.so.1.0",
-                        "libssl.so.3", "libxcb-9065bb12.so.1.1.0", "libxcb-cursor.so.0"], left
+        assert left == ["PyQt6", "libQt6Core.so.6", "libharfbuzz-fb49c9fc.so.0.61450.0",
+                        "libicudata.so.73", "libpython3.13.so.1.0", "libssl.so.3",
+                        "libxcb-9065bb12.so.1.1.0", "libxcb-cursor.so.0"], left
         assert "nss" in gone and "libQt6Quick3D.so.6" in gone, "NSS, and links to nothing"
 

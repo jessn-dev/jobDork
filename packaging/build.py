@@ -239,7 +239,15 @@ SYSTEM_LIBRARIES = re.compile(
     r"|asound|glib-2\.0|gio-2\.0|gobject-2\.0|gmodule-2\.0|gthread-2\.0|pcre|pcre2-8|mount"
     r"|blkid|selinux|cap|gcrypt|gpg-error|lz4|zstd|lzma|bsd|md|uuid|com_err|keyutils|krb5"
     r"|krb5support|k5crypto|gssapi_krb5|z|gcc_s|stdc\+\+|nss3|nssutil3|smime3|ssl3|nspr4"
-    r"|plc4|plds4|softokn3|freebl3|freeblpriv3)\.(so|chk)")
+    r"|plc4|plds4|softokn3|freebl3|freeblpriv3"
+    # What the two Qt plugins the build leaves out (jobdork.spec) needed, when
+    # the build machine has it: GTK and its drawing and accessibility, and
+    # CUPS with its network printing and TLS. Taken from GitHub's Ubuntu
+    # 22.04 runner on 2026-11-05; each needs libraries a bare system lacks.
+    r"|gtk-3|gdk-3|gdk_pixbuf-2\.0|pango-1\.0|pangocairo-1\.0|pangoft2-1\.0|cairo"
+    r"|cairo-gobject|atk-1\.0|atk-bridge-2\.0|atspi|epoxy|fribidi|thai|datrie|pixman-1"
+    r"|graphite2|Xcursor|Xinerama|cups|avahi-client|avahi-common|gnutls|hogweed|nettle"
+    r"|gmp|p11-kit|tasn1|idn2|unistring)\.(so|chk)")
 
 
 def prune_linux(bundle: Path) -> list[str]:

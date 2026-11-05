@@ -91,7 +91,11 @@ if LINUX:
         r"|LabsAnimation|Lottie|ShaderTools)"
         r"|plugins/(multimedia|sqldrivers|sensors|position|geoservices|texttospeech|canbus"
         r"|designer|qmltooling|renderers|sceneparsers|assetimporters|geometryloaders"
-        r"|renderplugins|qmllint)/)")
+        r"|renderplugins|qmllint)/"
+        # The GTK theme and CUPS printing: each pulls the build machine's
+        # GTK or CUPS in after it (packaging/build.py, SYSTEM_LIBRARIES), Qt draws
+        # its own look without the first, and jobdork prints through neither.
+        r"|plugins/platformthemes/libqgtk3\.so|plugins/printsupport/libcupsprintersupport\.so)")
     # The system's own libraries PyInstaller also took are removed after the
     # build instead (packaging/build.py, prune_linux).
     a.binaries = [x for x in a.binaries if not UNUSED_QT.search(x[0].replace("\\", "/"))]

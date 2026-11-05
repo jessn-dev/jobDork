@@ -18,8 +18,9 @@ and on the `PATH`. Until now Linux meant running it from source.
 - **The window** is pywebview's Qt engine, carried inside (PyQt6 and Qt's
   web engine; DECISIONS.md, 2026-11-04): nothing else to install. The
   system's own libraries are left to the system; the .deb names them. Qt
-  parts the window never uses (QML, 3D, multimedia, speech, SQL) are left
-  out.
+  parts the window never uses (QML, 3D, multimedia, speech, SQL), and the
+  GTK theme and CUPS printing plugins, which would carry the build
+  machine's GTK and CUPS, are left out.
 - **Update** works as on the others: checked against the release's
   checksums and build attestation, then the AppImage is swapped in once
   jobdork has quit and opens again; a .deb is installed by

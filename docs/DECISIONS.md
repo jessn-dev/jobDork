@@ -21,7 +21,10 @@ plus `libxcb-cursor`, which Qt needs on X11 and many desktops lack. The
 system's own libraries (X11 and xcb, OpenGL, fonts, glib, D-Bus, sound,
 NSS, the C++ runtime) are left to the system, never carried: a copy from
 the build machine beside a newer system's graphics drivers kept Qt from
-starting OpenGL. The .deb names them; every Linux desktop has them. Built on
+starting OpenGL. The .deb names them; every Linux desktop has them. Qt's
+GTK theme and CUPS printing plugins are left out: on GitHub's runner they
+pulled in GTK and CUPS, which need libraries a bare system lacks, and Qt
+draws its own look without the first. Built on
 Ubuntu 22.04 (glibc 2.35, the oldest Qt's wheels run on) and attested like
 the other installers. **Update:** the AppImage is swapped in after jobdork
 quits, as on a Mac; the .deb is installed once jobdork has quit, with

@@ -180,12 +180,10 @@ jobs:
           export DEBIAN_FRONTEND=noninteractive
           apt-get update -qq
           apt-get install -y -qq /dist/jobdork_*_amd64.deb > /dev/null
-          # Searched as the app searches: its own folder first. Two Qt
-          # plugins are left out: the GTK theme and CUPS printing, which Qt
-          # loads only where those are installed and skips otherwise.
+          # Searched as the app searches: its own folder first. Every file:
+          # a library the build machine had and a bare system lacks fails here.
           echo "--- libraries the app's files ask for that this system lacks:"
           missing=$(find /opt/jobdork -type f \( -name '*.so*' -o -name jobdork \) \
-              ! -path '*/platformthemes/libqgtk3.so' ! -path '*/printsupport/libcupsprintersupport.so' \
             | while read -r f; do
                 m=$(LD_LIBRARY_PATH=/opt/jobdork/_internal ldd "$f" 2>&1 | grep 'not found' | awk '{print $1}' | tr '\n' ' ')
                 [ -z "$m" ] || echo "${f#/opt/jobdork/_internal/}: $m"
