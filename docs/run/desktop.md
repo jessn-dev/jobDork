@@ -149,6 +149,10 @@ After that it opens on the Dashboard.
   it starts `jobdork-agent.exe`, installed beside `jobdork.exe`: the same
   program with a console, which an agent needs to talk to it; nothing opens
   a window.
+- **Ask** (the app only): with Claude Code installed, type a question about
+  your job search and Claude Code answers through jobdork's tools. Each
+  question is checked first, and anything that is not about your search is
+  refused ([how](https://jessn-dev.github.io/jobDork/ask/)).
 
 ## Where your files are
 

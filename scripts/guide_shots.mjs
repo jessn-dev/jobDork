@@ -241,6 +241,18 @@ try {
   await run(`drawAI();`);
   await sleep(1000);
 
+  // Ask is the desktop app's only, so a browser has no conversation to show:
+  // its menu item is shown here and a made-up one drawn, as the app would.
+  await run(`document.querySelector('nav [data-view=ask]').hidden = false;`);
+  await run(view('ask'));
+  await sleep(800);
+  await run(`drawAskState({stage: 'refused', busy: false, claude: true, doing: '', messages: [
+    {role: 'you', text: 'Which three job posts suit me best, and why?'},
+    {role: 'agent', text: '1. Charge Nurse - Medical Surgical, Northbridge Health (AI 86): you have been a charge nurse on a 32-bed medical-surgical unit and precepted twelve new graduates, which is what the advert asks for.\\n2. Registered Nurse - Telemetry, Lakeview Regional Hospital (AI 74): three years of telemetry fit the unit, though your latest role is medical-surgical.\\n3. Registered Nurse - Remote Care Coordination, Westfield Medical Group: remote, and your care planning carries over.\\n\\nWant a cover letter for the first one?'},
+    {role: 'you', text: 'Write me a poem about the sea'},
+    {role: 'jobdork', refused: true, text: "jobdork doesn't allow this. Ask about your job search: your job posts, resume, applications and documents, or help with interviews, pay and recruiters for the jobs you are looking at."}]});`);
+  await shoot('ask');
+
   await run(view('prefs'));
   await sleep(1500);
   await shoot('settings');

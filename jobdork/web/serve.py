@@ -615,6 +615,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if path == "/api/uninstall":
                 look = parse_qs(urlsplit(self.path).query).get("look", [""])[0] == "1"
                 return self._wrap(api_mod.uninstall_items, look)
+            if path == "/api/ask":
+                return self._ask("")
             return self._reject(404, "no such path")
 
         def do_POST(self) -> None:
@@ -626,6 +628,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._action()
             if path == "/api/desk":
                 return self._desk()
+            if path in ("/api/ask", "/api/ask/stop", "/api/ask/new"):
+                return self._ask(path.removeprefix("/api/ask").lstrip("/") or "start")
             if path == "/api/page-problem":
                 form = self._body(limit=4 * 1024)
                 if form is None:
@@ -864,6 +868,25 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             return self._reject(404, "no such path")
 
         # ── handlers ───────────────────────────────────────────────────────────
+
+        def _ask(self, what: str) -> None:
+            """Ask your coding agent (ai/ask.py): the desktop app's only, as
+            the agent is a program on the same computer. `what` is "" to
+            read the conversation, "start", "stop" or "new"."""
+            from ..ai import ask
+
+            if desk is None:
+                return self._reject(404, "only the desktop app asks your coding agent")
+            if what == "":
+                return self._json(200, ask.CONVERSATION.state())
+            if what == "stop":
+                return self._json(200, ask.CONVERSATION.stop())
+            if what == "new":
+                return self._wrap(api_mod.ask_forget)
+            form = self._body(limit=ask.MAX_PROMPT * 8)
+            if form is None:
+                return self._reject(400, "bad request body")
+            self._wrap(api_mod.ask_start, cfg_holder["cfg"], form.get("prompt"))
 
         def _desk(self) -> None:
             """A link or file for the desktop app to handle (web/app.py

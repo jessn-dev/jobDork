@@ -71,6 +71,7 @@ nav:
       - Resume: resume.md
       - Sources: sources.md
       - AI: ai.md
+      - Ask Claude Code: ask.md
       - Settings: settings.md
   - Feedback: feedback.md
   - Glossary: glossary.md

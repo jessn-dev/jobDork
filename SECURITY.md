@@ -270,6 +270,34 @@ links. The app treats them as hostile.
 
 ---
 
+## What a question typed into Ask can reach
+
+The desktop app's **Ask** page (`jobdork/ai/ask.py`) sends a question you
+type to Claude Code on your computer. It is held to your job search, and
+to jobdork, whatever the question says:
+
+- **It is checked before it is sent.** A separate `claude -p` call on a
+  small model, with no tools, no MCP servers and none of your
+  customisations (`--safe-mode`), decides whether it is about your job
+  search; the question sits between markers it cannot close, as data. A
+  no, or a check that fails or answers outside its schema, stops it there:
+  the check fails closed. The question also loses the characters a reader
+  cannot see, and is capped at 2,000 characters and 30 an hour.
+- **Claude Code has jobdork's tools and nothing else.** Its built-in tools
+  are off (`--tools ""`: no shell, files or web), jobdork's MCP server is
+  the only one (`--strict-mcp-config`), only its tools are allowed and
+  anything else is refused without asking (`--permission-mode dontAsk`),
+  and your own settings, hooks and plugins are not read
+  (`--setting-sources project`, in an empty folder). Its system prompt is
+  jobdork's, not Claude Code's, and has it refuse anything outside the job
+  search. So a question that gets past the check still reaches only what
+  jobdork's tools reach, under the limits above (For a coding agent).
+- **Only the desktop app answers it.** The server refuses `/api/ask`
+  without the app (a browser on a Docker or server jobdork gets 404), and
+  every request needs the dashboard's token, as all others do.
+
+---
+
 ## What this does not cover
 
 - **A compromise of GitHub, Docker Hub or Sigstore themselves.** Verifying
