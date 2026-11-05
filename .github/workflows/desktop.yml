@@ -156,9 +156,9 @@ jobs:
   # were built on (which has every library a developer's machine has):
   # the .deb installed with apt in bare Ubuntu 22.04, Ubuntu 24.04 and Debian 12
   # containers, its self-test run there, and every library the app's files
-  # ask for that the system does not have listed (ldd); then on a desktop-
-  # like runner the AppImage's self-test, and the real window opened on a
-  # virtual screen, left a while, and photographed.
+  # ask for that the system does not have listed (ldd); then on the runner
+  # the real window opened on a virtual screen, left a while, and
+  # photographed, and the AppImage's self-test.
   linux:
     name: "Linux: install on Ubuntu and Debian, and open the window"
     needs: build
@@ -204,15 +204,6 @@ jobs:
             docker run --rm -v "$PWD/dist:/dist:ro" -v "$PWD/check.sh:/check.sh:ro" "$image" sh /check.sh
           done
 
-      - name: The AppImage's self-test
-        run: |
-          app=$(ls dist/jobdork-*-linux-x86_64.AppImage)
-          chmod +x "$app"
-          # Unpacked to run: the runner has no FUSE.
-          APPIMAGE_EXTRACT_AND_RUN=1 JOBDORK_HOME="$RUNNER_TEMP/home" "$app" --self-test "$RUNNER_TEMP/report" || true
-          cat "$RUNNER_TEMP/report"
-          test "$(cat "$RUNNER_TEMP/report")" = ok
-
       # The window, drawn: jobdork started on a virtual screen, given time to
       # start its server and draw the page, then photographed. Still running
       # after that is the pass; the picture shows what it drew.
@@ -235,6 +226,18 @@ jobs:
           echo "--- what it printed:"; cat "$JOBDORK_HOME.out" || true
           echo "--- its log:"; cat "$JOBDORK_HOME/logs/app.log" 2>/dev/null || true
           exit $code
+
+      - name: The AppImage's self-test
+        run: |
+          app=$(ls dist/jobdork-*-linux-x86_64.AppImage)
+          # After the window: the .deb it installed brought the libraries every
+          # desktop has (EGL, fonts, X11), which this server image lacks and the
+          # AppImage leaves to the system, as the .deb does.
+          chmod +x "$app"
+          # Unpacked to run: the runner has no FUSE.
+          APPIMAGE_EXTRACT_AND_RUN=1 JOBDORK_HOME="$RUNNER_TEMP/home" "$app" --self-test "$RUNNER_TEMP/report" || true
+          cat "$RUNNER_TEMP/report"
+          test "$(cat "$RUNNER_TEMP/report")" = ok
 
       - name: Keep the picture
         if: always()
