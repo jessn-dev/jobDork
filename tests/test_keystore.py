@@ -223,3 +223,64 @@ def test_a_key_is_never_written_to_the_config():
         os.chdir(here)
         _fresh()
         keystore.remembering = False
+
+
+def test_every_kept_key_is_in_one_keychain_item():
+    # One item, so an unsigned Mac app is asked once after an update, not
+    # once for each key.
+    _fresh()
+    try:
+        keystore.save("ai:gemini", GEMINI)
+        keystore.save("ADZUNA_APP_KEY", "k3y")
+        items = [k for k in keystore._backend.kept if k[0] == keystore.SERVICE]
+        assert items == [(keystore.SERVICE, keystore.BUNDLE)]
+        assert keystore.load("ai:gemini") == GEMINI and keystore.load("ADZUNA_APP_KEY") == "k3y"
+        keystore.delete("ai:gemini")
+        assert keystore.load("ai:gemini") == "" and keystore.load("ADZUNA_APP_KEY") == "k3y"
+        keystore.delete("ADZUNA_APP_KEY")              # the last one: the item goes too
+        assert not [k for k in keystore._backend.kept if k[0] == keystore.SERVICE]
+    finally:
+        _fresh()
+
+
+def test_keys_kept_one_item_each_move_into_the_one_item():
+    _fresh()
+    backend = keystore._backend
+    try:
+        # As 0.16.2 and earlier kept them: an item for each key.
+        backend.set_password(keystore.SERVICE, "ai:gemini", GEMINI)
+        backend.set_password(keystore.SERVICE, "USAJOBS_API_KEY", "u5a")
+        assert sorted(keystore.load_into_memory()) == ["USAJOBS_API_KEY", "ai:gemini"]
+        assert llm.VAULT.get("gemini") == GEMINI
+        items = sorted(k[1] for k in backend.kept if k[0] == keystore.SERVICE)
+        assert items == [keystore.BUNDLE]               # the old items are gone
+        assert keystore.load("USAJOBS_API_KEY") == "u5a"
+    finally:
+        _fresh()
+
+
+def test_reading_every_key_asks_the_keychain_for_one_item():
+    _fresh()
+    backend, asked = keystore._backend, []
+    real = backend.get_password
+    try:
+        keystore.save("ai:gemini", GEMINI)
+        keystore.save("ADZUNA_APP_KEY", "k3y")
+        # lambda: counts what is asked of the pretend keychain, then answers as it does.
+        backend.get_password = lambda service, name: asked.append(name) or real(service, name)
+        keystore.load_into_memory()
+        assert asked == [keystore.BUNDLE]
+    finally:
+        backend.get_password = real
+        _fresh()
+
+
+def test_a_damaged_item_is_read_as_no_keys_kept():
+    _fresh()
+    try:
+        keystore._backend.set_password(keystore.SERVICE, keystore.BUNDLE, "not json")
+        assert keystore.load("ai:gemini") == ""
+        keystore.save("ai:gemini", GEMINI)              # and is written over cleanly
+        assert keystore.load("ai:gemini") == GEMINI
+    finally:
+        _fresh()

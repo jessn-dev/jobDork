@@ -886,7 +886,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             form = self._body(limit=ask.MAX_PROMPT * 8)
             if form is None:
                 return self._reject(400, "bad request body")
-            self._wrap(api_mod.ask_start, cfg_holder["cfg"], form.get("prompt"))
+            self._wrap(api_mod.ask_start, cfg_holder["cfg"], form.get("prompt"), form.get("model"))
 
         def _desk(self) -> None:
             """A link or file for the desktop app to handle (web/app.py
