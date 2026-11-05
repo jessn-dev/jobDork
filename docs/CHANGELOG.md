@@ -6,6 +6,39 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-11-05 — version 0.16.2
+
+0.16.2 carries the 8 entries below, everything since 0.16.1. For you:
+
+- **jobdork on Linux.** An AppImage for any 64-bit distribution from 2022
+  on, and a .deb for Ubuntu 22.04+, Debian 12+ and Mint 21+, with updates
+  that put themselves in place as on a Mac or Windows. ARM Linux stays
+  from source.
+- **Ask Claude Code, in the desktop app.** A new **Ask** page: a question
+  about your job search, answered by Claude Code through jobdork's tools
+  only. Each question is checked first, and anything off the job search
+  gets "jobdork doesn't allow this". Needs Claude Code installed and signed
+  in.
+- **A quieter look.** Labels in sentence case, one type scale, figures
+  that line up, one filled button a page, plain status dots and tags, and
+  deletes that are red only where they confirm. Every page, setup step and
+  both themes; the guide's pictures are new.
+- **Fixed:** the Resume page's PDF preview was blank in the Mac app; an AI
+  key read back from the keychain showed **No key held**; removing an AI
+  line left its key held and kept.
+- **Changed:** Gemini CLI is now **Antigravity CLI (`agy`)** on the AI
+  page, with the line that runs.
+- **Security:** pypdf 6.21.4, for seven known vulnerabilities in reading a
+  PDF.
+
+Updating from 0.16.1: **Update** under Settings, Updates (or the banner's
+**Update**) downloads 0.16.2, checks it, puts it in place and opens it
+again, with no dragging on a Mac. Linux has no earlier version to update
+from: install it from the release page. Nothing in the database or the
+config changes.
+
+---
+
 ## Changed — 2026-11-05 — A quieter, plainer look
 
 The dashboard's look, polished after an audit with
