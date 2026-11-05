@@ -130,6 +130,8 @@ def page(tag: str, image: str, digest: str, previous: str = "") -> str:
     mac = f"jobdork-{version}-macos-arm64.dmg"
     intel = f"jobdork-{version}-macos-x86_64.dmg"
     win = f"jobdork-{version}-windows-x64-setup.exe"
+    appimage = f"jobdork-{version}-linux-x86_64.AppImage"
+    deb = f"jobdork_{version}_amd64.deb"
     return "\n".join([
         "## Download", "",
         "| For | Download |",
@@ -137,14 +139,18 @@ def page(tag: str, image: str, digest: str, previous: str = "") -> str:
         f"| **Mac** with Apple Silicon (M1 or later) | [{mac}]({files}/{mac}) |",
         f"| **Mac** with an Intel processor | [{intel}]({files}/{intel}) |",
         f"| **Windows** 10 or 11, 64-bit | [{win}]({files}/{win}) |",
+        f"| **Linux**, 64-bit (x86-64): any distribution | [{appimage}]({files}/{appimage}) |",
+        f"| **Linux**: Ubuntu 22.04+, Debian 12+, Mint | [{deb}]({files}/{deb}) |",
         f"| **Docker** (a NAS or a server) | `docker pull {image}:{version}` |",
         f"| Checksums of the installers | [SHA256SUMS.txt]({files}/SHA256SUMS.txt) |",
         "",
         "**Mac:** open the `.dmg` and drag jobdork into Applications. "
         "**Windows:** run the setup; it installs for you alone, no administrator needed. "
+        "**Linux:** make the AppImage a program (its Properties, or `chmod +x`) and open "
+        "it, or install the .deb: `sudo apt install ./" + deb + "`. "
         "Not sure which Mac you have? Apple menu → **About This Mac**: \"Chip\" is "
         "Apple Silicon, \"Processor … Intel\" is Intel. "
-        "Linux, or from source: "
+        "From source: "
         f"[the ways to run it]({REPO}/blob/{tag}/docs/run/README.md). "
         "New to jobdork? The [user guide](https://jessn-dev.github.io/jobDork/overview/) "
         "shows every page of the app.", "",

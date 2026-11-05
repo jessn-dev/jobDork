@@ -92,10 +92,18 @@ at once, in the same window as below (from the release after 0.16.0; in
       dragging.
     - **Windows:** the installer runs on its own with a progress bar, closes
       jobdork, and opens the new version.
+    - **Linux, the AppImage:** as on a Mac, the new AppImage replaces this
+      one where you keep it.
+    - **Linux, the .deb:** jobdork closes, your computer asks for your
+      password to install it (a .deb is installed for everyone on the
+      computer), and jobdork opens again. Without the password, the version
+      you had opens again.
 
   Where jobdork cannot replace itself (on a Mac: run from the disk image or
-  from Downloads, or kept in a folder you cannot write), the installer opens
-  instead, and the window says how to finish by hand. If the update cannot
+  from Downloads, or kept in a folder you cannot write; on Linux: an
+  AppImage in a folder you cannot write), the installer opens instead (on
+  Linux, the Downloads folder with it), and the window says how to finish by
+  hand. If the update cannot
   finish, the window says why, with **Release page** to download it
   yourself. Your settings and job posts are kept either way. Elsewhere than
   the desktop app, Settings says how to update your copy, with **Release

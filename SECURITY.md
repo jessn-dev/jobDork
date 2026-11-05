@@ -30,7 +30,7 @@ only after the owner approves it in the `release` environment. A push to
 | `scripts/check_image.sh` | That the image runs as user 1000, has no pip, contains no `.env`, config or database, cannot rewrite its own code, and that the dashboard starts and refuses a missing token and an address not named |
 | Dependency Review, on every pull request (`dependency-review.yml`) | A dependency the pull request adds or upgrades with a known vulnerability of moderate severity or above; it fails, and comments which. It reads `pyproject.toml`; the locks are pip-audit's |
 | OpenSSF Scorecard, weekly and on every push to `main` (`scorecard.yml`) | How the supply chain is guarded: pinned actions, branch protection, signed releases, reviews, token permissions. Findings go to Security, Code scanning; the score is published to scorecard.dev |
-| Desktop app build (`desktop.yml`), macOS (Apple Silicon and Intel) and Windows, after the tests and scans pass: on every release tag, on a change to what the installers are built from (`packaging/`, `requirements-desktop.lock`, `pyproject.toml`, the workflows, the app-only code), and by hand (Run workflow) | That every installer still build from the hash-pinned `requirements-desktop.lock`, and that the built app carries every module and data file it needs and can verify a build attestation (its `--self-test`) |
+| Desktop app build (`desktop.yml`), macOS (Apple Silicon and Intel), Windows and Linux (AppImage and .deb), after the tests and scans pass: on every release tag, on a change to what the installers are built from (`packaging/`, `requirements-desktop.lock`, `pyproject.toml`, the workflows, the app-only code), and by hand (Run workflow) | That every installer still build from the hash-pinned `requirements-desktop.lock`, and that the built app carries every module and data file it needs and can verify a build attestation (its `--self-test`) |
 
 **How the image is built to be hard to tamper with:**
 
@@ -86,7 +86,8 @@ only after the owner approves it in the `release` environment. A push to
 4. It publishes the image for Intel and ARM, signs it, verifies the
    signature, and creates the **GitHub Release** page for the tag: the exact
    image digest, the command to verify it, the desktop installers (the
-   macOS `.dmg` and the Windows setup `.exe`, with `SHA256SUMS.txt` and how
+   macOS `.dmg`, the Windows setup `.exe`, the Linux `.AppImage` and `.deb`,
+   with `SHA256SUMS.txt` and how
    to get past the unsigned warnings), and what changed: the
    `docs/CHANGELOG.md` entries written since the last release, in full
    (`scripts/release_notes.py`), not a list of pull request titles. The installers are not signed, but each carries a build
@@ -104,7 +105,10 @@ only after the owner approves it in the `release` environment. A push to
 for this computer and puts it in place: on a Mac the new `jobdork.app` is
 copied out of the disk image beside the running one and swapped in once
 jobdork has quit, then opened; on Windows the installer runs on its own and
-opens the new version. It puts nothing in place, and opens nothing, unless
+opens the new version; on Linux a new AppImage is swapped in the same way,
+and a `.deb` is installed by `pkexec apt-get install` once jobdork has quit
+(the desktop asks for the person's password; apt installs only that file).
+It puts nothing in place, and opens nothing, unless
 all of these hold (`jobdork/core/updates.py`):
 
 1. **The file was uploaded by the release workflow.** Release files uploaded

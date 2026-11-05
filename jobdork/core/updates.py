@@ -33,6 +33,7 @@ from pathlib import Path
 
 from .. import __version__
 from .config import CONTAINER_ENV
+from .schedule import APPIMAGE_ENV
 
 ENV = "JOBDORK_UPDATE_CHECK"
 REPO = "jessn-dev/jobDork"
@@ -208,8 +209,10 @@ def _uploader(asset: dict) -> str:
 
 def installer_name(version: str) -> str:
     """The installer this computer takes from a release, or "" when there is
-    none for it (Linux, a copy that is not the desktop app). Macs have one
-    for Apple silicon and one for Intel (from 0.15.3)."""
+    none for it (a copy that is not the desktop app, a Linux computer that is
+    not x86-64). Macs have one for Apple silicon and one for Intel (from
+    0.15.3). On Linux the AppImage replaces an AppImage, and the .deb a copy
+    installed from one."""
     if not getattr(sys, "frozen", False):
         return ""
     if sys.platform == "darwin":
@@ -217,6 +220,10 @@ def installer_name(version: str) -> str:
         return f"jobdork-{version}-macos-{arch}.dmg"
     if sys.platform == "win32":
         return f"jobdork-{version}-windows-x64-setup.exe"
+    if sys.platform.startswith("linux") and platform.machine() in ("x86_64", "AMD64"):
+        if os.environ.get(APPIMAGE_ENV):
+            return f"jobdork-{version}-linux-x86_64.AppImage"
+        return f"jobdork_{version}_amd64.deb"
     return ""
 
 
@@ -467,7 +474,7 @@ else
     [ -e "$app" ] || mv "$old" "$app"
     rm -rf "$new"
 fi
-"$opener" "$app"
+"$opener" "$app" &
 """
 
 
@@ -533,7 +540,96 @@ def stage_mac_update(dmg: Path, bundle: Path, version: str, run=None) -> Path:
 def swap_after_quit(bundle: Path, staged: Path, log: Path, pid: int = 0,
                     spawn=None, opener: str = "open") -> Path:
     """Start the script that swaps the apps once this process has quit, and
-    opens the new one. Returns the script's path."""
+    opens the new one: a Mac's jobdork.app with `open`, an AppImage by
+    starting it (`opener` "env"). Returns the script's path."""
+    return _after_quit(SWAP_SCRIPT, [str(pid or os.getpid()), str(bundle), str(staged),
+                                     str(log), opener], log, spawn)
+
+
+# ── Linux ────────────────────────────────────────────────────────────────────
+# An AppImage is one file the person put somewhere of theirs: the new one is
+# moved beside it and swapped in by SWAP_SCRIPT once jobdork has quit, then
+# started, as on a Mac. A .deb is installed by the system: jobdork quits
+# first, then DEB_SCRIPT asks for the password with the desktop's own prompt
+# (pkexec), installs it with apt, and opens jobdork again, the new version or,
+# when the password was not given, the one there was.
+
+# An AppImage (type 2) is an ELF program with "AI" and 2 at byte 8.
+_APPIMAGE_MAGIC = (b"\x7fELF", b"AI\x02")
+
+
+def running_appimage() -> Path | None:
+    """The .AppImage file this copy runs from, when it can be replaced where
+    it is: in a folder this user may write."""
+    raw = os.environ.get(APPIMAGE_ENV, "").strip()
+    if not (getattr(sys, "frozen", False) and sys.platform.startswith("linux") and raw):
+        return None
+    path = Path(raw)
+    if not path.is_file() or not os.access(path.parent, os.W_OK):
+        return None
+    return path
+
+
+def stage_appimage_update(download: Path, target: Path, version: str) -> Path:
+    """Move the checked AppImage beside the running one, ready to swap in,
+    and make it a program. Raises UpdateError; nothing is left behind."""
+    import shutil
+
+    with open(download, "rb") as fh:
+        head = fh.read(11)
+    if head[:4] != _APPIMAGE_MAGIC[0] or head[8:11] != _APPIMAGE_MAGIC[1]:
+        raise UpdateError("the download is not an AppImage")
+    staged = target.with_name(f".jobdork-{version}.AppImage")
+    try:
+        shutil.move(str(download), str(staged))
+        staged.chmod(0o755)
+    except OSError as exc:
+        staged.unlink(missing_ok=True)
+        raise UpdateError(f"could not put the new jobdork beside {target.name}: "
+                          f"{exc.strerror or exc}") from None
+    return staged
+
+
+DEB_SCRIPT = """#!/bin/sh
+# jobdork's update from a .deb, run once the app has quit (core/updates.py).
+pid=$1; deb=$2; program=$3; log=$4
+exec >>"$log" 2>&1
+echo "$(date '+%Y-%m-%d %H:%M:%S') update: waiting for jobdork ($pid) to quit"
+i=0
+while kill -0 "$pid" 2>/dev/null; do
+    i=$((i + 1))
+    if [ "$i" -gt 240 ]; then
+        echo "update: jobdork is still open after two minutes; not installed"
+        exit 1
+    fi
+    sleep 0.5
+done
+if pkexec apt-get install -y --allow-downgrades "$deb"; then
+    echo "update: installed $deb"
+    rm -f "$deb"
+else
+    echo "update: not installed (exit $?); the one there was opens"
+fi
+"$program" &
+"""
+
+
+def can_install_deb() -> bool:
+    """pkexec (the desktop's password prompt) and apt are both here."""
+    import shutil
+
+    return bool(shutil.which("pkexec") and shutil.which("apt-get"))
+
+
+def install_deb_after_quit(deb: Path, program: str, log: Path, pid: int = 0,
+                           spawn=None) -> Path:
+    """Start the script that installs the .deb once this process has quit,
+    then opens jobdork. Returns the script's path."""
+    return _after_quit(DEB_SCRIPT, [str(pid or os.getpid()), str(deb), program, str(log)],
+                       log, spawn)
+
+
+def _after_quit(script: str, args: list[str], log: Path, spawn=None) -> Path:
     import subprocess
     import tempfile
 
@@ -541,10 +637,9 @@ def swap_after_quit(bundle: Path, staged: Path, log: Path, pid: int = 0,
     log.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix="jobdork-update-", suffix=".sh")
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        fh.write(SWAP_SCRIPT)
-    spawn(["/bin/sh", name, str(pid or os.getpid()), str(bundle), str(staged), str(log), opener],
-          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-          start_new_session=True, close_fds=True)
+        fh.write(script)
+    spawn(["/bin/sh", name, *args], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+          stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
     return Path(name)
 
 

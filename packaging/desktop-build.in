@@ -7,3 +7,7 @@ setuptools>=77
 # keeps 48.x; every other platform takes the newest.
 cryptography<49 ; sys_platform == 'darwin' and platform_machine == 'x86_64'
 cryptography>=50.0.2 ; sys_platform != 'darwin' or platform_machine != 'x86_64'
+# The Linux app carries a time zone database too (jobdork.spec): a bare
+# Linux (a minimal install, a container) may have none, and the app's
+# self-test fails without one.
+tzdata>=2024.1 ; sys_platform == 'linux'

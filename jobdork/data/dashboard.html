@@ -7131,6 +7131,10 @@ function drawUpdate(d) {
   $('upd-next').innerHTML = d.stage === 'restarting'
     ? `<p><b>jobdork ${esc(d.version || '')} is ready.</b> ${d.platform === 'windows'
         ? 'jobdork closes while it installs, then opens again by itself.'
+        : d.password
+        ? `jobdork closes, then your computer asks for your password to install it (it is
+           installed for everyone on this computer), and jobdork opens again by itself.
+           Without the password, the version you have opens again.`
         : 'jobdork closes and opens again by itself in a few seconds, as the new version.'}</p>
        <p class="hint">Your settings and job posts are kept: they are not inside the app.</p>`
     : failed
@@ -7150,6 +7154,11 @@ function drawUpdate(d) {
     ? `<p><b>The installer is open.</b> Follow it: it closes jobdork when it needs to, and
        offers to open the new version when it finishes.</p>
        <p class="hint">Your settings and job posts are kept.</p>`
+    : d.platform === 'linux'
+    ? `${d.why ? `<p class="hint">It could not put itself in place: ${esc(d.why)}.</p>` : ''}
+       <p><b>${esc(d.file || 'The new version')}</b> is in your Downloads folder, checked. Quit
+       jobdork, then put it where the old one was (an AppImage), or install it (a .deb).</p>
+       <p class="hint">Your settings and job posts are kept: they are not inside the app.</p>`
     : `<p><b>${esc(d.file || 'The installer')}</b> is open; follow it to finish.</p>`;
   $('upd-title').textContent = d.stage === 'restarting' ? 'Restarting jobdork'
     : d.stage === 'opened' ? 'Ready to install'

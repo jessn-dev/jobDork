@@ -469,3 +469,21 @@ if __name__ == "__main__":
                 print(f"FAIL {name}")
                 traceback.print_exc(limit=3)
     raise SystemExit(1 if failed else 0)
+
+
+def test_an_appimage_is_scheduled_by_its_own_file_not_where_it_unpacks_for_one_run():
+    saved = sys.platform
+    try:
+        sys.platform, sys.frozen = "linux", True
+        os.environ["APPIMAGE"] = "/home/me/Apps/jobdork.AppImage"
+        assert schedule.program() == "/home/me/Apps/jobdork.AppImage"
+        assert schedule.command("/x/config.yaml") == ["/home/me/Apps/jobdork.AppImage", "--scan"]
+        os.environ.pop("APPIMAGE")
+        assert schedule.program() == sys.executable          # installed from the .deb
+        sys.platform = "darwin"
+        os.environ["APPIMAGE"] = "/somewhere/else"
+        assert schedule.program() == sys.executable          # only Linux has AppImages
+    finally:
+        sys.platform = saved
+        del sys.frozen
+        os.environ.pop("APPIMAGE", None)
