@@ -6,6 +6,52 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-11-05 — Ask looks like a chat, and you choose the model
+
+The **Ask** page is laid out like a chat app now. Before the first question:
+the jobdork mark, a line picked at random for each conversation ("Which job
+post should we look at first?"), and the message box in the middle, with
+what Ask can reach under it. Once you ask, the page is the conversation:
+your questions on the right, the answers under them as text (headings, lists
+and bold shown) with a **Copy** button, and the box at the bottom. The box
+grows as you type.
+
+- **Enter asks**, Shift+Enter starts a new line; before, only
+  Ctrl+Enter (Cmd+Enter) asked, and Enter alone did not.
+- **The model** is chosen in the box: Sonnet, Opus, Haiku, or Claude Code's
+  default. It can change between questions, is kept for next time on this
+  computer, and is checked against that list on the server: nothing else is
+  ever passed to `claude --model`. The check before each question stays on
+  Haiku (`ai/ask.py`, MODELS).
+- **+** starts a new conversation and a square button stops one, in the box.
+
+The guide's Ask page shows both views and says that Ask does not use the
+readers and checkers on the AI page. SECURITY.md (the model list), PRIVACY.md,
+the desktop notes and DECISIONS.md (the Ask decision, with why a coding
+agent is still not a checker) say so too.
+
+---
+
+## Changed — 2026-11-05 — One keychain item for every kept key
+
+An unsigned Mac app is asked "jobdork wants to use your confidential
+information stored in jobdork in your keychain" after each update, and with
+a keychain item for each kept key it was asked once for each: an AI key, the
+Ollama key, Adzuna's and USAJOBS's could mean four or five password
+prompts. Every kept key is now in one item, as JSON, so an update asks once;
+choose **Always Allow** and it does not ask again until the next update.
+
+Keys kept the old way move into the one item the first time it is read,
+which may ask once more for each of them that one time; their own items are
+then removed. Forget saved keys, Remove jobdork and removing an AI line take
+keys out of the one item, and any left the old way (`core/keystore.py`).
+Tests check that every key lands in one item, that old items move and go,
+that reading every key asks the keychain for one item, and that a damaged
+item reads as no keys kept. The guide's Settings page and DECISIONS.md say
+it asks once for all keys.
+
+---
+
 ## Changed — 2026-11-05 — version 0.16.2
 
 0.16.2 carries the 8 entries below, everything since 0.16.1. For you:

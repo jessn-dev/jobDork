@@ -79,8 +79,8 @@ that launch. From 1.0.0 on, the version says what an update can do to you
   older version is not promised: an older jobdork refuses a newer database
   rather than damage it.
 - **Your keys:** keys kept in the computer's keychain stay where they are
-  (the keychain entries named `jobdork`), and the choice to keep them is
-  kept.
+  (the keychain item `jobdork`, or the older entries named `jobdork` it
+  takes in), and the choice to keep them is kept.
 - **The commands:** `jobdork` and its subcommands and flags as `jobdork
   --help` lists them, and their exit codes (0 done, 1 failed, 2 used wrong,
   130 stopped with Ctrl-C).
@@ -155,6 +155,14 @@ tools off or limit it to one MCP server (agy 1.4.8), so a typed question
 would reach an agent that can run commands. A word list instead of a model
 check: it cannot tell "salary for this role" from "salary statistics essay".
 Docker and server installs: there is no Claude Code beside them to start.
+
+**Added 2026-11-05:** you choose the model that answers (Sonnet, Opus, Haiku
+or Claude Code's default), from a fixed list the server checks; the check
+stays on Haiku. Ask still uses none of the AI page's readers and checkers:
+it is Claude Code on your account. A coding agent as a checker stays out
+(the 2026-10-29 decision below): it would mark its own writing when it is
+also the reader, and jobdork would be driving your plan on every scan, not
+on a question you typed.
 
 **Revisit when** agy can be limited to jobdork's tools, Anthropic's terms
 for using a subscription through Claude Code's `-p` mode change, or the
@@ -370,7 +378,9 @@ ship with the app, so nobody has to?
    missing in Docker and locked to a Linux cron job) is migrated and deleted.
    Accepted: an unsigned Mac app is asked for keychain access once per
    version, and a scheduled scan nobody answers runs without kept keys;
-   Docker and NAS users give keys in the environment.
+   Docker and NAS users give keys in the environment. **Changed
+   2026-11-05:** every kept key is in one keychain item, so that question
+   comes once per version in all, not once for each key.
 
 4. **AI keys follow the burn rules, unless kept by choice.** Keys for hosted
    models (Anthropic, Gemini, OpenAI, Groq) are held in memory and wiped when

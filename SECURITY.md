@@ -292,6 +292,10 @@ to jobdork, whatever the question says:
   jobdork's, not Claude Code's, and has it refuse anything outside the job
   search. So a question that gets past the check still reaches only what
   jobdork's tools reach, under the limits above (For a coding agent).
+- **The model is one of a fixed list.** The page offers Sonnet, Opus, Haiku
+  or Claude Code's default; the server accepts only those names
+  (`ask.MODELS`) and passes nothing else to `claude --model`. The check
+  stays on Haiku whichever answers.
 - **Only the desktop app answers it.** The server refuses `/api/ask`
   without the app (a browser on a Docker or server jobdork gets 404), and
   every request needs the dashboard's token, as all others do.
