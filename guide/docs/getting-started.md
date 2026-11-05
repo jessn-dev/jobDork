@@ -35,6 +35,8 @@ keychain so you enter each once ([Your keys](settings.md#your-keys)).
 
 1. **Your resume** (required). A PDF, Word (`.docx`), Markdown or text
    file. Every job post is scored against it. It stays on your computer.
+   If you keep a [master resume](resume.md#master-resume), the archive of
+   everything you have done, upload that; otherwise the one you send.
 2. **AI** (optional). Connect Ollama, a free AI that runs on your own
    computer, paste a key for Anthropic, Gemini, OpenAI or Groq, or choose
    **Coding agent** to have Claude Code, Codex, Antigravity CLI or Cursor do the

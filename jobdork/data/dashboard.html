@@ -821,6 +821,10 @@ nav .item .count.due{background:var(--bad);color:#fff}
 table{border-collapse:collapse;width:100%;font-size:.875rem}
 td,th{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
 /* First run: no menu, one step at a time, until setup is finished. */
+/* Master resume or one you send: the choice, under the resume it is about. */
+.rkind{margin:.75rem 0 1rem;max-width:44rem}
+.rkind label{font-size:.8125rem;color:var(--muted);margin-right:.5rem}
+.rkind .hint{margin-top:.375rem}
 .shell.setup{grid-template-columns:1fr}
 .shell.setup nav{display:none}
 main > #view-setup{max-width:40rem;margin:2.5rem auto 0}
@@ -3680,6 +3684,12 @@ function drawSetup(st) {
     $('setup-body').innerHTML = `<h2>Your resume</h2>
       <p>jobdork scores every job post against your resume, and the AI reads it to
       suggest what to search for. It stays on this computer.</p>
+      <p class="hint"><b>Have a master resume? Upload that.</b> A master resume is your
+      private archive: every job, part-time and freelance work, volunteering, projects,
+      presentations, awards, certifications and skills, never sent as it is. jobdork
+      cuts a tailored one- or two-page resume from it for each job post, and the AI has
+      more true facts to work from. No master resume? Upload the one you send; it works
+      just as well to start.</p>
       <p><input type="file" id="setup-file" accept=".pdf,.docx,.md,.markdown,.txt"
         aria-label="Resume file"></p>
       <div class="upbar" id="setup-bar"></div>
@@ -3975,7 +3985,44 @@ async function setupUpload(file, st) {
 
 // What was read, so a resume that lost half of itself on the way in is seen
 // before anything is scored against it.
+// Master resume or the one you send (search/master.py): what jobdork took it
+// for, why, and a choice to say otherwise. On the Resume page and in setup.
+function resumeKindHtml(k) {
+  if (!k) return '';
+  const master = k.kind === 'master';
+  const why = k.chosen && k.chosen !== k.guess
+    ? `You chose this; jobdork would have taken it for ${k.guess === 'master' ? 'a master resume' : 'one you send'}.`
+    : `jobdork took it for ${master ? 'a master resume' : 'one you send'}${
+        k.why.length ? `: ${esc(k.why.join(', '))}` : ''}. Change it if not.`;
+  const over = k.chars > k.ai_reads
+    ? `<p class="hint warn">The AI reads the first ${k.ai_reads.toLocaleString()} characters
+        of a resume, and this one has ${k.chars.toLocaleString()}: what comes after is not
+        seen, and a claim about it is marked unsupported. Put what matters most first, or
+        trim the oldest entries.</p>` : '';
+  return `<div class="rkind">
+    <label for="rk-sel">This resume is</label>
+    <select id="rk-sel" onchange="setResumeKind(this.value)">
+      <option value="master"${master ? ' selected' : ''}>My master resume</option>
+      <option value="regular"${master ? '' : ' selected'}>A resume I send</option>
+    </select>
+    <p class="hint">${why} ${master
+      ? 'Your private archive of every job, project and award: jobdork scores job posts against all of it, and each tailored resume takes from it what the job needs.'
+      : 'If you keep a master resume (every job, project and award you have done), upload it instead: the AI then has more true facts to work from, and tailored resumes are cut from it.'}</p>
+    ${over}</div>`;
+}
+async function setResumeKind(kind) {
+  const r = await api('/api/config', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({resume_kind: kind})});
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  cfg = null;
+  toast(kind === 'master' ? 'Taken as your master resume' : 'Taken as a resume you send');
+  if (!$('view-resume').hidden) drawResume();
+  else if (setupStep === 'resume') refreshSetupResume();
+}
+let refreshSetupResume = () => {};
+
 async function setupShowResume(st) {
+  refreshSetupResume = () => setupShowResume(st);
   const r = await api('/api/resume/view');
   if (!r.ok) { $('setup-read').innerHTML = ''; return; }
   const d = await r.json();
@@ -3984,6 +4031,7 @@ async function setupShowResume(st) {
     <p><b>${esc(d.name)}</b>: ${d.chars.toLocaleString()} characters read
       ${d.years ? ` · ${d.years} years of experience claimed` : ''}</p>
     ${d.note ? `<p class="err">${esc(d.note)}</p>` : ''}
+    ${resumeKindHtml(d.resume_kind)}
     ${d.skills.length ? `<div class="flags">${d.skills.map(x =>
       `<span class="flag">${esc(x)}</span>`).join('')}</div>` : ''}
     <p class="hint">This is the text jobdork read. Check that it is all there.</p>
@@ -3997,7 +4045,7 @@ async function setupShowResume(st) {
 // it asks, and one button. A step missing from SETUP_ROUTE (core/setup.py
 // added one) still shows, by its title alone.
 const SETUP_ROUTE = {
-  resume: ['Upload a PDF or Word file. Every job post is scored against it.', 'Required'],
+  resume: ['Your master resume if you keep one, or the one you send. Every job post is scored against it.', 'Required'],
   ai: ['Connect Ollama on this computer for free, or an Anthropic, Gemini, OpenAI or Groq key.', 'Optional'],
   search: ['Job titles to look for and what to leave out. The AI can suggest them from your resume.', 'Required'],
   where: ['Your city, how far you would travel, and remote, hybrid or on-site.', 'Required'],
@@ -6300,7 +6348,8 @@ async function drawResume() {
   else showReadable(null);
   drawResumeCards().then(drawPreview);
   $('resumeinfo').innerHTML = cfg.resume_path
-    ? `<p class="hint">Stored at <code>${esc(cfg.resume_file || cfg.resume_path)}</code></p>`
+    ? `<p class="hint">Stored at <code>${esc(cfg.resume_file || cfg.resume_path)}</code></p>
+       <div id="resume-kind"></div>`
     : `<p class="hint">None set. Job posts are still found and filtered; they are
        just not ranked by how well they fit you, and drafting is unavailable.</p>`;
 }
@@ -6333,7 +6382,8 @@ function renderResumeCards() {
   const master = `<button type="button" class="rcard${rsel === 'master' ? ' on' : ''}" data-card="master">
       <span class="top"><span class="ini">M</span>
         <span class="st ${have ? 'ok' : 'none'}">${have ? 'Ready' : 'None yet'}</span></span>
-      <b>Your resume</b><span class="sub">${have ? esc(file) : 'Upload one below'}</span>
+      <b>${lastReadable && lastReadable.resume_kind && lastReadable.resume_kind.kind === 'master'
+        ? 'Your master resume' : 'Your resume'}</b><span class="sub">${have ? esc(file) : 'Upload one below'}</span>
       ${score === null ? '' : `<span class="sub">Readable: ${score}/100</span>
         <span class="meter"><i class="${band(score)}" style="width:${score}%"></i></span>`}</button>`;
   const docs = rdocs.map(d => {
@@ -6475,6 +6525,7 @@ async function drawPreview() {
 function showReadable(rep) {
   const box = $('resume-readable');
   lastReadable = rep;
+  if ($('resume-kind')) $('resume-kind').innerHTML = resumeKindHtml(rep && rep.resume_kind);
   renderResumeCards();
   box.hidden = !rep;
   if (!rep) return;

@@ -243,9 +243,17 @@ resume:
 | Key | Type | Default |
 |---|---|---|
 | `resume.path` | path | `""` |
+| `resume.kind` | `master` or `regular` | left out: jobdork guesses (`search/master.py`) |
 
 `~` is expanded. **The path is checked on every config load**, so a resume you
 moved fails loudly rather than quietly scoring every role at zero.
+
+`resume.kind` says whether the resume is your **master** resume (a private
+archive of every job, project and award, never sent as it is) or a
+**regular** one you send. Uploading writes jobdork's guess here, and the
+Resume page changes it. With `master`, the readability check does not mark
+it down for its length, and a tailored resume is told it chooses from an
+archive.
 
 `.docx`, `.md` and `.txt` are read with the standard library. `.pdf` needs the
 optional `pypdf` extra (`pip install pypdf`); without it the scan still runs

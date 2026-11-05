@@ -10,7 +10,8 @@ letter and tailored resume is built from. It stays on your computer.
 
 Across the top, a card for each resume:
 
-- **Your resume** (M): the file you uploaded, *Ready* once it is read, with
+- **Your resume** (M), or **Your master resume** when it is
+  [one](#master-resume): the file you uploaded, *Ready* once it is read, with
   its readability score as a bar ([below](#how-a-tracking-system-reads-it)).
 - **One card per tailored resume and CV**, newest first: the job post's
   initials, its title and employer, when it was written, and *Ready* when
@@ -71,6 +72,38 @@ moving while jobdork reads it; a long PDF can take a few seconds. Uploading
 a new one replaces the old, and every job post is re-scored. Under the
 button, *Stored at* gives the full path of jobdork's copy on your computer
 (your own file is left where it was).
+
+### A master resume, or the one you send {#master-resume}
+
+If you keep a **master resume**, upload that. It is your private archive:
+every job you have had, part-time and freelance work, volunteering,
+projects, presentations, awards, certifications, and your skills sorted by
+kind. You never send it as it is; you copy, paste and trim from it to make a
+one- or two-page resume for each job. jobdork does that trimming for you:
+each [tailored resume](job-window.md#ai-tools) takes from the master what
+that job post needs. And with every true fact in front of it, the AI has
+more to work from, so fewer of its claims are ones it cannot back up.
+
+No master resume? Upload the one you send. It works just as well to start,
+and you can upload a master later.
+
+Under *Stored at*, **This resume is** says which jobdork took it for, and
+why: *My master resume* or *A resume I send*. It guesses when you upload:
+"master" in the file's name settles it; otherwise it takes a long text
+(about 1,700 words or more), with three pages or more, many dated jobs, or
+sections such as volunteer work and awards adding to it. A three- to
+five-page CV you send is not taken for a master. Change it if the guess is
+wrong. With a master resume:
+
+- **How a tracking system reads it** does not mark it down for its length,
+  since it is never sent.
+- **A tailored resume** is told it is choosing from your archive, not
+  shortening one resume line by line.
+- **The card** says *Your master resume*.
+
+The AI reads the first 20,000 characters of a resume (about eight to ten
+pages). A longer one gets a note: what comes after is not seen, and a claim
+about it is marked unsupported, so put what matters most first.
 
 ### How a tracking system reads it
 

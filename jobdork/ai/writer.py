@@ -690,9 +690,17 @@ def with_own_education(found: list[dict], own) -> list[dict]:
     return sorted(out, key=lambda e: -_newest(e))
 
 
+# Said before a master resume (search/master.py), so the model takes it for
+# what it is: an archive to choose from, not a resume to shorten line by line.
+MASTER_NOTE = ("The resume between <<RESUME>> and <</RESUME>> is the person's "
+               "master resume: their private archive of every job, project, award "
+               "and bullet point, longer than any resume they send. Choose only what "
+               "this job needs, from anywhere in it, and leave the rest out.\n\n")
+
+
 def tailored_resume(settings: Settings, row, resume_text: str,
                     check: bool = True, notes: str = "", projects=(),
-                    education=()) -> Tailored:
+                    education=(), master: bool = False) -> Tailored:
     """The resume rewritten for one post, in the template. Writes nothing.
 
     The model gives fields; resume_doc lays them out, so the format is the
@@ -711,7 +719,7 @@ def tailored_resume(settings: Settings, row, resume_text: str,
     advert = _advert(row)
     work = _measured(resume_text)
     user = (_role_header(row, work) + _fenced("ADVERT", advert, MAX_ADVERT) + "\n\n"
-            + _fenced("RESUME", resume_text, MAX_RESUME))
+            + (MASTER_NOTE if master else "") + _fenced("RESUME", resume_text, MAX_RESUME))
     if notes:
         user += "\n\n" + _fenced("PROJECTS", notes, MAX_RESUME)
     # What the person said about themselves: the resume, their project notes,
@@ -1109,7 +1117,9 @@ def tailor(cfg, store, uid: str, root: str = "", progress=None) -> Tailored:
         progress(f"{settings.label} tailoring your resume for "
                  f"{row['title']} at {row['company']}")
     own, schooling = store.projects(), store.education()
-    result = tailored_resume(settings, row, resume_text, check=cfg.llm.guard,
+    from ..search import master as master_mod
+    is_master = master_mod.kind_of(cfg.resume_kind, resume_text) == master_mod.MASTER
+    result = tailored_resume(settings, row, resume_text, check=cfg.llm.guard, master=is_master,
                              notes=resume_doc.record_notes(own, schooling,
                                                            store.confirmed_skills()),
                              projects=own,

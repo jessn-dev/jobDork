@@ -150,8 +150,8 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[pdf]'
 .venv/bin/python -m jobdork serve      # opens setup in your browser
 ```
 
-The first start opens setup, one question per screen: your resume, an AI
-model (optional), the job titles to look for, where you are, pay and job
+The first start opens setup, one question per screen: your resume (your
+master resume, if you keep one), an AI model (optional), the job titles to look for, where you are, pay and job
 sources. It ends with a first scan. [Getting started](https://jessn-dev.github.io/jobDork/getting-started/)
 
 Your settings live in `config.yaml`, which is not in the repository (it is

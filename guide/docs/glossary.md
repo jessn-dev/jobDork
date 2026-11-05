@@ -62,6 +62,11 @@
   use it on your account. Held in memory only, or kept in your computer's
   keychain if you choose ([Your keys](settings.md#your-keys)); never in a file.
 
+**Master resume**
+: Your private archive of every job, project, award and bullet point,
+  never sent as it is. Upload it if you keep one: tailored resumes are cut
+  from it. [Resume](resume.md#master-resume)
+
 **Match**
 : Points for everything you asked for, added up. Not a percentage.
   [Scores explained](scores.md#match-everything-you-asked-for-added-up)
