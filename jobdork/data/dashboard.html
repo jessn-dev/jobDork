@@ -119,7 +119,7 @@ nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
 main{padding:1.5rem 1.75rem;min-width:0}
 /* The Dashboard uses the whole width; pages of forms and reading keep a
    measure that is comfortable to read. */
-main > section:not(#view-scan):not(#view-settings):not(#view-setup):not(#view-resume):not(.has-split){max-width:1060px}
+main > section:not(#view-scan):not(#view-settings):not(#view-setup):not(#view-resume):not(#view-ask):not(.has-split){max-width:1060px}
 /* The Resume page's preview takes the room a wide window has. */
 #view-resume{max-width:1600px}
 #resumeinfo code{overflow-wrap:anywhere}
@@ -675,15 +675,62 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .sugglist li{display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:center;padding:.4rem 0;border-top:1px solid var(--line)}
 .sugglist .pill{--c:var(--accent)}
 .sugglist .acts{margin-left:auto;display:flex;gap:.3rem}
-/* Ask: a conversation with Claude Code, in the desktop app. */
-.asklog{max-width:44rem;display:flex;flex-direction:column;gap:.6rem;margin:.8rem 0}
-.asklog .msg{border:1px solid var(--line);border-radius:8px;padding:.55rem .8rem;
-  white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;font-size:.875rem}
-.asklog .msg.you{align-self:flex-end;background:var(--card);max-width:85%}
-.asklog .msg.no{border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}
-.asklog .who{display:block;font-size:.75rem;color:var(--muted);margin-bottom:.15rem}
-.askform{max-width:44rem}
-.askform textarea{width:100%;box-sizing:border-box}
+/* Ask: a conversation with Claude Code, in the desktop app. Empty, the mark,
+   a line and the message box sit in the middle; once asked, the conversation
+   runs down the page and the box stays at the bottom. */
+main > section#view-ask{max-width:48rem;margin:0 auto;display:flex;flex-direction:column;
+  min-height:calc(100vh - 3rem)}
+.askhero{display:flex;align-items:center;justify-content:center;gap:.75rem;margin:auto 0 1.5rem}
+.ask.chat .askhero{display:none}
+.askhero .logo{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;flex:none}
+.askhero .logo svg{width:26px;height:26px}
+#view-ask .askhero h2{font-size:clamp(1.375rem,3vw,1.75rem);font-weight:500;line-height:1.25;
+  letter-spacing:-.01em;margin:0;text-align:center;color:var(--fg)}
+.ask.empty .asklog{display:none}
+.asklog{display:flex;flex-direction:column;gap:1.5rem;padding:1rem 0 1.5rem}
+.asklog .msg{white-space:normal;overflow-wrap:anywhere;line-height:1.6;font-size:.9375rem}
+.asklog .msg.you{align-self:flex-end;max-width:80%;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;padding:.5rem 1rem;white-space:pre-wrap}
+.asklog .msg.agent p{margin:0 0 .75rem}.asklog .msg.agent p:last-child{margin-bottom:0}
+.asklog .msg.agent ul{margin:.25rem 0 .75rem;padding-left:1.25rem}
+.asklog .msg.agent h4{margin:1rem 0 .5rem;font-size:1rem}
+.asklog .msg.no .who{display:inline-flex;align-items:center;gap:.375rem;font-size:.8125rem;
+  color:var(--muted);margin-bottom:.25rem}
+.asklog .msg.no .who::before{content:"";width:.5rem;height:.5rem;border-radius:50%;background:var(--warn)}
+.asklog .msgacts{display:flex;gap:.25rem;margin-top:.5rem}
+.asklog .msgacts button{display:inline-grid;place-items:center;width:1.75rem;height:1.75rem;padding:0;
+  background:none;border:0;border-radius:6px;color:var(--muted);cursor:pointer}
+.asklog .msgacts button:hover{background:var(--card);color:var(--fg)}
+.asklog .msgacts svg.bi{width:15px;height:15px}
+.askdoing{display:flex;align-items:center;gap:.5rem;color:var(--muted);font-size:.875rem;margin:0 0 1rem}
+.askdoing .spin{width:.75rem;height:.75rem;border-radius:50%;border:2px solid var(--line);
+  border-top-color:var(--muted);animation:spin .8s linear infinite;margin:0}
+@media (prefers-reduced-motion:reduce){.askdoing .spin{animation:none}}
+.askdock{margin-bottom:auto}
+.ask.chat .askdock{position:sticky;bottom:0;margin:auto 0 0;padding-bottom:1rem;background:var(--bg)}
+.composer{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:.75rem .75rem .5rem 1rem;
+  box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.composer:focus-within{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.composer textarea{display:block;width:100%;min-height:1.5rem;max-height:14rem;resize:none;border:0;
+  background:none;padding:.25rem 0;font-size:.9375rem;line-height:1.5;color:var(--fg);outline:none}
+.ask.empty .composer textarea{min-height:3rem}
+.composer .crow{display:flex;align-items:center;gap:.5rem;margin-top:.5rem}
+.composer .cright{margin-left:auto;display:flex;align-items:center;gap:.5rem}
+.composer .ibtn{display:inline-grid;place-items:center;width:2rem;height:2rem;padding:0;border-radius:8px;
+  background:none;border:1px solid transparent;color:var(--muted);cursor:pointer}
+.composer .ibtn:hover:not(:disabled){background:var(--bg);border-color:var(--line);color:var(--fg)}
+.composer .ibtn:disabled{opacity:.4;cursor:default}
+.composer .ibtn svg.bi{width:18px;height:18px}
+.composer .modelpick{border:0;background:none;color:var(--muted);font-size:.8125rem;padding:.25rem .25rem;
+  cursor:pointer;width:auto;max-width:12rem}
+.composer .modelpick:hover{color:var(--fg)}
+.sendbtn{display:inline-grid;place-items:center;width:2rem;height:2rem;padding:0;border-radius:8px;border:0;
+  background:var(--accent);color:var(--bg);cursor:pointer;transition:background-color .15s ease-out}
+.sendbtn:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 85%,var(--fg))}
+.sendbtn:disabled{opacity:.35;cursor:default}
+.sendbtn svg.bi{width:16px;height:16px}
+.askabout{text-align:center;max-width:40rem;margin:.75rem auto 0}
+.ask.chat .askabout{display:none}
 /* A coding agent as the writer: how to connect each one, and what to ask. */
 .agentbox{border:1px solid var(--line);background:var(--card);border-radius:12px;
   padding:.7rem .9rem;margin:-.2rem 0 .8rem;font-size:.875rem;line-height:1.5}
@@ -1431,31 +1478,38 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     </div>
   </section>
 
-  <section id="view-ask" hidden>
-    <h2>Ask Claude Code</h2>
-    <p class="hint" style="max-width:44rem">Ask about your job search: which job posts
-      suit you best, what to change in your resume, a cover letter for a job post, how to
-      prepare for an interview or answer a recruiter. Claude Code answers through jobdork's
-      tools, from your job posts, resume and applications, and can save documents and
-      suggest resume additions for your OK.</p>
-    <p class="hint" style="max-width:44rem">Only job-search questions are sent: each is
-      checked first, and anything else gets "jobdork doesn't allow this". Claude Code here
-      has jobdork's tools and nothing else: no commands, no files, no web. Each question
-      spends your Claude plan, a little more for the check.</p>
-    <div id="ask-none" class="agentbox" hidden><p>Claude Code is not installed on this
-      computer. Install it from claude.com/claude-code and sign in, then come back here.</p></div>
+  <section id="view-ask" class="ask empty" hidden>
+    <div id="ask-hero" class="askhero">
+      <span class="logo" id="ask-mark" aria-hidden="true"></span>
+      <h2 id="ask-hi">Which job post should we look at first?</h2>
+    </div>
     <div id="ask-log" class="asklog" aria-live="polite"></div>
-    <p id="ask-doing" class="hint" hidden></p>
-    <form id="ask-form" class="askform" onsubmit="return false">
-      <textarea id="ask-text" rows="3" maxlength="2000" aria-label="Your question"
-        placeholder="Which three job posts suit me best, and why?"></textarea>
-      <div class="bar">
-        <button type="submit" data-icon="send" class="act main" id="ask-send">Ask</button>
-        <button type="button" data-icon="x" class="act" id="ask-stop" hidden>Stop</button>
-        <button type="button" data-icon="plus" class="act" id="ask-new">New conversation</button>
-        <span id="ask-count" class="hint"></span>
-      </div>
-    </form>
+    <p id="ask-doing" class="askdoing" hidden><span class="spin" aria-hidden="true"></span><span id="ask-doing-text"></span></p>
+    <div class="askdock">
+      <div id="ask-none" class="agentbox" hidden><p>Claude Code is not installed on this
+        computer. Install it from claude.com/claude-code and sign in, then come back here.</p></div>
+      <form id="ask-form" class="composer" onsubmit="return false">
+        <textarea id="ask-text" rows="1" maxlength="2000" aria-label="Your question"
+          placeholder="How can I help with your job search?"></textarea>
+        <div class="crow">
+          <button type="button" data-icon="plus" class="ibtn" id="ask-new"
+            title="New conversation" aria-label="New conversation"></button>
+          <span id="ask-count" class="hint"></span>
+          <span class="cright">
+            <select id="ask-model" class="modelpick" aria-label="Model"
+              title="The Claude model that answers. The check before it always uses Haiku."></select>
+            <button type="submit" data-icon="arrow-up" class="sendbtn" id="ask-send"
+              title="Ask (Enter)" aria-label="Ask"></button>
+            <button type="button" data-icon="square" class="sendbtn" id="ask-stop"
+              title="Stop" aria-label="Stop" hidden></button>
+          </span>
+        </div>
+      </form>
+      <p class="hint askabout" id="ask-about">Claude Code answers from your job posts,
+        resume and applications, through jobdork's tools and nothing else: no commands,
+        files or web. Only job-search questions are sent; each is checked first, and each
+        spends your Claude plan. Enter asks; Shift+Enter starts a new line.</p>
+    </div>
   </section>
 
   <section id="view-settings" hidden>
@@ -2030,21 +2084,65 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
 const showAsk = () => { if (desk()) document.querySelector('nav .item[data-view="ask"]').hidden = false; };
 showAsk();
 window.addEventListener('pywebviewready', showAsk);
-let askTimer = null;
-const ASK_WHO = {you: 'You', agent: 'Claude Code', jobdork: 'jobdork'};
+let askTimer = null, askHi = '', askShown = 0;
+// The line over an empty conversation: one of these, picked anew for each
+// conversation, so the page does not greet you the same way every time.
+const ASK_HI = [
+  'Which job post should we look at first?',
+  'What would help your search today?',
+  "Let's find the job posts worth your time",
+  'An interview coming up? We can prepare for it',
+  'A cover letter, or a second look at your resume?',
+  'Which applications need a follow-up?',
+  'What should your next application say?',
+  'Ready when you are. Where should we start?',
+];
+const askGreeting = () => {
+  const h = new Date().getHours();
+  const time = h < 5 ? '' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  const pool = time ? [...ASK_HI, `${time}. Where should we start?`] : ASK_HI;
+  return pool[Math.floor(Math.random() * pool.length)];
+};
+// The model you chose, remembered on this computer for next time.
+const ASK_MODEL_KEY = 'jobdork.askModel';
+const askModelSaved = () => { try { return localStorage.getItem(ASK_MODEL_KEY); } catch { return null; } };
 function drawAskState(d) {
+  const chat = d.messages.length > 0;
+  $('view-ask').classList.toggle('empty', !chat);
+  $('view-ask').classList.toggle('chat', chat);
+  if (!chat && !askHi) askHi = askGreeting();
+  $('ask-hi').textContent = askHi;
+  if (!$('ask-mark').firstChild) $('ask-mark').innerHTML = document.querySelector('.brand .logo').innerHTML;
   $('ask-none').hidden = d.claude;
-  $('ask-log').innerHTML = d.messages.map(m =>
-    `<div class="msg ${m.role === 'you' ? 'you' : m.refused ? 'no' : 'agent'}"><span class="who">${
-      ASK_WHO[m.role] || ''}</span>${esc(m.text)}</div>`).join('');
+  const sel = $('ask-model');
+  if (!sel.options.length) {
+    sel.innerHTML = (d.models || []).map(m =>
+      `<option value="${esc(m.id)}">${esc(m.id ? m.name : 'Default model')}</option>`).join('');
+    const saved = askModelSaved();
+    sel.value = saved !== null && [...sel.options].some(o => o.value === saved) ? saved : (d.model || '');
+  }
+  if (d.messages.length !== askShown || d.busy) {
+    $('ask-log').innerHTML = d.messages.map((m, i) => m.role === 'you'
+      ? `<div class="msg you">${esc(m.text)}</div>`
+      : m.refused || m.role === 'jobdork'
+        ? `<div class="msg no"><span class="who">jobdork</span><div>${esc(m.text)}</div></div>`
+        : `<div class="msg agent">${mdLite(m.text)}<div class="msgacts">
+            <button type="button" data-icon="copy" data-ask-copy="${i}" title="Copy" aria-label="Copy"></button></div></div>`).join('');
+    if (d.messages.length !== askShown) $('ask-doing').scrollIntoView({block: 'end'});
+    askShown = d.messages.length;
+  }
+  askMessages = d.messages;
   $('ask-doing').hidden = !d.busy;
-  $('ask-doing').textContent = d.busy ? `${d.doing || 'Working'}…` : '';
+  $('ask-doing-text').textContent = d.busy ? `${d.doing || 'Working'}…` : '';
+  $('ask-text').placeholder = chat ? 'Write a message' : 'How can I help with your job search?';
   $('ask-send').disabled = d.busy || !d.claude;
+  $('ask-send').hidden = d.busy;
   $('ask-stop').hidden = !d.busy;
-  $('ask-new').disabled = d.busy || !d.messages.length;
+  $('ask-new').disabled = d.busy || !chat;
   clearTimeout(askTimer);
   if (d.busy) askTimer = setTimeout(drawAsk, 1000);
 }
+let askMessages = [];
 async function drawAsk() {
   const r = await api('/api/ask');
   if (r.ok) drawAskState(await r.json());
@@ -2056,21 +2154,37 @@ async function askPost(path, body = {}) {
   drawAskState(await r.json());
   return true;
 }
+// The box grows with what you type, up to its limit, then scrolls.
+const askFit = () => { const t = $('ask-text'); t.style.height = 'auto'; t.style.height = `${t.scrollHeight}px`; };
 $('ask-form').onsubmit = async () => {
   const text = $('ask-text').value.trim();
-  if (text && await askPost('/api/ask', {prompt: text})) { $('ask-text').value = ''; $('ask-count').textContent = ''; }
+  if (text && await askPost('/api/ask', {prompt: text, model: $('ask-model').value})) {
+    $('ask-text').value = ''; $('ask-count').textContent = ''; askFit();
+  }
   return false;
 };
-// Ctrl+Enter (Cmd+Enter on a Mac) asks; Enter alone is a new line.
+// Enter asks; Shift+Enter is a new line (and Enter while composing a word in
+// an input method is left to it).
 $('ask-text').onkeydown = e => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('ask-form').requestSubmit(); }
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('ask-form').requestSubmit(); }
 };
 $('ask-text').oninput = e => {
   const n = e.target.value.length;
   $('ask-count').textContent = n > 1800 ? `${n.toLocaleString()} of 2,000 characters` : '';
+  askFit();
 };
+$('ask-model').onchange = e => { try { localStorage.setItem(ASK_MODEL_KEY, e.target.value); } catch {} };
 $('ask-stop').onclick = () => askPost('/api/ask/stop');
-$('ask-new').onclick = () => askPost('/api/ask/new');
+$('ask-new').onclick = async () => {
+  askHi = '';
+  if (await askPost('/api/ask/new')) $('ask-text').focus();
+};
+$('ask-log').onclick = e => {
+  const b = e.target.closest('[data-ask-copy]');
+  const m = b && askMessages[Number(b.dataset.askCopy)];
+  if (m) navigator.clipboard.writeText(m.text).then(() => toast('Copied'),
+    () => toast('Copying was refused by the browser', 'err'));
+};
 
 // ── roles ────────────────────────────────────────────────────────────────────
 $('status').innerHTML = '<option value="">Any status</option>' +
@@ -2610,7 +2724,9 @@ const ICONS = {
   "undo-2": "<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"/>",
   "upload": "<path d=\"M12 3v12\"/><path d=\"m17 8-5-5-5 5\"/><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/>",
   "check": "<path d=\"M20 6 9 17l-5-5\"/>",
-  "x": "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>"
+  "x": "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>",
+  "arrow-up": "<path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/>",
+  "square": "<rect width=\"12\" height=\"12\" x=\"6\" y=\"6\" rx=\"2\"/>"
 };
 const TAB_ICON = {tools: 'cpu', advert: 'file-text', ats: 'search-check', application: 'clipboard-check', screen: 'clipboard-check', cv: 'file-user',
                   cover_letter: 'mail', letter: 'mail', resume_review: 'file-search',

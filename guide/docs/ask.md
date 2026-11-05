@@ -6,12 +6,14 @@ your own words, without leaving jobdork. It answers from your job posts,
 your resume and your applications, through jobdork's tools, and can save a
 document to a job post or suggest an addition to your resume for your OK.
 
-![The Ask page](images/ask.png)
+![The Ask page, before the first question](images/ask-start.png)
 
 ## Asking
 
-Type a question and press **Ask** (or Ctrl+Enter; Cmd+Enter on a Mac). For
-instance:
+Before the first question, the page shows the jobdork mark and a line
+picked at random for each conversation, such as *Which job post should we
+look at first?*, over the box. Type a question in the box and press **Enter** (or the arrow button);
+**Shift+Enter** starts a new line. For instance:
 
 - *Which three job posts suit me best, and why?*
 - *Write a cover letter for the Northbridge Health job post.*
@@ -20,9 +22,32 @@ instance:
   role?*
 - *Which of my applications need a follow-up this week?*
 
-While it works, the page says what it is doing ("Reading your job posts").
-**Stop** ends it. Ask a follow-up ("yes, write it") and it carries on from
-the last answer. **New conversation** starts afresh.
+Once you ask, the page becomes the conversation: your questions on the
+right, the answers under them, each with a **Copy** button, and the box at
+the bottom for the next one. While it works, the page says what it is doing
+("Reading your job posts"), and the square button stops it. Ask a follow-up
+("yes, write it") and it carries on from the last answer. The **+** in the
+box starts a new conversation.
+
+![A conversation on the Ask page](images/ask.png)
+
+## Choosing the model
+
+The menu in the box chooses the Claude model that answers: **Sonnet**,
+**Opus**, **Haiku**, or **Default model**, the one Claude Code uses when
+none is named. Your choice is kept for next time. It can change between
+questions of the same conversation. The check before each question always
+uses Haiku, whichever you choose.
+
+## Readers and checkers are not used
+
+Ask does not go through the readers and checkers on the [AI page](ai.md).
+It is Claude Code itself, on your Claude account, answering with jobdork's
+tools; the AI page's models keep doing what jobdork asks for itself
+(judging job posts, writing documents from a job post's AI tools). A
+document Claude Code saves from Ask still gets every check a document
+gets, including the hallucination check by a checker model when one is
+set.
 
 What it saves shows where jobdork's own AI work does: a document on the job
 post, a resume addition under [Suggestions](resume.md#suggestions) waiting

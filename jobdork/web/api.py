@@ -2224,11 +2224,12 @@ def ask_folder(cfg) -> Path:
     return Path(cfg.db_path).expanduser().resolve().parent / "ask"
 
 
-def ask_start(cfg, prompt) -> dict:
+def ask_start(cfg, prompt, model="") -> dict:
     from ..ai import ask
 
     try:
-        return ask.CONVERSATION.start(str(prompt or ""), ask_server(cfg), ask_folder(cfg))
+        return ask.CONVERSATION.start(str(prompt or ""), ask_server(cfg), ask_folder(cfg),
+                                      str(model or ""))
     except ask.AskError as exc:
         raise ApiError(str(exc)) from exc
 

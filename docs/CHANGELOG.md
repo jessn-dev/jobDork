@@ -47,6 +47,77 @@ now; the CLI guide lists `jobdork uninstall`, and ARCHITECTURE.md names
 
 ---
 
+## Added — 2026-11-05 — One command tags a release
+
+`python scripts/tag_release.py` tags a release once its pull request is
+merged. It asks whether the release is major, minor or patch (or take it as
+an argument) and counts the version on from the last release tag: from
+v0.16.2, patch is 0.16.3, minor 0.17.0, major 1.0.0. It tags only when:
+
+- `pyproject.toml` and every page name that version (a tag that differs is
+  refused by the release run anyway, and a tag can never be moved);
+- main's last commit is the merge of `release/<version>`, from a merged
+  pull request;
+- every check on that commit finished and passed (a skipped one is fine; one
+  still running stops it, to run again later);
+- the tag exists neither locally nor on GitHub.
+
+Then you type the version to confirm, it tags and pushes, and opens the
+release run in the browser. Approving the `release` environment stays
+yours: that is the sign-off. A working copy with changes is refused, so
+nothing is lost by its `git checkout main` and `git pull --ff-only`.
+SECURITY.md's release steps name it. Tests cover the version count, the
+release merge and the checks (`tests/test_tag_release.py`); nothing in them
+runs git or reaches GitHub.
+
+---
+
+## Changed — 2026-11-05 — Ask looks like a chat, and you choose the model
+
+The **Ask** page is laid out like a chat app now. Before the first question:
+the jobdork mark, a line picked at random for each conversation ("Which job
+post should we look at first?"), and the message box in the middle, with
+what Ask can reach under it. Once you ask, the page is the conversation:
+your questions on the right, the answers under them as text (headings, lists
+and bold shown) with a **Copy** button, and the box at the bottom. The box
+grows as you type.
+
+- **Enter asks**, Shift+Enter starts a new line; before, only
+  Ctrl+Enter (Cmd+Enter) asked, and Enter alone did not.
+- **The model** is chosen in the box: Sonnet, Opus, Haiku, or Claude Code's
+  default. It can change between questions, is kept for next time on this
+  computer, and is checked against that list on the server: nothing else is
+  ever passed to `claude --model`. The check before each question stays on
+  Haiku (`ai/ask.py`, MODELS).
+- **+** starts a new conversation and a square button stops one, in the box.
+
+The guide's Ask page shows both views and says that Ask does not use the
+readers and checkers on the AI page. SECURITY.md (the model list), PRIVACY.md,
+the desktop notes and DECISIONS.md (the Ask decision, with why a coding
+agent is still not a checker) say so too.
+
+---
+
+## Changed — 2026-11-05 — One keychain item for every kept key
+
+An unsigned Mac app is asked "jobdork wants to use your confidential
+information stored in jobdork in your keychain" after each update, and with
+a keychain item for each kept key it was asked once for each: an AI key, the
+Ollama key, Adzuna's and USAJOBS's could mean four or five password
+prompts. Every kept key is now in one item, as JSON, so an update asks once;
+choose **Always Allow** and it does not ask again until the next update.
+
+Keys kept the old way move into the one item the first time it is read,
+which may ask once more for each of them that one time; their own items are
+then removed. Forget saved keys, Remove jobdork and removing an AI line take
+keys out of the one item, and any left the old way (`core/keystore.py`).
+Tests check that every key lands in one item, that old items move and go,
+that reading every key asks the keychain for one item, and that a damaged
+item reads as no keys kept. The guide's Settings page and DECISIONS.md say
+it asks once for all keys.
+
+---
+
 ## Changed — 2026-11-05 — version 0.16.2
 
 0.16.2 carries the 8 entries below, everything since 0.16.1. For you:
