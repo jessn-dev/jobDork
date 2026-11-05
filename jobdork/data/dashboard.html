@@ -3201,7 +3201,8 @@ function toolsIntro(uid) {
     <b>You are the author; the AI is an editor.</b> Take only what is true, in your own
     words. Read the result aloud, and be ready to speak to every line in an interview.
     Some employers set rules on using AI in an application: check theirs.
-    ${aiLabel ? (local ? `${esc(aiLabel)} runs on this machine: nothing is sent anywhere.`
+    ${agentOn && !agentFallback ? 'Your coding agent does these: each button says what to ask it, ready to copy.'
+      : aiLabel ? (local ? `${esc(aiLabel)} runs on this machine: nothing is sent anywhere.`
       : `${esc(aiLabel)} is a hosted model: your email, phone number and profile links are removed before anything is sent.`)
       : 'Set up a model on the AI page to use these.'}</div>
   <div class="bar toolbar">
@@ -3222,8 +3223,32 @@ function toolsIntro(uid) {
   </details>`;
 }
 
+// What to ask a coding agent for each AI tool, when it is the only reader
+// (web/agent.py EDITING): it answers in its own chat; nothing is saved here.
+const TOOL_ASKS = {resume_edits: 'suggested edits to my resume for', keywords: 'keyword ideas for',
+  highlight: 'the skills to highlight for', feedback: 'recruiter feedback on my resume for',
+  revise: 'five versions of this text for'};
+
+function toolAsk(uid, kind, text) {
+  const d = detail && detail.uid === uid ? detail : {};
+  const what = `the job post "${d.title || uid}"${d.company ? ' at ' + d.company : ''} (jobdork id ${uid})`;
+  const asks = kind === 'feedback' && text ? 'recruiter feedback on this cover letter for' : TOOL_ASKS[kind];
+  const ask = `Use jobdork to give me ${asks} ${what}.` + (text ? `\n\n${text}` : '');
+  $('tooljob').innerHTML = `<span class="agentask">Your coding agent does this. Ask it:
+    <q>${esc(ask.split('\n')[0])}</q>${text ? ' <span class="hint">(with your text)</span>' : ''}
+    <button type="button" class="act" data-icon="copy" id="tool-copy">Copy</button></span>`;
+  $('tool-copy').onclick = () => navigator.clipboard.writeText(ask)
+    .then(() => toast('Copied: paste it into your agent'), () => toast('Copying was refused by the browser', 'err'));
+  decorate($('tooljob'));
+}
+
 async function toolJob(uid, kind, withText) {
   const text = (kind === 'revise' || withText) ? ($('tooltext') || {}).value || '' : '';
+  if (agentOn && !agentFallback) {
+    if (kind === 'revise' && !text.trim()) { toast('Paste a bullet or a paragraph to revise', 'err'); return; }
+    toolAsk(uid, kind, text.trim());
+    return;
+  }
   $('tooljob').textContent = 'The AI is working; the result appears below when it is done…';
   detailTab = 'tools';
   const r = await api('/api/tool', {method: 'POST', body: form({uid, kind, text})});

@@ -76,6 +76,48 @@ def test_the_brief_is_what_a_model_would_have_been_given():
     assert "save_document" in brief["then"]
 
 
+
+def test_the_ai_tools_editing_help_has_briefs_answered_not_saved():
+    from jobdork.ai import tools
+    with _setup() as (cfg, uid, _):
+        brief = agent.call(cfg, "get_brief", {"uid": uid, "kind": "keywords"})
+        assert brief["system"] == tools.KEYWORDS_SYSTEM and "Kubernetes" in brief["user"]
+        assert "nothing to save" in brief["then"] and "save_document" not in brief["then"]
+        for kind in ("resume_edits", "highlight", "feedback"):
+            assert agent.call(cfg, "get_brief", {"uid": uid, "kind": kind})["system"]
+        # Revise takes the user's text, and needs it.
+        revise = agent.call(cfg, "get_brief", {"uid": uid, "kind": "revise",
+                                               "text": "Ran the Kubernetes platform."})
+        assert "Ran the Kubernetes platform." in revise["user"]
+        for args, said in (({"kind": "revise"}, "needs `text`"),
+                           ({"kind": "revise", "text": "x" * (api.MAX_TOOL_TEXT + 1)}, "over")):
+            try:
+                agent.call(cfg, "get_brief", {"uid": uid, **args})
+            except agent.ToolError as exc:
+                assert said in str(exc), exc
+            else:
+                raise AssertionError(f"accepted {args}")
+        try:
+            agent.call(cfg, "save_document", {"uid": uid, "kind": "keywords", "answer": {"x": 1}})
+        except agent.ToolError as exc:
+            assert "nothing to save" in str(exc)
+        else:
+            raise AssertionError("editing help was saved")
+        with Store(cfg.db_path) as store:
+            assert not store.artifacts(uid), "a brief writes nothing"
+            assert not store.conn.execute("SELECT COUNT(*) FROM ai_outputs").fetchone()[0]
+
+
+def test_with_the_agent_alone_the_ai_tools_say_what_to_ask_it():
+    with _setup() as (cfg, uid, _):
+        cfg.llm = Llm(provider=llm.AGENT, readers=[Reader(provider=llm.AGENT)])
+        try:
+            api.tool_job(cfg, uid, "keywords")
+        except api.ApiError as exc:
+            assert exc.status == 409 and f"keyword ideas for job post {uid}" in str(exc), exc
+        else:
+            raise AssertionError("ran a tool with no model to run it")
+
 def test_a_saved_answer_goes_through_every_check_and_is_recorded():
     with _setup() as (cfg, uid, tmp):
         done = agent.call(cfg, "save_document", {"uid": uid, "kind": "cover_letter",
