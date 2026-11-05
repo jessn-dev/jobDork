@@ -68,6 +68,9 @@ MAX_PROMPT = 2000
 ASKS_AN_HOUR = 30
 # A small, quick model: the screen is a yes or no, and it runs before every prompt.
 SCREEN_MODEL = "haiku"
+# The models a question can go to: Claude Code's own default, or one named
+# by an alias Claude Code takes. Nothing else is ever passed to --model.
+MODELS = {"": "Default", "sonnet": "Sonnet", "opus": "Opus", "haiku": "Haiku"}
 SCREEN_TIMEOUT = 90
 RUN_TIMEOUT = 600
 # What the screen sees of the last answer, for a follow-up.
@@ -218,7 +221,7 @@ def screen(binary: str, prompt: str, folder: Path,
 
 # ── the run ────────────────────────────────────────────────────────────────────
 
-def run_command(binary: str, server: dict, session: str = "") -> list[str]:
+def run_command(binary: str, server: dict, session: str = "", model: str = "") -> list[str]:
     """Claude Code with jobdork's tools and nothing else. `server` is how to
     start jobdork's MCP server: {"command", "args", "env"}."""
     config = {"mcpServers": {"jobdork": {k: v for k, v in server.items() if v}}}
@@ -233,6 +236,7 @@ def run_command(binary: str, server: dict, session: str = "") -> list[str]:
         "--disable-slash-commands",
         "--system-prompt", RUN_SYSTEM,
         "--output-format", "stream-json", "--verbose",
+        *(["--model", model] if model in MODELS and model else []),
         *(["--resume", session] if session else []),
     ]
 
@@ -252,6 +256,7 @@ class Conversation:
         self._asked: deque[float] = deque()
         self._proc = None
         self._stopped = False
+        self.model = ""              # the last model chosen; kept across conversations
         self.reset()
 
     def reset(self) -> None:
@@ -265,7 +270,8 @@ class Conversation:
             return {"stage": self.stage, "doing": self.doing,
                     "messages": [dict(m) for m in self.messages],
                     "busy": self.stage in ("screening", "working"),
-                    "claude": bool(cli()), "most": MAX_PROMPT}
+                    "claude": bool(cli()), "most": MAX_PROMPT, "model": self.model,
+                    "models": [{"id": k, "name": v} for k, v in MODELS.items()]}
 
     def forget(self) -> dict:
         with self._lock:
@@ -282,11 +288,13 @@ class Conversation:
             proc.kill()
         return self.state()
 
-    def start(self, prompt: str, server: dict, folder: Path) -> dict:
+    def start(self, prompt: str, server: dict, folder: Path, model: str = "") -> dict:
         """Check the prompt, then screen and run it on a thread of its own."""
         text = clean(prompt)
         if not text:
             raise AskError("type a question first")
+        if model not in MODELS:
+            raise AskError("choose one of the models listed")
         if len(text) > MAX_PROMPT:
             raise AskError(f"over {MAX_PROMPT:,} characters; ask in fewer words")
         binary = cli()
@@ -303,11 +311,12 @@ class Conversation:
                 raise AskError(f"{ASKS_AN_HOUR} questions an hour at most, since each "
                                "spends your Claude plan; try again later")
             self._asked.append(now)
+            self.model = model
             before = self._last_exchange()
             self.messages.append({"role": "you", "text": text})
             self.stage, self.doing, self._stopped = "screening", "Checking the question", False
         folder.mkdir(parents=True, exist_ok=True)
-        threading.Thread(target=self._work, args=(binary, text, server, folder, before),
+        threading.Thread(target=self._work, args=(binary, text, server, folder, before, model),
                          daemon=True, name="ask").start()
         return self.state()
 
@@ -321,7 +330,8 @@ class Conversation:
             self.messages.append({"role": role, "text": text, **more})
             self.stage, self.doing = stage, ""
 
-    def _work(self, binary: str, text: str, server: dict, folder: Path, before) -> None:
+    def _work(self, binary: str, text: str, server: dict, folder: Path, before,
+              model: str = "") -> None:
         allowed, reason = screen(binary, text, folder, before, run=self._run)
         if self._stopped:
             return self._say("jobdork", "Stopped.", "done")
@@ -333,7 +343,7 @@ class Conversation:
             self.stage, self.doing = "working", "Asking Claude Code"
             session = self.session
         try:
-            answer, session_id, problem = self._ask(binary, text, server, folder, session)
+            answer, session_id, problem = self._ask(binary, text, server, folder, session, model)
         except Exception as exc:              # a crash here must not leave the page waiting
             answer, session_id, problem = "", "", f"Claude Code did not answer: {exc}"
         with self._lock:
@@ -347,10 +357,10 @@ class Conversation:
             return self._say("agent", REFUSAL, "refused", refused=True)
         return self._say("agent", answer or "(no answer)", "done")
 
-    def _ask(self, binary, text, server, folder, session) -> tuple[str, str, str]:
+    def _ask(self, binary, text, server, folder, session, model="") -> tuple[str, str, str]:
         """(answer, session id, problem) from one Claude Code run."""
         with tempfile.TemporaryFile("w+", encoding="utf-8") as errors:
-            proc = self._spawn(run_command(binary, server, session), stdin=subprocess.PIPE,
+            proc = self._spawn(run_command(binary, server, session, model), stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=errors, cwd=str(folder),
                                text=True, encoding="utf-8")
             with self._lock:

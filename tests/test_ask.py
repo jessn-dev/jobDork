@@ -327,3 +327,43 @@ if __name__ == "__main__":
             print(f"FAIL {name}: {type(exc).__name__}: {exc}")
     print(f"{len(tests) - failures}/{len(tests)} passed")
     raise SystemExit(1 if failures else 0)
+
+
+# ── the model that answers ─────────────────────────────────────────────────────
+
+def test_the_model_you_choose_answers_and_nothing_else_reaches_the_command():
+    assert "--model" not in ask.run_command("claude", SERVER), "the default names none"
+    argv = ask.run_command("claude", SERVER, "s-1", "opus")
+    assert argv[argv.index("--model") + 1] == "opus"
+    assert "--model" not in ask.run_command("claude", SERVER, "", "gpt-4; rm -rf"), (
+        "a model not on the list is never passed on")
+
+
+def test_a_question_goes_to_the_chosen_model_and_the_choice_is_kept():
+    agent = _Agent((_events("Northbridge.", "s-2"),), (_events("Done.", "s-2"),))
+    conv = ask.Conversation(spawn=agent, run=_Screen(_verdict(True), _verdict(True)))
+    with tempfile.TemporaryDirectory() as tmp, _claude():
+        conv.start("Which job post suits me best?", SERVER, Path(tmp), "haiku")
+        state = _settled(conv)
+        argv = agent.calls[0][0]
+        assert argv[argv.index("--model") + 1] == "haiku"
+        assert state["model"] == "haiku"
+        assert [m["id"] for m in state["models"]] == list(ask.MODELS)
+        conv.forget()
+        assert conv.state()["model"] == "haiku", "a new conversation keeps the choice"
+        # The screen is Haiku whatever answers.
+        screen_argv = conv._run.calls[0][0]
+        assert screen_argv[screen_argv.index("--model") + 1] == ask.SCREEN_MODEL
+
+
+def test_a_model_not_on_the_list_is_refused_before_anything_runs():
+    agent = _Agent()
+    conv = ask.Conversation(spawn=agent, run=_Screen())
+    with tempfile.TemporaryDirectory() as tmp, _claude():
+        try:
+            conv.start("my jobs?", SERVER, Path(tmp), "claude-something-else")
+        except ask.AskError as exc:
+            assert "model" in str(exc)
+        else:
+            raise AssertionError("an unknown model was accepted")
+    assert agent.calls == [] and conv.state()["messages"] == []

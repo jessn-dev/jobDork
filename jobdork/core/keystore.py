@@ -14,19 +14,31 @@ Where there is no such store (a container, a Linux box with no Secret
 Service, a copy without `keyring`), saving says why not, and keys come from
 memory or the environment as before.
 
-One caveat, said wherever the choice is offered: an unsigned Mac app is asked
-"jobdork wants to use your keychain" once after each update; until someone
-answers, a scheduled scan runs without the saved keys.
+Every kept key is in one keychain item (BUNDLE), as JSON: an unsigned Mac app
+is asked "jobdork wants to use your confidential information" once after
+each update, for that one item, not once for each key. Keys kept one item
+each, before 0.16.3, move into it the first time it is read, and their own
+items are removed.
+
+One caveat, said wherever the choice is offered: that question still comes
+once after each update; until someone answers, a scheduled scan runs without
+the saved keys.
 """
 
 from __future__ import annotations
 
 import contextlib
+import json
 import os
+import threading
 
 SERVICE = "jobdork"
 # The names keys are kept under: the AI providers' and the job sources'.
 AI_PREFIX = "ai:"
+# The one keychain item every kept key is in, under SERVICE.
+BUNDLE = "keys"
+# Saving and deleting read the item, change it and write it back: one at a time.
+_lock = threading.Lock()
 
 
 class KeystoreError(Exception):
@@ -77,26 +89,65 @@ def unavailable() -> str:
     return ""
 
 
+def _read() -> dict[str, str]:
+    """Every kept key, from the one item. Raises when the keychain refuses."""
+    store = _keyring()
+    raw = store.get_password(SERVICE, BUNDLE)
+    if raw:
+        try:
+            found = json.loads(raw)
+        except json.JSONDecodeError:
+            found = {}
+        return {str(k): str(v) for k, v in (found if isinstance(found, dict) else {}).items()
+                if v}
+    # None yet: keys kept one item each (before 0.16.3) move in, once.
+    moved = {name: value for name in names() if (value := store.get_password(SERVICE, name))}
+    if moved:
+        store.set_password(SERVICE, BUNDLE, json.dumps(moved))
+        for name in moved:
+            with contextlib.suppress(Exception):
+                store.delete_password(SERVICE, name)
+    return moved
+
+
+def _write(keys: dict[str, str]) -> None:
+    store = _keyring()
+    if keys:
+        store.set_password(SERVICE, BUNDLE, json.dumps(keys))
+    else:
+        with contextlib.suppress(Exception):
+            store.delete_password(SERVICE, BUNDLE)
+
+
 def save(name: str, value: str) -> None:
     """Keep one key. Raises KeystoreError, never echoing the key."""
     why = unavailable()
     if why:
         raise KeystoreError(why)
     try:
-        _keyring().set_password(SERVICE, name, value)
+        with _lock:
+            keys = _read()
+            keys[name] = value
+            _write(keys)
     except Exception as exc:                     # the store refused (denied, locked)
         raise KeystoreError(f"the keychain did not keep it: {type(exc).__name__}") from None
     kept.add(name)
 
 
+def _all() -> dict[str, str]:
+    """Every kept key, or {} (none kept, no store, or access refused)."""
+    if unavailable():
+        return {}
+    try:
+        with _lock:
+            return _read()
+    except Exception:                            # denied or locked: ask instead
+        return {}
+
+
 def load(name: str) -> str:
     """One kept key, or "" (none kept, no store, or access refused)."""
-    if unavailable():
-        return ""
-    try:
-        value = _keyring().get_password(SERVICE, name) or ""
-    except Exception:                            # denied or locked: ask instead
-        return ""
+    value = _all().get(name, "")
     if value:
         kept.add(name)
     return value
@@ -107,7 +158,11 @@ def delete(name: str) -> None:
     if unavailable():
         return
     # Not there, or already gone: either way it is not kept.
-    with contextlib.suppress(Exception):
+    with contextlib.suppress(Exception), _lock:
+        keys = _read()
+        if keys.pop(name, None) is not None:
+            _write(keys)
+    with contextlib.suppress(Exception):         # a key kept the old way, one item
         _keyring().delete_password(SERVICE, name)
 
 
@@ -126,11 +181,12 @@ def load_into_memory() -> list[str]:
     the names loaded."""
     from ..ai.llm import VAULT
 
-    loaded = []
+    loaded, keys = [], _all()                    # one read of the one item
     for name in names():
-        value = load(name)
+        value = keys.get(name, "")
         if not value:
             continue
+        kept.add(name)
         if name.startswith(AI_PREFIX):
             provider = name[len(AI_PREFIX):]
             if not VAULT.get(provider):
@@ -144,5 +200,9 @@ def load_into_memory() -> list[str]:
 
 def forget_all() -> None:
     """Remove every key jobdork kept (Settings, Forget saved keys; uninstall)."""
-    for name in names():
-        delete(name)
+    kept.clear()
+    if unavailable():
+        return
+    for name in (BUNDLE, *names()):              # the one item, and any kept the old way
+        with contextlib.suppress(Exception):
+            _keyring().delete_password(SERVICE, name)
