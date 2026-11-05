@@ -2168,8 +2168,10 @@ def agent_setup(cfg, platform: str = "") -> dict:
         # On Windows its console twin, which has the streams an agent talks on.
         from pathlib import PureWindowsPath
 
+        from ..core.schedule import program as own_program
+
         program = (str(PureWindowsPath(sys.executable).with_name("jobdork-agent.exe"))
-                   if platform == "win32" else sys.executable)
+                   if platform == "win32" else own_program())
         command, mcp_args, cli = program, ["--mcp"], [program, "--agent"]
     else:
         where = ["--config", str(Path(cfg.path).resolve())] if cfg.path else []
@@ -3324,7 +3326,8 @@ def update_progress() -> dict:
     already failed; the window shows the failure and its reason."""
     with _UPDATE_LOCK:
         return {**_UPDATE, "platform": "mac" if sys.platform == "darwin"
-                else "windows" if sys.platform == "win32" else "other"}
+                else "windows" if sys.platform == "win32"
+                else "linux" if sys.platform.startswith("linux") else "other"}
 
 
 # Closes the app's window, set by the desktop app (app.run): after an update
@@ -3341,13 +3344,52 @@ def _restart_soon() -> None:
         threading.Timer(RESTART_AFTER, QUIT_APP).start()
 
 
+def _linux_update(path: Path, version: str) -> tuple[str, str]:
+    """Put a checked Linux update in place and restart: an AppImage swapped
+    in once jobdork has quit, a .deb installed by apt after it has (the
+    desktop asks for the password). ("", why) when it cannot be done here,
+    and the file is opened instead."""
+    from ..core import updates
+    from ..core.schedule import program
+    from .app import app_home
+
+    log = app_home() / "logs" / "update.log"
+    if path.suffix == ".AppImage":
+        target = updates.running_appimage()
+        if not target:
+            return "", ("jobdork cannot replace its AppImage where it is (a folder you "
+                        "cannot write); the new one is in Downloads")
+        try:
+            staged = updates.stage_appimage_update(path, target, version)
+            updates.swap_after_quit(target, staged, log, opener="env")
+        except (updates.UpdateError, OSError) as exc:
+            return "", str(exc)
+        _update_at("restarting", version=version, file=path.name)
+        _restart_soon()
+        return f"jobdork {version} is in place; restarting to finish", ""
+    if path.suffix == ".deb":
+        if not updates.can_install_deb():
+            return "", (f"this computer has no pkexec or apt to install it with; in a terminal: "
+                        f"sudo apt install {path}")
+        try:
+            updates.install_deb_after_quit(path, program(), log)
+        except OSError as exc:
+            return "", str(exc)
+        _update_at("restarting", version=version, file=path.name, password=True)
+        _restart_soon()
+        return f"installing jobdork {version} once it closes; it opens again when done", ""
+    return "", ""
+
+
 def update_job(cfg):
     """Download this computer's installer for the newest release, check it
     against the release's checksums and build attestation, and put it in
     place, then restart: on a Mac the new app replaces this one once it has
     quit and opens (updates.stage_mac_update, swap_after_quit); on Windows
-    the installer runs on its own and opens the new version. Where that
-    cannot be done, the installer opens to finish by hand, as before."""
+    the installer runs on its own and opens the new version; on Linux an
+    AppImage is swapped in and a .deb installed once jobdork has quit
+    (_linux_update). Where that cannot be done, the installer opens to finish
+    by hand, as before."""
     import subprocess
 
     from ..core import updates
@@ -3396,7 +3438,13 @@ def update_job(cfg):
                 _update_at("restarting", version=version, file=path.name)
                 _restart_soon()
                 return f"installing jobdork {version}; it opens again when done"
-        open_with_system(path)
+        if sys.platform.startswith("linux") and version:
+            done, why = _linux_update(path, version)
+            if done:
+                return done
+        # On Linux the folder: an AppImage or a .deb opened by name may start
+        # nothing at all, and the page says what to do with it.
+        open_with_system(path.parent if sys.platform.startswith("linux") else path)
         _update_at("opened", path=str(path), file=path.name, why=why)
         return f"opened {path.name}; follow the installer to finish the update"
     return work

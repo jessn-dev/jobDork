@@ -1,7 +1,7 @@
 # Privacy policy
 
 Effective 23 October 2026. Applies to jobdork in every form: the desktop app
-for macOS and Windows, the Docker image, and the Python package run from the
+for macOS, Windows and Linux, the Docker image, and the Python package run from the
 command line.
 
 **In short:** jobdork runs on your own computer (or your own server) and keeps

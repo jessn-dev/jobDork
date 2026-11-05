@@ -281,7 +281,7 @@ def test_a_whole_run_opens_setup_from_the_apps_folder_and_stops():
         assert "js_api" not in made, "the page reaches the Bridge through the server"
         assert made["text_select"] is True        # logs and letters can be copied
         assert len(made["closing"]) == 1          # asks before closing mid-scan
-        assert made["start"] == {"private_mode": False,
+        assert made["start"] == {"gui": None, "private_mode": False,
                                  "storage_path": str(home / "window"),
                                  "debug": False}
         assert webview.settings["ALLOW_DOWNLOADS"] is True
@@ -361,18 +361,22 @@ def test_without_pywebview_it_says_what_to_install():
 
 
 def test_self_test_passes_with_everything_present():
-    backend = app.WINDOW_BACKENDS.get(sys.platform)
-    saved = sys.modules.get(backend) if backend else None
+    # The window's backend and the platform's own modules (PyQt6 and
+    # secretstorage on Linux) are the built app's, not the test run's.
+    names = [n for n in (app.WINDOW_BACKENDS.get(sys.platform),
+                         *app.PLATFORM_MODULES.get(sys.platform, ())) if n]
+    saved = {n: sys.modules.get(n) for n in names}
     with _fake_webview():
-        if backend:
-            sys.modules[backend] = types.ModuleType(backend)
+        for name in names:
+            sys.modules[name] = types.ModuleType(name)
         try:
             assert app.self_test() == []
         finally:
-            if backend and saved is None:
-                sys.modules.pop(backend, None)
-            elif backend:
-                sys.modules[backend] = saved
+            for name, module in saved.items():
+                if module is None:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = module
 
 
 def test_self_test_names_what_a_build_is_missing():
@@ -380,7 +384,7 @@ def test_self_test_names_what_a_build_is_missing():
     app.SELF_TEST_MODULES = ("jobdork_no_such_module",)
     app.SELF_TEST_FILES = ("dashboard.html", "no-such-file.csv")
     try:
-        with _platform("linux"):               # no window backend to import
+        with _platform("freebsd14"):           # no window backend to import
             problems = app.self_test()
     finally:
         app.SELF_TEST_MODULES, app.SELF_TEST_FILES = saved_modules, saved_files
@@ -401,3 +405,20 @@ if __name__ == "__main__":
             print(f"FAIL {name}: {type(exc).__name__}: {exc}")
     print(f"{len(tests) - failures}/{len(tests)} passed")
     raise SystemExit(1 if failures else 0)
+
+
+def test_the_linux_app_draws_its_window_with_the_qt_it_carries():
+    saved = os.environ.pop("QT_API", None)
+    try:
+        assert app.window_gui("linux", frozen=True) == "qt"
+        assert os.environ["QT_API"] == "pyqt6", "the binding the build carries"
+        assert app.window_gui("linux", frozen=False) is None, "from source: GTK or Qt, either"
+        assert app.window_gui("darwin", frozen=True) is None
+        assert app.window_gui("win32", frozen=True) is None
+        assert app.WINDOW_BACKENDS["linux"] == "webview.platforms.qt"
+        assert "PyQt6.QtWebEngineWidgets" in app.PLATFORM_MODULES["linux"]
+    finally:
+        os.environ.pop("QT_API", None)
+        if saved is not None:
+            os.environ["QT_API"] = saved
+

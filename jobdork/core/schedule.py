@@ -121,10 +121,25 @@ def frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
+# Set by an AppImage's runtime to the .AppImage file itself (Linux).
+APPIMAGE_ENV = "APPIMAGE"
+
+
+def program() -> str:
+    """The desktop app's own program, as a path that still works after it
+    closes: the .AppImage file when run from one, whose sys.executable is
+    inside a folder the AppImage mounts for this run only and that is gone
+    once it quits; sys.executable otherwise."""
+    appimage = os.environ.get(APPIMAGE_ENV, "").strip()
+    if frozen() and sys.platform.startswith("linux") and appimage:
+        return appimage
+    return sys.executable
+
+
 def command(config_path: str) -> list[str]:
     """The program and arguments the scheduler starts."""
     if frozen():
-        return [sys.executable, "--scan"]
+        return [program(), "--scan"]
     python = sys.executable
     if sys.platform == "win32":
         # pythonw has no console, so a scan at 8 a.m. does not open a black

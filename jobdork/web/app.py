@@ -229,9 +229,27 @@ def widen_path() -> None:
 SELF_TEST_MODULES = ("webview", "anthropic", "pypdf", "jobdork.web.serve",
                      "jobdork.cli")
 WINDOW_BACKENDS = {"darwin": "webview.platforms.cocoa",
-                   "win32": "webview.platforms.winforms"}
-# Per platform, more that a build must carry: Notification Center on macOS.
-PLATFORM_MODULES = {"darwin": ("UserNotifications",)}
+                   "win32": "webview.platforms.winforms",
+                   "linux": "webview.platforms.qt"}
+# Per platform, more that a build must carry: Notification Center on macOS;
+# on Linux Qt's web engine (whose import loads its system libraries, so a
+# missing one shows here) and the Secret Service client keys are kept with.
+PLATFORM_MODULES = {"darwin": ("UserNotifications",),
+                    "linux": ("PyQt6.QtWebEngineWidgets", "secretstorage")}
+# pywebview's engine in the Linux app: Qt, which the AppImage and the .deb
+# carry (pyproject.toml, app), and PyQt6 is the binding they carry. Run from
+# source, pywebview picks whichever of GTK or Qt the system has
+# (docs/run/source.md), and on a Mac or Windows the system's own.
+LINUX_GUI = "qt"
+
+
+def window_gui(platform: str = "", frozen: bool | None = None) -> str | None:
+    """The engine to ask pywebview for: Qt in the Linux app, else its choice."""
+    frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
+    if frozen and (platform or sys.platform).startswith("linux"):
+        os.environ.setdefault("QT_API", "pyqt6")
+        return LINUX_GUI
+    return None
 SELF_TEST_FILES = ("dashboard.html", "boards.csv", "cities.csv", "regions.csv",
                    "humanizer")
 
@@ -416,7 +434,8 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
     api_mod.QUIT_APP = bridge.quit_app
     # Not private: the page keeps small conveniences (a remembered tab) in
     # local storage. The token is never stored; it lives in the page.
-    webview.start(private_mode=False, storage_path=str(home / "window"), debug=debug)
+    webview.start(gui=window_gui(), private_mode=False, storage_path=str(home / "window"),
+                  debug=debug)
 
     # shutdown() waits for the server loop to notice, so it runs on a thread
     # that a stuck request cannot hold the app open with.

@@ -63,6 +63,7 @@ def test_the_page_opens_with_the_downloads_and_folds_the_changes():
     base = "https://github.com/jessn-dev/jobDork/releases/download/v2.0.0/"
     for name in ("jobdork-2.0.0-macos-arm64.dmg", "jobdork-2.0.0-macos-x86_64.dmg",
                  "jobdork-2.0.0-windows-x64-setup.exe",
+                 "jobdork-2.0.0-linux-x86_64.AppImage", "jobdork_2.0.0_amd64.deb",
                  "SHA256SUMS.txt"):
         assert f"]({base}{name})" in text
     assert "`docker pull someone/jobdork:2.0.0`" in text and "someone/jobdork@sha256:abc" in text

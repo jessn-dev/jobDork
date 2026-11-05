@@ -53,7 +53,14 @@ app = ["pywebview>=6.2",
        # macOS Notification Center under the app's own name (core/notify.py).
        "pyobjc-framework-UserNotifications>=12; sys_platform == 'darwin'",
        # Keys you choose to keep, in the computer's own keychain (core/keystore.py).
-       "keyring>=25"]
+       "keyring>=25",
+       # Linux draws the window with Qt's web engine, which the AppImage and
+       # the .deb carry inside (web/app.py): WebKitGTK, pywebview's other
+       # Linux engine, is the system's own and cannot travel with the app.
+       # PyQt6 is GPL, as jobdork is.
+       "PyQt6>=6.12; sys_platform == 'linux'",
+       "PyQt6-WebEngine>=6.140; sys_platform == 'linux'",
+       "QtPy>=2.4.3; sys_platform == 'linux'"]
 # Building the installers (packaging/build.py): PyInstaller, and Pillow to
 # turn packaging/icon.png into each platform's icon format.
 package = ["pyinstaller>=6.22", "pillow>=11"]
