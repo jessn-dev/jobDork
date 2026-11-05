@@ -82,7 +82,7 @@ If you apply to the same job directly and through a recruiter (or through
 two recruiters), the employer may see you twice and drop you. jobdork warns
 you when a post looks like one you are already pursuing.
 
-## Yellow tags
+## Tags to know
 
 | Tag | Means |
 |---|---|

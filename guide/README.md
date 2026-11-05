@@ -53,7 +53,7 @@ fails it, on the pull request, before anything is published.
 | `job-posts.md` | The list, one post, filters, dropped posts |
 | `job-window.md` | A post's window: advert, statuses, every AI tool |
 | `scores.md` | Match, Fit and AI |
-| `statuses.md` | Statuses, age, listing, recruiter and yellow tags |
+| `statuses.md` | Statuses, age, listing, recruiter tags and tags to know |
 | `search.md`, `resume.md`, `sources.md`, `ai.md`, `settings.md` | One page each |
 | `feedback.md` | Writing, previewing and sending feedback |
 | `glossary.md` | Words a newcomer meets |
