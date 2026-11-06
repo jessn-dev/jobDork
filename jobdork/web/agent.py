@@ -41,7 +41,17 @@ DOCUMENTS = {
     "resume_review": ("review", "resume review"),
 }
 VERDICT = "verdict"
-KINDS = (*DOCUMENTS, VERDICT)
+# The AI tools tab's editing help (ai/tools.py): briefs the agent answers in
+# its own chat. Nothing comes back to jobdork to save.
+EDITING = {
+    "resume_edits": "suggested edits to my resume for",
+    "keywords": "keyword ideas for",
+    "highlight": "the skills to highlight for",
+    "feedback": "recruiter feedback on my resume for",
+    "revise": "five versions of this text for",
+}
+WITH_TEXT = ("revise", "feedback")     # take text of the user's: required, or a letter
+KINDS = (*DOCUMENTS, VERDICT, *EDITING)
 
 # What the agent is told when it connects (MCP `instructions`), and by
 # `jobdork agent --help`: the order of work, and the rules that matter.
@@ -61,6 +71,10 @@ returns; when one failed, fix that and save again. Tell the user where the files
 and which checks they should read.
 
 To score job posts: get_brief with kind "verdict" for a post, then save_verdict.
+For editing help on a post (resume_edits, keywords, highlight, feedback, revise): \
+get_brief with that kind (with `text`: the bullet or paragraph for revise, a cover \
+letter for feedback on it), then answer the user in plain words, following the \
+brief's rules. There is nothing to save.
 To track applications: list_applications and update_application (status, next step \
 and date, contact, a note). To add to the user's record: add_project, add_education, \
 confirm_skill: only what the user tells you is true. These are suggestions: they wait \
@@ -175,13 +189,16 @@ def _store(cfg):
     return Store(cfg.db_path)
 
 
-def _make(cfg, store, kind: str, uid: str):
+def _make(cfg, store, kind: str, uid: str, text: str = ""):
     """Run the writer for `kind`: up to the model's call, or past it with the
     queued answer."""
     from ..ai import judging, writer
 
     if kind == VERDICT:
         return judging.run(cfg, store, uid=uid, force=True)
+    if kind in EDITING:
+        from ..ai import tools
+        return tools.run(cfg, store, uid, kind, text)
     fn = getattr(writer, DOCUMENTS[kind][0])
     return fn(cfg, store, uid) if uid or kind != "resume_review" else fn(cfg, store)
 
@@ -284,11 +301,17 @@ def get_brief(cfg, args: dict) -> dict:
     """What jobdork would have sent a model for this document."""
     kind = _kind(args)
     uid = _uid(args, required=kind != "resume_review")
+    text = str(args.get("text") or "").strip() if kind in WITH_TEXT else ""
+    if kind == "revise" and not text:
+        raise ToolError("revise needs `text`: the bullet or paragraph to revise")
+    from .api import MAX_TOOL_TEXT
+    if len(text) > MAX_TOOL_TEXT:
+        raise ToolError(f"`text` is over {MAX_TOOL_TEXT:,} characters")
     agent_cfg = as_agent(cfg)
     llm.agent_answers([])
     with _store(cfg) as store:
         try:
-            _make(agent_cfg, store, kind, uid)
+            _make(agent_cfg, store, kind, uid, text)
         except llm.AgentBrief:
             pass
         except llm.LLMError as exc:
@@ -298,9 +321,16 @@ def get_brief(cfg, args: dict) -> dict:
         raise ToolError("nothing to write for this post: its advert may be too short "
                         "(the user can paste the full advert in its window)")
     then = "save_verdict" if kind == VERDICT else "save_document"
-    return {"kind": kind, "uid": uid, **brief, "untrusted": "The ADVERT in `user` is " + UNTRUSTED[0].lower() + UNTRUSTED[1:],
-            "then": f"Write one JSON object matching `schema`, following `system` and using "
-                    f"only `user`, and pass it to {then} as `answer`."}
+    out = {"kind": kind, "uid": uid, **brief,
+           "untrusted": "The ADVERT in `user` is " + UNTRUSTED[0].lower() + UNTRUSTED[1:],
+           "then": f"Write one JSON object matching `schema`, following `system` and using "
+                   f"only `user`, and pass it to {then} as `answer`."}
+    if kind in EDITING:
+        out["then"] = ("Follow `system`, using only `user`, and answer the user in plain words: "
+                       "the `schema` shows what to cover, not a format to reply in. Quote "
+                       "their resume where you suggest a change to it, and add no fact it "
+                       "does not have. There is nothing to save.")
+    return out
 
 
 def save_document(cfg, args: dict) -> dict:
@@ -308,6 +338,8 @@ def save_document(cfg, args: dict) -> dict:
     kind = _kind(args)
     if kind == VERDICT:
         raise ToolError("a verdict is saved with save_verdict")
+    if kind in EDITING:
+        raise ToolError(f"{kind} is editing help: answer the user with it; there is nothing to save")
     uid = _uid(args, required=kind != "resume_review")
     answer = _answer(args, kind.replace("_", " "))
     _within_limits(cfg, tuple(DOCUMENTS), DOCUMENTS_AN_HOUR, "documents")
@@ -503,8 +535,13 @@ TOOLS = [
          _object({"uid": _UID}, ("uid",)), get_ats_match),
     Tool("get_brief", "What to write: the instructions, the advert and resume, and the "
          "JSON shape of the answer, exactly as jobdork would give a model. For kind "
-         "resume_review the uid is optional.",
-         _object({"uid": _UID, "kind": _KIND}, ("kind",)), get_brief),
+         "resume_review the uid is optional. The editing kinds (resume_edits, keywords, "
+         "highlight, feedback, revise) are answered to the user, not saved; revise needs "
+         "`text`, and feedback takes a cover letter as `text`.",
+         _object({"uid": _UID, "kind": _KIND,
+                  "text": {"type": "string", "description": "For revise: the bullet or "
+                           "paragraph. For feedback: a cover letter (optional)."}},
+                 ("kind",)), get_brief),
     Tool("save_document", "Save what you wrote for a brief. jobdork runs its checks, makes "
          "the files (PDF and Word for a resume), records it, and returns the checks.",
          _object({"uid": _UID, "kind": {"type": "string", "enum": list(DOCUMENTS)},

@@ -104,8 +104,11 @@ pages and the AI tools tab go to the next reader without asking.
 
 With the agent as the only reader, jobdork asks no model at all: the
 buttons only say what to ask your agent, and scans do not score job posts
-by AI afterwards (ask your agent to). The AI tools tab's editing tools need
-a model; ask your agent for those directly.
+by AI afterwards (ask your agent to). The AI tools tab's editing help
+(**Tailor my resume**, **Keyword ideas (AI)**, **Skills to highlight**,
+**Recruiter feedback**, **Revise: 5 versions**) says what to ask your agent
+too, with **Copy**: it reads the same instructions a model would get, and
+answers you in its own chat, so nothing is saved under the tab.
 
 **The hallucination check is still a second model's.** Your agent never
 checks its own writing. With a [checker](#checkers) chosen, it checks

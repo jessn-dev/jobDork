@@ -162,6 +162,11 @@ paste text of your own:
 
 Results stay under the tab, each with the model that wrote it and when; a revision has **Copy** beside each version.
 
+With a [coding agent](ai.md#coding-agent) as your only reader, each button
+says what to ask your agent instead, with **Copy** (with your pasted text
+for a revision or a letter). Your agent answers in its own chat, from the
+same instructions a model gets; nothing is saved under the tab.
+
 ### Drafts through Claude Code
 
 **Draft: Screen, CV, Cover letter** use the `claude` command-line tool, a

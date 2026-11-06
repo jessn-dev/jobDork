@@ -3115,6 +3115,8 @@ def tool_job(cfg, uid: str, kind: str, text: str = ""):
         raise ApiError("paste a bullet or a paragraph to revise")
     if len(text or "") > MAX_TOOL_TEXT:
         raise ApiError(f"over {MAX_TOOL_TEXT:,} characters; paste less")
+    from .agent import EDITING
+    refuse_in_agent_mode(cfg, f"Use jobdork to give me {EDITING[kind]} job post {uid}.")
 
     def work(progress):
         from ..ai import llm
