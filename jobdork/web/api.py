@@ -39,6 +39,7 @@ import time
 from pathlib import Path
 
 from ..core import feedback as feedback_mod
+from ..core import reminders
 from ..core.textutil import platform_name
 
 log = logging.getLogger("jobdork.web.api")
@@ -592,7 +593,7 @@ def role_ats(cfg, uid: str) -> dict:
 
 # The page's stages, each a few statuses: what the chips at its top count.
 APP_STAGES = {"applied": ("applied", "submitted"), "interviewing": ("interviewing",),
-              "offer": ("offer",), "closed": ("rejected", "withdrawn", "skipped", "closed")}
+              "offer": ("offer",), "closed": reminders.ENDED}
 APP_TEXT = {"next_step": 120, "contact_name": 120, "contact_email": 200, "contact_link": 500}
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 

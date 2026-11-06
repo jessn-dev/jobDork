@@ -74,3 +74,12 @@ When a next step's date has passed on an application still going, the menu
 shows how many beside **My applications**, in red, and the
 [Dashboard](dashboard.md) says which, with **Open My applications**. Set a
 new date, or a new status, and it goes.
+
+Your computer reminds you too, with a notification on the day a next step
+is due: *Follow-up due today: Phone screen, Acme*. Several due at once come
+as one. jobdork can only remind you while it runs: when you open it, while
+it stays open, and after a [scheduled scan](settings.md#schedule-a-run),
+so with a daily scan on, the reminder comes that day even with the window
+closed. Each next step is told once for its date; give it a new date and you
+are reminded again on that day. **Settings → Notifications** turns the
+reminders off.

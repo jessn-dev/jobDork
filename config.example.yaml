@@ -237,7 +237,9 @@ db: data/jobdork.db
 update_check: true
 
 # Your computer's notifications, with a bell, when a scan finds new job posts
-# or fails, and when a newer jobdork is out. The Settings page switches them.
+# or fails, when a newer jobdork is out, and on the day a follow-up on My
+# applications is due (reminders). The Settings page switches them.
 notifications:
   enabled: true
   sound: true
+  reminders: true

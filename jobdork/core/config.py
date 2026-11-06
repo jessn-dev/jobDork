@@ -435,9 +435,11 @@ class Fetch:
 
 @dataclass
 class Notifications:
-    """The system's notifications (core/notify.py): shown, and with a sound."""
+    """The system's notifications (core/notify.py): shown, with a sound, and
+    whether follow-ups due are among them (core/reminders.py)."""
     enabled: bool = True
     sound: bool = True
+    reminders: bool = True
 
 
 # At most this many AI readers; setup offers the first SETUP_MAX_READERS of
@@ -915,10 +917,12 @@ def _build(raw: dict[str, Any]) -> Config:
     if isinstance(note, bool):
         note = {"enabled": note}
     if not isinstance(note, dict) or not all(isinstance(note.get(k, True), bool)
-                                             for k in ("enabled", "sound")):
-        raise ConfigError("notifications must be {enabled: true|false, sound: true|false}")
+                                             for k in ("enabled", "sound", "reminders")):
+        raise ConfigError("notifications must be {enabled: true|false, sound: true|false, "
+                          "reminders: true|false}")
     cfg.notifications = Notifications(enabled=note.get("enabled", True),
-                                      sound=note.get("sound", True))
+                                      sound=note.get("sound", True),
+                                      reminders=note.get("reminders", True))
     cfg.credentials = _str_list(raw.get("credentials"), "credentials")
     setup = raw.get("setup") or {}
     if not isinstance(setup, dict):

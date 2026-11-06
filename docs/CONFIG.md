@@ -633,6 +633,7 @@ Gitignored. Your history stays yours.
 |---|---|---|
 | `notifications.enabled` | bool | `true` |
 | `notifications.sound` | bool | `true` |
+| `notifications.reminders` | bool | `true` |
 
 Your computer's own notifications when a scan finds new job posts (one you
 start or a scheduled one), when a scan fails, and when a newer jobdork is
@@ -642,6 +643,10 @@ that found nothing new. In Docker, which has no desktop, the page shows a
 notice and rings its own bell while it is open. **Settings →
 Notifications** writes these; `notifications: false` is short for off, and
 `JOBDORK_NOTIFY=off` turns them off whatever this says.
+
+`reminders` is the follow-up reminders: a notification on the day a next
+step on My applications is due (core/reminders.py), looked for while
+jobdork is open and after each scheduled scan, each told once for its date.
 
 ---
 

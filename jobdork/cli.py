@@ -204,6 +204,10 @@ def cmd_scan(args) -> int:
         if args.scheduled:
             from .core import notify
             notify.scan_finished(cfg, report.newly_seen, report.kept, origin="schedule")
+            # The one time jobdork runs while its window is closed: a
+            # follow-up due today is told now, not when the window opens.
+            from .core import reminders
+            reminders.remind(cfg, store)
         print()
         for line in report.lines():
             print(line)

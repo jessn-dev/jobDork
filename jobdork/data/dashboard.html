@@ -1300,13 +1300,15 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
 
     <h3 class="psec">Notifications</h3>
     <p class="hint" style="margin-top:0">Your computer's own notifications, with a bell, when
-      a scan finds new job posts (yours or the schedule's), when one fails, and when a newer
-      jobdork is out. Nothing else, and never for a scan that found nothing new.</p>
+      a scan finds new job posts (yours or the schedule's), when one fails, when a newer
+      jobdork is out, and on the day a follow-up on My applications is due. Nothing else,
+      and never for a scan that found nothing new.</p>
     <div class="cleanup">
       <div class="row">
         <span id="note-state" class="said-line"></span>
         <button class="act" id="note-toggle" type="button"></button>
         <button class="act" id="note-sound" type="button"></button>
+        <button class="act" id="note-remind" type="button"></button>
         <button data-icon="send" class="act" id="note-test" type="button">Send a test notification</button>
       </div>
       <p class="hint" id="note-said" style="margin:.3rem 0 0"></p>
@@ -7220,6 +7222,9 @@ function drawNotify() {
   $('note-toggle').dataset.icon = n.enabled ? 'power' : 'check';
   $('note-sound').textContent = n.sound ? 'Turn off the sound' : 'Turn on the sound';
   $('note-sound').hidden = !n.enabled;
+  $('note-remind').textContent = n.reminders === false
+    ? 'Turn on follow-up reminders' : 'Turn off follow-up reminders';
+  $('note-remind').hidden = !n.enabled;
   $('note-test').hidden = !n.enabled;
   $('note-said').textContent = n.native
     ? 'macOS asks once whether jobdork may notify you; Windows and macOS let you change it later in their own notification settings too.'
@@ -7234,6 +7239,11 @@ $('note-sound').onclick = async () => {
   const on = !(cfg.notifications || {}).sound;
   if (await saveSetting({notifications: {sound: on}},
       on ? 'Notifications ring a bell.' : 'Notifications are silent.')) drawNotify();
+};
+$('note-remind').onclick = async () => {
+  const on = (cfg.notifications || {}).reminders === false;
+  if (await saveSetting({notifications: {reminders: on}},
+      on ? 'Follow-ups due are notified.' : 'Follow-ups due are no longer notified.')) drawNotify();
 };
 $('note-test').onclick = async () => {
   const r = await api('/api/notify/test', {method: 'POST'});
