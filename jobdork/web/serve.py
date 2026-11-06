@@ -313,6 +313,7 @@ def _config_payload(cfg) -> dict:
         "remember_keys": cfg.remember_keys,
         "notifications": {"enabled": cfg.notifications.enabled,
                           "sound": cfg.notifications.sound,
+                          "reminders": cfg.notifications.reminders,
                           # Whether this system can show one (not Docker).
                           "native": notify_mod.native()},
         # The environment wins over the setting; the page says so.
@@ -517,6 +518,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     "notifications": {
                         "enabled": cfg_holder["cfg"].notifications.enabled,
                         "sound": cfg_holder["cfg"].notifications.sound,
+                        "reminders": cfg_holder["cfg"].notifications.reminders,
                         "native": notify_mod.native()},
                     "setup": _setup_state(cfg_holder["cfg"]),
                     "keys": api_mod.keys_state(cfg_holder["cfg"]),
@@ -1480,6 +1482,8 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
     stop = threading.Event()
     threading.Thread(target=_forget_keys_when_unwatched,
                      args=(runner, stop), daemon=True).start()
+    threading.Thread(target=_remind_while_open,
+                     args=(cfg_holder, stop), daemon=True).start()
     # A plain `kill` must burn keys too, not only Ctrl-C.
     with contextlib.suppress(ValueError):      # only the main thread may
         signal.signal(signal.SIGTERM, _interrupt)
@@ -1508,6 +1512,27 @@ def _interrupt(_signum, _frame) -> None:
 # Long enough to survive a page reload, short enough that a closed tab does
 # not leave a paid key sitting in a server nobody is looking at.
 UNWATCHED_SECONDS = 60
+# Follow-ups due are looked for this long after the start, then this often:
+# a date comes due at midnight while the window may stay open for days.
+REMIND_FIRST_SECONDS = 15
+REMIND_EVERY_SECONDS = 600
+
+
+def _remind_while_open(cfg_holder: dict, stop: threading.Event) -> None:
+    """Follow-up reminders (core/reminders.py) while jobdork runs. Each next
+    step is told once for its date, so looking often repeats nothing."""
+    from ..core import reminders
+    wait = REMIND_FIRST_SECONDS
+    while not stop.wait(wait):
+        wait = REMIND_EVERY_SECONDS
+        cfg = cfg_holder["cfg"]
+        if not reminders.wanted(cfg) or not Path(cfg.db_path).exists():
+            continue
+        try:
+            with Store(cfg.db_path) as store:
+                reminders.remind(cfg, store)
+        except Exception as exc:             # a locked or moved database: next time
+            log.warning("follow-up reminders not checked: %s", exc)
 
 
 def _forget_keys_when_unwatched(runner: Runner, stop: threading.Event) -> None:

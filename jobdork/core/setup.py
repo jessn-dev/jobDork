@@ -270,7 +270,7 @@ def rewrite(original: str, payload: dict) -> str:
         if not isinstance(section, dict):
             section = {"enabled": section is not False}
             data["notifications"] = section
-        for key in ("enabled", "sound"):
+        for key in ("enabled", "sound", "reminders"):
             if key in given:
                 section[key] = str(given[key]).lower() in ("1", "true", "yes", "on")
 

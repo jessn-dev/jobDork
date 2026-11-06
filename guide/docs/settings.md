@@ -31,10 +31,12 @@ shows.
 ## Notifications
 
 Your computer's own notifications, with a bell, when a scan finds new job
-posts (yours or the schedule's), when a scan fails, and when a newer
-jobdork is out. Never for a scan that found nothing new.
+posts (yours or the schedule's), when a scan fails, when a newer jobdork is
+out, and when a [follow-up](applications.md#follow-ups-past-their-date) is
+due. Never for a scan that found nothing new.
 
-Turn them off, or their sound off, with the buttons here. **Send a test
+Turn them off, their sound off, or only the follow-up reminders off
+(**Turn off follow-up reminders**), with the buttons here. **Send a test
 notification** checks they reach you. (On a Mac the first one asks your
 permission; in Docker, the page rings a bell while it is open instead.)
 
