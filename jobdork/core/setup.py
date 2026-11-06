@@ -292,6 +292,15 @@ def rewrite(original: str, payload: dict) -> str:
     if "resume_path" in payload:
         data.setdefault("resume", {})["path"] = payload["resume_path"]
 
+    if "resume_kind" in payload:
+        kind = str(payload["resume_kind"] or "").strip().lower()
+        if kind not in ("", "master", "regular"):
+            raise ValueError("resume_kind is master, regular, or empty for jobdork's guess")
+        if kind:
+            data.setdefault("resume", {})["kind"] = kind
+        else:
+            (data.get("resume") or {}).pop("kind", None)
+
     if "llm" in payload:
         given = payload["llm"] or {}
         section = data.setdefault("llm", {})

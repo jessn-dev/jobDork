@@ -896,6 +896,8 @@ def _setup_resume(cfg):
     print(f"\n── {setup.title('resume')} ──")
     print("jobdork scores every job post against your resume, and the AI reads "
           "it to suggest\nwhat to search for. It stays on this computer.")
+    print("Keep a master resume (every job, project and award, never sent as it is)? "
+          "Give that;\notherwise the resume you send.")
     while True:
         parsed = None
         if cfg.resume_path:
@@ -914,6 +916,12 @@ def _setup_resume(cfg):
             if parsed.skills:
                 print("Skills: " + ", ".join(
                     resume_mod.skill_name(s) for s in sorted(parsed.skills)))
+            from .search import master as master_mod
+            kind = master_mod.kind_of(cfg.resume_kind, parsed.text, None,
+                                      Path(cfg.resume_path).name)
+            print("Taken for " + ("your master resume" if kind == master_mod.MASTER
+                                  else "a resume you send")
+                  + " (resume.kind in config.yaml: master or regular).")
             print("Start of the text read:\n")
             print("  " + parsed.text[:600].strip().replace("\n", "\n  ") + " …\n")
             if _yes("Use this resume?"):
@@ -937,7 +945,8 @@ def _setup_resume(cfg):
         except api.ApiError as exc:
             print(f"Not used: {exc}")
             continue
-        cfg = setup.write(cfg.path, {"resume_path": saved["path"]})
+        cfg = setup.write(cfg.path, {"resume_path": saved["path"],
+                                     "resume_kind": saved["resume_kind"]["guess"]})
 
 
 def _setup_ai(cfg):

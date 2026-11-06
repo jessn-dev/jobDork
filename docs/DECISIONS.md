@@ -10,6 +10,30 @@ Newest first.
 
 ---
 
+## A master resume, told apart from the one you send — 2026-11-05
+
+**Decided.** Setup and the Resume page advise uploading a master resume (a
+private archive of every job, project, award and bullet point, never sent as
+it is) when you keep one, and the resume you send otherwise. jobdork guesses
+which it got, by script (`search/master.py`): "master" in the file's name
+settles it; otherwise it takes a long text (1,700 words or more, two
+points), with three pages or more, ten or more dated entries, or two or more
+sections an archive keeps (volunteer work, awards, presentations, freelance
+or part-time work, hard and soft skills) adding a point each; three points
+make a master. You can always say which it is (`resume.kind`). A master is
+not marked down for its length, and a tailored resume is told it is choosing
+from an archive.
+
+**Why.** The user asked for it. A master gives the AI more true facts to
+work from, so fewer unsupported claims. Length alone could not decide it:
+of eight real resumes, sent ones ran from 290 to 1,566 words over two to
+five pages (a CV, a pharmacist's, a designed one), and the master 1,849. A
+model was not asked, so the guess costs nothing and works with no AI.
+
+**Revisit when** a sent resume is taken for a master (or the other way)
+often enough that people change it by hand, or the AI's 20,000-character
+limit cuts off masters people upload.
+
 ## Linux: an AppImage and a .deb, carrying Qt's window — 2026-11-04
 
 **Decided.** The desktop app ships for 64-bit Linux in two forms from one

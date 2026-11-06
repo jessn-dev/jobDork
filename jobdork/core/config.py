@@ -510,6 +510,8 @@ class Config:
     freshness: Freshness = field(default_factory=Freshness)
     dealbreakers: list[Dealbreaker] = field(default_factory=list)
     resume_path: str = ""
+    # "master" or "regular" as you said (search/master.py), or "" for jobdork's guess.
+    resume_kind: str = ""
     # Certifications and licenses you hold, as you write them ("RN",
     # "IAT I"): an advert's are checked against these as well as the resume.
     credentials: list[str] = field(default_factory=list)
@@ -819,6 +821,10 @@ def _build(raw: dict[str, Any]) -> Config:
 
     resume = raw.get("resume") or {}
     cfg.resume_path = str(resume.get("path") or "").strip()
+    cfg.resume_kind = str(resume.get("kind") or "").strip().lower()
+    if cfg.resume_kind not in ("", "master", "regular"):
+        raise ConfigError(f"resume.kind is {cfg.resume_kind!r}: master, regular, "
+                          "or leave it out for jobdork to guess")
 
     src = raw.get("sources") or {}
     companies = []

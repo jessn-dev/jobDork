@@ -936,7 +936,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
 
             # Point the config at it so a scan and a draft both find it.
             try:
-                self._write_config({"resume_path": saved["path"]})
+                self._write_config({"resume_path": saved["path"],
+                                    "resume_kind": saved["resume_kind"]["guess"]})
             except Exception as exc:
                 return self._reject(400, f"saved the file but not the path: {exc}")
             self._json(200, saved)

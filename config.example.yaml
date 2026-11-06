@@ -72,6 +72,10 @@ resume:
   # Used for offline fit scoring, and by the generation features if you add
   # the claude CLI later. .docx, .pdf, .md and .txt all work.
   path: ""
+  # master: your private archive of every job, project and award, never sent
+  # as it is; tailored resumes are cut from it. regular: a resume you send.
+  # Leave it out and jobdork guesses from the file (search/master.py).
+  # kind: master
 
 salary:
   # A role whose STATED pay is below this is hidden.

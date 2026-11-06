@@ -196,7 +196,10 @@ Docs before you send it.
 
 ### The tailored resume
 
-Laid out like Indeed's free resume template, one column:
+From a [master resume](resume.md#master-resume) it chooses what this job
+post needs, from anywhere in it, and leaves the rest out; from the resume
+you send, it rewrites that one. Laid out like Indeed's free resume
+template, one column:
 
 - your name, then *Phone | Email | City, State*, then your website or
   LinkedIn, centred;

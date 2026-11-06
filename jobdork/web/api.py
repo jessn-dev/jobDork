@@ -469,13 +469,32 @@ def resume_check(cfg) -> dict:
     from ..search import resume as resume_mod
     from ..writing import style
 
-    out = readable.check_file(cfg.resume_path).to_dict()
-    # How its lines are written (writing/style.py), from the text the tools read.
     try:
-        out["writing"] = style.check_text(resume_mod.load(cfg.resume_path).text).to_dict()
+        text = resume_mod.load(cfg.resume_path).text
     except resume_mod.ResumeError as exc:
-        out["writing"] = {"score": None, "lines": 0, "findings": [], "note": str(exc)}
+        text, problem = "", str(exc)
+    else:
+        problem = ""
+    pages = readable.check_file(cfg.resume_path).pages
+    kind = resume_kind(cfg.resume_kind, text, pages)
+    out = readable.check_file(cfg.resume_path, master=kind["kind"] == "master").to_dict()
+    out["resume_kind"] = kind
+    # How its lines are written (writing/style.py), from the text the tools read.
+    out["writing"] = (style.check_text(text).to_dict() if not problem else
+                      {"score": None, "lines": 0, "findings": [], "note": problem})
     return out
+
+
+def resume_kind(chosen: str, text: str, pages: int | None, filename: str = "") -> dict:
+    """Master resume or the one you send (search/master.py): what jobdork
+    treats it as, your choice if you made one, its guess and why, and how
+    much of it the AI reads."""
+    from ..ai.llm import MAX_RESUME
+    from ..search import master
+
+    g = master.guess(text, pages, filename)
+    return {"kind": chosen if chosen in master.KINDS else g.kind, "chosen": chosen,
+            "guess": g.kind, "why": g.why, "chars": len(text), "ai_reads": MAX_RESUME}
 
 
 def resume_view(cfg) -> dict:
@@ -504,9 +523,12 @@ def resume_view(cfg) -> dict:
             markdown = resume_mod.docx_markdown(cfg.resume_path)
         except resume_mod.ResumeError:
             markdown = ""
+    from ..search import readable
     return {"name": Path(cfg.resume_path).name, "text": parsed.text,
             "type": suffix.lstrip("."), "markdown": markdown,
             "chars": len(parsed.text),
+            "resume_kind": resume_kind(cfg.resume_kind, parsed.text,
+                                       readable.check_file(cfg.resume_path).pages),
             "note": setup.resume_note(len(parsed.text)),
             "skills": [resume_mod.skill_name(s) for s in sorted(parsed.skills)],
             "years": resume_mod.years_claimed(parsed.text)}
@@ -1138,10 +1160,15 @@ def save_resume(cfg, filename: str, payload: bytes) -> dict:
         if old != target:
             old.unlink(missing_ok=True)
 
+    # Master or the one you send: guessed now, while the name it was uploaded
+    # under is known ("Master Resume.pdf"); the server keeps the guess as the
+    # choice, which the Resume page can change.
+    kind = resume_kind("", parsed.text, readable.check_file(str(target)).pages, filename)
     return {
         "path": str(target),
         "file": str(target.resolve()),             # shown: the full path on disk
-        "readable": {**readable.check_file(str(target)).to_dict(),
+        "resume_kind": kind,
+        "readable": {**readable.check_file(str(target), master=kind["kind"] == "master").to_dict(),
                      "writing": style.check_text(parsed.text).to_dict()},
         "chars": len(parsed.text),
         "skills": sorted(parsed.skills),

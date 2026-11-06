@@ -235,6 +235,9 @@ resume (roles that overlap counted once, study left out). The AI is given
 that figure for verdicts, letters and tailored resumes rather than adding up
 dates itself, and the check accepts it.
 
+The more true facts the AI has, the fewer of its claims are unsupported:
+upload your [master resume](resume.md#master-resume) if you keep one.
+
 What a text says about itself, such as a letter's "I am applying for…" or
 a resume summary's "seeking a Software Engineer role", is not counted as a
 fact: no source could support it.

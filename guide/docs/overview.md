@@ -14,7 +14,8 @@ applies for a job for you.
 ## How it works, in six steps
 
 1. **Install it and answer setup's questions** (about five minutes):
-   your resume, an AI (optional), the job titles you want, where you are,
+   your resume ([your master resume](resume.md#master-resume), if you
+   keep one), an AI (optional), the job titles you want, where you are,
    and your pay. [Getting started](getting-started.md)
 2. **Run a scan.** jobdork reads the boards and keeps the posts that pass
    your rules. The first one finishes in about a minute.

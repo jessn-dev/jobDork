@@ -158,6 +158,7 @@ class Report:
     checks: list[Check]
     kind: str = ""
     error: str = ""                # why the file could not be checked at all
+    pages: int | None = None       # a PDF's or Word file's pages, when known
 
     @property
     def failed(self) -> list[Check]:
@@ -169,6 +170,7 @@ class Report:
 
     def to_dict(self) -> dict:
         return {"score": self.score, "kind": self.kind, "error": self.error,
+                "pages": self.pages,
                 "checks": [{**asdict(c), "title": c.title} for c in self.checks]}
 
 
@@ -561,16 +563,28 @@ def score(checks: list[Check]) -> int:
     return max(0, min(100, round(total)))
 
 
-def check(doc: Document) -> Report:
+def check(doc: Document, master: bool = False) -> Report:
+    """`master`: the resume is your archive (search/master.py), never sent
+    as it is, so its length is what it should be, not a warning."""
     checks = [c for fn in CHECKS if (c := fn(doc)) is not None]
-    return Report(score(checks), checks, kind=doc.kind)
+    if master:
+        checks = [_master_pages(c) if c.id == "pages" else c for c in checks]
+    return Report(score(checks), checks, kind=doc.kind, pages=doc.page_count)
+
+
+def _master_pages(c: Check) -> Check:
+    if c.status == "pass" or "page" not in c.detail:
+        return c
+    return Check(c.id, c.category, c.severity, "pass", f"{c.detail}, a master resume",
+                 "A master resume is your archive and is never sent as it is: jobdork's "
+                 "tailored resumes are cut from it to the length Indeed advises.")
 
 
 def check_pdf(data: bytes) -> Report:
     return check(read_pdf(data))
 
 
-def check_file(path: str) -> Report:
+def check_file(path: str, master: bool = False) -> Report:
     """A resume file on disk, checked; a report with `error` when it cannot be."""
     p = Path(path).expanduser()
     suffix = p.suffix.lower()
@@ -589,4 +603,4 @@ def check_file(path: str) -> Report:
     except Exception as exc:              # a damaged file: pypdf and zipfile raise many kinds
         return Report(0, [], kind=suffix.lstrip("."),
                       error=f"could not read it: {type(exc).__name__}")
-    return check(doc)
+    return check(doc, master)

@@ -15,6 +15,10 @@ or `./run.sh <command>`.
 jobdork setup        # the same questions as the dashboard's setup, then a first scan
 ```
 
+It asks for your master resume if you keep one, otherwise the resume you
+send, and says which it took it for; `resume.kind` in `config.yaml`
+(`master` or `regular`) changes that ([../CONFIG.md](../CONFIG.md)).
+
 Or copy `config.example.yaml` to `config.yaml` and edit it
 ([../CONFIG.md](../CONFIG.md); the [minimal config](../CONFIG.md#minimal-working-config)
 is three lines).

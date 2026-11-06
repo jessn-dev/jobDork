@@ -33,8 +33,9 @@ them from a terminal; its flags are in [../DORK.md](../DORK.md).
 Once it is open, the app is the same whichever way you run it: the
 [user guide](https://jessn-dev.github.io/jobDork/overview/) shows every page.
 
-- **The first start opens setup**, one question per screen: your resume, an
-  AI model (or skip it), the job titles, where you are, pay, and what will
+- **The first start opens setup**, one question per screen: your resume
+  (your [master resume](https://jessn-dev.github.io/jobDork/resume/#master-resume),
+  if you keep one), an AI model (or skip it), the job titles, where you are, pay, and what will
   be searched. It ends with a first scan. Answers are saved as you go, so
   stopping and starting again comes back to the same step.
 - **Every setting** is in one `config.yaml`, written by setup and the

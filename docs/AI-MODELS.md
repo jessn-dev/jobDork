@@ -78,6 +78,21 @@ and the page strikes those out for you.
    little. `qwen3.8:27b` was chosen because it was the most accurate checker
    we measured: right about 99% of the time on 574 claims checked by hand.
 
+**The checker matters too.** A user saw over 25% with `gpt-oss:20b` set as
+both reader and checker. Measured again (2026-11-05) on one master resume
+and eight job posts, each pair:
+
+| Reader | Checker | Unsupported claims |
+|---|---|---|
+| **`gemma4:26b`** | **`qwen3.8:27b`** | **4.0%** |
+| `gpt-oss:20b` | `qwen3.8:27b` | 11.5% |
+| `gemma4:26b` | `gpt-oss:20b` | 13.0% |
+| `gpt-oss:20b` | `gpt-oss:20b` | 18.0% |
+
+As a checker, `gpt-oss:20b` rejected claims that were true, such as the
+years of experience jobdork works out from the resume's dates; as a reader
+it tied skills to the wrong employer more often. Keep it out of both roles.
+
 ## What to run on what
 
 | Your computer | Reader | Checker | Expect |

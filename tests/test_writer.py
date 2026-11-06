@@ -564,3 +564,26 @@ if __name__ == "__main__":
             print(f"FAIL {name}: {type(exc).__name__}: {exc}")
     print(f"{len(tests) - failures}/{len(tests)} passed")
     raise SystemExit(1 if failures else 0)
+
+
+def test_a_master_resume_is_given_as_an_archive_to_choose_from():
+    # search/master.py: with a master resume the model is told it chooses
+    # from an archive; with a resume you send, nothing is added.
+    tailored = {
+        "stage": "experienced", "industry": "tech", "stage_reason": "Years of it.",
+        "summary": "Platform engineer.", "skills": ["Kubernetes"],
+        "experience": [{"title": "Platform engineer", "company": "Acme", "location": "",
+                        "start": "", "end": "", "bullets": [
+                            "Ran the Kubernetes platform for 40 services."]}],
+        "education": [], "certifications": [], "projects": []}
+    for kind, told in (("master", True), ("regular", False)):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg, uid = _setup(tmp)
+            cfg.resume_kind = kind
+            saved = _patched_settings()
+            try:
+                with _Script(tailored, *GUARD_OK) as script, Store(cfg.db_path) as store:
+                    writer.tailor(cfg, store, uid, root=tmp)
+            finally:
+                writer._settings = saved
+            assert (writer.MASTER_NOTE in script.prompts[0]) is told, kind
