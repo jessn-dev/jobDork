@@ -535,6 +535,12 @@ class Config:
     # plain file): read for this run, until you say where its keys go.
     legacy_keys_file: str = ""
     notifications: Notifications = field(default_factory=Notifications)
+    # The scan schedule as it was when it was turned off ({every, at, day}),
+    # so Settings can turn it back on; the system's scheduler holds the one
+    # that is on (core/schedule.py).
+    schedule_saved: dict = field(default_factory=dict)
+    # Closing the desktop app with a scan scheduled asks whether to keep it.
+    ask_on_close: bool = True
     path: str = ""          # where this config was read from, or will be written
     # The first-run step still to do; empty once set up. See core.setup.
     setup_step: str = ""
@@ -909,6 +915,17 @@ def _build(raw: dict[str, Any]) -> Config:
     if not isinstance(remember, bool):
         raise ConfigError("remember_keys must be true or false")
     cfg.remember_keys = remember
+    ask = raw.get("ask_on_close", True)
+    if not isinstance(ask, bool):
+        raise ConfigError("ask_on_close must be true or false")
+    cfg.ask_on_close = ask
+    saved = raw.get("schedule_saved") or {}
+    if isinstance(saved, dict) and str(saved.get("every") or "") in (
+            "daily", "weekdays", "weekly"):
+        cfg.schedule_saved = {k: str(saved.get(k) or "") for k in ("every", "at", "day")}
+    elif saved:
+        # Only ever written by jobdork; one it cannot read is dropped, not fatal.
+        cfg.warnings.append("schedule_saved is not a schedule jobdork wrote; ignored")
     asked = raw.get("key_sources") or []
     if not isinstance(asked, list) or not set(map(str, asked)) <= {"adzuna", "usajobs"}:
         raise ConfigError("key_sources lists adzuna and usajobs only")

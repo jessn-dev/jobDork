@@ -311,6 +311,65 @@ def test_closing_mid_scan_asks_first_and_otherwise_does_not():
     assert window.confirm_close is False
 
 
+class _Window:
+    """A stand-in window: run_js does what `page` says the page would."""
+
+    def __init__(self, page=None):
+        self.confirm_close, self.localization = False, {}
+        self.scripts, self.destroyed, self.page = [], 0, page
+
+    def run_js(self, script):
+        self.scripts.append(script)
+        if self.page:
+            self.page()
+
+    def destroy(self):
+        self.destroyed += 1
+
+
+def _closing_with_a_schedule(page_answers: bool):
+    bridge = app.Bridge()
+    window = _Window(page=bridge.close_asked if page_answers else None)
+    bridge._window = window
+    # lambdas: nothing running; a schedule on, in the words the page shows.
+    closing = app.ask_before_closing(lambda: "", lambda: "every day at 08:00", bridge)
+    return bridge, window, closing
+
+
+def test_closing_with_a_schedule_has_the_page_ask():
+    bridge, window, closing = _closing_with_a_schedule(page_answers=True)
+    assert closing(window) is False, "held back for the page's question"
+    assert bridge.asked.wait(2)
+    assert window.scripts == ['window.askClose && window.askClose("every day at 08:00")']
+    assert not window.destroyed and not bridge.leaving
+    # The page's answer closes it through the bridge: that close goes ahead.
+    assert bridge.quit_app() and window.destroyed == 1
+    assert closing(window) is None
+
+
+def test_closing_closes_when_the_page_cannot_ask():
+    saved = app.ASK_PAGE_SECONDS
+    app.ASK_PAGE_SECONDS = 0.1
+    try:
+        bridge, window, closing = _closing_with_a_schedule(page_answers=False)
+        assert closing(window) is False
+        for _ in range(50):
+            if window.destroyed:
+                break
+            bridge.asked.wait(0.05)
+        assert window.destroyed == 1 and bridge.leaving, "a stuck page never keeps it open"
+    finally:
+        app.ASK_PAGE_SECONDS = saved
+
+
+def test_closing_with_no_schedule_asks_nothing():
+    bridge = app.Bridge()
+    window = _Window()
+    # lambdas: nothing running, nothing scheduled.
+    closing = app.ask_before_closing(lambda: "", lambda: "", bridge)
+    assert closing(window) is None and not window.scripts
+
+
 def test_the_users_own_tools_are_found_from_an_app():
     with tempfile.TemporaryDirectory() as tmp, _env(PATH="/usr/bin:/bin"), \
             _platform("darwin"):

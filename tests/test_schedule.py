@@ -457,6 +457,52 @@ def test_the_tests_never_ask_github():
     assert updates.off()
 
 
+
+def test_closing_asks_only_about_a_schedule_this_copy_runs():
+    from jobdork.web import api
+
+    with tempfile.TemporaryDirectory() as tmp:
+        config_path = str(Path(tmp) / "config.yaml")
+        agent = schedule.LaunchAgent(folder=Path(tmp) / "LaunchAgents", run=_Calls(), uid=501)
+        saved = schedule.scheduler, schedule.unsupported
+        # lambda: the stand-in instead of the real launchd.
+        schedule.scheduler = lambda: agent
+        # lambda: as on a Mac, whatever machine the tests run on.
+        schedule.unsupported = lambda: ""
+        cfg = types.SimpleNamespace(path=config_path, ask_on_close=True)
+        try:
+            assert api.close_question(cfg) == "", "nothing scheduled"
+            schedule.install(config_path, schedule.Plan("daily", "08:00"), sched=agent)
+            assert api.close_question(cfg) == "every day at 08:00"
+            cfg.ask_on_close = False
+            assert api.close_question(cfg) == "", "turned off"
+            cfg.ask_on_close = True
+            other = types.SimpleNamespace(path=str(Path(tmp) / "elsewhere.yaml"),
+                                          ask_on_close=True)
+            assert api.close_question(other) == "", "another copy's schedule"
+        finally:
+            schedule.scheduler, schedule.unsupported = saved
+
+
+def test_a_kept_schedule_is_read_back_and_a_bad_one_dropped():
+    from jobdork.core import config, setup
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "config.yaml"
+        path.write_text("titles:\n  include: [nurse]\n")
+        cfg = config.load(str(path))
+        assert cfg.schedule_saved == {} and cfg.ask_on_close is True
+        setup.write(str(path), {"schedule_saved": {"every": "weekly", "at": "07:00",
+                                                   "day": "tue"},
+                                "ask_on_close": False})
+        cfg = config.load(str(path))
+        assert cfg.schedule_saved == {"every": "weekly", "at": "07:00", "day": "tue"}
+        assert cfg.ask_on_close is False
+        path.write_text("titles:\n  include: [nurse]\nschedule_saved: hourly\n")
+        cfg = config.load(str(path))
+        assert cfg.schedule_saved == {} and any("schedule_saved" in w for w in cfg.warnings)
+
+
 if __name__ == "__main__":
     import traceback
     failed = 0

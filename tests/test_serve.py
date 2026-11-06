@@ -1377,7 +1377,40 @@ def test_the_schedule_is_saved_and_read_back_through_the_page():
             code, body = run.post("/api/schedule", {"every": "hourly", "at": "07:00"})
             assert code == 400 and b"every must be" in body
             code, body = run.post("/api/schedule", {"every": "off"})
-            assert code == 200 and not json.loads(body)["on"] and not agent.path.exists()
+            state = json.loads(body)
+            assert code == 200 and not state["on"] and not agent.path.exists()
+            # Off keeps it in the settings, to run or turn back on.
+            assert state["saved"]["describe"] == "every Tuesday at 07:00"
+            code, body = run.get("/api/schedule")
+            assert json.loads(body)["saved"]["every"] == "weekly"
+            code, body = run.post("/api/schedule", {"every": "saved"})
+            state = json.loads(body)
+            assert code == 200 and state["on"] and state["describe"] == "every Tuesday at 07:00"
+            assert "saved" not in state, "shown only while it is off"
+            code, body = run.get("/api/config")
+            assert json.loads(body)["ask_on_close"] is True
+        finally:
+            schedule.scheduler, schedule.unsupported = saved
+    _with_server(check)
+
+
+def test_nothing_kept_is_nothing_to_turn_back_on():
+    from jobdork.core import schedule
+
+    def run_cmd(argv, **kw):
+        return type("Done", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    def check(run):
+        agent = schedule.LaunchAgent(folder=Path(run.tmp.name) / "agents",
+                                     run=run_cmd, uid=1)
+        saved = schedule.scheduler, schedule.unsupported
+        # lambda: every request gets this stand-in instead of the real launchd.
+        schedule.scheduler = lambda: agent
+        # lambda: as on a Mac, whatever machine the tests run on.
+        schedule.unsupported = lambda: ""
+        try:
+            code, body = run.post("/api/schedule", {"every": "saved"})
+            assert code == 400 and b"no schedule was kept" in body
         finally:
             schedule.scheduler, schedule.unsupported = saved
     _with_server(check)

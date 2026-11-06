@@ -663,6 +663,28 @@ turns it off, as does **Settings → Updates**, which writes this setting. `JOBD
 
 ---
 
+## The scan schedule, kept and asked about
+
+| Key | Type | Default |
+|---|---|---|
+| `schedule_saved` | `{every, at, day}` | none |
+| `ask_on_close` | bool | `true` |
+
+The schedule that is on lives in your computer's own scheduler, not here
+(**Settings → Schedule a run**, core/schedule.py). When it is turned off,
+from Settings or when closing the app, jobdork keeps it as
+`schedule_saved` (`every`: daily, weekdays or weekly; `at`: `HH:MM`; `day`:
+mon to sun), so Settings can offer **Run it now** and **Turn it back on**.
+Written by jobdork; one it cannot read is ignored with a warning.
+
+`ask_on_close`: closing the desktop app with a scan scheduled asks whether
+to keep it (**Keep it and close**, **Turn it off and close**, **Cancel**).
+`false` closes without asking and keeps the schedule; the question's
+*Don't ask again* writes it, and **Ask when I close jobdork** in Settings
+turns it back on.
+
+---
+
 ## Scoring
 
 Points, so you can tell why one role is above another.
