@@ -22,6 +22,26 @@ open, and the new job posts are waiting the next time you look.
   scans get you blocked for a while.
 - **Run a scan now** starts one at once.
 
+Turned off (*Never by itself*, then **Save**), the schedule is kept here:
+*Off. Kept from before: every day at 08:00*, with **Run it now** (one scan,
+at once) and **Turn it back on** (the same days and time again).
+
+### Closing jobdork with a scan scheduled
+
+A scheduled scan does not need jobdork open: your computer starts it, and
+it stops when it is done. So closing the jobdork window with a schedule on
+asks **Keep the scheduled scan?**
+
+- **Keep it and close**: the scans go on while jobdork is closed.
+- **Turn it off and close**: no scan runs by itself. The schedule is kept
+  here, to run or turn back on next time.
+- **Cancel**: jobdork stays open.
+
+Tick *Don't ask again when I close jobdork* to keep it without being asked.
+To be asked again, **Ask when I close jobdork**, here under the schedule.
+Only the desktop app asks; a dashboard in your browser keeps running when
+its tab is closed.
+
 It uses your computer's own scheduler (launchd on a Mac, Task Scheduler on
 Windows, cron on Linux). In Docker there is no scheduler inside the
 container: use the host's, as the

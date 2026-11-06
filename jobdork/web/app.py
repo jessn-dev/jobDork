@@ -33,6 +33,7 @@ from __future__ import annotations
 import base64
 import binascii
 import contextlib
+import json
 import logging
 import os
 import re
@@ -114,12 +115,17 @@ class Bridge:
     `open_url`, so no other site's script can reach these.
     """
 
-    CALLS = ("open_url", "save_file", "open_file", "quit_app")
+    CALLS = ("open_url", "save_file", "open_file", "quit_app", "close_asked")
     # A request carrying the largest file, base64 encoded, and its name.
     BODY_LIMIT = MAX_FILE_BYTES * 4 // 3 + 64 * 1024
 
     def __init__(self, downloads: Path | None = None) -> None:
         self._window = None                  # set once the window exists
+        # Set by quit_app: the page asked to close, so the window's closing
+        # handler asks nothing more (ask_before_closing).
+        self.leaving = False
+        # Set by close_asked: the page is showing the closing question.
+        self.asked = threading.Event()
         self._downloads = downloads or Path.home() / "Downloads"
         self._temp = None
 
@@ -138,7 +144,13 @@ class Bridge:
         cannot replace this one while it runs. The page asks first."""
         if self._window is None:
             return False
+        self.leaving = True
         self._window.destroy()
+        return True
+
+    def close_asked(self) -> bool:
+        """The page says it is asking about the schedule (askClose)."""
+        self.asked.set()
         return True
 
     def open_url(self, url: str) -> bool:
@@ -354,15 +366,25 @@ def agent_server(argv: list[str] | None = None, home: Path | None = None) -> int
     return main(argv or ["mcp"])
 
 
-def ask_before_closing(busy):
-    """A handler for the window's `closing` event: while a job runs, closing
-    (the red button, Ctrl-F4, Cmd-Q) asks first, since it stops the job.
+# How long the page has to show the closing question before the window
+# closes without it: a page that is stuck must never keep jobdork open.
+ASK_PAGE_SECONDS = 3
 
-    It only says whether to ask and what: pywebview shows the question itself
-    after this returns. Showing a dialog from inside the handler would wait
-    on the main thread that is busy running the handler.
+
+def ask_before_closing(busy, scheduled=None, bridge=None):
+    """A handler for the window's `closing` event (the red button, Ctrl-F4,
+    Cmd-Q).
+
+    While a job runs, closing asks first, since it stops the job. pywebview
+    shows that question itself after this returns: a dialog shown from
+    inside the handler would wait on the main thread that is running it.
+
+    Otherwise, with a scan scheduled (`scheduled()` says when, in words),
+    the close is held back and the page asks whether to keep the schedule
+    (askClose in dashboard.html), which then closes the window through
+    `bridge.quit_app`. That close goes ahead (`bridge.leaving`).
     """
-    def closing(window) -> None:
+    def closing(window):
         job = busy()
         window.confirm_close = bool(job)
         if job:
@@ -372,7 +394,29 @@ def ask_before_closing(busy):
                     "stops it, and what it has not saved yet is lost.",
                 "global.quit": "Close anyway",
             })
+            return None
+        if bridge is None or bridge.leaving or not scheduled:
+            return None
+        plan = scheduled()
+        if not plan:
+            return None
+        threading.Thread(target=_ask_page, args=(window, plan, bridge), daemon=True).start()
+        return False                         # pywebview: False keeps the window open
     return closing
+
+
+def _ask_page(window, plan: str, bridge) -> None:
+    """Have the page ask about the schedule; close at once if it does not
+    say it is asking (Bridge.close_asked) in time. run_js, not evaluate_js:
+    evaluate_js wraps the script in eval, which the page's policy refuses."""
+    bridge.asked.clear()
+    # The script only calls the page's own function, with the words as JSON.
+    script = f"window.askClose && window.askClose({json.dumps(plan)})"
+    with contextlib.suppress(Exception):     # the page is gone or broken
+        threading.Thread(target=window.run_js, args=(script,), daemon=True).start()
+    if not bridge.asked.wait(ASK_PAGE_SECONDS):
+        log.warning("the page did not ask about the schedule; closing")
+        bridge.quit_app()
 
 
 def run(port: int, home: Path | None = None, debug: bool = False) -> int:
@@ -429,7 +473,12 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
     bridge._window = webview.create_window(
         "jobdork", running["url"], width=WINDOW_SIZE[0],
         height=WINDOW_SIZE[1], min_size=MIN_SIZE, text_select=True)
-    bridge._window.events.closing += ask_before_closing(running["busy"])
+    def scheduled() -> str:
+        # Read again at each close: Settings may have changed it since.
+        from . import api as api_mod
+        return api_mod.close_question(config.load(require=False))
+
+    bridge._window.events.closing += ask_before_closing(running["busy"], scheduled, bridge)
     # An update in place closes the window so the new version can start.
     from . import api as api_mod
     api_mod.QUIT_APP = bridge.quit_app

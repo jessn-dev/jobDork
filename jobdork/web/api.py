@@ -3277,26 +3277,84 @@ def digest_job(cfg, email: str, new_only: bool = True, attach_csv: bool = False)
 # ── the scan schedule ─────────────────────────────────────────────────────────
 
 
+def _saved_plan(cfg):
+    """The schedule kept when it was turned off, as a Plan, or None."""
+    from ..core import schedule
+    from ..core.config import ConfigError
+
+    saved = getattr(cfg, "schedule_saved", None) or {}
+    if not saved:
+        return None
+    try:
+        return schedule.Plan(saved.get("every", ""), saved.get("at", ""),
+                             saved.get("day") or "mon").check()
+    except ConfigError:
+        return None
+
+
+def _with_saved(cfg, state: dict, plan=None) -> dict:
+    """A schedule's state, with the one kept from before when it is off."""
+    plan = plan or _saved_plan(cfg)
+    if plan and state.get("supported") and not state.get("on"):
+        state["saved"] = {"every": plan.every, "at": plan.at, "day": plan.day,
+                          "describe": plan.describe()}
+    return state
+
+
 def schedule_state(cfg) -> dict:
-    """What the system's scheduler has for this install (core/schedule.py)."""
+    """What the system's scheduler has for this install (core/schedule.py),
+    and the schedule kept from when it was last turned off."""
     from ..core import schedule
 
-    return schedule.status(cfg.path or "")
+    return _with_saved(cfg, schedule.status(cfg.path or ""))
 
 
 def schedule_save(cfg, form: dict) -> dict:
-    """Turn the scan schedule on (every, at, day) or off (every=off)."""
-    from ..core import schedule
+    """Turn the scan schedule on (every, at, day), back on as it was before
+    (every=saved), or off (every=off). Off keeps it in the settings
+    (schedule_saved), so it can be run now or turned back on later."""
+    from ..core import schedule, setup
     from ..core.config import ConfigError
 
     every = str(form.get("every") or "").strip().lower()
     try:
         if every == "off":
-            return schedule.uninstall(cfg.path or "")
-        plan = schedule.Plan(every, str(form.get("at") or ""), str(form.get("day") or "mon"))
+            before = schedule.status(cfg.path or "")
+            state = schedule.uninstall(cfg.path or "")
+            plan = None
+            if before.get("on") and before.get("every") in schedule.EVERY:
+                plan = schedule.Plan(before["every"], before["at"], before.get("day") or "mon")
+                if cfg.path:
+                    setup.write(cfg.path, {"schedule_saved": {
+                        "every": plan.every, "at": plan.at, "day": plan.day}})
+            return _with_saved(cfg, state, plan)
+        if every == "saved":
+            plan = _saved_plan(cfg)
+            if plan is None:
+                raise ApiError("no schedule was kept to turn back on")
+        else:
+            plan = schedule.Plan(every, str(form.get("at") or ""), str(form.get("day") or "mon"))
         return schedule.install(cfg.path or "", plan)
     except ConfigError as exc:
         raise ApiError(str(exc)) from None
+
+
+def close_question(cfg) -> str:
+    """When the desktop app is closed: the scan schedule to ask about, in
+    words ("every day at 08:00"), or "" when there is nothing to ask. Asked
+    only with a schedule on that this copy of jobdork runs, and
+    ask_on_close not turned off. Never raises: closing must always work."""
+    from ..core import schedule
+
+    try:
+        if not getattr(cfg, "ask_on_close", True):
+            return ""
+        state = schedule.status(cfg.path or "")
+        if not state.get("on") or state.get("other_copy"):
+            return ""
+        return str(state.get("describe") or "")
+    except Exception:                        # a scheduler that cannot be asked
+        return ""
 
 
 # ── where the app keeps things ────────────────────────────────────────────────

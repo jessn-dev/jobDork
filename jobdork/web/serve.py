@@ -311,6 +311,7 @@ def _config_payload(cfg) -> dict:
         "dealbreaker_suggestions": _deal_suggestions(),
         "update_check": cfg.update_check,
         "remember_keys": cfg.remember_keys,
+        "ask_on_close": cfg.ask_on_close,
         "notifications": {"enabled": cfg.notifications.enabled,
                           "sound": cfg.notifications.sound,
                           # Whether this system can show one (not Docker).

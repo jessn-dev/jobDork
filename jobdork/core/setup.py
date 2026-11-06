@@ -281,6 +281,17 @@ def rewrite(original: str, payload: dict) -> str:
         data["remember_keys"] = str(payload["remember_keys"]).lower() in (
             "1", "true", "yes", "on")
 
+    if "ask_on_close" in payload:
+        data["ask_on_close"] = str(payload["ask_on_close"]).lower() in (
+            "1", "true", "yes", "on")
+
+    if "schedule_saved" in payload:
+        saved = payload["schedule_saved"] or {}
+        if saved:
+            data["schedule_saved"] = {k: str(saved.get(k) or "") for k in ("every", "at", "day")}
+        else:
+            data.pop("schedule_saved", None)
+
     if "update_check" in payload:
         data["update_check"] = str(payload["update_check"]).lower() in (
             "1", "true", "yes", "on")

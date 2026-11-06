@@ -1896,6 +1896,18 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <button data-icon="x" class="act" id="upd-dlg-close" type="button">Close</button>
   </div>
 </dialog>
+<dialog id="closedlg" aria-labelledby="close-title">
+  <div class="dlg-head"><strong id="close-title">Keep the scheduled scan?</strong></div>
+  <div class="dlg-body">
+    <p id="close-what" style="margin-top:0"></p>
+    <label class="check-inline"><input type="checkbox" id="close-noask"> Don't ask again when I close jobdork</label>
+  </div>
+  <div class="dlg-foot">
+    <button data-icon="x" class="act" id="close-cancel" type="button">Cancel</button>
+    <button data-icon="power" class="act" id="close-off" type="button">Turn it off and close</button>
+    <button data-icon="check" class="act primary" id="close-keep" type="button">Keep it and close</button>
+  </div>
+</dialog>
 <dialog id="letterdlg" aria-labelledby="letter-title">
   <div class="dlg-head"><strong id="letter-title"></strong><span class="hint" id="letter-sub"></span></div>
   <div class="dlg-body"><div class="advert md-doc" id="letter-body"></div></div>
@@ -1978,6 +1990,7 @@ const DESK = {
   save_file: (name, data) => deskCall('save_file', name, data),
   open_file: (name, data) => deskCall('open_file', name, data),
   quit_app: () => deskCall('quit_app'),
+  close_asked: () => deskCall('close_asked'),
 };
 const desk = () => (window.pywebview ? DESK : null);
 // A job post's address comes from whoever posted it. Only a web address
@@ -7146,11 +7159,26 @@ function paintSchedule(st) {
   } else if (!st.on) $('sched-every').value = 'off';
   paintScheduleForm();
   if (st.problem) { box.innerHTML = `<span class="err">${esc(st.problem)}</span>`; return; }
+  if (!st.on && st.saved) {
+    // Turned off here or when jobdork was closed: kept, to run or turn back on.
+    box.innerHTML = `<span>Off. Kept from before: ${esc(st.saved.describe)}.</span>
+      <button data-icon="play" class="act" id="sched-saved-run" type="button">Run it now</button>
+      <button data-icon="rotate-ccw" class="act" id="sched-saved-on" type="button">Turn it back on</button>`;
+    $('sched-saved-run').onclick = () => $('run').click();
+    $('sched-saved-on').onclick = () => saveSchedule({every: 'saved'});
+    return;
+  }
   if (!st.on) { box.innerHTML = '<span class="hint">Off: scans run only when you start one.</span>'; return; }
+  const asks = !(cfg && cfg.ask_on_close === false);
   box.innerHTML = `<span>On: ${esc(st.describe)}. Each one is listed under All runs, from the schedule;
     what it printed is in <code>${esc(st.log)}</code>.</span>` +
     (st.other_copy ? `<span class="err">It starts a different copy of jobdork than this one
-      (moved, or installed twice). Save here to make it start this one.</span>` : '');
+      (moved, or installed twice). Save here to make it start this one.</span>` : '') +
+    (desk() && !asks ? `<span class="hint">Closing jobdork no longer asks whether to keep it.</span>
+      <button class="act" id="sched-ask-again" type="button">Ask when I close jobdork</button>` : '');
+  if ($('sched-ask-again')) $('sched-ask-again').onclick = async () => {
+    if (await saveSetting({ask_on_close: true}, 'Closing jobdork asks whether to keep the schedule.')) drawSchedule();
+  };
 }
 
 async function drawSchedule() {
@@ -7160,18 +7188,51 @@ async function drawSchedule() {
   } catch (e) { /* the server is gone; pageProblem has it */ }
 }
 
-$('sched-save').onclick = async () => {
+async function saveSchedule(plan) {
   const btn = $('sched-save');
   btn.disabled = true;
   try {
-    const r = await api('/api/schedule', {method: 'POST', body: form({
-      every: $('sched-every').value, at: $('sched-at').value, day: $('sched-day').value})});
-    if (!r.ok) { toast(`Not saved: ${await r.text()}`, 'err'); return; }
+    const r = await api('/api/schedule', {method: 'POST', body: form(plan)});
+    if (!r.ok) { toast(`Not saved: ${await r.text()}`, 'err'); return null; }
     const d = await r.json();
     paintSchedule(d);
-    toast(d.on ? `Scans run by themselves ${d.describe}` : 'Scans no longer run by themselves');
+    toast(d.on ? `Scans run by themselves ${d.describe}`
+      : d.saved ? `Scans no longer run by themselves. Kept in Settings: ${d.saved.describe}.`
+      : 'Scans no longer run by themselves');
+    return d;
   } finally { btn.disabled = false; }
+}
+$('sched-save').onclick = () => saveSchedule({
+  every: $('sched-every').value, at: $('sched-at').value, day: $('sched-day').value});
+
+// ── closing the app with a scan scheduled ────────────────────────────────────
+// The app holds the close back and calls this (web/app.py ask_before_closing);
+// telling it the question is up (close_asked) stops it closing anyway.
+window.askClose = plan => {
+  $('close-what').textContent = `A scan is scheduled ${plan}. Your computer starts it while
+    jobdork is closed, and it stops when it is done, so you can keep it. Turned off, it is kept
+    in Settings, where you can run it or turn it back on.`;
+  $('close-noask').checked = false;
+  ['close-keep', 'close-off', 'close-cancel'].forEach(id => { $(id).disabled = false; });
+  if (!$('closedlg').open) $('closedlg').showModal();
+  if (desk()) desk().close_asked().catch(() => {});
+  return true;
 };
+async function closeApp(turnOff) {
+  ['close-keep', 'close-off', 'close-cancel'].forEach(id => { $(id).disabled = true; });
+  try {
+    if ($('close-noask').checked && !turnOff) await saveSetting({ask_on_close: false});
+    if (turnOff && !(await saveSchedule({every: 'off'}))) return;
+    await desk().quit_app();
+  } catch (e) {
+    toast(`Not closed: ${e.message || e}`, 'err');
+  } finally {
+    ['close-keep', 'close-off', 'close-cancel'].forEach(id => { $(id).disabled = false; });
+  }
+}
+$('close-keep').onclick = () => closeApp(false);
+$('close-off').onclick = () => closeApp(true);
+$('close-cancel').onclick = () => $('closedlg').close();
 
 // ── where the files are ──────────────────────────────────────────────────────
 const FOLDER_NAMES = {settings: 'Settings and data', backups: 'Backups', logs: 'Logs',
