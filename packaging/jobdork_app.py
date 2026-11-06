@@ -54,4 +54,5 @@ if __name__ == "__main__":
         items = args[at].split(",") if at < len(args) and not args[at].startswith("-") else []
         uninstall.remove(set(items))
         raise SystemExit(0)
-    raise SystemExit(app.run(port=8765, debug="--debug" in args))
+    # Closing the window ends the program for good (web/app.py exit_now).
+    app.exit_now(app.run(port=8765, debug="--debug" in args) or 0)

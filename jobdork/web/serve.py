@@ -483,7 +483,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 self.send_response(204)
                 self.end_headers()
                 return
-            if not self._guarded():
+            if not self._guarded() or self._removed():
                 return
             self._sync_config()
             path = urlsplit(self.path).path
@@ -620,7 +620,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             return self._reject(404, "no such path")
 
         def do_POST(self) -> None:
-            if not self._guarded():
+            if not self._guarded() or self._removed():
                 return
             self._sync_config()
             path = urlsplit(self.path).path
@@ -887,6 +887,15 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if form is None:
                 return self._reject(400, "bad request body")
             self._wrap(api_mod.ask_start, cfg_holder["cfg"], form.get("prompt"), form.get("model"))
+
+        def _removed(self) -> bool:
+            """After Settings removed jobdork, nothing but quitting is
+            answered: a page still open would otherwise open the database
+            again, and an empty one would be there once more."""
+            if api_mod.REMOVED is None or urlsplit(self.path).path == "/api/desk":
+                return False
+            self._reject(410, "jobdork was removed from this computer; quit it")
+            return True
 
         def _desk(self) -> None:
             """A link or file for the desktop app to handle (web/app.py

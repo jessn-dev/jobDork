@@ -113,8 +113,11 @@ After that it opens on the Dashboard.
 
 - **Job posts open in your own browser**, and a file you download is saved
   where you choose.
-- **Closing the window stops jobdork**, and any API key it held is
-  forgotten. While a scan is running it asks first.
+- **Closing the window stops jobdork**, on a Mac, Windows and Linux alike:
+  nothing of it goes on running (a question to Ask is stopped, and a scan's
+  fetches do not hold it open), and any API key it held is forgotten. While
+  a scan is running it asks first. Only a scheduled scan you turned on runs
+  without the window, and it ends when the scan does.
 - **Scans that run by themselves:** **Settings → Schedule a run** puts a
   daily, weekday or weekly scan in your computer's own scheduler (launchd on
   macOS, Task Scheduler on Windows, your crontab on Linux), so it runs
@@ -168,9 +171,13 @@ start the program with `--home <folder>` or set `JOBDORK_HOME`.
 
 ## Uninstalling
 
-macOS: drag jobdork from Applications to the Bin. Windows: **Settings →
+**Settings → Remove jobdork from this computer** does it all from the app:
+it removes what you tick, then, when you quit, moves the Mac app or the
+AppImage to the Trash itself
+([how](https://jessn-dev.github.io/jobDork/settings/#remove-jobdork-from-this-computer)).
+By hand: macOS, drag jobdork from Applications to the Bin. Windows: **Settings →
 Apps → jobdork → Uninstall**. Linux: delete the AppImage, or
-`sudo apt remove jobdork` for the .deb. Either way your settings, job posts and resume
+`sudo apt remove jobdork` for the .deb. By hand, your settings, job posts and resume
 stay where they are, so a reinstall finds them; delete the folder above to
 remove them too. Turn a schedule off first (**Settings → Schedule a run → Never by
 itself**, then **Save**), or the system keeps trying to start a program that

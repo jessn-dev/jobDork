@@ -57,6 +57,7 @@ them into: put `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY` or `GROQ_
 | `jobdork generate <uid> -k screen\|cv\|cover_letter` | Drafts through the `claude` CLI, which must be on your PATH |
 | `jobdork serve` / `jobdork app` | The dashboard, in a browser or a window ([source.md](source.md)) |
 | `jobdork dork` | The original Google search builder ([../DORK.md](../DORK.md)) |
+| `jobdork uninstall` | Remove jobdork from this computer: always the scheduled scan, the app window's storage (on a Mac, what macOS keeps for it in your Library folder) and kept keys; asks about each of yours, or `--remove jobs,logs` (or `all`). The program itself stays: drag the app to the Trash, or `sudo apt remove jobdork` ([Remove jobdork](https://jessn-dev.github.io/jobDork/settings/#remove-jobdork-from-this-computer)) |
 
 `jobdork <command> --help` lists every option. Any setting can be overridden
 for one run, checked exactly as the file is:

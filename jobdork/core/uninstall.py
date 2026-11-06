@@ -16,18 +16,31 @@ job posts, resume, letters and tailored resumes, saved job-source keys,
 logs, and the installers Update downloaded. Nothing is chosen unless they
 choose it.
 
-Only three places are ever touched: the app's folder (web/app.py app_home),
-the folder jobdork writes documents to (~/Documents/job-applications), and
-jobdork's own installers in Downloads. A path that resolves anywhere else is
-left alone, whatever asked for it.
+Only these places are ever touched: the app's folder (web/app.py app_home),
+the folder jobdork writes documents to (~/Documents/job-applications),
+jobdork's own installers in Downloads, and on a Mac what macOS keeps for the
+app window under ~/Library by the app's bundle id (mac_traces). A path that
+resolves anywhere else is left alone, whatever asked for it.
+
+Last, when the app quits after a removal (web/app.py), the program itself:
+the Mac app and a Linux AppImage move themselves to the Trash (trash_app). A
+.deb needs `sudo apt remove jobdork`, and Windows has its own uninstaller.
 """
 
 from __future__ import annotations
 
 import os
+import plistlib
 import shutil
+import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote
+
+# The Mac app's bundle id (packaging/jobdork.spec): macOS keeps the window's
+# storage, caches and saved state under it, outside jobdork's own folder.
+BUNDLE_ID = "io.github.jessn-dev.jobdork"
 
 # What the person can choose, in the order they are shown. Each is its own
 # choice: someone may keep their letters and drop the rest, or the reverse.
@@ -110,19 +123,38 @@ def inventory(home: Path | None = None, docs: Path | None = None,
             for key, label, what in ITEMS]
 
 
+def mac_traces(library: Path) -> list[Path]:
+    """What macOS keeps for the app window, under ~/Library, by bundle id:
+    WebKit's storage, caches, cookies, saved window state and preferences."""
+    return [library / "WebKit" / BUNDLE_ID,
+            library / "Caches" / BUNDLE_ID,
+            library / "HTTPStorages" / BUNDLE_ID,
+            library / "HTTPStorages" / f"{BUNDLE_ID}.binarycookies",
+            library / "Saved Application State" / f"{BUNDLE_ID}.savedState",
+            library / "Preferences" / f"{BUNDLE_ID}.plist"]
+
+
 def remove(choose, home: Path | None = None, docs: Path | None = None,
-           dl: Path | None = None, sched=None, unschedule=True) -> dict:
+           dl: Path | None = None, sched=None, unschedule=True,
+           library: Path | None = None) -> dict:
     """Remove the program's traces, and the items in `choose`.
+
+    `library` is ~/Library on a Mac, for the window's traces there. Left out,
+    it is the real one only when `home` is too (the app's own folder): a
+    folder given for a test never reaches the real ~/Library.
 
     Returns {"removed": [paths], "failed": [[path, why]], "unscheduled": bool,
     "left": [items kept]}. Never raises for one path that will not go: the
     rest are still removed, and the failure is said.
     """
+    if library is None and home is None and sys.platform == "darwin":
+        library = Path.home() / "Library"
     home = Path(home or app_home())
     docs = Path(docs or documents_root())
     dl = Path(dl or downloads())
     choose = {c for c in choose or () if c in CHOICES}
-    allowed = [home, docs, dl]
+    traces = mac_traces(Path(library)) if library else []
+    allowed = [home, docs, dl, *traces]
     out = {"removed": [], "failed": [], "unscheduled": False, "left": []}
 
     if unschedule:
@@ -143,9 +175,10 @@ def remove(choose, home: Path | None = None, docs: Path | None = None,
         except OSError as exc:
             out["failed"].append([str(path), exc.strerror or type(exc).__name__])
 
-    window = home / "window"
-    if window.exists():
-        gone(window)
+    # The window's storage, and Ask's working folder: the program's, not yours.
+    for trace in (home / "window", home / "data" / "ask", *traces):
+        if trace.exists():
+            gone(trace)
     # Always: keys kept in the keychain, and an old plain keys file.
     from . import keystore
     if _keychain_has_keys():
@@ -169,6 +202,74 @@ def remove(choose, home: Path | None = None, docs: Path | None = None,
         except OSError:
             pass
     return out
+
+
+def app_location(executable: str | None = None, environ=None,
+                 platform: str | None = None) -> tuple[str, Path | None]:
+    """Where the running program is, when it can move itself to the Trash:
+    ("mac", the jobdork.app bundle) or ("appimage", the AppImage file).
+    ("", None) for anything else: a .deb, Windows, a copy run from source, or
+    a Mac app run from its disk image or from where macOS moved it to check
+    it (App Translocation), which is not the copy in Applications."""
+    environ = os.environ if environ is None else environ
+    platform = platform or sys.platform
+    if platform == "darwin":
+        bundle = Path(executable or sys.executable).resolve().parents[2]
+        where = str(bundle)
+        if (bundle.suffix != ".app" or "/AppTranslocation/" in where
+                or where.startswith("/Volumes/")):
+            return "", None
+        try:
+            with open(bundle / "Contents" / "Info.plist", "rb") as fh:
+                ident = plistlib.load(fh).get("CFBundleIdentifier")
+        except (OSError, plistlib.InvalidFileException):
+            return "", None
+        return ("mac", bundle) if ident == BUNDLE_ID else ("", None)
+    image = (environ.get("APPIMAGE") or "").strip()
+    if platform.startswith("linux") and image and Path(image).is_file():
+        return "appimage", Path(image)
+    return "", None
+
+
+def trash_app(executable: str | None = None, environ=None, platform: str | None = None,
+              trash_dir: Path | None = None) -> str:
+    """Move the running program to the Trash, once the app has quit after a
+    removal. Returns where it went, or "" when it could not (it is then left
+    in place; nothing else is touched)."""
+    kind, path = app_location(executable, environ, platform)
+    if kind == "mac":
+        try:
+            from Foundation import NSURL, NSFileManager
+        except ImportError:
+            return ""
+        ok, moved, _ = NSFileManager.defaultManager().trashItemAtURL_resultingItemURL_error_(
+            NSURL.fileURLWithPath_(str(path)), None, None)
+        return str(moved.path()) if ok and moved is not None else ""
+    if kind == "appimage":
+        return _to_xdg_trash(path, trash_dir)
+    return ""
+
+
+def _to_xdg_trash(path: Path, trash_dir: Path | None = None) -> str:
+    """Move a file to the desktop's Trash, as the freedesktop.org Trash spec
+    lays it out: the file under files/, its .trashinfo under info/."""
+    base = Path(trash_dir) if trash_dir else Path(
+        os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "Trash"
+    try:
+        (base / "files").mkdir(parents=True, exist_ok=True)
+        (base / "info").mkdir(parents=True, exist_ok=True)
+        name, n = path.name, 1
+        while (base / "files" / name).exists() or (base / "info" / f"{name}.trashinfo").exists():
+            n += 1
+            name = f"{path.stem}.{n}{path.suffix}"
+        (base / "info" / f"{name}.trashinfo").write_text(
+            "[Trash Info]\n"
+            f"Path={quote(str(path.resolve()))}\n"
+            f"DeletionDate={time.strftime('%Y-%m-%dT%H:%M:%S')}\n", encoding="utf-8")
+        shutil.move(str(path), str(base / "files" / name))
+    except OSError:
+        return ""
+    return str(base / "files" / name)
 
 
 def _keychain_has_keys() -> bool:

@@ -44,8 +44,11 @@ asking whether to move its keys to the keychain.
 
 **Deleting it.** The Dashboard's **Start over** deletes your settings, job
 posts, resume, documents and keys, after showing you exactly what goes.
-Uninstalling the desktop app removes the program and leaves your data folder,
-so a reinstall finds it; delete that folder yourself to remove everything.
+**Settings → Remove jobdork from this computer** deletes what you tick of
+those, always the scheduled scan, the window's storage and kept keys, then
+moves the Mac app or the AppImage to the Trash when you quit. Uninstalling
+the program by hand leaves your data folder, so a reinstall finds it; delete
+that folder yourself to remove everything.
 
 ---
 

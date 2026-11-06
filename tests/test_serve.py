@@ -1251,6 +1251,28 @@ def test_asking_claude_code_is_the_desktop_apps_only():
     _with_server(check)
 
 
+def test_after_jobdork_is_removed_the_server_answers_only_quitting():
+    """Settings removed jobdork: a page still open must not open the
+    database again (which would leave an empty one behind)."""
+    from jobdork.web import api
+
+    def check(run):
+        api.REMOVED = {"jobs"}
+        try:
+            for path in ("/api/roles", "/api/state", "/api/config"):
+                code, body = run.get(path)
+                assert code == 410 and b"removed" in body, path
+            code, _ = run.post("/api/action", {"uid": "x", "status": "applied"})
+            assert code == 410
+            code, _ = _post_json(run, "/api/desk", {"call": "quit_app", "args": []})
+            assert code != 410, "quitting is still answered"
+        finally:
+            api.REMOVED = None
+        code, _ = run.get("/api/state")
+        assert code == 200
+    _with_server(check)
+
+
 # ── keep this block LAST ───────────────────────────────────────────────────────
 
 if __name__ == "__main__":

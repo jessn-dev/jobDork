@@ -221,8 +221,10 @@ def test_the_settings_page_removes_only_in_the_desktop_app_and_not_on_windows():
             out = api.uninstall_now({"remove": ["logs"]})
             assert out["finish"] == "mac" and out["left"] == ["logs"]
             assert refused(api.uninstall_now, {"remove": "logs"}) == 400
+            assert {"logs"} == api.REMOVED, "the server answers only quitting from now on"
     finally:
         uninstall.remove = saved
+        api.REMOVED = None
 
 
 def test_saved_keys_always_go_whatever_is_chosen():
@@ -241,3 +243,116 @@ def test_saved_keys_always_go_whatever_is_chosen():
             assert (home / "config.yaml").exists()                  # nothing else chosen
         finally:
             keystore.forget_all()
+
+
+# ── the program's traces outside its folder, and the program itself ───────────
+
+def test_the_windows_traces_on_a_mac_go_and_nothing_else_in_library():
+    with tempfile.TemporaryDirectory() as tmp:
+        home, docs, dl = _computer(Path(tmp))
+        library = Path(tmp) / "Library"
+        for trace in uninstall.mac_traces(library):
+            # A folder with a file in it, or a file (cookies, preferences).
+            target = trace if trace.suffix in (".binarycookies", ".plist") else trace / "x"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("x")
+        other = library / "WebKit" / "com.example.someone-else" / "x"
+        other.parent.mkdir(parents=True)
+        other.write_text("theirs")
+        (home / "data" / "ask").mkdir(parents=True)
+        uninstall.remove(set(), home, docs, dl, sched=_Scheduler(), library=library)
+        assert not any(t.exists() for t in uninstall.mac_traces(library))
+        assert other.exists(), "another app's storage is never touched"
+        assert not (home / "data" / "ask").exists(), "Ask's working folder is the program's"
+
+
+def test_a_given_app_folder_never_reaches_the_real_library():
+    # remove() with a folder of its own (a test, a script) is never given the
+    # real ~/Library unless it asks for it by name.
+    seen = []
+    saved = uninstall.mac_traces
+    try:
+        # lambda: records which Library would be cleaned, and cleans nothing.
+        uninstall.mac_traces = lambda library: seen.append(library) or []
+        with tempfile.TemporaryDirectory() as tmp:
+            home, docs, dl = _computer(Path(tmp))
+            uninstall.remove(set(), home, docs, dl, sched=_Scheduler())
+    finally:
+        uninstall.mac_traces = saved
+    assert seen == []
+
+
+def _mac_app(root: Path, ident: str = uninstall.BUNDLE_ID) -> Path:
+    import plistlib
+
+    app = root / "Applications" / "jobdork.app"
+    (app / "Contents" / "MacOS").mkdir(parents=True)
+    (app / "Contents" / "MacOS" / "jobdork").write_text("#!")
+    with open(app / "Contents" / "Info.plist", "wb") as fh:
+        plistlib.dump({"CFBundleIdentifier": ident}, fh)
+    return app
+
+
+def test_only_the_mac_app_in_its_place_or_an_appimage_moves_itself_to_the_trash():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        app = _mac_app(root)
+        exe = str(app / "Contents" / "MacOS" / "jobdork")
+        assert uninstall.app_location(exe, {}, "darwin") == ("mac", app.resolve())
+        other = _mac_app(root / "x", ident="com.example.other")
+        assert uninstall.app_location(str(other / "Contents" / "MacOS" / "jobdork"), {},
+                                      "darwin") == ("", None), "not jobdork's bundle"
+        loose = root / "bin" / "python"
+        loose.parent.mkdir()
+        loose.write_text("")
+        assert uninstall.app_location(str(loose), {}, "darwin") == ("", None)   # from source
+        image = root / "jobdork-0.16.2-linux-x86_64.AppImage"
+        image.write_text("ELF")
+        assert uninstall.app_location("/tmp/.mount_x/usr/bin/jobdork", {"APPIMAGE": str(image)},
+                                      "linux") == ("appimage", image)
+        assert uninstall.app_location("/usr/lib/jobdork/jobdork", {}, "linux") == ("", None)
+        assert uninstall.app_location("C:/jobdork/jobdork.exe", {}, "win32") == ("", None)
+
+
+def test_a_translocated_or_mounted_mac_app_is_left_in_place():
+    assert uninstall.app_location(
+        "/private/var/folders/x/AppTranslocation/ABC/d/jobdork.app/Contents/MacOS/jobdork",
+        {}, "darwin") == ("", None)
+    assert uninstall.app_location("/Volumes/jobdork 0.16.2/jobdork.app/Contents/MacOS/jobdork",
+                                  {}, "darwin") == ("", None)
+
+
+def test_an_appimage_goes_to_the_trash_as_the_desktop_lays_it_out():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        trash = root / "Trash"
+        for _ in range(2):                           # the second is named apart
+            image = root / "jobdork.AppImage"
+            image.write_text("ELF")
+            went = uninstall.trash_app("/x", {"APPIMAGE": str(image)}, "linux", trash_dir=trash)
+            assert went and Path(went).is_file() and not image.exists()
+        assert sorted(p.name for p in (trash / "files").iterdir()) == [
+            "jobdork.2.AppImage", "jobdork.AppImage"]
+        info = (trash / "info" / "jobdork.AppImage.trashinfo").read_text()
+        assert info.startswith("[Trash Info]\n") and "Path=" in info and "DeletionDate=" in info
+
+
+def test_quitting_after_no_removal_moves_nothing():
+    from jobdork.web import app
+
+    assert app.finish_removal(None) == ""
+
+
+def test_closing_the_window_ends_the_program_even_with_a_thread_still_busy():
+    # A scan's fetches run on threads Python would wait for at exit; the app
+    # ends with exit_now so nothing keeps it running once its window closes.
+    import subprocess
+    import time
+
+    code = ("import threading, time\n"
+            "from jobdork.web import app\n"
+            "threading.Thread(target=time.sleep, args=(60,)).start()\n"
+            "app.exit_now(3)\n")
+    started = time.monotonic()
+    done = subprocess.run([sys.executable, "-c", code], cwd=str(ROOT), timeout=30)
+    assert done.returncode == 3 and time.monotonic() - started < 20

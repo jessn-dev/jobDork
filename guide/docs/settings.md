@@ -141,7 +141,8 @@ every delete, and a deleted post stays deleted: later scans leave it out.
 ## Remove jobdork from this computer
 
 To take jobdork off your computer cleanly. The scheduled scan, the app
-window's storage and any keys kept in your computer's keychain always go.
+window's storage (on a Mac, also what macOS keeps for the window in your
+Library folder) and any keys kept in your computer's keychain always go.
 Of yours, tick what to delete as well; anything not ticked is kept, so a
 reinstall finds it:
 
@@ -160,15 +161,22 @@ should not be what asks). You can tick them
 without looking; whatever jobdork put there goes. The **Folders** list
 likewise leaves the documents folder alone until you click its **Open**.
 
-Click **Remove jobdork…**, check the list it shows, then **Yes, remove**. Last,
-remove the program itself, as the page says:
+Click **Remove jobdork…**, check the list it shows, then **Yes, remove**. The
+window then shows only **jobdork was removed**, what went, and one button:
+nothing else is asked of jobdork, so nothing you deleted comes back while
+the window is open. Quitting removes the same once more, and then the
+program itself, as the page says:
 
-- **Mac:** **Quit jobdork**, then drag jobdork from Applications to the Trash.
+- **Mac:** **Quit and move to the Trash**: jobdork closes and moves itself
+  from Applications to the Trash. Opened from its disk image, or from
+  anywhere macOS ran it from a hidden copy, it cannot: then quit and drag
+  it from Applications to the Trash yourself.
 - **Windows:** use **Settings, Apps, jobdork, Uninstall** instead of this
   page: the uninstaller asks the same questions, and can remove files
   jobdork has open while it runs.
-- **Linux:** **Quit jobdork**, then delete the AppImage, or run
-  `sudo apt remove jobdork` if you installed the .deb.
+- **Linux:** the AppImage is moved to the Trash when you click **Quit and
+  move to the Trash**. For the .deb, **Quit jobdork**, then run
+  `sudo apt remove jobdork`.
 
 From a terminal it is `jobdork uninstall`, which asks about each item, or
 `jobdork uninstall --remove jobs,logs` (or `all`). Saved keys go either way.
