@@ -6,11 +6,11 @@ Nothing to type, no Python to install. Other ways to run it:
 
 | System | Download |
 |---|---|
-| Mac with Apple Silicon (M1 or later), macOS 12 or newer | `jobdork-0.16.2-macos-arm64.dmg` |
-| Mac with an Intel processor, macOS 12 or newer | `jobdork-0.16.2-macos-x86_64.dmg` (from 0.15.3) |
-| Windows 10 or 11, 64-bit | `jobdork-0.16.2-windows-x64-setup.exe` |
-| Linux, 64-bit (x86-64), any distribution from 2022 on | `jobdork-0.16.2-linux-x86_64.AppImage` (from 0.16.2) |
-| Ubuntu 22.04 or newer, Debian 12 or newer, Linux Mint 21 or newer | `jobdork_0.16.2_amd64.deb` (from 0.16.2) |
+| Mac with Apple Silicon (M1 or later), macOS 12 or newer | `jobdork-0.16.3-macos-arm64.dmg` |
+| Mac with an Intel processor, macOS 12 or newer | `jobdork-0.16.3-macos-x86_64.dmg` (from 0.15.3) |
+| Windows 10 or 11, 64-bit | `jobdork-0.16.3-windows-x64-setup.exe` |
+| Linux, 64-bit (x86-64), any distribution from 2022 on | `jobdork-0.16.3-linux-x86_64.AppImage` (from 0.16.2) |
+| Ubuntu 22.04 or newer, Debian 12 or newer, Linux Mint 21 or newer | `jobdork_0.16.3_amd64.deb` (from 0.16.2) |
 
 **Which Mac do I have?** Apple menu → **About This Mac**. "Chip: Apple M…"
 is Apple Silicon; "Processor: … Intel" is Intel.
@@ -73,7 +73,7 @@ or AppImageLauncher adds it.
 **Linux, the .deb.** In a terminal, in the folder you downloaded it to:
 
 ```bash
-sudo apt install ./jobdork_0.16.2_amd64.deb
+sudo apt install ./jobdork_0.16.3_amd64.deb
 ```
 
 It installs to `/opt/jobdork`, with **jobdork** in the menu and the
@@ -99,7 +99,7 @@ above):
 [GitHub CLI](https://cli.github.com/):
 
 ```bash
-gh attestation verify jobdork-0.16.2-macos-arm64.dmg --repo jessn-dev/jobDork
+gh attestation verify jobdork-0.16.3-macos-arm64.dmg --repo jessn-dev/jobDork
 ```
 
 or compare its SHA-256 with `SHA256SUMS.txt` on the same release.
@@ -193,7 +193,7 @@ with `--debug`, which adds the window's developer tools (right-click,
 ```bash
 /Applications/jobdork.app/Contents/MacOS/jobdork --debug     # macOS
 "%LOCALAPPDATA%\Programs\jobdork\jobdork.exe" --debug        # Windows, default install
-./jobdork-0.16.2-linux-x86_64.AppImage --debug                # Linux, the AppImage
+./jobdork-0.16.3-linux-x86_64.AppImage --debug                # Linux, the AppImage
 jobdork --debug                                                # Linux, the .deb
 ```
 
@@ -205,10 +205,10 @@ problem, or through the dashboard's Feedback page otherwise.
 ```bash
 pip install --require-hashes -r requirements-desktop.lock
 pip install --no-deps --no-build-isolation -e .
-python packaging/build.py   # macOS: dist/jobdork-0.16.2-macos-arm64.dmg
-                            # Windows: dist/jobdork-0.16.2-windows-x64-setup.exe
-                            # Linux: dist/jobdork-0.16.2-linux-x86_64.AppImage
-                            #        and dist/jobdork_0.16.2_amd64.deb
+python packaging/build.py   # macOS: dist/jobdork-0.16.3-macos-arm64.dmg
+                            # Windows: dist/jobdork-0.16.3-windows-x64-setup.exe
+                            # Linux: dist/jobdork-0.16.3-linux-x86_64.AppImage
+                            #        and dist/jobdork_0.16.3_amd64.deb
 ```
 
 The lock pins every package by version and hash, as the release builds do;
