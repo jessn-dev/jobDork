@@ -9,6 +9,280 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-11-05 — version 0.16.3
+
+0.16.3 carries the 11 entries below, everything since 0.16.2. For you:
+
+- **Follow-up reminders.** Your computer notifies you on the day a next
+  step on My applications is due, while jobdork is open and after a
+  scheduled scan; **Settings → Notifications** turns them off.
+- **Track an application you sent**, at the top of My applications: the
+  job post's link and the day you applied.
+- **A master resume.** Setup advises keeping one (every job, project and
+  skill), jobdork tells it from a regular resume, and the Resume page says
+  which it read.
+- **Closing jobdork with a scan scheduled** asks whether to keep it. A
+  schedule turned off is kept in Settings, to run now or turn back on.
+- **Ask** looks like a chat, Enter asks, and you choose the model.
+- **One keychain item** for every kept key, so an update asks the Mac
+  keychain once, not once per key.
+- **The AI tools tab** says what to ask your coding agent when it is your
+  only reader.
+- **Fixed:** **Remove jobdork** left the job posts and the app behind on a
+  Mac; now it removes what you chose and moves the app to the Trash. A
+  closed jobdork no longer keeps running.
+- **Checked:** a small fact-checking model (`bespoke-minicheck`) as the AI
+  checker: not better than `qwen3.8:27b` (docs/AI-MODELS.md).
+
+Updating from 0.16.2: **Update** under Settings, Updates (or the banner's
+**Update**) downloads 0.16.3, checks it, puts it in place and opens it
+again. On a Mac the keychain may ask once more for each key you kept, the
+one time they move into the single item; choose **Always Allow**. Nothing
+in the database changes; the config gains settings only when you change
+them (`notifications.reminders`, `ask_on_close`, `schedule_saved`,
+`resume.kind`).
+
+---
+
+## Added — 2026-11-05 — Follow-up reminders as your computer's notifications
+
+A next step on My applications (a phone screen, a follow-up email) used to
+show only inside jobdork, in red once its date had passed. Now your
+computer reminds you on the day it is due, with the same notifications a
+scan uses: *Follow-up due today: Phone screen, Acme*, or one notification
+naming several when more are due at once.
+
+jobdork looks when it opens, every ten minutes while it stays open (a date
+comes due at midnight), and after each scheduled scan, so with a daily scan
+on the reminder comes that day even with the window closed. Each next step
+is told once for its date, kept in the database, so reopening jobdork does
+not repeat it; a new date is told again on its day. **Settings →
+Notifications** has **Turn off follow-up reminders**
+(`notifications.reminders` in config.yaml).
+
+`core/reminders.py` does it. Tests cover which next steps are due (today and
+before, not on an ended application, oldest first), the words of one and of
+several, each told once for its date and again for a new one, a notification
+that did not show not counted as told, the setting off, and the setting read
+and written.
+
+---
+
+## Added — 2026-11-05 — Closing jobdork asks about a scheduled scan; a schedule turned off is kept
+
+Closing the jobdork window said nothing about a scheduled scan, so it was
+easy to think closing stopped it, or that jobdork had to stay open for it.
+Neither is so: your computer's scheduler starts the scan with jobdork
+closed, and it stops when it is done. Turning a schedule off also lost it:
+setting it up again meant picking the days and time again.
+
+Now closing the desktop app with a scan scheduled asks **Keep the scheduled
+scan?**, saying when it runs: **Keep it and close**, **Turn it off and
+close**, or **Cancel**. *Don't ask again when I close jobdork* stops the
+question (`ask_on_close: false`); **Ask when I close jobdork**, under the
+schedule in Settings, brings it back. A job still running is asked about
+first, as before. The question is the page's own: the window holds the close
+back, the page says it is asking, and a page that does not answer within
+three seconds lets the window close anyway, so jobdork is never stuck open.
+
+A schedule turned off, here or in Settings, is kept (`schedule_saved`):
+Settings shows *Off. Kept from before: every day at 08:00*, with **Run it
+now** and **Turn it back on**.
+
+`web/app.py ask_before_closing` holds the close and asks the page through
+`window.run_js` (pywebview's `evaluate_js` wraps it in `eval`, which the
+page's policy refuses); `api.close_question` says whether to ask;
+`api.schedule_save` keeps the plan when turning it off and takes
+`every=saved`. Tests cover the page asking and the window held, a page that
+cannot ask (closed anyway), nothing scheduled (no question), the question
+only for a schedule this copy runs and not when turned off, a kept schedule
+written, read back and turned on again, nothing kept to turn on, and a kept
+schedule jobdork cannot read ignored. Checked in a real app window on a
+temporary folder: the page asked, the window stayed open, and **Keep it and
+close** closed it.
+
+---
+
+## Added — 2026-11-05 — The AI tools tab says what to ask your coding agent
+
+With a coding agent as the only reader, a job post's document buttons said
+what to ask the agent, but the AI tools tab's editing help (**Tailor my
+resume**, **Keyword ideas (AI)**, **Skills to highlight**, **Recruiter
+feedback**, **Revise: 5 versions**, **Recruiter feedback on this letter**)
+had nothing to give it: the guide said to ask the agent "directly", with no
+instructions, advert or rules behind the question.
+
+Each of those buttons now says what to ask your agent, with **Copy** (the
+pasted bullet, paragraph or letter goes with it). The agent's `get_brief`
+takes the editing kinds (`resume_edits`, `keywords`, `highlight`,
+`feedback`, `revise`, with `text` for a revision or a letter) and gives
+exactly what a model would have been given; it answers you in its own chat,
+following the same rules (only what your resume says, quoting it), and
+nothing is saved under the tab (`save_document` refuses those kinds). The
+server refuses the tools in that mode with the same question to ask
+(409), as it does the documents. The agent's connection instructions say
+so.
+
+The guide's AI and job window pages say what the buttons do with an agent.
+Tests cover the editing briefs (each kind, the user's text in a revision,
+revise without text or with too much refused, nothing written or saved) and
+the tools refused with what to ask when the agent is the only reader.
+
+---
+
+## Added — 2026-11-05 — Track an application you sent, from its link
+
+My applications listed only job posts jobdork had found and you marked
+applied. A job you applied to somewhere else, or before you used jobdork,
+could be brought in only by adding it on the Sources page and then marking
+it applied, dated the day you did that rather than the day you applied.
+
+**Track an application you sent**, at the top of My applications, takes the
+job post's link and the day you applied (today unless you change it; a day
+still to come is refused). The post is read into Job posts as **Add a Job
+Post** does, marked *applied*, dated that day in its stages, and listed. When
+the page cannot be read, the form asks for the job title and employer
+(and the place, and the advert if you have it): with the advert the post is
+scored like any other; without it, it is tracked with nothing to score
+against. A job already at *interviewing* or *offer* is left there, and a post
+jobdork already had is not added twice.
+
+`api.track_application` and `POST /api/application/track` do it;
+`Store.set_status` takes the day a change was made (`when`) for its history.
+The guide's My applications page explains it. Tests cover tracking from a
+pasted advert (applied on its day, listed), from a title and employer alone
+(each asked for), the day (real, `YYYY-MM-DD`, not in the future, nothing
+stored when refused), a job further along left as it is, and a link read or
+not readable (asking for more).
+
+---
+
+## Added — 2026-11-05 — A master resume, told apart from the one you send
+
+jobdork now knows the difference between a **master resume** (your private
+archive of every job, part-time and freelance work, volunteering, projects,
+presentations, awards, certifications and skills, never sent as it is) and
+a resume you send, and advises the first:
+
+- **Setup's resume step** says to upload your master resume if you keep
+  one, and the one you send otherwise; the welcome page's list of steps says
+  the same.
+- **jobdork guesses which it is** when you upload (`search/master.py`):
+  "master" in the file's name settles it ("MasterResumeJaneDoe.pdf" too);
+  otherwise a long text (1,700 words or more) counts most, and three pages or
+  more, ten or more dated entries and archive sections (volunteer work,
+  awards, presentations, publications, freelance or part-time work, hard
+  and soft skills) add to it. Tried on eight real
+  resumes: the 1,849-word master was taken for one, and none of seven sent
+  resumes of 290 to 1,566 words over two to five pages was. The guess is
+  written to the config (`resume.kind`), as it is the only time the file's
+  own name is known.
+- **This resume is** on the Resume page, and in setup after the upload, says
+  which jobdork took it for and why, and changes it: *My master resume* or
+  *A resume I send*.
+- **With a master resume:** *How a tracking system reads it* no longer marks
+  it down for being over two pages; a tailored resume's prompt says it is
+  choosing from an archive (`writer.MASTER_NOTE`); the card says *Your
+  master resume*.
+- **A resume longer than the AI reads** (20,000 characters) gets a note:
+  what comes after is not seen, and a claim about it is marked unsupported.
+- **`jobdork setup`** in a terminal gives the same advice, and says which
+  it took the resume for.
+
+The guide's Resume page explains a master resume; Getting started, the
+overview, the AI and job-window pages, the glossary, README.md, the run and
+CLI guides, CONFIG.md and ARCHITECTURE.md name it, and DECISIONS.md says
+why. AI-MODELS.md adds the reader and checker pairs measured on a master
+resume: `gpt-oss:20b` as checker as well as reader raised the rate to 18%. Tests cover the guess (the file name, a long archive, a
+long CV that is sent, a designed resume with little text, archive
+sections), your choice winning over it, the length check, the setting, the
+page's report, and the tailoring prompt with and without a master.
+
+---
+
+## Fixed — 2026-11-05 — Remove jobdork removes it, and a closed jobdork is not running
+
+In 0.16.2 on a Mac, **Settings → Remove jobdork** with everything ticked
+seemed to remove nothing: the job posts were still on the page, and jobdork
+was still in Applications after quitting. It had removed them, but:
+
+- **The page kept asking the server**, which opened the database again and
+  left a new, empty one; the Job posts page still showed the list it had.
+  Now, once you confirm, the window shows only **jobdork was removed** and
+  one button, the page asks nothing more, and the server answers nothing
+  but quitting (410 for anything else).
+- **The program stayed.** The page said to drag it to the Trash, and it was
+  expected to go by itself. Now quitting removes what you chose once more
+  (whatever was opened since is gone too), then moves the program to the
+  Trash: the Mac app (only jobdork's own bundle, checked by its bundle id,
+  and not a copy run from its disk image or a hidden translocated one) and
+  a Linux AppImage (into the desktop's Trash, as freedesktop.org lays it
+  out). A .deb still needs `sudo apt remove jobdork`; Windows has its
+  uninstaller.
+- **What macOS keeps for the window** under `~/Library` (WebKit's storage,
+  caches, cookies, saved window state and preferences, by the app's bundle
+  id) was left, as was Ask's empty working folder. Both go now, and nothing
+  else in `~/Library` is touched.
+
+**Closing the window ends jobdork, on a Mac, Windows and Linux.** Ask's
+Claude Code run is stopped with it, and the program ends at once after the
+server stops (`app.exit_now`): a scan's fetches, on threads Python would
+otherwise wait for, no longer keep it running unseen. A scheduled scan you
+turned on still runs without the window, and ends when the scan does.
+
+Tests: the server refuses everything but quitting after a removal; the
+Mac's window traces go and another app's do not; a folder given to the
+removal never reaches the real `~/Library`; only jobdork's own Mac bundle
+or an AppImage is moved, and an AppImage lands in the Trash with its
+`.trashinfo`; and the program ends at once with a thread still busy. The
+guide's Settings page, the desktop notes and PRIVACY.md say what happens
+now; the CLI guide lists `jobdork uninstall`, and ARCHITECTURE.md names
+`core/uninstall`.
+
+---
+
+## Changed — 2026-11-05 — Changelog entries wait in files of their own, so pull requests do not conflict
+
+Every pull request added its entry at the top of `docs/CHANGELOG.md`, so any
+two open at once changed the same lines: whichever merged second was blocked
+by a conflict and had to be merged again by hand (#128 and #129 both were).
+
+Each pull request now adds one file to `docs/changes/` with its entry
+instead. `scripts/changelog.py check` says whether each is well formed (the
+tests run it, so CI refuses one that is not), and the release pull request
+runs `scripts/changelog.py collect`, which moves them all into the changelog
+above the newest entry, newest first by date and then by when each was
+added, and deletes the files. Release pages read the changelog as before.
+`scripts/tag_release.py` refuses to tag while an entry is left waiting, so
+none is left off a release page, and `scripts/set_version.py` does not count
+the waiting entries as pages that name a version.
+
+CONTRIBUTING.md, the pull request template, `docs/changes/README.md` and the
+changelog's opening say where an entry goes now. Tests cover the check
+(heading, kind, date, one entry a file, no separators), collecting (order,
+placement above the newest entry and the backlog left where it is, files
+deleted, nothing changed when one is malformed) and every entry waiting in
+the repository.
+
+---
+
+## Checked — 2026-11-05 — A small fact-checking model as the checker: not better
+
+`bespoke-minicheck` (7.7B, 4.7 GB in Ollama), a model built only to say
+whether a document supports a claim, was measured as jobdork's checker
+against `qwen3.8:27b`: the same 262 claims from `gemma4:26b` verdicts on
+twelve job posts and one master resume, with jobdork's script rules applied
+to both. It flagged fewer claims (5.3% against 6.5%), but by passing more,
+not by being right more: of the 25 claims the two disagreed on, read by hand
+against the resume and the advert, `qwen3.8:27b` was right on 21 and
+`bespoke-minicheck` on 2, both settled by jobdork's gap rule rather than the
+model. It passed skills the resume never names and flagged ones it does. It
+also answers only yes or no, with no quote for the script to check. Not
+adopted; the result is in docs/AI-MODELS.md, and the guardrails item in
+Still outstanding is narrowed to the rewrite pass.
+
+---
+
 ## Added — 2026-11-05 — One command tags a release
 
 `python scripts/tag_release.py` tags a release once its pull request is
@@ -8007,13 +8281,21 @@ open; a digest arrives, and what arrived with it is what was not there before.
   so the guide can say which free models to pick and how many job posts a
   day a free key covers before it is capped.
 - **Guardrails, from Guardrails AI's ideas** (guardrails-ai/guardrails, used
-  as reference, not as a dependency): measure `bespoke-minicheck` (4.7 GB,
-  already in Ollama) as the checker with scripts/hallucination_benchmark.py,
-  so smaller computers can run reader and checker together; a rewrite pass
-  that asks the reader once to fix only the claims the check flagged ("reask"),
-  the biggest lever for smaller models (10% to 18% in docs/AI-MODELS.md); and
-  matching claims to the resume by meaning (an Ollama embedding model), for
-  true claims worded differently from the resume.
+  as reference, not as a dependency): a rewrite pass that asks the reader
+  once to fix only the claims the check flagged ("reask"), the biggest
+  lever for smaller models (10% to 18% in docs/AI-MODELS.md).
+  `bespoke-minicheck` as the checker was measured and not adopted (0.16.3,
+  docs/AI-MODELS.md). Matching claims to the resume by meaning (embeddings)
+  is not planned: it would loosen the rule that a supported claim is quoted
+  from its source. Smaller: a gap claim the checker answers "unsupported"
+  could be settled by the gap rule too, as "absent" is (guard.verify).
+- **Notifications on your phone** (asked 2026-11-05): the same
+  notifications (new job posts, a failed scan, follow-ups due) sent on to
+  ntfy (a free phone app), a Discord or Slack webhook, or Mattermost,
+  Rocket.Chat or Zulip (Slack-style webhooks). Off by default; the address
+  kept in the keychain like a key; PRIVACY.md to say what leaves the
+  computer (job titles, employers). Scheduled scans already run with the
+  app closed, so they can send too.
 - **Sources: say why no employer boards are read.** With `sources.keyless`
   narrowed to sources that are not employer-board platforms (no workday,
   greenhouse…), `jobdork sources` says "0 built-in employer boards" without

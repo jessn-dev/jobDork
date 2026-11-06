@@ -93,6 +93,20 @@ As a checker, `gpt-oss:20b` rejected claims that were true, such as the
 years of experience jobdork works out from the resume's dates; as a reader
 it tied skills to the wrong employer more often. Keep it out of both roles.
 
+**A small fact-checking model is not a better checker.** `bespoke-minicheck`
+(7.7B, 4.7 GB, built only to answer whether a document supports a claim)
+was measured against `qwen3.8:27b` on 2026-11-05: the same 262 claims from
+`gemma4:26b` verdicts on twelve job posts, one master resume, the same
+script rules for both. It flagged fewer (5.3% against 6.5%), but that was
+leniency: on the 25 claims the two disagreed on, read by hand against the
+resume and the advert, `qwen3.8:27b` was right on 21 and `bespoke-minicheck`
+on 2 (both settled by jobdork's own gap rule, not the model). It passed
+skills the resume never names (React, NPM, AWS services) and flagged ones it
+does (Azure, TypeScript, Prometheus at the employer named). It is fast,
+0.3 s a claim, and answers only yes or no, with no quote for the script to
+check. So it is not offered as a checker. A lower rate alone never shows a
+better checker: one that passes everything scores 0%.
+
 ## What to run on what
 
 | Your computer | Reader | Checker | Expect |
