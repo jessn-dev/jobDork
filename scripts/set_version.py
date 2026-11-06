@@ -48,9 +48,11 @@ CURRENT = (
 )
 _SHAPES = [re.compile(f"({prefix})({VERSION})({suffix})") for prefix, suffix in CURRENT]
 
-# The pages. The changelog and the history name past versions on purpose.
+# The pages. The changelog, its waiting entries and the history name past
+# versions on purpose.
 PAGES = ("README.md", "SECURITY.md", "PRIVACY.md", "compose.yaml", "docs/**/*.md")
 NOT_PAGES = {"docs/CHANGELOG.md", "docs/HISTORY.md"}
+NOT_UNDER = ("docs/changes/",)
 
 
 def project_version() -> str:
@@ -63,7 +65,8 @@ def project_version() -> str:
 def pages(root: Path = ROOT) -> list[Path]:
     found = {p for pattern in PAGES for p in root.glob(pattern) if p.is_file()}
     return sorted(p for p in found
-                  if p.relative_to(root).as_posix() not in NOT_PAGES)
+                  if p.relative_to(root).as_posix() not in NOT_PAGES
+                  and not p.relative_to(root).as_posix().startswith(NOT_UNDER))
 
 
 def stale(version: str, root: Path = ROOT) -> list[str]:
