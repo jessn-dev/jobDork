@@ -702,6 +702,12 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     done["rescore"] = ("Re-scoring your job posts with it." if now else
                                        f"Your job posts are re-scored with it after {runner.current}.")
                 return self._json(200, done)
+            if path == "/api/application/track":
+                # Sized for a pasted advert, as /api/add/text is.
+                form = self._body(limit=api_mod.MAX_ADVERT_CHARS * 12)
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.track_application, cfg_holder["cfg"], form)
             if path in ("/api/application", "/api/application/note"):
                 form = self._body()
                 if form is None:

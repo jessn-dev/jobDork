@@ -1048,6 +1048,32 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       you marked applied, submitted, interviewing or offer, or that was turned down or withdrawn
       from after. Choose one for its Application tab: the next step and its date, who you are
       talking to, what you sent, and your notes.</p>
+    <details class="paste" id="track">
+      <summary>Track an application you sent</summary>
+      <p class="hint">Applied somewhere jobdork did not find? Give the job post's link: it is
+        read into Job posts and listed here as applied, dated the day you applied.</p>
+      <form id="track-form">
+        <div class="bar">
+          <input id="tr-url" type="url" required placeholder="The job post's link" aria-label="The job post's link"
+            style="flex:1;min-width:16rem">
+          <label class="hint" for="tr-date">Applied on</label>
+          <input id="tr-date" type="date" aria-label="The day you applied">
+          <button data-icon="clipboard-check" class="act primary" type="submit" id="btn-track">Track it</button>
+        </div>
+        <div id="tr-more" hidden>
+          <p class="hint">jobdork could not read that page. Give the job title and employer to track
+            it anyway; paste the advert too and it is scored like any other post.</p>
+          <div class="picker">
+            <label>Job title<input id="tr-title"></label>
+            <label>Employer<input id="tr-company"></label>
+            <label>Place<input id="tr-place" placeholder="e.g. Austin, TX, or Remote"></label>
+          </div>
+          <label>The advert (optional)<textarea id="tr-text" rows="6" style="width:100%"
+            placeholder="Everything the post says: duties, requirements, pay"></textarea></label>
+        </div>
+        <div id="tr-msg" role="status"></div>
+      </form>
+    </details>
     <div class="appchips" id="app-chips"></div>
     <div class="split">
       <div id="apps"><p class="empty">Loading…</p></div>
@@ -6211,6 +6237,44 @@ async function loadApps() {
   if (!$('view-apps').hidden) drawApps();
 }
 
+// Track an application sent outside jobdork: its link (or, for a page that
+// cannot be read, its title and employer, and the advert if you have it).
+function trackReset() {
+  $('track-form').reset();
+  $('tr-date').value = new Date().toLocaleDateString('en-CA');   // today, as YYYY-MM-DD
+  $('tr-date').max = $('tr-date').value;
+  $('tr-more').hidden = true;
+}
+trackReset();
+$('track-form').onsubmit = async ev => {
+  ev.preventDefault();
+  const btn = $('btn-track'), msg = $('tr-msg'), more = !$('tr-more').hidden;
+  btn.disabled = true;
+  msg.innerHTML = `<span class="hint">${more ? 'Saving…' : 'Reading the link…'}</span>`;
+  const body = {url: $('tr-url').value, applied_on: $('tr-date').value};
+  if (more) Object.assign(body, {title: $('tr-title').value, company: $('tr-company').value,
+                                 location: $('tr-place').value, text: $('tr-text').value});
+  const r = await api('/api/application/track', {method: 'POST', body: form(body)});
+  btn.disabled = false;
+  if (!r.ok) {
+    const why = cap(await r.text());
+    if (r.status === 422 && !more) {
+      $('tr-more').hidden = false;
+      msg.innerHTML = '';
+      $('tr-title').focus();
+    } else msg.innerHTML = `<span class="err">${esc(why)}</span>`;
+    return;
+  }
+  const d = await r.json();
+  trackReset();
+  msg.innerHTML = d.tracked
+    ? `<span class="saved">Tracked</span> ${esc(d.title)} at ${esc(d.company)}, applied ${esc(shortDay(d.applied_on))}.`
+    : `<span class="saved">Already tracked</span> ${esc(d.title)} at ${esc(d.company)} is at ${esc(d.status)}; left as it is.`;
+  await loadApps();
+  drawApps();
+  loadRoles();
+};
+
 function drawApps() {
   const all = apps ? apps.applications : [];
   $('app-chips').innerHTML = APP_STAGES.map(([k, label]) => `<button type="button" data-stage="${k}"
@@ -6226,7 +6290,7 @@ function drawApps() {
       <td class="${a.overdue ? 'late' : ''}">${a.next_step || a.next_date ? `${esc(a.next_step)}${a.next_date
         ? ` <span class="when">${esc(shortDay(a.next_date))}${a.overdue ? ' · past' : ''}</span>` : ''}` : '<span class="hint">none</span>'}</td>
       </tr>`).join('')}</tbody></table>`
-    : `<p class="empty">${all.length ? 'None at this stage.' : 'No applications yet. Mark a job post applied (its Apply button does) and it is listed here.'}</p>`;
+    : `<p class="empty">${all.length ? 'None at this stage.' : 'No applications yet. Mark a job post applied (its Apply button does), or track one you sent above, and it is listed here.'}</p>`;
   soloList(!shown.length, $('apps'));
   $('apps').querySelectorAll('tr[data-uid]').forEach(tr => {
     tr.onclick = () => openRole(tr.dataset.uid, 'application');

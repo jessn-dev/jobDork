@@ -165,6 +165,109 @@ def test_deleting_a_job_post_deletes_its_application():
 
 # ── keep this block LAST ───────────────────────────────────────────────────────
 
+# ── tracking an application sent outside jobdork ─────────────────────────────
+
+def _track_cfg(tmp: str):
+    from jobdork.core.config import Config, Locations
+    cfg = Config(titles_include=["nurse"], locations=Locations(countries=["US"]))
+    cfg.db_path = str(Path(tmp) / "t.db")
+    return cfg
+
+
+ADVERT = "Care for patients on a 30-bed unit. Required: an RN licence. " * 6
+
+
+def _refused(fn, said: str, status: int = 400):
+    try:
+        fn()
+    except api.ApiError as exc:
+        assert said in str(exc) and exc.status == status, (exc, exc.status)
+    else:
+        raise AssertionError(f"must be refused: {said}")
+
+
+def test_an_application_tracked_from_a_pasted_advert_is_applied_on_its_day():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _track_cfg(tmp)
+        done = api.track_application(cfg, {"url": "https://a.test/1", "title": "Charge Nurse",
+                                           "company": "Acme", "text": ADVERT,
+                                           "applied_on": "2026-10-20"})
+        assert done["tracked"] and done["status"] == "applied" and done["applied_on"] == "2026-10-20"
+        listed = api.list_applications(cfg)["applications"]
+        assert [(a["uid"], a["applied_at"]) for a in listed] == [(done["uid"], "2026-10-20")]
+        with Store(cfg.db_path) as store:
+            assert [h["status"] for h in store.history(done["uid"])] == ["applied"]
+
+
+def test_a_page_that_cannot_be_read_is_tracked_from_its_title_and_employer():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _track_cfg(tmp)
+        # lambda: deferred, so _refused can catch what the call raises
+        _refused(lambda: api.track_application(cfg, {"url": "https://a.test/2", "title": "Nurse"}),
+                 "employer")
+        # lambda: deferred, so _refused can catch what the call raises
+        _refused(lambda: api.track_application(cfg, {"url": "not a link", "title": "Nurse",
+                                                     "company": "Acme"}), "link")
+        done = api.track_application(cfg, {"url": "https://a.test/2", "title": "Nurse",
+                                           "company": "Acme", "location": "Austin, TX"})
+        assert done["tracked"]
+        with Store(cfg.db_path) as store:
+            row = store.get(done["uid"])
+        assert row["status"] == "applied" and row["company"] == "Acme"
+        # Today, when no day is given.
+        assert done["applied_on"] == datetime.date.today().isoformat()
+
+
+def test_the_day_applied_is_a_real_day_not_in_the_future():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _track_cfg(tmp)
+        base = {"url": "https://a.test/3", "title": "Nurse", "company": "Acme"}
+        tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+        # lambda: deferred, so _refused can catch what the call raises
+        _refused(lambda: api.track_application(cfg, {**base, "applied_on": tomorrow}), "future")
+        # lambda: deferred, so _refused can catch what the call raises
+        _refused(lambda: api.track_application(cfg, {**base, "applied_on": "20/10/2026"}), "YYYY-MM-DD")
+        # lambda: deferred, so _refused can catch what the call raises
+        _refused(lambda: api.track_application(cfg, {**base, "applied_on": "2026-02-30"}), "real date")
+        with Store(cfg.db_path) as store:
+            assert store.applications() == [], "nothing is stored when the day is refused"
+
+
+def test_tracking_a_job_already_further_along_leaves_it_there():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _track_cfg(tmp)
+        base = {"url": "https://a.test/4", "title": "Nurse", "company": "Acme"}
+        first = api.track_application(cfg, base)
+        with Store(cfg.db_path) as store:
+            store.set_status(first["uid"], "interviewing")
+        again = api.track_application(cfg, {**base, "applied_on": "2026-01-02"})
+        assert again["uid"] == first["uid"] and not again["tracked"]
+        assert again["status"] == "interviewing"
+
+
+def test_tracking_from_a_link_reads_it_and_a_page_it_cannot_read_asks_for_more():
+    from jobdork.fetch import link
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _track_cfg(tmp)
+        real = link.read
+        try:
+            def read(fetcher, cfg_, url, token="", company=""):
+                return Role(platform="greenhouse", company="Acme", title="ICU Nurse", url=url,
+                            location_raw="Austin, TX", description=ADVERT)
+            link.read = read
+            done = api.track_application(cfg, {"url": "https://boards.greenhouse.io/acme/jobs/9"})
+            assert done["tracked"] and done["title"] == "ICU Nurse"
+
+            def unreadable(*args, **kwargs):
+                raise link.LinkError("that page has no job post jobdork can read")
+            link.read = unreadable
+            # lambda: deferred, so _refused can catch what the call raises
+            _refused(lambda: api.track_application(cfg, {"url": "https://a.test/5"}),
+                     "Paste the advert", 422)
+        finally:
+            link.read = real
+
+
 if __name__ == "__main__":
     failures = 0
     tests = [(name, fn) for name, fn in sorted(globals().items())

@@ -8,6 +8,24 @@ on [Job posts](job-posts.md).
 
 ![My applications](images/applications.png)
 
+## Track an application you sent
+
+Applied somewhere jobdork did not find, or before you used it? Open
+**Track an application you sent** at the top, paste the job post's link,
+set **Applied on** (today, unless you change it; not a day still to come)
+and press **Track it**. jobdork reads the post into [Job posts](job-posts.md),
+as **Add a Job Post** on the [Sources](sources.md#add-a-job-post) page does,
+marks it *applied*, dated the day you gave, and lists it here.
+
+When the page cannot be read (a sign-in page, or one that publishes nothing
+for search engines), more fields open: give the **Job title** and
+**Employer**, and the **Place** if you like, then **Track it** again. Paste
+the advert too and the post is scored like any other; without it, it is
+tracked all the same, with nothing to score against.
+
+A job you already moved on to *interviewing* or *offer* is left there; a
+post jobdork already had is not added twice.
+
 ## The list
 
 The chips at the top narrow it to one stage, with how many are at each:
