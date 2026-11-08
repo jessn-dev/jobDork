@@ -254,10 +254,11 @@ def check_verdict(settings, store, row, verdict: dict, resume_text: str,
                   enabled: bool = True, posting: str = "", work: str = "") -> None:
     """Guard one verdict and record it. Adds `guard` and `ai_output_id` to it."""
     text = verdict_text(verdict)
+    stored = None
     if enabled:
         report = guard.check(settings, text,
                              guard_sources(row, resume_text, posting, work))
         verdict["guard"] = report.to_dict()
+        stored = report.to_dict(with_pending=True)
     verdict["ai_output_id"] = store.add_ai_output(
-        "judge", text, uid=row["uid"], model=settings.label,
-        guard=verdict.get("guard"))
+        "judge", text, uid=row["uid"], model=settings.label, guard=stored)

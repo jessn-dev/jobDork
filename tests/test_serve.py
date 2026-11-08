@@ -1244,7 +1244,22 @@ def test_asking_claude_code_is_the_desktop_apps_only():
         code, body = run.get("/api/ask")
         state = json.loads(body)
         assert code == 200 and state["stage"] == "idle" and state["messages"] == []
-        code, body = _post_json(run, "/api/ask", {"prompt": "x" * (ask.MAX_PROMPT + 1)})
+        # Off until Claude Code is installed and a reader on the AI page.
+        assert state["off"]
+        code, body = _post_json(run, "/api/ask", {"prompt": "my best job posts?"})
+        assert code == 409 and ("Ask is off" in body or "not installed" in body)
+        from jobdork.ai import llm
+        from jobdork.core.config import Llm, Reader
+
+        run.holder["cfg"].llm = Llm(provider=llm.AGENT,
+                                    readers=[Reader(llm.AGENT, "claude-code")])
+        before = ask.cli
+        # lambda: Claude Code stands installed, without one on this computer.
+        ask.cli = lambda: "/usr/local/bin/claude"
+        try:
+            code, body = _post_json(run, "/api/ask", {"prompt": "x" * (ask.MAX_PROMPT + 1)})
+        finally:
+            ask.cli = before
         assert code == 400 and "fewer words" in body
         code, _ = run.post("/api/ask", {"prompt": "jobs?"}, token=None)
         assert code == 401

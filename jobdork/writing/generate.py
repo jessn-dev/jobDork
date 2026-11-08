@@ -457,7 +457,7 @@ def record(store, row, result: Result) -> dict:
     summary = gates_mod.summarise(result.gates)
     output_id = store.add_ai_output(
         "draft", result.text, uid=row["uid"], model="claude -p",
-        guard=result.guard.to_dict() if result.guard is not None else None)
+        guard=result.guard.to_dict(with_pending=True) if result.guard is not None else None)
     if writer.GUARD_GATE in summary:
         summary[writer.GUARD_GATE]["output_id"] = output_id
     else:

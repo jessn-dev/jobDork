@@ -209,7 +209,8 @@ CREATE TABLE IF NOT EXISTS ai_outputs (
     claims       INTEGER NOT NULL DEFAULT 0,
     unsupported  INTEGER NOT NULL DEFAULT 0,
     checked      INTEGER NOT NULL DEFAULT 0,
-    feedback     INTEGER
+    feedback     INTEGER,
+    check_input  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_ai_outputs_created ON ai_outputs(created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_outputs_uid     ON ai_outputs(uid);
@@ -939,23 +940,93 @@ class Store:
                       activity_id: int | None = None) -> int:
         """Record text a model wrote, with the guard's report on it.
 
-        `guard` is `GuardReport.to_dict()`; None means no check was tried,
-        which counts the same as a failed one: not covered.
+        `guard` is `GuardReport.to_dict(with_pending=True)`; None means no
+        check was tried, which counts the same as a failed one: not covered.
+        A check waiting for the coding agent keeps what it is to check in
+        `check_input`, never in the report the page reads.
         """
-        guard = guard or {}
+        guard = dict(guard or {})
+        pending = guard.pop("pending", None)
         if activity_id is None:
             from ..core import telemetry
             activity_id = telemetry.current_id()
         cur = self.conn.execute(
             "INSERT INTO ai_outputs(kind, uid, model, created_at, activity_id, "
-            "text, guard_json, claims, unsupported, checked) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?)",
+            "text, guard_json, claims, unsupported, checked, check_input) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
             (kind, uid or None, model, _now(), activity_id, text,
              json.dumps(guard) if guard else None,
              int(guard.get("claims") or 0), int(guard.get("unsupported") or 0),
-             1 if guard.get("checked") else 0))
+             1 if guard.get("checked") else 0,
+             json.dumps(pending) if guard.get("waiting") and pending else None))
         self.conn.commit()
         return int(cur.lastrowid)
+
+    # ── checks a coding agent makes later (guard.py, web/agent.py) ───────────
+
+    def waiting_checks(self, limit: int = 50) -> list[sqlite3.Row]:
+        """Outputs waiting for the coding agent to check them, oldest first."""
+        return self.conn.execute(
+            "SELECT o.id, o.kind, o.uid, o.model, o.created_at, r.title, r.company "
+            "FROM ai_outputs o LEFT JOIN roles r ON r.uid = o.uid "
+            "WHERE o.check_input IS NOT NULL ORDER BY o.id LIMIT ?", (int(limit),)).fetchall()
+
+    def check_input(self, output_id: int) -> dict | None:
+        """What a waiting check is to check: {"text", "sources"}; None when
+        there is no such output or it is not waiting."""
+        row = self.conn.execute("SELECT check_input FROM ai_outputs WHERE id = ?",
+                                (int(output_id),)).fetchone()
+        if row is None or not row["check_input"]:
+            return None
+        try:
+            found = json.loads(row["check_input"])
+        except (TypeError, ValueError):
+            return None
+        return found if isinstance(found, dict) else None
+
+    def finish_check(self, output_id: int, guard: dict) -> None:
+        """A waiting check, made: the report replaces the waiting one on the
+        output, on the document's checks, and in a verdict's own copy."""
+        guard = {k: v for k, v in guard.items() if k not in ("pending", "waiting")}
+        row = self.conn.execute("SELECT kind, uid FROM ai_outputs WHERE id = ?",
+                                (int(output_id),)).fetchone()
+        if row is None:
+            return
+        self.conn.execute(
+            "UPDATE ai_outputs SET guard_json = ?, claims = ?, unsupported = ?, "
+            "checked = ?, check_input = NULL WHERE id = ?",
+            (json.dumps(guard), int(guard.get("claims") or 0),
+             int(guard.get("unsupported") or 0), 1 if guard.get("checked") else 0,
+             int(output_id)))
+        if row["kind"] == "judge" and row["uid"]:
+            found = self.conn.execute("SELECT llm_judgement FROM roles WHERE uid = ?",
+                                      (row["uid"],)).fetchone()
+            try:
+                verdict = json.loads(found["llm_judgement"]) if found and found["llm_judgement"] else None
+            except (TypeError, ValueError):
+                verdict = None
+            if isinstance(verdict, dict) and verdict.get("ai_output_id") == int(output_id):
+                verdict["guard"] = guard
+                self.conn.execute("UPDATE roles SET llm_judgement = ? WHERE uid = ?",
+                                  (json.dumps(verdict), row["uid"]))
+        self.conn.commit()
+
+    def set_artifact_gate(self, output_id: int, name: str, gate: dict) -> None:
+        """Replace one named check on the documents that carry this output's."""
+        rows = self.conn.execute(
+            "SELECT id, gates_json FROM artifacts WHERE gates_json LIKE ?",
+            (f'%"output_id": {int(output_id)}%',)).fetchall()
+        for found in rows:
+            try:
+                gates = json.loads(found["gates_json"] or "{}")
+            except (TypeError, ValueError):
+                continue
+            if (gates.get(name) or {}).get("output_id") != int(output_id):
+                continue
+            gates[name] = {**gate, "output_id": int(output_id)}
+            self.conn.execute("UPDATE artifacts SET gates_json = ? WHERE id = ?",
+                              (json.dumps(gates), found["id"]))
+        self.conn.commit()
 
     # ── projects (Resume page, STAR fields) ─────────────────────────────────────
 

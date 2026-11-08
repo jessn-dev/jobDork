@@ -134,7 +134,7 @@ def test_a_saved_answer_goes_through_every_check_and_is_recorded():
     assert "no checker model" in checks[writer.GUARD_GATE]["detail"]
     assert writer.GUARD_GATE in done["to_read"]
     assert letter["path"] == done["files"][0]
-    assert output["model"] == "Coding agent · claude-code"
+    assert output["model"] == "Coding agent · Claude Code"
     assert status == "interested"
 
 
@@ -184,7 +184,7 @@ def test_with_other_readers_the_next_one_answers_what_jobdork_asks():
         assert settings.label == "Ollama (local) · m"
         llm.agent_answers([{"from": "agent"}], client="codex")
         assert llm.complete_json(settings, "s", "u", {"type": "object"}) == {"from": "agent"}
-        assert settings.label == "Coding agent · codex"
+        assert settings.label == "Coding agent · Codex"
     finally:
         llm._call_one = was
         llm.agent_answers([])
@@ -208,19 +208,40 @@ def test_as_agent_keeps_the_other_readers_as_checkers():
     assert cfg.llm.readers[0].provider == "ollama", "the config itself is unchanged"
 
 
-def test_a_coding_agent_is_one_reader_line_and_never_a_checker():
-    for good in ([Reader(llm.AGENT)], [Reader(llm.AGENT), Reader("ollama", "m")],
-                 [Reader("ollama", "m"), Reader(llm.AGENT)]):
-        _validate(Config(titles_include=["x"], llm=Llm(provider=good[0].provider, readers=good)))
-    for bad in (Llm(provider=llm.AGENT, readers=[Reader(llm.AGENT), Reader(llm.AGENT)]),
+def test_one_coding_agent_is_a_reader_or_a_checker_never_both():
+    """Claude Code may write while Codex checks; Claude Code may not do both,
+    and an agent line naming none (any agent) leaves none for the other list."""
+    claude, codex = Reader(llm.AGENT, "claude-code"), Reader(llm.AGENT, "codex")
+    for readers, checkers in (([Reader(llm.AGENT)], []),
+                              ([Reader(llm.AGENT), Reader("ollama", "m")], []),
+                              ([Reader("ollama", "m"), Reader(llm.AGENT)], []),
+                              ([Reader("ollama", "m")], [Reader(llm.AGENT)]),
+                              ([Reader("ollama", "m")], [Reader("ollama", "c"), Reader(llm.AGENT)]),
+                              ([claude], [codex]), ([codex, Reader("ollama", "m")], [claude])):
+        _validate(Config(titles_include=["x"], llm=Llm(provider=readers[0].provider,
+                                                       model=readers[0].model,
+                                                       readers=readers, checkers=checkers)))
+    for bad in (Llm(provider=llm.AGENT, readers=[Reader(llm.AGENT), Reader(llm.AGENT, "codex")]),
                 Llm(provider="ollama", model="m", readers=[Reader("ollama", "m")],
-                    checkers=[Reader(llm.AGENT)])):
+                    checkers=[Reader(llm.AGENT), Reader(llm.AGENT, "codex")]),
+                Llm(provider=llm.AGENT, model="claude-code", readers=[claude], checkers=[claude]),
+                Llm(provider=llm.AGENT, readers=[Reader(llm.AGENT)], checkers=[codex]),
+                Llm(provider=llm.AGENT, model="codex", readers=[codex], checkers=[Reader(llm.AGENT)]),
+                Llm(provider=llm.AGENT, model="vim", readers=[Reader(llm.AGENT, "vim")])):
         try:
             _validate(Config(titles_include=["x"], llm=bad))
         except ConfigError as exc:
             assert "coding agent" in str(exc)
         else:
             raise AssertionError(f"accepted {bad}")
+
+
+def test_an_agent_is_known_by_the_name_it_connects_with():
+    for name, key in (("claude-code", "claude-code"), ("Claude Code", "claude-code"),
+                      ("codex-mcp-client", "codex"), ("cursor-vscode", "cursor"),
+                      ("Visual Studio Code", "copilot"), ("claude-ai", "claude-desktop"),
+                      ("gemini-cli-mcp-client", "antigravity"), ("", ""), ("my-bot", "")):
+        assert llm.agent_key(name) == key, name
 
 
 def test_an_agent_alone_refuses_the_dashboards_model_jobs_with_what_to_ask():
@@ -312,7 +333,7 @@ def test_the_mcp_server_speaks_json_rpc_on_stdio():
     assert {t["name"] for t in answers[1]["result"]["tools"]} == set(agent.BY_NAME)
     assert not answers[2]["result"]["isError"]
     assert json.loads(answers[2]["result"]["content"][0]["text"])["saved"]
-    assert model == "Coding agent · codex", "named for the client that connected"
+    assert model == "Coding agent · Codex", "named for the client that connected"
     assert answers[3]["result"]["isError"]
     assert answers[4]["error"]["code"] == -32601 and answers[5]["error"]["code"] == -32700
 
@@ -378,7 +399,7 @@ def test_what_an_agent_adds_to_the_record_waits_for_your_ok():
             assert "Moon base" not in notes and "rocketry" not in notes
             assert store.suggestions_waiting() == 3
         waiting = api.list_suggestions(cfg)
-        assert waiting["projects"][0]["suggested_by"] == "Coding agent · codex"
+        assert waiting["projects"][0]["suggested_by"] == "Coding agent · Codex"
         api.decide_suggestion(cfg, {"kind": "project", "key": str(waiting["projects"][0]["id"]),
                                     "approve": "1"})
         api.decide_suggestion(cfg, {"kind": "skill", "key": "rocketry", "approve": "0"})
@@ -486,8 +507,8 @@ def test_what_an_agent_changes_is_logged_and_marked_as_its():
     assert [(r["origin"], r["state"]) for r in runs] == [("coding agent", "done"),
                                                          ("coding agent", "failed")]
     assert runs[0]["job"] == "coding agent: update application"
-    assert "claude-code" in runs[0]["summary"] and "status must be one of" in runs[1]["summary"]
-    assert step["by"] == note["by"] == "Coding agent · claude-code"
+    assert "Claude Code" in runs[0]["summary"] and "status must be one of" in runs[1]["summary"]
+    assert step["by"] == note["by"] == "Coding agent · Claude Code"
 
 
 def test_save_and_test_counts_a_coding_agent_as_ready():
@@ -510,6 +531,199 @@ def test_the_agents_answers_are_left_out_of_the_ai_timings():
         metrics = api.metrics(cfg)
     timing = next(v for v in metrics.values() if isinstance(v, dict) and "p50" in v)
     assert timing["p50"] == 12.0, "the agent's 0 seconds would pull it down"
+
+
+# ── a coding agent as the checker ─────────────────────────────────────────────
+
+_AGENT_CHECKS = Llm(provider="ollama", model="m", readers=[Reader("ollama", "m")],
+                    checkers=[Reader(llm.AGENT)])
+
+
+def _model_writes(reader, system, user, schema, *_args):
+    """The Ollama reader, for a letter only: the guard must ask no model."""
+    assert schema == writer.LETTER_SCHEMA, "the claim check went to a model"
+    return LETTER
+
+
+def test_with_the_agent_as_checker_a_models_writing_waits_for_it():
+    ollama = llm.Settings(provider="ollama", model="m", checkers=[llm.Settings(provider=llm.AGENT)])
+    report = guard.check(ollama, "I ran Kubernetes.", {"resume": RESUME})
+    assert report.waiting and not report.checked and report.error == guard.AGENT_WAITS
+    assert report.pending == {"text": "I ran Kubernetes.", "sources": {"resume": RESUME}}
+    assert "pending" not in report.to_dict() and report.to_dict()["waiting"]
+    assert report.to_dict(with_pending=True)["pending"]["text"] == "I ran Kubernetes."
+    assert ollama.checker_chain() is None, "no second-opinion score from the agent"
+
+
+def test_a_checker_listed_before_the_agent_checks_first_and_the_agent_only_when_it_cannot():
+    asked = []
+
+    def model(reader, system, user, schema, *_args):
+        asked.append(reader.model)
+        if reader.model == "down":
+            raise llm.LLMError("not answering")
+        if schema == guard.CLAIMS_SCHEMA:
+            return {"claims": ["Ran the Kubernetes platform for 40 services at Acme."]}
+        return {"results": [{"n": 1, "claim": "Ran the Kubernetes platform for 40 services at Acme.",
+                             "verdict": "supported", "source": "resume",
+                             "quote": "Ran the Kubernetes platform for 40 services at Acme."}]}
+
+    was = llm._call_one
+    llm._call_one = model
+    try:
+        for first, waits in (("c", False), ("down", True)):
+            settings = llm.Settings(provider="ollama", model="m", checkers=[
+                llm.Settings(provider="ollama", model=first), llm.Settings(provider=llm.AGENT)])
+            report = guard.check(settings, "I ran Kubernetes at Acme.", {"resume": RESUME})
+            assert report.waiting is waits, first
+            if not waits:
+                assert report.checked and report.second and not report.unsupported
+    finally:
+        llm._call_one = was
+    assert "m" not in asked, "with the agent as checker, the writer never marks itself"
+
+
+def test_as_agent_never_makes_the_agent_check_its_own_writing():
+    cfg = Config(llm=_AGENT_CHECKS)
+    mine = agent.as_agent(cfg)
+    assert [(r.provider, r.model) for r in mine.llm.checkers] == [("ollama", "m")]
+    use, _ = guard.checking(llm.Settings.from_config(mine))
+    assert use.provider == "ollama"
+
+
+def test_the_agent_checks_a_waiting_letter_through_its_tools():
+    with _setup() as (cfg, uid, _):
+        cfg.llm = _AGENT_CHECKS
+        was = llm._call_one
+        llm._call_one = _model_writes
+        try:
+            with Store(cfg.db_path) as store:
+                draft = writer.letter(cfg, store, uid)
+        finally:
+            llm._call_one = was
+        assert draft.guard.waiting
+        gate = next(g for g in draft.gates if g.name == writer.GUARD_GATE)
+        assert not gate.passed and "waiting for your coding agent" in gate.detail
+
+        waiting = agent.call(cfg, "list_checks", {})["waiting"]
+        assert [(w["output_id"], w["kind"], w["uid"]) for w in waiting] == [
+            (draft.output_id, "cover_letter", uid)]
+        assert agent.call(cfg, "overview", {})["checks_waiting"] == 1
+
+        first = agent.call(cfg, "get_check_brief", {"output_id": draft.output_id})
+        assert first["step"] == "claims" and first["schema"] == guard.CLAIMS_SCHEMA
+        assert "Kubernetes platform for 40 services" in first["user"]
+        claims = ["I ran the Kubernetes platform for 40 services at Acme.",
+                  "I hold a PhD in physics."]
+        second = agent.call(cfg, "get_check_brief", {"output_id": draft.output_id,
+                                                     "claims": claims})
+        assert second["step"] == "verify" and second["claims"] == claims
+        assert "<<SOURCE resume>>" in second["user"]
+        answer = {"results": [
+            {"n": 1, "claim": claims[0], "verdict": "supported", "source": "resume",
+             "quote": "Ran the Kubernetes platform for 40 services at Acme."},
+            {"n": 2, "claim": claims[1], "verdict": "supported", "source": "resume",
+             "quote": "PhD in physics"}]}
+        done = agent.call(cfg, "save_check", {"output_id": draft.output_id, "claims": claims,
+                                              "answer": answer, "_client": "claude-code"})
+        assert (done["claims"], done["unsupported"]) == (2, 1), "a quote not in the resume"
+        assert done["flagged"][0]["claim"] == claims[1]
+
+        with Store(cfg.db_path) as store:
+            row = store.ai_output(draft.output_id)
+            stored = json.loads(row["guard_json"])
+            gates = json.loads(store.artifacts(uid, "cover_letter")[0]["gates_json"])
+        assert row["checked"] == 1 and row["check_input"] is None
+        assert stored["model"] == "Coding agent · Claude Code" and stored["second"]
+        assert "waiting" not in stored
+        assert gates[writer.GUARD_GATE]["output_id"] == draft.output_id
+        assert not gates[writer.GUARD_GATE]["passed"]
+        assert "1 of 2 claims not supported" in gates[writer.GUARD_GATE]["detail"]
+        assert agent.call(cfg, "list_checks", {})["waiting"] == []
+        try:
+            agent.call(cfg, "save_check", {"output_id": draft.output_id, "claims": []})
+        except agent.ToolError as exc:
+            assert "list_checks" in str(exc)
+        else:
+            raise AssertionError("a check is saved once")
+
+
+def test_the_agents_check_of_a_verdict_reaches_the_job_posts_score():
+    from jobdork.ai import judging
+
+    with _setup() as (cfg, uid, _):
+        settings = llm.Settings(provider="ollama", model="m",
+                                checkers=[llm.Settings(provider=llm.AGENT)])
+        verdict = {"score": 80, "verdict": "strong", "summary": "Runs Kubernetes at Acme.",
+                   "reasons": [], "concerns": []}
+        with Store(cfg.db_path) as store:
+            row = store.get(uid)
+            judging.check_verdict(settings, store, row, verdict, RESUME)
+            store.set_judgement(uid, verdict)
+            assert verdict["guard"]["waiting"] and "pending" not in verdict["guard"]
+        agent.call(cfg, "save_check", {"output_id": verdict["ai_output_id"], "claims": []})
+        with Store(cfg.db_path) as store:
+            saved = json.loads(store.get(uid)["llm_judgement"])
+        assert saved["guard"]["checked"] and "waiting" not in saved["guard"]
+
+
+def test_what_one_agent_wrote_another_checks_and_never_itself():
+    claude = llm.Settings(provider=llm.AGENT, model="claude-code")
+    for checker, waits in (("codex", True), ("claude-code", False), ("", False)):
+        wrote = llm.Settings(provider=llm.AGENT, answered=claude,
+                             checkers=[llm.Settings(provider=llm.AGENT, model=checker)])
+        assert guard.agent_checks(wrote) is waits, checker
+    cfg = Config(llm=Llm(provider="ollama", model="m", readers=[Reader("ollama", "m")],
+                         checkers=[Reader(llm.AGENT, "codex")]))
+    assert [r.model for r in agent.as_agent(cfg, "claude-code").llm.checkers] == ["codex"]
+    assert [r.model for r in agent.as_agent(cfg, "codex-mcp-client").llm.checkers] == ["m"]
+
+
+def test_each_agent_keeps_to_the_role_it_was_given():
+    with _setup() as (cfg, uid, _):
+        cfg.llm = Llm(provider=llm.AGENT, model="claude-code",
+                      readers=[Reader(llm.AGENT, "claude-code")],
+                      checkers=[Reader(llm.AGENT, "codex")])
+        draft = agent.call(cfg, "save_document", {"uid": uid, "kind": "cover_letter",
+                                                  "answer": LETTER, "_client": "claude-code"})
+        assert draft["saved"]
+        with Store(cfg.db_path) as store:
+            output_id = store.waiting_checks()[0]["id"]
+        refusals = (("save_document", {"uid": uid, "kind": "cover_letter", "answer": LETTER,
+                                       "_client": "codex-mcp-client"}, "checker, not a reader"),
+                    ("save_check", {"output_id": output_id, "claims": [],
+                                    "_client": "claude-code"}, "a reader, not their checker"),
+                    ("get_check_brief", {"output_id": output_id, "_client": "cursor-vscode"},
+                     "chose Codex as their checker"))
+        for tool, args, says in refusals:
+            try:
+                agent.call(cfg, tool, args)
+            except agent.ToolError as exc:
+                assert says in str(exc), (tool, exc)
+            else:
+                raise AssertionError(f"{tool} allowed for {args['_client']}")
+        done = agent.call(cfg, "save_check", {"output_id": output_id, "claims": [],
+                                              "_client": "codex-mcp-client"})
+        assert done["saved"]
+
+
+def test_an_agent_never_checks_what_it_wrote_itself():
+    with _setup() as (cfg, uid, _):
+        cfg.llm = Llm(provider="ollama", model="m", readers=[Reader("ollama", "m")],
+                      checkers=[Reader(llm.AGENT)])
+        with Store(cfg.db_path) as store:
+            output_id = store.add_ai_output(
+                "cover_letter", "I ran Kubernetes.", uid=uid, model="Coding agent · Claude Code",
+                guard={"waiting": True, "pending": {"text": "I ran Kubernetes.",
+                                                    "sources": {"resume": RESUME}}})
+        try:
+            agent.call(cfg, "get_check_brief", {"output_id": output_id, "_client": "claude-code"})
+        except agent.ToolError as exc:
+            assert "never checks its own writing" in str(exc)
+        else:
+            raise AssertionError("an agent checked its own writing")
+        assert agent.call(cfg, "get_check_brief", {"output_id": output_id,
+                                                   "_client": "codex"})["step"] == "claims"
 
 
 # ── keep this block LAST ───────────────────────────────────────────────────────

@@ -253,6 +253,10 @@ try {
     drawAskState({stage: 'idle', busy: false, claude: true, doing: '', model: 'sonnet', models: ${models}, messages: []});
     $('ask-model').value = 'sonnet';`);
   await shoot('ask-start');
+  // Off: what the page says until Claude Code is a reader on the AI page.
+  await run(`drawAskState({stage: 'idle', busy: false, claude: true, doing: '', model: 'sonnet', models: ${models}, messages: [],
+    off: ${JSON.stringify("Ask is off: Claude Code is not one of your readers. To turn it on, on the AI page add a reader, choose Coding agent, and under Which agent choose Claude Code (or Any coding agent).")}});`);
+  await shoot('ask-off', {clip: '.askdock'});
   await run(`drawAskState({stage: 'refused', busy: false, claude: true, doing: '', model: 'sonnet', models: ${models}, messages: [
     {role: 'you', text: 'Which three job posts suit me best, and why?'},
     {role: 'agent', text: '1. Charge Nurse - Medical Surgical, Northbridge Health (AI 86): you have been a charge nurse on a 32-bed medical-surgical unit and precepted twelve new graduates, which is what the advert asks for.\\n2. Registered Nurse - Telemetry, Lakeview Regional Hospital (AI 74): three years of telemetry fit the unit, though your latest role is medical-surgical.\\n3. Registered Nurse - Remote Care Coordination, Westfield Medical Group: remote, and your care planning carries over.\\n\\nWant a cover letter for the first one?'},

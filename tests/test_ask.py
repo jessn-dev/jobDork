@@ -315,21 +315,6 @@ def test_stop_kills_the_run():
 
 # ── keep this block LAST ───────────────────────────────────────────────────────
 
-if __name__ == "__main__":
-    failures = 0
-    tests = [(name, fn) for name, fn in sorted(globals().items())
-             if name.startswith("test_") and callable(fn)]
-    for name, fn in tests:
-        try:
-            fn()
-        except BaseException as exc:
-            failures += 1
-            print(f"FAIL {name}: {type(exc).__name__}: {exc}")
-    print(f"{len(tests) - failures}/{len(tests)} passed")
-    raise SystemExit(1 if failures else 0)
-
-
-# ── the model that answers ─────────────────────────────────────────────────────
 
 def test_the_model_you_choose_answers_and_nothing_else_reaches_the_command():
     assert "--model" not in ask.run_command("claude", SERVER), "the default names none"
@@ -367,3 +352,72 @@ def test_a_model_not_on_the_list_is_refused_before_anything_runs():
         else:
             raise AssertionError("an unknown model was accepted")
     assert agent.calls == [] and conv.state()["messages"] == []
+
+
+# ── off until Claude Code is a reader on the AI page ──────────────────────────
+
+def _cfg(readers, checkers=()):
+    from jobdork.core.config import Config, Llm
+
+    first = readers[0] if readers else None
+    return Config(llm=Llm(provider=first.provider if first else "ollama",
+                          model=first.model if first else "m",
+                          readers=list(readers), checkers=list(checkers)))
+
+
+def test_ask_is_off_until_claude_code_is_a_reader():
+    from jobdork.ai import llm
+    from jobdork.core.config import Reader
+    from jobdork.web import api
+
+    ollama, claude = Reader("ollama", "m"), Reader(llm.AGENT, "claude-code")
+    with _claude():
+        assert api.ask_off(_cfg([ollama], [Reader("ollama", "c")])) == api.ASK_NOT_CHOSEN
+        assert api.ask_off(_cfg([Reader(llm.AGENT, "codex")])) == api.ASK_NOT_CHOSEN
+        assert api.ask_off(_cfg([ollama], [claude])) == api.ASK_IS_CHECKER
+        assert api.ask_off(_cfg([claude])) == ""
+        assert api.ask_off(_cfg([ollama, Reader(llm.AGENT)])) == "", "any coding agent"
+        assert api.ask_off(_cfg([claude], [Reader(llm.AGENT, "codex")])) == ""
+    with _claude(""):
+        assert api.ask_off(_cfg([claude])) == api.ASK_NOT_INSTALLED
+
+
+def _never(*args, **kwargs):
+    raise AssertionError("an Ask while off started Claude Code")
+
+
+def test_an_ask_while_off_is_refused_and_nothing_runs():
+    from jobdork.web import api
+
+    conv = ask.Conversation(spawn=_never, run=_never)
+    before = ask.CONVERSATION
+    ask.CONVERSATION = conv
+    try:
+        with _claude():
+            try:
+                api.ask_start(_cfg([]), "which job posts suit me?")
+            except api.ApiError as exc:
+                assert str(exc) == api.ASK_NOT_CHOSEN and exc.status == 409
+            else:
+                raise AssertionError("an Ask while off was sent")
+            state = api.ask_state(_cfg([]))
+    finally:
+        ask.CONVERSATION = before
+    assert state["off"] == api.ASK_NOT_CHOSEN and state["messages"] == []
+
+
+if __name__ == "__main__":
+    failures = 0
+    tests = [(name, fn) for name, fn in sorted(globals().items())
+             if name.startswith("test_") and callable(fn)]
+    for name, fn in tests:
+        try:
+            fn()
+        except BaseException as exc:
+            failures += 1
+            print(f"FAIL {name}: {type(exc).__name__}: {exc}")
+    print(f"{len(tests) - failures}/{len(tests)} passed")
+    raise SystemExit(1 if failures else 0)
+
+
+# ── the model that answers ─────────────────────────────────────────────────────

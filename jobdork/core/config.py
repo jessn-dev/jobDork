@@ -1174,22 +1174,37 @@ def _validate(cfg: Config) -> None:
     if cfg.fetch.retries < 0:
         raise ConfigError("fetch.retries cannot be negative")
 
-    from ..ai.llm import AGENT, PROVIDERS
+    from ..ai.llm import AGENT, AGENTS, PROVIDERS
     if cfg.llm.provider and cfg.llm.provider not in (*PROVIDERS, AGENT):
         raise ConfigError(
             f"llm.provider is {cfg.llm.provider!r}. Accepted: "
             f"{', '.join(PROVIDERS)}, {AGENT}, or empty for off.")
+    # A coding agent is a reader or a checker, never both: as both it would
+    # mark its own writing. Two different agents may be one each (Claude
+    # Code writing, Codex checking); an agent line naming none means any
+    # agent, so it leaves no agent for the other list.
+    agents = {name: [r.model for r in listed if r.provider == AGENT]
+              for name, listed in (("readers", cfg.llm.readers),
+                                   ("checkers", cfg.llm.checkers))}
+    for model in agents["readers"]:
+        for other in agents["checkers"]:
+            if not model or not other or model == other:
+                who = AGENTS.get(model or other, "any coding agent")
+                raise ConfigError(
+                    f"{who} is a reader and a checker (llm.readers, llm.checkers); a "
+                    "coding agent can be a reader or a checker, not both. Name another "
+                    "agent as the checker, or choose a model")
     for name, listed in (("readers", cfg.llm.readers), ("checkers", cfg.llm.checkers)):
         for i, reader in enumerate(listed, 1):
-            # A coding agent: one reader line at most, and never a checker,
-            # which would have it mark its own writing.
+            # A coding agent: on one line of the list at most, naming one of
+            # AGENTS or none (any agent).
             if reader.provider == AGENT:
-                if name == "checkers":
-                    raise ConfigError(f"llm.checkers entry {i}: a coding agent ({AGENT}) "
-                                      "cannot check; choose a model")
                 if sum(r.provider == AGENT for r in listed[:i]) > 1:
-                    raise ConfigError(f"llm.readers entry {i}: a coding agent ({AGENT}) "
+                    raise ConfigError(f"llm.{name} entry {i}: a coding agent ({AGENT}) "
                                       "is listed once")
+                if reader.model and reader.model not in AGENTS:
+                    raise ConfigError(f"llm.{name} entry {i}: coding agent {reader.model!r} "
+                                      f"is not one of {', '.join(AGENTS)}, or empty for any")
                 continue
             if reader.provider not in PROVIDERS:
                 raise ConfigError(f"llm.{name} entry {i} has provider {reader.provider!r}. "

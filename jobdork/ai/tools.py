@@ -521,7 +521,7 @@ def run(cfg, store, uid: str, kind: str, text: str = "", progress=None) -> ToolR
         result = revise(settings, row, resume_text, text, check)
 
     output_id = store.add_ai_output(kind, result.text, uid=uid, model=settings.label,
-                                    guard=result.guard.to_dict())
+                                    guard=result.guard.to_dict(with_pending=True))
     folder = generate.write_job_folder(row)
     path = folder / f"ai-{kind.replace('_', '-')}.json"
     path.write_text(json.dumps({**result.to_dict(), "model": settings.label},
