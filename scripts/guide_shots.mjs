@@ -255,7 +255,7 @@ try {
   await shoot('ask-start');
   // Off: what the page says until Claude Code is a reader on the AI page.
   await run(`drawAskState({stage: 'idle', busy: false, claude: true, doing: '', model: 'sonnet', models: ${models}, messages: [],
-    off: ${JSON.stringify("Ask is off: Claude Code is not one of your readers. To turn it on, on the AI page add a reader, choose Coding agent, and under Which agent choose Claude Code (or Any coding agent).")}});`);
+    off: ${lit("Ask is off: Claude Code is not one of your readers. To turn it on, on the AI page add a reader, choose Coding agent, and under Which agent choose Claude Code (or Any coding agent).")}});`);
   await shoot('ask-off', {clip: '.askdock'});
   await run(`drawAskState({stage: 'refused', busy: false, claude: true, doing: '', model: 'sonnet', models: ${models}, messages: [
     {role: 'you', text: 'Which three job posts suit me best, and why?'},
