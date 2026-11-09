@@ -24,6 +24,14 @@ made up: on 2026-10-23 they were 68 of the 130 claims flagged.
 
 A check that fails (model down, bad JSON) returns `checked=False`. It never
 blocks the output; it lowers coverage on the dashboard instead.
+
+A coding agent can be the checker (llm.checkers). jobdork never calls an
+agent, so a check that reaches it is not run now: the report says it waits
+(`waiting`), and carries the text and its sources (`pending`) for the agent
+to check later through its tools (web/agent.py), with the same script rules
+on its quotes. An agent is never the reader and the checker both (config.py),
+and never checks what it wrote itself: what Claude Code wrote, Codex may
+check, and Claude Code may not.
 """
 
 from __future__ import annotations
@@ -33,7 +41,15 @@ import re
 from dataclasses import dataclass, field, replace
 
 from ..core.textutil import visible
-from .llm import AGENT, LLMError, Settings, complete_json
+from .llm import (
+    AGENT,
+    AGENT_LABEL,
+    AGENTS,
+    LLMError,
+    Settings,
+    agent_key,
+    complete_json,
+)
 
 MAX_CLAIMS = 25
 MAX_SOURCE = 16_000
@@ -113,6 +129,11 @@ class GuardReport:
     model: str = ""         # the model that checked
     second: bool = False    # a second model, not the one that wrote it
     note: str = ""          # why a chosen second model was not used
+    # The coding agent checks it later (its tools); `pending` is what it
+    # checks: {"text": ..., "sources": {...}}, kept apart from the report
+    # when it is stored (Store.add_ai_output).
+    waiting: bool = False
+    pending: dict = field(default_factory=dict)
 
     @property
     def unsupported(self) -> list[ClaimCheck]:
@@ -122,16 +143,24 @@ class GuardReport:
     def rate(self) -> float | None:
         return len(self.unsupported) / len(self.claims) if self.claims else None
 
-    def to_dict(self) -> dict:
-        return {"checked": self.checked, "error": self.error,
-                "claims": len(self.claims), "unsupported": len(self.unsupported),
-                "rate": self.rate, "model": self.model, "second": self.second,
-                "note": self.note,
-                # The quote too, so a flag can be told from a missed match
-                # when the numbers are looked into.
-                "flagged": [{"claim": c.claim, "verdict": c.verdict,
-                             "source": c.source, "quote": c.quote[:200]}
-                            for c in self.unsupported]}
+    def to_dict(self, with_pending: bool = False) -> dict:
+        """The report as stored and shown. `with_pending` adds what a waiting
+        check is to check (the text and its sources, the resume among them):
+        only for Store.add_ai_output, which keeps it apart, never for a page."""
+        out = {"checked": self.checked, "error": self.error,
+               "claims": len(self.claims), "unsupported": len(self.unsupported),
+               "rate": self.rate, "model": self.model, "second": self.second,
+               "note": self.note,
+               # The quote too, so a flag can be told from a missed match
+               # when the numbers are looked into.
+               "flagged": [{"claim": c.claim, "verdict": c.verdict,
+                            "source": c.source, "quote": c.quote[:200]}
+                           for c in self.unsupported]}
+        if self.waiting:
+            out["waiting"] = True
+            if with_pending:
+                out["pending"] = self.pending
+        return out
 
 
 def settings_for(cfg) -> Settings | None:
@@ -326,16 +355,27 @@ def _same(a: str, b: str) -> bool:
     return difflib.SequenceMatcher(None, _loose(a), _loose(b)).ratio() >= 0.8
 
 
-def extract_claims(settings: Settings, text: str) -> list[str]:
-    raw = complete_json(settings, EXTRACT_SYSTEM,
-                        f"<<TEXT>>\n{text[:MAX_SOURCE]}\n<</TEXT>>", CLAIMS_SCHEMA,
-                        purpose="guard_extract")
-    claims = raw.get("claims") if isinstance(raw.get("claims"), list) else []
+def extract_brief(text: str) -> tuple[str, str, dict]:
+    """(system, user, schema): what a checker is asked to split `text` into claims."""
+    return EXTRACT_SYSTEM, f"<<TEXT>>\n{text[:MAX_SOURCE]}\n<</TEXT>>", CLAIMS_SCHEMA
+
+
+def clean_claims(raw) -> list[str]:
+    """The claims in an extraction answer, as they are checked."""
+    claims = raw if isinstance(raw, list) else (
+        raw.get("claims") if isinstance(raw, dict) and isinstance(raw.get("claims"), list)
+        else [])
     # Small models keep "X is applying for Y" however they are told; it is
     # the letter describing itself, which no source can support. So is a
     # resume summary's "seeking a Software Engineer role" (2026-10-24).
     return [re.sub(r"\s+", " ", str(c)).strip() for c in claims
             if str(c).strip() and not _SELF.search(str(c)[:300])][:MAX_CLAIMS]
+
+
+def extract_claims(settings: Settings, text: str) -> list[str]:
+    system, user, schema = extract_brief(text)
+    return clean_claims(complete_json(settings, system, user, schema,
+                                      purpose="guard_extract"))
 
 
 _SELF = re.compile(r"\b(?:is|am|are) (?:applying|writing to apply|excited|eager|"
@@ -347,16 +387,29 @@ _SELF = re.compile(r"\b(?:is|am|are) (?:applying|writing to apply|excited|eager|
                    r"\b(?:role|position|job|opportunity)\b", re.IGNORECASE)
 
 
-def verify(settings: Settings, claims: list[str],
-           sources: dict[str, str]) -> list[ClaimCheck]:
-    """Model verdicts, then the script rule: a quote must be in its source."""
+def verify_brief(claims: list[str], sources: dict[str, str]) -> tuple[str, str, dict]:
+    """(system, user, schema): what a checker is asked about `claims`."""
     docs = "\n\n".join(f"<<SOURCE {name}>>\n{text[:MAX_SOURCE]}\n<</SOURCE>>"
                        for name, text in sources.items())
     listed = "\n".join(f"{n}. {c}" for n, c in enumerate(claims, 1))
-    raw = complete_json(settings, VERIFY_SYSTEM,
-                        f"{docs}\n\nClaims:\n{listed}", VERIFY_SCHEMA,
+    return VERIFY_SYSTEM, f"{docs}\n\nClaims:\n{listed}", VERIFY_SCHEMA
+
+
+def verify(settings: Settings, claims: list[str],
+           sources: dict[str, str]) -> list[ClaimCheck]:
+    """Model verdicts, then the script rule: a quote must be in its source."""
+    system, user, schema = verify_brief(claims, sources)
+    raw = complete_json(settings, system, user, schema,
                         max_tokens=4000, purpose="guard_verify")
-    results = [r for r in raw.get("results") or [] if isinstance(r, dict)]
+    return settle(claims, sources, raw)
+
+
+def settle(claims: list[str], sources: dict[str, str], raw) -> list[ClaimCheck]:
+    """A checker's verdicts on `claims` (a model's or a coding agent's), each
+    held to the script rules: a quote must be in the source it names, and a
+    gap is settled by script."""
+    results = [r for r in (raw.get("results") if isinstance(raw, dict) else None) or []
+               if isinstance(r, dict)]
     # Matched by its words, then by number: a model that echoed a claim with
     # its full stop dropped or a word changed used to leave it unmatched,
     # and unmatched counted as made up.
@@ -415,6 +468,28 @@ NO_CHECKER = ("not run: your coding agent wrote it and no checker model is set "
               "(AI page, Checkers); read every claim yourself")
 
 
+# What the hallucination check says while a coding agent, chosen as the
+# checker, has still to check it.
+AGENT_WAITS = ("waiting for your coding agent to check it; ask it to check "
+               "jobdork's AI writing")
+
+
+def agent_checks(settings: Settings) -> bool:
+    """A coding agent is a chosen checker, and did not write this itself.
+
+    A model's writing: yes. An agent's: only when the checker names another
+    agent than the one that wrote it (agent_key), both known; an unnamed one
+    (any agent) or an agent that cannot be told apart might be the writer."""
+    checker = next((c for c in settings.checkers if c.provider == AGENT), None)
+    if checker is None:
+        return False
+    writer = settings.answered or settings
+    if writer.provider != AGENT:
+        return True
+    wrote, checks = agent_key(writer.model), agent_key(checker.model)
+    return bool(wrote and checks and wrote != checks)
+
+
 def checking(settings: Settings) -> tuple[Settings, str]:
     """Who checks what `settings` wrote, as one Settings that tries them in
     order, and a note naming any chosen checker that could not be used.
@@ -425,24 +500,43 @@ def checking(settings: Settings) -> tuple[Settings, str]:
     when nothing else is ready. Each is asked in turn when the one before
     cannot answer (llm.complete_json), so one checker being down, out of
     credit or rate limited no longer leaves the output unchecked.
+
+    A coding agent among the checkers is where the order stops: the models
+    listed before it are asked, and when none answers the agent checks it
+    later (`check`), before any reader or the writer would mark it.
     """
     writer = settings.answered or settings
     wrote = (writer.provider, writer.model)
+    agent = agent_checks(settings)
     skipped = [c for c in settings.checkers if c.problem()]
     order: list[Settings] = []
-    for one in [*settings.checkers, *settings.chain()]:
-        # A coding agent checks nothing: it would be marking its own work.
-        if (one.provider == AGENT or one.problem() or (one.provider, one.model) == wrote
+    for one in [*settings.checkers, *([] if agent else settings.chain())]:
+        if one.provider == AGENT:
+            if agent:
+                break               # the agent checks what the models before it could not
+            continue                # it wrote this: it does not mark its own work
+        if (one.problem() or (one.provider, one.model) == wrote
                 or any(o.provider == one.provider and o.model == one.model
                        and o.ollama_url == one.ollama_url for o in order)):
             continue
         order.append(replace(one, checkers=[], fallbacks=[], answered=None))
-    if writer.provider != AGENT:
+    if writer.provider != AGENT and not agent:
         order.append(replace(writer, checkers=[], fallbacks=[], answered=None))
     note = "; ".join(f"second model {c.label} not used: {c.problem()}" for c in skipped)
     if not order:
         return Settings(), note
     return replace(order[0], fallbacks=order[1:]), note
+
+
+def waiting(text: str, sources: dict[str, str], note: str = "",
+            settings: Settings | None = None) -> GuardReport:
+    """A check the coding agent makes later, with what it checks."""
+    checker = next((c for c in (settings.checkers if settings else []) if c.provider == AGENT),
+                   None)
+    return GuardReport(error=AGENT_WAITS, model=checker.label if checker else AGENT_LABEL,
+                       note=note, waiting=True,
+                       pending={"text": text[:MAX_SOURCE],
+                                "sources": {k: v[:MAX_SOURCE] for k, v in sources.items()}})
 
 
 def check(settings: Settings, text: str, sources: dict[str, str]) -> GuardReport:
@@ -454,6 +548,9 @@ def check(settings: Settings, text: str, sources: dict[str, str]) -> GuardReport
     """
     use, note = checking(settings)
     writer = settings.answered or settings
+    agent = agent_checks(settings)
+    if not use.provider and agent:
+        return waiting(text, sources, note, settings)
     if not use.provider and writer.provider == AGENT:
         return GuardReport(error=NO_CHECKER, note=note)
     if use.problem():
@@ -473,4 +570,16 @@ def check(settings: Settings, text: str, sources: dict[str, str]) -> GuardReport
             return report(checked=True)
         return report(checked=True, claims=verify(use, claims, sources))
     except LLMError as exc:
+        if agent:
+            # No model listed before the agent could answer: the agent checks it.
+            return waiting(text, sources, "; ".join(x for x in (note, str(exc)) if x),
+                           settings)
         return report(error=str(exc))
+
+
+def agent_report(claims: list[ClaimCheck], client: str = "") -> GuardReport:
+    """A coding agent's finished check, as a model's is reported: a second
+    checker, since it did not write what it checked."""
+    named = AGENTS.get(agent_key(client), client)
+    return GuardReport(checked=True, claims=claims, second=True,
+                       model=AGENT_LABEL + (f" · {named}" if named else ""))

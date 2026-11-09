@@ -63,11 +63,42 @@ KEYED = ("anthropic", "gemini", "openai", "groq")
 # makes no call of its own. The agent asks jobdork for the brief a model
 # would have been given (web/agent.py), writes the answer itself, and hands it
 # back; from there it goes through every check a model's answer does. Not in
-# PROVIDERS: it is no model to list, check with or key. One reader line at
-# most may be one, and no checker (core/config.py); the readers after it
-# answer what jobdork asks for itself.
+# PROVIDERS: it is no model to list, check with or key. One reader line and
+# one checker line at most may be one, each naming which agent in `model`
+# (AGENTS; "" for any), and never the same agent on both (core/config.py):
+# it would mark its own writing. The readers after it answer what jobdork
+# asks for itself.
 AGENT = "agent"
 AGENT_LABEL = "Coding agent"
+# The agents a reader or checker line can name, as `model`.
+AGENTS = {"claude-code": "Claude Code", "codex": "Codex", "cursor": "Cursor",
+          "copilot": "GitHub Copilot", "claude-desktop": "Claude Desktop",
+          "antigravity": "Antigravity CLI"}
+
+
+def agent_key(name: str) -> str:
+    """Which of AGENTS a name means: a line's `model`, or the name an agent
+    gives when it connects (MCP clientInfo: "claude-code", "codex-mcp-client",
+    "cursor-vscode", "Visual Studio Code", "claude-ai"); "" when it is none
+    of them or not known."""
+    n = " ".join(str(name or "").lower().replace("_", "-").split())
+    if not n:
+        return ""
+    if n in AGENTS:
+        return n
+    if "claude-code" in n or "claude code" in n:
+        return "claude-code"
+    if "codex" in n:
+        return "codex"
+    if "cursor" in n:
+        return "cursor"
+    if "copilot" in n or "visual studio code" in n or "vscode" in n:
+        return "copilot"
+    if "claude-ai" in n or "claude desktop" in n or n == "claude":
+        return "claude-desktop"
+    if "antigravity" in n or n == "agy" or "gemini" in n:
+        return "antigravity"
+    return ""
 ENV_KEYS = {
     "anthropic": ("ANTHROPIC_API_KEY",),
     "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
@@ -321,9 +352,10 @@ class Settings:
         """The chosen second models that are ready to call, as one Settings
         that tries them in order; None when none is chosen or ready. One that
         is the model this one's answer came from is left out: it would only
-        agree with itself."""
+        agree with itself. A coding agent is left out too: it checks claims
+        later, through its tools (guard.py), and jobdork cannot ask it now."""
         who = self.answered or self
-        ready = [c for c in self.checkers if not c.problem()
+        ready = [c for c in self.checkers if not c.problem() and c.provider != AGENT
                  and (c.provider, c.model) != (who.provider, who.model)]
         return replace(ready[0], fallbacks=ready[1:], answered=None) if ready else None
 
@@ -349,7 +381,8 @@ class Settings:
         """The model's name, or after a call, the name of the one that answered."""
         who = self.answered or self
         if who.provider == AGENT:
-            return AGENT_LABEL + (f" · {who.model}" if who.model else "")
+            named = AGENTS.get(agent_key(who.model), who.model)
+            return AGENT_LABEL + (f" · {named}" if named else "")
         return f"{PROVIDERS.get(who.provider, who.provider)} · {who.model}"
 
 

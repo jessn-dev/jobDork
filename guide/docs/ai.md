@@ -48,9 +48,12 @@ environment, outside jobdork, is not jobdork's to remove and stays.
 
 Already use a coding agent (Claude Code, Codex, Antigravity CLI, Cursor, GitHub
 Copilot, Claude Desktop)? It can do jobdork's AI work, so you need no API
-key and no Ollama. Choose **Coding agent** for a reader, usually Reader 1.
-It can be on one reader line, and is never a checker. Other readers can
-still be added after it (below).
+key and no Ollama. Choose **Coding agent** for a reader, usually Reader 1,
+and under **Which agent** the one you use (Claude Code, Codex, Cursor, GitHub
+Copilot, Claude Desktop, Antigravity CLI), or **Any coding agent**. One agent
+is a reader or a [checker](#agent-checker), never both, since it would then
+mark its own writing: Claude Code can write while Codex checks, but Claude
+Code cannot do both. Other readers can still be added after it (below).
 
 ![Coding agent chosen](images/ai-agent.png)
 
@@ -202,6 +205,35 @@ With no checker chosen (or none ready), the check goes to another of your
 readers than the one that wrote it, and to the same one only when no other
 is ready. A checker costs about three more calls per output on its key; a
 local Ollama model costs nothing.
+
+### Your coding agent as a checker {#agent-checker}
+
+Choose **Coding agent** for a checker, and under **Which agent** the one
+that checks: it runs the hallucination check on what your readers write,
+judge and suggest. The same agent cannot be a reader too, either way round:
+with Claude Code as a reader, the checker can be Codex, Cursor or another
+agent, never Claude Code, and the page offers only those. A reader line set
+to **Any coding agent** leaves no agent to check, and the other way round.
+An agent never checks its own writing: what Claude Code wrote, Claude Code
+is refused when it tries to check it, and an agent named as the checker is
+refused when it tries to write in a reader's place.
+
+jobdork never calls your agent, so the check waits until you ask it, in its
+own chat, for instance *"Check jobdork's AI writing"*. Until then the check
+says **waiting for your coding agent**, and a document's checks list it as
+one to read: read those claims yourself before you send anything. Your
+agent then, for each output waiting:
+
+1. Splits the text into claims, as a checker model would.
+2. Says for each claim whether your resume or the advert supports it, with
+   the exact words that do.
+3. Saves the check. jobdork holds every quote to its source, as it does a
+   model's: a claim whose quote is not there counts as not supported. The
+   check then shows like any other, **checked by Coding agent**.
+
+A checker listed above your agent checks first; your agent checks only what
+that one could not. Your agent checks claims only: it does not give each
+judged job post a second score (**models disagree**), which needs a model.
 
 **Which local model checks best.** Measured in October 2026 on 30 AI
 verdicts (574 facts, the true answer for each decided by hand), checking

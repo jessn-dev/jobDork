@@ -42,7 +42,7 @@ log = logging.getLogger("jobdork.db.migrations")
 
 # The version a fresh database is created at, and the version this code
 # understands. Bumped by adding a step below.
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 17
 
 
 class MigrationError(Exception):
@@ -344,6 +344,13 @@ def _v15_to_v16(conn: sqlite3.Connection) -> None:
         _add_column(conn, table, "by", "TEXT NOT NULL DEFAULT ''")
 
 
+def _v16_to_v17(conn: sqlite3.Connection) -> None:
+    """A check a coding agent makes later (guard.py, web/agent.py): what it
+    is to check, the text and its sources, kept with the output until it is
+    checked, then cleared."""
+    _add_column(conn, "ai_outputs", "check_input", "TEXT")
+
+
 # The same tables a new database is made with (store.SCHEMA), written once.
 APPLICATION_TABLES = """
 CREATE TABLE IF NOT EXISTS status_history (
@@ -394,6 +401,7 @@ STEPS: dict[int, Callable[[sqlite3.Connection], None]] = {
     14: _v13_to_v14,
     15: _v14_to_v15,
     16: _v15_to_v16,
+    17: _v16_to_v17,
 }
 
 

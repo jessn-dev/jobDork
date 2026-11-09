@@ -8,6 +8,29 @@ document to a job post or suggest an addition to your resume for your OK.
 
 ![The Ask page, before the first question](images/ask-start.png)
 
+## Turning it on
+
+Ask is off until Claude Code is installed and is one of your readers on the
+[AI page](ai.md). Until then **Ask** is dimmed in the menu, and its page
+says what is missing, with **Open the AI page** to go there:
+
+![Ask while it is off](images/ask-off.png)
+
+To turn it on:
+
+1. Install [Claude Code](https://claude.com/claude-code) and sign in to it.
+2. On the [AI page](ai.md), under **Readers**, add a reader and choose
+   **Coding agent**.
+3. Under **Which agent**, choose **Claude Code**, or **Any coding agent**.
+   Save.
+
+You do not need to run `claude mcp add` for Ask: jobdork starts Claude Code
+with its tools itself. That command is for typing in Claude Code's own chat
+([Coding agent](ai.md#coding-agent)).
+
+Ask stays off when Claude Code is your **checker**. A checker does not
+write, and Ask has Claude Code answer and save documents.
+
 ## Asking
 
 Before the first question, the page shows the jobdork mark and a line
@@ -39,11 +62,12 @@ none is named. Your choice is kept for next time. It can change between
 questions of the same conversation. The check before each question always
 uses Haiku, whichever you choose.
 
-## Readers and checkers are not used
+## Your other readers and checkers
 
-Ask does not go through the readers and checkers on the [AI page](ai.md).
-It is Claude Code itself, on your Claude account, answering with jobdork's
-tools; the AI page's models keep doing what jobdork asks for itself
+Ask does not go through the other readers and checkers on the
+[AI page](ai.md). It is Claude Code itself, on your Claude account,
+answering with jobdork's tools; the AI page's models keep doing what
+jobdork asks for itself
 (judging job posts, writing documents from a job post's AI tools). A
 document Claude Code saves from Ask still gets every check a document
 gets, including the hallucination check by a checker model when one is
@@ -92,8 +116,9 @@ How it is kept to that:
 
 - **The desktop app.** Ask starts Claude Code on your computer, so a
   jobdork in Docker or on a server does not show it.
-- **Claude Code**, installed and signed in. Without it the page says where
-  to get it. Only Claude Code for now: Antigravity CLI (`agy`) cannot be
+- **Claude Code**, installed and signed in, and chosen as a reader on the
+  AI page ([Turning it on](#turning-it-on)). Without it the page says what
+  is missing. Only Claude Code for now: Antigravity CLI (`agy`) cannot be
   limited to jobdork's tools, so it still works the other way, from its own
   chat ([Coding agent](ai.md#coding-agent)).
 - **Your Claude plan.** Each question spends it, a little more for the

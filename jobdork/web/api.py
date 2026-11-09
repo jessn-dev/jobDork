@@ -2307,23 +2307,63 @@ def ask_folder(cfg) -> Path:
     return Path(cfg.db_path).expanduser().resolve().parent / "ask"
 
 
+ASK_NOT_INSTALLED = ("Claude Code is not installed on this computer. Install it from "
+                     "claude.com/claude-code and sign in, then come back here.")
+ASK_NOT_CHOSEN = ("Ask is off: Claude Code is not one of your readers. To turn it on, "
+                  "on the AI page add a reader, choose Coding agent, and under Which "
+                  "agent choose Claude Code (or Any coding agent).")
+ASK_IS_CHECKER = ("Ask is off: Claude Code is your checker, and a checker does not "
+                  "write. To use Ask, on the AI page make Claude Code a reader instead.")
+
+
+def ask_off(cfg) -> str:
+    """Why Ask cannot be used, or "" when it can. Ask is Claude Code
+    answering as a coding agent, so it is on only when Claude Code is
+    installed and the AI page has it as a reader: a line of Coding agent
+    naming Claude Code, or any coding agent."""
+    from ..ai import ask, llm
+
+    if not ask.cli():
+        return ASK_NOT_INSTALLED
+    readers = cfg.llm.readers
+    line = (next((r for r in readers if r.provider == llm.AGENT), None) if readers
+            else cfg.llm if cfg.llm.provider == llm.AGENT else None)
+    if line is not None and llm.agent_key(line.model) in ("", "claude-code"):
+        return ""
+    if any(c.provider == llm.AGENT and llm.agent_key(c.model) == "claude-code"
+           for c in cfg.llm.checkers):
+        return ASK_IS_CHECKER
+    return ASK_NOT_CHOSEN
+
+
+def ask_state(cfg) -> dict:
+    from ..ai import ask
+
+    return {**ask.CONVERSATION.state(), "off": ask_off(cfg)}
+
+
 def ask_start(cfg, prompt, model="") -> dict:
     from ..ai import ask
 
+    off = ask_off(cfg)
+    if off:
+        raise ApiError(off, 409)
     try:
-        return ask.CONVERSATION.start(str(prompt or ""), ask_server(cfg), ask_folder(cfg),
-                                      str(model or ""))
+        state = ask.CONVERSATION.start(str(prompt or ""), ask_server(cfg),
+                                       ask_folder(cfg), str(model or ""))
     except ask.AskError as exc:
         raise ApiError(str(exc)) from exc
+    return {**state, "off": ""}
 
 
-def ask_forget() -> dict:
+def ask_forget(cfg) -> dict:
     from ..ai import ask
 
     try:
-        return ask.CONVERSATION.forget()
+        ask.CONVERSATION.forget()
     except ask.AskError as exc:
         raise ApiError(str(exc), 409) from exc
+    return ask_state(cfg)
 
 
 def llm_state(cfg) -> dict:
@@ -2384,6 +2424,8 @@ def llm_state(cfg) -> dict:
         "agent_fallback": next((r.label for r in settings.chain()
                                 if r.provider != llm.AGENT and not r.problem()), ""),
         "agent_label": llm.AGENT_LABEL,
+        # The agents a Coding agent line can name (its `model`).
+        "agents": llm.AGENTS,
         "agent_setup": agent_setup(cfg),
     }
 

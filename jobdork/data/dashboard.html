@@ -67,6 +67,7 @@ nav .item svg{width:22px;height:22px;flex:none;fill:var(--nav-icon)}
 nav .item:hover{background:var(--nav-hover)}
 nav .item.on{background:var(--nav-on-bg);color:var(--nav-on-fg);font-weight:500}
 nav .item.on svg{fill:var(--nav-on-fg)}
+nav .item.dim:not(.on){opacity:.55}
 nav .item .count{margin-left:auto;min-width:1.5rem;padding:.05rem .4rem;border-radius:5px;
   background:var(--nav-badge-bg);color:var(--nav-badge-fg);font-size:.75rem;
   font-weight:600;text-align:center;font-variant-numeric:tabular-nums}
@@ -687,6 +688,7 @@ main > section#view-ask{max-width:48rem;margin:0 auto;display:flex;flex-directio
 #view-ask .askhero h2{font-size:clamp(1.375rem,3vw,1.75rem);font-weight:500;line-height:1.25;
   letter-spacing:-.01em;margin:0;text-align:center;color:var(--fg)}
 .ask.empty .asklog{display:none}
+.ask.off .composer{opacity:.6}
 .asklog{display:flex;flex-direction:column;gap:1.5rem;padding:1rem 0 1.5rem}
 .asklog .msg{white-space:normal;overflow-wrap:anywhere;line-height:1.6;font-size:.9375rem}
 .asklog .msg.you{align-self:flex-end;max-width:80%;background:var(--card);border:1px solid var(--line);
@@ -1501,7 +1503,8 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
         output unchecked. With none chosen or none ready, the claim checks go to another
         reader than the one that wrote it, and to the same one only when no other is
         ready. It never hides or blocks anything. About three more calls per output on
-        its key; a local Ollama model costs nothing.</div></div>
+        its key; a local Ollama model costs nothing. Your coding agent can be a checker
+        too, when it is not a reader: it checks later, when you ask it.</div></div>
 
     <div class="bar">
       <button data-icon="save" class="act primary" id="ai-save">Save</button>
@@ -1518,8 +1521,8 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <div id="ask-log" class="asklog" aria-live="polite"></div>
     <p id="ask-doing" class="askdoing" hidden><span class="spin" aria-hidden="true"></span><span id="ask-doing-text"></span></p>
     <div class="askdock">
-      <div id="ask-none" class="agentbox" hidden><p>Claude Code is not installed on this
-        computer. Install it from claude.com/claude-code and sign in, then come back here.</p></div>
+      <div id="ask-none" class="agentbox" hidden><p id="ask-off"></p>
+        <button type="button" class="act" id="ask-setup" data-icon="cpu" hidden>Open the AI page</button></div>
       <form id="ask-form" class="composer" onsubmit="return false">
         <textarea id="ask-text" rows="1" maxlength="2000" aria-label="Your question"
           placeholder="How can I help with your job search?"></textarea>
@@ -2158,8 +2161,14 @@ function drawAskState(d) {
   if (!chat && !askHi) askHi = askGreeting();
   $('ask-hi').textContent = askHi;
   if (!$('ask-mark').firstChild) $('ask-mark').innerHTML = document.querySelector('.brand .logo').innerHTML;
-  $('ask-none').hidden = d.claude;
   const sel = $('ask-model');
+  // Off until Claude Code is installed and a reader on the AI page (api.ask_off).
+  $('ask-none').hidden = !d.off;
+  $('ask-off').textContent = d.off || '';
+  $('ask-setup').hidden = !d.claude || !d.off;
+  $('view-ask').classList.toggle('off', !!d.off);
+  $('ask-text').disabled = !!d.off;
+  sel.disabled = !!d.off;
   if (!sel.options.length) {
     sel.innerHTML = (d.models || []).map(m =>
       `<option value="${esc(m.id)}">${esc(m.id ? m.name : 'Default model')}</option>`).join('');
@@ -2180,7 +2189,7 @@ function drawAskState(d) {
   $('ask-doing').hidden = !d.busy;
   $('ask-doing-text').textContent = d.busy ? `${d.doing || 'Working'}…` : '';
   $('ask-text').placeholder = chat ? 'Write a message' : 'How can I help with your job search?';
-  $('ask-send').disabled = d.busy || !d.claude;
+  $('ask-send').disabled = d.busy || !!d.off;
   $('ask-send').hidden = d.busy;
   $('ask-stop').hidden = !d.busy;
   $('ask-new').disabled = d.busy || !chat;
@@ -2220,6 +2229,7 @@ $('ask-text').oninput = e => {
 };
 $('ask-model').onchange = e => { try { localStorage.setItem(ASK_MODEL_KEY, e.target.value); } catch {} };
 $('ask-stop').onclick = () => askPost('/api/ask/stop');
+$('ask-setup').onclick = () => document.querySelector('nav .item[data-view="ai"]').click();
 $('ask-new').onclick = async () => {
   askHi = '';
   if (await askPost('/api/ask/new')) $('ask-text').focus();
@@ -3307,7 +3317,8 @@ async function toolJob(uid, kind, withText) {
 
 function checks(t) {
   const g = t.guard || {}, out = [];
-  out.push(!g.checked ? `<span class="chk warn">Hallucination check: not run${g.error ? ' (' + esc(g.error) + ')' : ''}</span>`
+  out.push(g.waiting ? `<span class="chk warn">Hallucination check: waiting for your coding agent; ask it to check jobdork's AI writing</span>`
+    : !g.checked ? `<span class="chk warn">Hallucination check: not run${g.error ? ' (' + esc(g.error) + ')' : ''}</span>`
     : g.unsupported ? `<span class="chk bad">Hallucination check: ${g.unsupported} of ${g.claims} claims not in your resume or the ad</span>`
     : `<span class="chk ok">Hallucination check: ${g.claims ? 'all ' + g.claims + ' claims supported' : 'nothing to check'}</span>`);
   if (g.second) out.push(`<span class="chk ok">Checked by a second model: ${esc(g.model)}</span>`);
@@ -3440,6 +3451,7 @@ async function drawReview() {
   const check = g.checked
     ? `${g.claims - g.unsupported} of ${g.claims} claims found in your resume` +
       (g.second ? `, checked by ${g.model}` : '')
+    : g.waiting ? 'claims waiting for your coding agent to check'
     : `claims not checked${g.error ? ': ' + g.error : ''}`;
   out.innerHTML = `<div class="bar" style="margin-bottom:.4rem">
       <span class="hint" style="margin:0">${esc(o.model)} · ${esc(o.created_at.replace('T', ' '))} · ${esc(check)}</span>
@@ -3649,6 +3661,8 @@ async function refreshState() {
   // memory, so it goes back in the address for the one load that reads it.
   else if (setupStep) return location.replace(`/?t=${encodeURIComponent(TOKEN)}`);
   hasClaude = s.claude;
+  // Ask stays in the menu, dimmed while off, so its page can say how to turn it on.
+  document.querySelector('nav .item[data-view="ask"]').classList.toggle('dim', !!s.ask_off);
   aiLabel = s.ai || '';
   agentOn = !!s.agent;
   $('nav-sugg').hidden = !s.suggested;
@@ -5225,7 +5239,7 @@ function aiTag(a) {
   // Claims the guard could not find in the advert or the resume (guard.py).
   const g = a.guard;
   const flagged = g && g.checked ? (g.flagged || []) : [];
-  const checked = (!g ? '' : !g.checked ? ' · claims not checked'
+  const checked = (!g ? '' : g.waiting ? ' · claims waiting for your coding agent' : !g.checked ? ' · claims not checked'
     : ` · ${g.claims - g.unsupported} of ${g.claims} claims found in the advert or resume`) +
     (g && g.second ? `, checked by ${g.model}` : '');
   // The second model's own score (judging.second_opinion).
@@ -5319,7 +5333,8 @@ function syncReaders() {
   document.querySelectorAll('#ai-readers .reader, #ai-checkers .reader').forEach(card => {
     const r = ai[card.dataset.list][Number(card.dataset.i)];
     if (!r) return;
-    r.model = card.querySelector('.r-model').value.trim();
+    const which = card.querySelector('.r-agent');
+    r.model = r.provider === 'agent' ? (which ? which.value : '') : card.querySelector('.r-model').value.trim();
     if (r.provider === 'ollama') {
       r.ollama_url = card.querySelector('.r-url').value.trim();
       r.ollama_key = card.querySelector('.r-okey').checked;
@@ -5350,6 +5365,25 @@ function drawReaders(loadAll) {
   // Checkers check readers: with no reader there is nothing to check.
   $('ai-check').hidden = !ai.readers[0].provider;
   if (ai.checkers) drawList('checkers', loadAll);
+  drawAgentSetup(agentLine('readers') ? 'reader'
+    : agentLine('checkers') && !$('ai-check').hidden ? 'checker' : '');
+}
+
+// A coding agent: one line in each list at most, and one agent is a reader
+// or a checker, never both, since it would mark its own writing; Claude Code
+// may write while Codex checks (config.py says the same). A line naming no
+// agent means any, which leaves none for the other list.
+const otherList = list => list === 'readers' ? 'checkers' : 'readers';
+const agentLine = list => (ai[list] || []).find(x => x.provider === 'agent');
+// The agents line i of `list` may name: '' (any) and each in ai.agents.
+function agentChoices(list) {
+  const other = agentLine(otherList(list));
+  if (!other) return ['', ...Object.keys(ai.agents || {})];
+  return other.model ? Object.keys(ai.agents || {}).filter(k => k !== other.model) : [];
+}
+function agentTaken(list, i) {
+  return (ai[list] || []).some((x, j) => x.provider === 'agent' && j !== i)
+    || !agentChoices(list).length;
 }
 
 function drawList(list, loadAll) {
@@ -5361,11 +5395,17 @@ function drawList(list, loadAll) {
         ${i < items.length - 1 ? `<button data-icon="chevron-right" class="act r-down" type="button" title="Ask this one later">Later</button>` : ''}
         <button data-icon="trash-2" class="act r-del" type="button">Remove</button>` : ''}</span></div>
     <div class="field"><label>Provider</label><div class="seg r-prov">${
-      // A coding agent: on one reader line at most, and never a checker.
-      [...(i === 0 ? [''] : []), ...(list === 'readers' && !items.some((x, j) => j !== i && x.provider === 'agent')
-        ? ['agent'] : []), ...Object.keys(ai.providers)].map(p =>
+      // A coding agent: on one line at most, a reader or a checker (agentTaken).
+      [...(i === 0 ? [''] : []), ...(!agentTaken(list, i) ? ['agent'] : []),
+        ...Object.keys(ai.providers)].map(p =>
         `<button type="button" data-p="${p}" ${p ? '' : 'data-icon="power" '}class="${p === r.provider ? 'on' : ''}">${
           providerIcon(p)}${p ? esc(p === 'agent' ? ai.agent_label : ai.providers[p]) : (list === 'readers' ? 'Off' : 'None')}</button>`).join('')}</div></div>
+    ${r.provider === 'agent' ? `<div class="field"><label>Which agent</label>
+      <select class="r-agent" aria-label="Which coding agent" style="width:22rem">${agentChoices(list).map(k =>
+        `<option value="${esc(k)}"${k === (r.model || '') ? ' selected' : ''}>${esc(k ? ai.agents[k] : 'Any coding agent')}</option>`).join('')}</select>
+      <div class="hint">${list === 'readers'
+        ? 'The agent that writes. It cannot also be your checker.'
+        : 'The agent that checks. It cannot also be a reader, and never checks its own writing.'}</div></div>` : ''}
     <div class="field r-url-row" ${r.provider === 'ollama' ? '' : 'hidden'}><label>Ollama address</label>
       <input class="r-url" style="width:20rem" spellcheck="false" value="${esc(readerUrlShown(r))}"
         placeholder="${esc(ai.ollama_url || '')} (this computer)">
@@ -5391,7 +5431,6 @@ function drawList(list, loadAll) {
   </div>`).join('');
   const off = !items[0].provider, what = list === 'readers' ? 'readers' : 'checkers';
   $(kind.add).hidden = off;
-  if (list === 'readers') drawAgentSetup(items.some(r => r.provider === 'agent'));
   $(kind.add).disabled = items.length >= max;
   $(kind.note).textContent = off ? '' : items.length >= max
     ? (setupStep ? `Up to ${max} here; add more later on the AI page.` : `Up to ${max} ${what}.`)
@@ -5405,20 +5444,31 @@ function drawList(list, loadAll) {
   $(kind.box).querySelectorAll('.reader').forEach(card => wireReader(card, loadAll));
 }
 
-// A coding agent as the writer (web/agent.py): how each one starts jobdork's
-// tools, filled in for this computer, each with Copy.
-function drawAgentSetup(on) {
+// A coding agent as the writer or the checker (web/agent.py): how each one
+// starts jobdork's tools, filled in for this computer, each with Copy.
+// `as` is 'reader', 'checker' or '' (none on the page).
+function drawAgentSetup(as) {
   const box = $('ai-agent');
-  box.hidden = !on;
-  if (!on) return;
+  box.hidden = !as;
+  if (!as) return;
   const s = ai.agent_setup || {};
+  const named = l => { const x = agentLine(l); return x && x.model ? esc(ai.agents[x.model]) : 'Your coding agent'; };
   const row = text => `<div class="cmdrow"><pre>${esc(text)}</pre><button type="button" class="act"
     data-icon="copy" data-copy="${esc(text)}">Copy</button></div>`;
   const block = (title, where, text) => `<div class="agentcmd"><b>${title}</b>${where ? ` <span class="hint">${where}</span>` : ''}${row(text)}</div>`;
   // The apps set up from a file, folded: each is a screenful.
   const folded = (title, where, text) => `<details class="agentcmd"><summary><b>${title}</b>
     <span class="hint">${where}</span></summary>${row(text)}</details>`;
-  box.innerHTML = `<p><b>Your coding agent does the AI work.</b> Claude Code, Codex, Antigravity CLI,
+  box.innerHTML = (as === 'checker' ? `<p><b>${named('checkers')} checks the AI's writing.</b> What your
+      readers judge, write and suggest waits for its claim check: Claude Code, Codex, Antigravity CLI,
+      Cursor, GitHub Copilot or Claude Desktop reads each claim and its sources through jobdork's tools
+      and says which are supported, and jobdork checks every quote it gives, as it does a model's.
+      jobdork never calls your agent, so the check waits until you ask it, for instance:
+      <q>Check jobdork's AI writing.</q></p>
+    <p class="hint">Until then the check says <b>waiting for your coding agent</b>; read those claims
+      yourself before you send anything. A checker listed above your agent checks first, and your
+      agent checks what it could not. One agent is a reader or a checker, not both: another agent
+      may write while this one checks, and none checks its own writing.</p>` : `<p><b>Your coding agent does the AI work.</b> Claude Code, Codex, Antigravity CLI,
       Cursor, GitHub Copilot or Claude Desktop reads your resume and the advert through jobdork's tools, writes the
       document itself, and saves it back: jobdork checks it, makes the PDF and Word files and keeps it,
       as it does a model's. jobdork asks no model and needs no API key; it never calls your agent,
@@ -5428,7 +5478,10 @@ function drawAgentSetup(on) {
       reading posting pages) goes to the next reader you list${ai.readers.some(r => r.provider && r.provider !== 'agent')
         ? '' : '; with none, those buttons say what to ask your agent instead'}. The hallucination check
       is still done by a second model: a checker below, or another reader; with neither, not done, and
-      the check says so. Your agent never checks its own writing.</p>
+      the check says so. ${agentLine('checkers') ? `${named('checkers')}, your checker, checks what
+      ${named('readers') === 'Your coding agent' ? 'your agent' : named('readers')} writes.` : `Another
+      coding agent (Codex for Claude Code, say) can be your checker; the same one cannot, since it would
+      mark its own writing.`}</p>`) + `
     ${block('Claude Code', 'run once, in a terminal', s.claude_code || '')}
     ${block('Codex', 'run once, in a terminal', s.codex || '')}
     ${block('Antigravity CLI (agy)', 'run once, in a terminal; then <code>agy mcp list</code> shows it', s.antigravity || '')}
@@ -5448,11 +5501,16 @@ function wireReader(card, load) {
     syncReaders();
     if (r.provider !== b.dataset.p) r.model = '';
     r.provider = b.dataset.p;
+    // A new Coding agent line names the first agent it may (any, when it may).
+    if (r.provider === 'agent') r.model = agentChoices(list)[0] || '';
     if (i === 0 && !r.provider) ai[list] = [r];        // Off: none at all
     drawReaders(false);
     const again = $(AI_LISTS[list].box).querySelector(`.reader[data-i="${i}"]`);
     if (again) loadReaderModels(again, true);
   });
+  const which = card.querySelector('.r-agent');
+  // The other list's choices follow this one's.
+  if (which) which.onchange = () => { syncReaders(); drawReaders(false); };
   const del = card.querySelector('.r-del');
   if (del) del.onclick = () => { syncReaders(); ai[list].splice(i, 1); drawReaders(true); };
   // Any line moves and goes, the first too, once there are two: the one

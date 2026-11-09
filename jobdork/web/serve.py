@@ -509,6 +509,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     # First in, first out, each with what started it.
                     "waiting": runner.waiting(),
                     "claude": bool(__import__("shutil").which("claude")),
+                    "ask_off": api_mod.ask_off(cfg_holder["cfg"]),
                     "ai": ai["label"],
                     "ai_problem": ai["problem"],
                     "agent": ai["agent_first"],
@@ -887,11 +888,12 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if desk is None:
                 return self._reject(404, "only the desktop app asks your coding agent")
             if what == "":
-                return self._json(200, ask.CONVERSATION.state())
+                return self._json(200, api_mod.ask_state(cfg_holder["cfg"]))
             if what == "stop":
-                return self._json(200, ask.CONVERSATION.stop())
+                ask.CONVERSATION.stop()
+                return self._json(200, api_mod.ask_state(cfg_holder["cfg"]))
             if what == "new":
-                return self._wrap(api_mod.ask_forget)
+                return self._wrap(api_mod.ask_forget, cfg_holder["cfg"])
             form = self._body(limit=ask.MAX_PROMPT * 8)
             if form is None:
                 return self._reject(400, "bad request body")

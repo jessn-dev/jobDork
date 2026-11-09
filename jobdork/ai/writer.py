@@ -337,6 +337,10 @@ def _measured(resume_text: str) -> str:
 
 def guard_gate(report: guard.GuardReport) -> gates_mod.Gate:
     """The guard's result in the shape the other gates have."""
+    if report.waiting:
+        # Your coding agent checks it later; until then it is to be read.
+        return gates_mod.Gate(GUARD_GATE, passed=False,
+                              detail=f"not checked yet: {guard.AGENT_WAITS}")
     if not report.checked:
         # Written by a coding agent with no model to check it: to be read,
         # claim by claim, before it is sent.
@@ -1031,7 +1035,7 @@ def letter(cfg, store, uid: str, root: str = "", progress=None) -> Draft:
     draft.path.write_text(draft.text + "\n", encoding="utf-8")
     draft.output_id = store.add_ai_output(
         "cover_letter", draft.text, uid=uid, model=settings.label,
-        guard=draft.guard.to_dict())
+        guard=draft.guard.to_dict(with_pending=True))
     summary = gates_mod.summarise(draft.gates)
     summary[GUARD_GATE]["output_id"] = draft.output_id
     draft.artifact_id = store.add_artifact(uid, "cover_letter", str(draft.path),
@@ -1052,7 +1056,7 @@ def _save(cfg, store, uid: str, kind: str, draft: Draft, filename: str, root: st
     draft.path = folder / filename
     draft.path.write_text(draft.text.rstrip() + "\n", encoding="utf-8")
     draft.output_id = store.add_ai_output(kind, draft.text, uid=uid, model=label,
-                                          guard=draft.guard.to_dict())
+                                          guard=draft.guard.to_dict(with_pending=True))
     summary = gates_mod.summarise(draft.gates)
     summary[GUARD_GATE]["output_id"] = draft.output_id
     draft.artifact_id = store.add_artifact(uid, kind, str(draft.path), gates=summary)
@@ -1136,7 +1140,7 @@ def tailor(cfg, store, uid: str, root: str = "", progress=None) -> Tailored:
     result.docx_path.write_bytes(docx.render(result.markdown, title))
     result.output_id = store.add_ai_output(
         "tailored_resume", result.markdown, uid=uid, model=settings.label,
-        guard=result.guard.to_dict())
+        guard=result.guard.to_dict(with_pending=True))
     summary = gates_mod.summarise(result.gates)
     summary[GUARD_GATE]["output_id"] = result.output_id
     result.artifact_id = store.add_artifact(uid, "tailored_resume", str(result.path),
@@ -1162,7 +1166,7 @@ def review(cfg, store, uid: str = "", root: str = "", progress=None) -> Review:
     result = resume_review(settings, resume_text, row, check=cfg.llm.guard)
     result.output_id = store.add_ai_output(
         "resume_review", result.text, uid=uid, model=settings.label,
-        guard=result.guard.to_dict())
+        guard=result.guard.to_dict(with_pending=True))
     if row is not None:
         folder = generate.write_job_folder(row, root)
         result.path = folder / REVIEW_FILE
