@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..core import telemetry
+from ..core.textutil import folded
 from ..writing import gates as gates_mod
 from ..writing import humanize
 from . import guard
@@ -289,12 +290,8 @@ class Review:
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 
-def _norm(text: str) -> str:
-    return re.sub(r"\s+", " ", (text or "").lower()).strip()
-
-
 def _in(quote: str, source: str) -> bool:
-    return bool(_norm(quote)) and _norm(quote) in _norm(source)
+    return bool(folded(quote)) and folded(quote) in folded(source)
 
 
 def _found(text: str, source: str) -> bool:
@@ -303,7 +300,7 @@ def _found(text: str, source: str) -> bool:
 
     # lambda: a one-line normaliser applied to both sides of the comparison
     # below.
-    fold = lambda t: _norm(unicodedata.normalize("NFKC", t or ""))  # noqa: E731
+    fold = lambda t: folded(unicodedata.normalize("NFKC", t or ""))  # noqa: E731
     return bool(fold(text)) and fold(text) in fold(source)
 
 
@@ -989,6 +986,9 @@ def render_review(review: Review, row=None) -> str:
 
 
 def _resume_text(cfg) -> str:
+    """The resume's text, or an LLMError saying why there is none: a draft
+    is not written without it. (writing/generate.py has its own, which gives
+    "" instead, because there a missing resume only skips a check.)"""
     from ..search import resume as resume_mod
 
     if not cfg.resume_path:

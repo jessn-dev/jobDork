@@ -269,15 +269,23 @@ def slug_title(url: str) -> str:
     return " ".join(w for w in words if w not in _ROUTE_WORDS)
 
 
-def _sitemap_urls(xml: str) -> tuple[list[str], list[tuple[str, str]]]:
-    """(child sitemaps, [(page, lastmod)]) in a sitemap or sitemap index."""
+# `[^<]*` then strip, not `\s*([^<]+?)\s*`: on a long run of spaces with no
+# closing tag the lazy form tried every split of it, and a sitemap is a
+# stranger's file (Claude Security F12, 2026-11-06).
+_LOC = re.compile(r"<loc>([^<]*)</loc>", re.IGNORECASE)
+_LASTMOD = re.compile(r"<lastmod>([^<]*)</lastmod>", re.IGNORECASE)
+
+
+def sitemap_urls(xml: str) -> tuple[list[str], list[tuple[str, str]]]:
+    """(child sitemaps, [(page, lastmod)]) in a sitemap or sitemap index.
+    discover.py reads sitemaps with this too."""
     if re.search(r"<sitemapindex", xml, re.IGNORECASE):
-        return [u.strip() for u in re.findall(r"<loc>\s*([^<]+?)\s*</loc>", xml, re.I)], []
+        return [u.strip() for u in _LOC.findall(xml) if u.strip()], []
     pages = []
     for block in re.findall(r"<url>(.*?)</url>", xml, re.IGNORECASE | re.DOTALL):
-        loc = re.search(r"<loc>\s*([^<]+?)\s*</loc>", block, re.I)
-        mod = re.search(r"<lastmod>\s*([^<]+?)\s*</lastmod>", block, re.I)
-        if loc:
+        loc = _LOC.search(block)
+        mod = _LASTMOD.search(block)
+        if loc and loc.group(1).strip():
             pages.append((loc.group(1).strip(), mod.group(1).strip() if mod else ""))
     return [], pages
 
@@ -307,7 +315,7 @@ def postings(fetcher, site: str, robots: Robots | None = None,
         reads += 1
         if not resp.ok or not resp.body:
             continue
-        children, pages = _sitemap_urls(resp.body)
+        children, pages = sitemap_urls(resp.body)
         for posting in feed_postings(resp.body):
             pages.append((posting["url"], date_of(posting["datePosted"])))
             if feed is not None:

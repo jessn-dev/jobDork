@@ -40,7 +40,7 @@ import difflib
 import re
 from dataclasses import dataclass, field, replace
 
-from ..core.textutil import visible
+from ..core.textutil import folded, visible
 from .llm import (
     AGENT,
     AGENT_LABEL,
@@ -188,7 +188,7 @@ def advert_source(row, posting: str = "") -> str:
 def _norm(text: str) -> str:
     # Without hidden characters: the model read the advert without them, so
     # its quotes have none (core/textutil.py visible).
-    return re.sub(r"\s+", " ", visible(text).lower()).strip()
+    return folded(visible(text))
 
 
 def _loose(text: str) -> str:

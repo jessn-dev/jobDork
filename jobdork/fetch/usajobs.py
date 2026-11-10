@@ -47,6 +47,7 @@ from ..core.textutil import to_text
 from ..db.store import Role
 from ..search import geo
 from . import REFUSED, SourceResult, key_verdict, register
+from . import number as _num
 from .boards import annualise, clean, normalise_interval
 
 API = "https://data.usajobs.gov/api/search"
@@ -138,13 +139,6 @@ def _salary(item: dict) -> tuple[float | None, float | None, str, str, bool]:
         currency = (pay.get("CurrencyCode") or "USD").upper()
         return annualise(lo, period), annualise(hi, period), currency, period, True
     return None, None, "", "", False
-
-
-def _num(value) -> float | None:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def _location(item: dict, anchors: list[geo.Resolved] = ()) -> tuple[str, int]:

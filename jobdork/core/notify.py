@@ -36,6 +36,8 @@ import subprocess
 import sys
 import time
 
+from .textutil import xml_text as _xml_text
+
 log = logging.getLogger(__name__)
 
 ENV = "JOBDORK_NOTIFY"
@@ -48,7 +50,8 @@ TIMEOUT = 15
 
 
 def off() -> bool:
-    return os.environ.get(ENV, "").strip().lower() in ("off", "0", "no", "false")
+    from .config import env_off
+    return env_off(ENV)
 
 
 def native() -> bool:
@@ -176,11 +179,6 @@ def _mac_osascript(title: str, body: str, sound: bool, run) -> bool:
 
 
 # ── Windows ───────────────────────────────────────────────────────────────────
-
-
-def _xml_text(text: str) -> str:
-    return (text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            .replace('"', "&quot;"))
 
 
 def toast_xml(title: str, body: str, sound: bool) -> str:

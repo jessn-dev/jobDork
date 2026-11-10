@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from ..core.textutil import to_text
 from ..db.store import Role
-from . import SourceResult, register
+from . import SourceResult, number, register
 from .boards import _result_for, annualise, clean, normalise_interval
 
 API = "https://boards-api.greenhouse.io/v1/boards/{token}/jobs"
@@ -45,11 +45,8 @@ def _salary(job: dict) -> tuple[float | None, float | None, str, str, bool]:
 
 
 def _num(value, cents: bool = False) -> float | None:
-    try:
-        out = float(value)
-    except (TypeError, ValueError):
-        return None
-    return out / 100.0 if cents else out
+    out = number(value)
+    return out / 100.0 if cents and out is not None else out
 
 
 @register("greenhouse")

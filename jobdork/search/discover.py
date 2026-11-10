@@ -35,6 +35,7 @@ from collections import deque
 from dataclasses import dataclass, field
 
 from .. import fetch as fetch_pkg
+from ..fetch import site as site_mod
 from ..fetch.http import Fetcher
 from ..fetch.robots import Robots as _Robots
 from ..fetch.robots import base as _base
@@ -704,14 +705,6 @@ def _job_links(html: str, page_url: str, limit: int = MAX_LINKS) -> list[str]:
     return sorted(ranked, key=ranked.get)[:limit]
 
 
-def _sitemap_urls(xml: str) -> tuple[list[str], list[str]]:
-    """(child sitemaps, page addresses) in a sitemap or sitemap index."""
-    locs = [u.strip() for u in re.findall(r"<loc>\s*([^<]+?)\s*</loc>", xml, re.IGNORECASE)]
-    if re.search(r"<sitemapindex", xml, re.IGNORECASE):
-        return locs, []
-    return [], locs
-
-
 def discover(employer: str, fetcher: Fetcher, max_pages: int = MAX_PAGES) -> Report:
     """Find an employer's boards by reading their own careers pages.
 
@@ -964,7 +957,8 @@ def _sitemap_postings(get, sitemaps: list[str]) -> tuple[list[str], int]:
         reads += 1
         if resp is None or not resp.ok or not resp.body:
             continue
-        children, pages = _sitemap_urls(resp.body)
+        children, dated = site_mod.sitemap_urls(resp.body)
+        pages = [page for page, _ in dated]
         if children:
             children = [c for c in children if not c.lower().endswith(".gz")]
             jobby = [c for c in children if _job_word(c) is not None]

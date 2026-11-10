@@ -46,7 +46,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 from ..core import telemetry
-from ..core.textutil import to_text
+from ..core.textutil import folded, to_text
 from ..db import grouping
 from .enrich import _LD_BLOCK, _walk
 from .freshness import CLOSED_TEXT  # one pattern for pages and adverts
@@ -97,12 +97,8 @@ class CheckReport:
         return out
 
 
-def _visible(html: str) -> str:
+def _page_text(html: str) -> str:
     return to_text(html or "")[:60_000]
-
-
-def _norm(text: str) -> str:
-    return re.sub(r"\s+", " ", (text or "").lower()).strip()
 
 
 def _postings(html: str) -> list[dict]:
@@ -128,7 +124,7 @@ def read_page(html: str, final_url: str, today: str) -> Finding | None:
             return Finding("closed", f"the advert says applications closed {until}",
                            hard=True)
 
-    text = _visible(html)
+    text = _page_text(html)
     said = CLOSED_TEXT.search(text)
     if said:
         start = max(0, said.start() - 40)
@@ -348,7 +344,7 @@ class Checker:
     def _ask(self, title: str, html: str, uid: str = "") -> Finding:
         from ..ai.llm import LLMError, classify_listing
 
-        text = _visible(html)
+        text = _page_text(html)
         try:
             answer = classify_listing(self.settings, title, text)
         except LLMError as exc:
@@ -356,7 +352,7 @@ class Checker:
                            f"read it: {exc}")
         quote = answer["evidence"]
         # A claim it cannot quote from the page is not evidence.
-        backed = bool(quote) and _norm(quote) in _norm(text)
+        backed = bool(quote) and folded(quote) in folded(text)
         self._record(uid, answer, backed)
         if answer["state"] == "closed" and backed:
             return Finding("closed", f'{self.settings.label} read the page: '

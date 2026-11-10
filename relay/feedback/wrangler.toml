@@ -21,3 +21,15 @@ GITHUB_REPO = "jessn-dev/jobDork"
 [[kv_namespaces]]
 binding = "FEEDBACK_KV"
 id = "05a13784c1a84e49952e0373c3e834c0"
+
+# At most two reports a minute per address, counted atomically, so a burst
+# sent all at once cannot slip past the KV counts above (worker.js,
+# FEEDBACK_LIMITER). namespace_id is any number not used by another rate
+# limit on the account; like the KV id it is not a secret.
+[[ratelimits]]
+name = "FEEDBACK_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 2
+  period = 60

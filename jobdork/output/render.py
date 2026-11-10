@@ -88,7 +88,7 @@ def _e(text) -> str:
     return html.escape(str(text or ""))
 
 
-def _salary(row: sqlite3.Row) -> str:
+def salary_text(row: sqlite3.Row) -> str:
     if not row["salary_stated"]:
         return "unconfirmed salary"
     lo, hi = row["salary_min"], row["salary_max"]
@@ -99,7 +99,8 @@ def _salary(row: sqlite3.Row) -> str:
     return f"{cur} {value:,.0f}" if value else "unconfirmed salary"
 
 
-def _flags(row: sqlite3.Row) -> list[str]:
+def flags_of(row: sqlite3.Row) -> list[str]:
+    """A row's flags, from their JSON text. The email digest uses this too."""
     try:
         return json.loads(row["flags"] or "[]")
     except (json.JSONDecodeError, TypeError):
@@ -113,7 +114,7 @@ def rows_to_dicts(rows: list[sqlite3.Row]) -> list[dict]:
         # yields its values, and a lint "simplification" of `.keys()` to that
         # broke roles.json, and with it every scan that wrote one.
         item = dict(row)
-        item["flags"] = _flags(row)
+        item["flags"] = flags_of(row)
         # Stored as JSON text; written out as JSON, not as strings inside it.
         for key in ("reasons", "score_parts", "llm_judgement"):
             if isinstance(item.get(key), str):
@@ -175,7 +176,7 @@ def to_csv(rows: list[sqlite3.Row], path: Path) -> Path:
                 row["posted_at"] or "",
                 (row["first_seen"] or "")[:10],
                 row["url"] or "",
-                "; ".join(_flags(row)),
+                "; ".join(flags_of(row)),
                 "" if row["fit"] is None else f"{row['fit']:.1f}",
             ])
     return path
@@ -218,7 +219,7 @@ def to_markdown(rows: list[sqlite3.Row], path: Path, cfg=None,
     if not rows:
         lines.append("_Nothing matched. Widen the radius, or add a title._")
     for row in rows:
-        meta = _meta(row, units)
+        meta = meta_parts(row, units)
         score = "-" if row["score"] is None else f"{row['score']:.0f}"
         title = (row["title"] or "").replace("[", "").replace("]", "")
         fit = "–" if row["fit"] is None else f"{row['fit']:.0f}"
@@ -227,7 +228,7 @@ def to_markdown(rows: list[sqlite3.Row], path: Path, cfg=None,
         lines.append(" · ".join(str(m) for m in meta if m))
         lines.append("")
         lines.append(f"`{row['uid']}` · **{cap(row['status'] or 'new')}**")
-        flags = _flags(row)
+        flags = flags_of(row)
         if flags:
             lines.append("")
             lines += [f"- {flag_label(flag)}" for flag in flags]
@@ -254,7 +255,7 @@ def to_markdown(rows: list[sqlite3.Row], path: Path, cfg=None,
     return path
 
 
-def _meta(row: sqlite3.Row, units: str) -> list[str]:
+def meta_parts(row: sqlite3.Row, units: str) -> list[str]:
     """Company, place, distance, arrangement, pay and source, as shown.
 
     The distance is stored in miles and converted to the reader's units: it
@@ -264,7 +265,7 @@ def _meta(row: sqlite3.Row, units: str) -> list[str]:
         row["company"], row["location_raw"],
         distance_label(row["distance_mi"], units),
         cap(row["work_mode"] or "arrangement not stated"),
-        cap(_salary(row)), platform_name(row["platform"]),
+        cap(salary_text(row)), platform_name(row["platform"]),
     ]
 
 
@@ -275,10 +276,10 @@ def to_html(rows: list[sqlite3.Row], path: Path, cfg=None,
     for row in rows:
         status = row["status"] or "new"
         colour = STATUS_COLOURS.get(status, "#6b7280")
-        meta = [*_meta(row, units),
+        meta = [*meta_parts(row, units),
                 f"First seen {row['first_seen'][:10]}" if row["first_seen"] else ""]
         flags = "".join(
-            f'<span class="flag">{_e(flag_label(f))}</span>' for f in _flags(row)
+            f'<span class="flag">{_e(flag_label(f))}</span>' for f in flags_of(row)
         )
         parts.append(f"""
       <div class="role">

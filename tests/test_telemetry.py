@@ -455,6 +455,39 @@ def test_logged_warnings_and_errors_reach_the_activity_page():
         assert not any("not a problem" in p["text"] for p in problems)
 
 
+def test_a_key_in_a_logged_line_is_removed_before_any_handler_sees_it():
+    """Claude Security F12: an Adzuna error carried app_key into the log
+    file and the Activity page. Every handler gets the line without it."""
+    import io
+    import logging
+
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp)
+        stream = io.StringIO()
+        file_like = logging.StreamHandler(stream)
+        log = logging.getLogger("jobdork.test.keys")
+        log.addHandler(file_like)
+        telemetry.capture_logs(cfg.db_path)
+        try:
+            log.warning("adzuna: us/all/%r: %s", "nurse",
+                        "Max retries exceeded with url: /v1/api/jobs/us/search/1"
+                        "?app_id=abc123&app_key=s3cr3tvalue&what=nurse")
+            try:
+                raise ValueError("GET https://x.test/?api_key=also-secret failed")
+            except ValueError:
+                log.exception("a board raised")
+        finally:
+            log.removeHandler(file_like)
+            logging.getLogger("jobdork").removeHandler(telemetry._handler)
+        written = stream.getvalue()
+        problems = " ".join(p["text"] for p in api.activity_report(cfg)["problems"])
+    for text in (written, problems):
+        assert "s3cr3tvalue" not in text and "abc123" not in text, text
+        assert "also-secret" not in text, text
+        assert "app_key=[removed]" in text and "what=nurse" in text, text
+    assert telemetry.without_keys("token=abc&x=1") == "token=[removed]&x=1"
+
+
 def test_a_missing_or_refused_key_is_a_warning_that_says_so():
     text, level = telemetry.labelled(
         "adzuna: skipped (no key. Get a free one at https://developer.adzuna.com/signup)",

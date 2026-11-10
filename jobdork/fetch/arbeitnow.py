@@ -34,6 +34,7 @@ from ..core.textutil import to_text
 from ..db.store import Role
 from ..search import geo
 from . import SourceResult, register
+from . import day_from_epoch as _day
 from .boards import clean
 
 API = "https://www.arbeitnow.com/api/job-board-api"
@@ -49,13 +50,6 @@ EUROPE = frozenset((
 ))
 # Where a bare city is looked for, the countries with the most of its jobs first.
 PLACES = ("DE", "GB", "NL", "FR", "CH", "AT", *sorted(EUROPE - {"DE", "GB", "NL", "FR", "CH", "AT"}))
-
-
-def _day(seconds) -> date | None:
-    try:
-        return datetime.fromtimestamp(int(seconds), timezone.utc).date()
-    except (TypeError, ValueError, OverflowError, OSError):
-        return None
 
 
 def _place(location: str) -> str:

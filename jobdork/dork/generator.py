@@ -92,6 +92,7 @@ from jobdork.dork.boards import (
     LEVEL_KEYWORDS,
     SITE_DORKS,
 )
+from jobdork.output.digest import resend_api_key, resend_from_address
 
 # ── Runtime constants ──────────────────────────────────────────────────────────
 SCRIPT_NAME      = "jobdork dork"
@@ -399,22 +400,10 @@ def export_to_csv(rows: list[dict], filename: str) -> Path:
 # Email delivery (Resend)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _resend_api_key() -> str:
-    return (os.environ.get("RESEND_API_KEY") or "").strip()
-
-
-def _resend_from_address() -> str:
-    return (
-        os.environ.get("RESEND_FROM")
-        or os.environ.get("JOB_DORK_EMAIL_FROM")
-        or ""
-    ).strip()
-
-
 def send_email(to_addr: str, csv_path: Path, job_config: dict) -> None:
     """Send the CSV as an email attachment via Resend."""
-    api_key   = _resend_api_key()
-    from_addr = _resend_from_address()
+    api_key   = resend_api_key()
+    from_addr = resend_from_address()
     to_addr   = to_addr.strip()
     LOGGER.info("Preparing email to %s", to_addr)
 

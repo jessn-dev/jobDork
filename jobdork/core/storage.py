@@ -48,7 +48,7 @@ def resume_dir(cfg) -> Path:
     return (Path(cfg.path).parent if getattr(cfg, "path", "") else Path.cwd()) / "data"
 
 
-def documents_root() -> Path | None:
+def container_documents_root() -> Path | None:
     """Where job folders go in a container; None means the usual default."""
     root = temp_root() or kept_root()
     return root / "job-applications" if root else None

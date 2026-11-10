@@ -828,7 +828,7 @@ def test_in_a_container_the_resume_and_letters_are_kept_unless_asked_otherwise()
             os.environ[storage.DOCS_ENV] = str(Path(tmp) / "data" / "documents")
             cfg = Config(titles_include=["x"])
             assert storage.resume_dir(cfg) == Path(tmp) / "data" / "documents" / "resume"
-            assert storage.documents_root() == Path(tmp) / "data" / "documents" / "job-applications"
+            assert storage.container_documents_root() == Path(tmp) / "data" / "documents" / "job-applications"
             assert storage.temp_root() is None and storage.wipe() == 0   # nothing emptied
             os.environ[storage.TEMP_ENV] = str(Path(tmp) / "temp")
             assert storage.resume_dir(cfg) == Path(tmp) / "temp" / "resume"

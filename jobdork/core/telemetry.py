@@ -396,7 +396,7 @@ class _Handler(logging.Handler):
             text = record.getMessage()
             if record.exc_info and record.exc_info[1] is not None:
                 exc = record.exc_info[1]
-                text += f": {type(exc).__name__}: {exc}"   # no traceback
+                text += f": {type(exc).__name__}: {without_keys(str(exc))}"   # no traceback
         except Exception:                   # a bad format string, say
             return
         level = "error" if record.levelno >= logging.ERROR else "warning"
@@ -452,6 +452,39 @@ def _thread_crashed(args) -> None:
 _thread_hook_before = threading.excepthook
 
 
+# A key that reaches a log line as `name=value` (a query string in an error,
+# say) is cut before any handler sees it: the log files, the terminal and the
+# Activity page alike. http.quiet cuts query strings at the source; this is
+# the net under it (Claude Security F12, 2026-11-09).
+_KEY_IN_TEXT = re.compile(r"(?i)\b(\w*(?:key|token|secret|password|app_id)=)[^\s&\"']+")
+
+
+def without_keys(text: str) -> str:
+    """`text` with the value of every `…key=`, `…token=` and the like removed."""
+    # lambda: keeps the name, so a reader sees what was taken out.
+    return _KEY_IN_TEXT.sub(lambda m: m.group(1) + "[removed]", text)
+
+
+_make_record = logging.getLogRecordFactory()
+
+
+def _record_without_keys(*args, **kwargs) -> logging.LogRecord:
+    record = _make_record(*args, **kwargs)
+    try:
+        message = record.getMessage()
+    except Exception:                       # a bad format string: left for logging to report
+        return record
+    cleaned = without_keys(message)
+    if cleaned != message:
+        record.msg, record.args = cleaned, ()
+    if record.exc_info and record.exc_info[1] is not None:
+        # A handler writes `exc_text` as it is when set, so the traceback a
+        # log file gets is the cleaned one.
+        trace = logging.Formatter().formatException(record.exc_info)
+        record.exc_text = without_keys(trace)
+    return record
+
+
 def capture_logs(db_path) -> None:
     """Copy jobdork's logged warnings and errors to the Activity page, with
     other libraries' errors and threads that crash.
@@ -478,6 +511,8 @@ def capture_logs(db_path) -> None:
         root.addHandler(_others)
     if threading.excepthook is not _thread_crashed:
         threading.excepthook = _thread_crashed
+    if logging.getLogRecordFactory() is not _record_without_keys:
+        logging.setLogRecordFactory(_record_without_keys)
 
 
 def current_id() -> int | None:

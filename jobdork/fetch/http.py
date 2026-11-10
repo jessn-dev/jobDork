@@ -41,6 +41,7 @@ from __future__ import annotations
 import contextlib
 import ipaddress
 import logging
+import re
 import socket
 import threading
 import time
@@ -118,6 +119,15 @@ class PrivateAddress(requests.RequestException):
     """The address is in this machine or its network, not on the internet."""
 
 
+class Unresolved(requests.ConnectionError):
+    """The name could not be looked up, so it could not be checked. A
+    connection error like any other, so it is asked again as one is."""
+
+
+# The start of a refusal that means "not looked up", not "private".
+UNRESOLVED = "could not look up "
+
+
 def _public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     # ::ffff:127.0.0.1 is 127.0.0.1; Python before 3.13 does not say so.
     mapped = getattr(ip, "ipv4_mapped", None)
@@ -136,8 +146,10 @@ def checked(url: str, resolve=None) -> tuple[str, str]:
     connection then goes to the first of the addresses checked (_Pinned),
     so a server that answers with a public address for the check and a
     private one for the connection (DNS rebinding) reaches nothing. A name
-    that does not resolve is let through with no address, to fail as the
-    request would.
+    that does not resolve is refused: letting it through left the
+    connection to look the name up again, unchecked, and a server that
+    failed the first lookup on purpose could answer the second with a
+    private address (Claude Security F11, 2026-11-09).
     """
     parts = urllib.parse.urlsplit(url)
     host = (parts.hostname or "").rstrip(".")
@@ -151,8 +163,8 @@ def checked(url: str, resolve=None) -> tuple[str, str]:
         return ("", host) if _public(literal) else (f"{host} is not a public address", "")
     try:
         found = (resolve or _getaddrinfo)(host, parts.port or 443, proto=socket.IPPROTO_TCP)
-    except (OSError, UnicodeError):
-        return "", ""
+    except (OSError, UnicodeError) as exc:
+        return f"{UNRESOLVED}{host} ({type(exc).__name__})", ""
     first = ""
     for *_, sockaddr in found:
         try:
@@ -162,12 +174,26 @@ def checked(url: str, resolve=None) -> tuple[str, str]:
         if not _public(ip):
             return f"{host} is in this machine or its network ({ip})", ""
         first = first or str(ip)
+    if not first:
+        return f"{UNRESOLVED}{host} (no address in the answer)", ""
     return "", first
 
 
 def refusal(url: str, resolve=None) -> str:
     """Why `url` is not fetched, or "" when its host is public."""
     return checked(url, resolve)[0]
+
+
+# A connection error repeats the whole address, query string and all, and
+# a query string can carry a key: Adzuna takes its key only there. The error
+# is kept, logged and shown on the Activity page, so the query is cut first
+# (Claude Security F12, 2026-11-09).
+_QUERY = re.compile(r"\?[^\s'\")]*")
+
+
+def quiet(exc: BaseException | str) -> str:
+    """An error's text with every query string cut to `?…`."""
+    return _QUERY.sub("?…", str(exc))
 
 
 # The name lookup the check uses, here so a test can answer it.
@@ -237,6 +263,8 @@ class _PublicOnly(HTTPAdapter):
 
     def send(self, request, *args, **kwargs):
         why, address = checked(request.url)
+        if why.startswith(UNRESOLVED):
+            raise Unresolved(why)
         if why:
             raise PrivateAddress(f"refused: {why}")
         host = (urllib.parse.urlsplit(request.url).hostname or "").rstrip(".")
@@ -436,7 +464,7 @@ class Fetcher:
             except PrivateAddress as exc:      # asking again changes nothing
                 return Response(url=url, status=0, host=host, error=str(exc))
             except requests.RequestException as exc:
-                last = Response(url=url, status=0, host=host, error=str(exc))
+                last = Response(url=url, status=0, host=host, error=quiet(exc))
                 if attempt + 1 < attempts:
                     time.sleep(1.0 + attempt)
                 continue

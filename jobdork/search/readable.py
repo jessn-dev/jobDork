@@ -176,7 +176,8 @@ class Report:
 
 # ── reading the file the way a tracking system does ──────────────────────────
 
-def _visible(text: str) -> int:
+def _ink_count(text: str) -> int:
+    """How many characters show on the page: every one but whitespace."""
     return sum(1 for ch in text if not ch.isspace())
 
 
@@ -292,7 +293,7 @@ def read_docx(data: bytes) -> Document:
 # ── the checks ────────────────────────────────────────────────────────────────
 
 def _text_layer(doc: Document) -> Check:
-    chars = _visible(doc.text)
+    chars = _ink_count(doc.text)
     ok = chars >= MIN_TEXT
     return Check("text_layer", "extraction", "high", "pass" if ok else "fail",
                  f"{chars} characters of text read",
@@ -309,7 +310,7 @@ def spaced_letters(text: str) -> float:
 
 def _garbled(doc: Document) -> Check:
     count = len(_GARBLED.findall(doc.text))
-    ratio = count / max(1, _visible(doc.text))
+    ratio = count / max(1, _ink_count(doc.text))
     spaced = spaced_letters(doc.text)
     status = ("fail" if ratio > 0.05 or spaced > 0.3 else
               "warn" if ratio > 0.005 or spaced > 0.12 else "pass")
@@ -331,7 +332,7 @@ def _scanned_pages(doc: Document) -> Check | None:
     if doc.kind != "pdf" or not doc.pages:
         return None
     sparse = [n + 1 for n, p in enumerate(doc.pages)
-              if p.images and _visible(p.text) < SPARSE_PAGE]
+              if p.images and _ink_count(p.text) < SPARSE_PAGE]
     status = "pass" if not sparse else "fail" if len(sparse) == len(doc.pages) else "warn"
     return Check("scanned_pages", "extraction", "medium", status,
                  f"page {', '.join(map(str, sparse))} is mostly a picture" if sparse else "",
@@ -421,7 +422,7 @@ def _tables(doc: Document) -> Check | None:
 def _text_boxes(doc: Document) -> Check | None:
     if doc.kind != "docx":
         return None
-    chars = _visible(doc.textbox_text)
+    chars = _ink_count(doc.textbox_text)
     status = "fail" if chars >= MIN_TEXT else "warn" if chars else "pass"
     return Check("text_boxes", "layout", "medium", status,
                  f"{chars} characters in text boxes" if chars else "",

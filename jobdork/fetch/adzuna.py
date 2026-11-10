@@ -56,7 +56,7 @@ from itertools import product
 from ..core.textutil import to_text
 from ..db.store import Role
 from ..search import geo
-from . import REFUSED, SourceResult, key_verdict, register
+from . import REFUSED, SourceResult, key_verdict, number, register
 from .boards import clean
 
 API = "https://api.adzuna.com/v1/api/jobs/{country}/search/{page}"
@@ -256,8 +256,5 @@ def fetch(fetcher, cfg, **_) -> SourceResult:
 
 
 def _num(value) -> float | None:
-    try:
-        out = float(value)
-    except (TypeError, ValueError):
-        return None
-    return out if out > 0 else None
+    out = number(value)
+    return out if out is not None and out > 0 else None

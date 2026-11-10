@@ -32,7 +32,7 @@ import urllib.request
 from pathlib import Path
 
 from .. import __version__
-from .config import CONTAINER_ENV
+from .config import CONTAINER_ENV, env_off
 from .schedule import APPIMAGE_ENV
 
 ENV = "JOBDORK_UPDATE_CHECK"
@@ -56,7 +56,7 @@ def parse(text: str) -> tuple[int, int, int] | None:
 
 
 def off() -> bool:
-    return os.environ.get(ENV, "").strip().lower() in ("off", "0", "no", "false")
+    return env_off(ENV)
 
 
 def how_to_update(latest: str) -> str:
