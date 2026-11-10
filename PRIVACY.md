@@ -131,12 +131,15 @@ It goes to a small service run by jobdork's maintainers on Cloudflare
 Workers, which:
 
 - opens a **public GitHub issue** in this repository with your report's text,
-  so write nothing in it you would not post publicly;
+  so write nothing in it you would not post publicly. The text is posted as
+  plain text (nothing in it becomes a link, a mention or an image);
 - emails the maintainers the report, your screenshots (if you added any) and
   your email address (if you gave one, so they can reply). Screenshots and
-  your address are **not** put on the public issue;
-- keeps your IP address for about an hour, only to limit each address to five
-  reports an hour.
+  your address are **not** put on the public issue. The service checks each
+  screenshot is a PNG, JPEG or WebP image of at most 2 MB and names it
+  itself;
+- keeps your IP address (for IPv6, its /64) for about an hour, only to limit
+  each address to two reports a minute and five an hour.
 
 You can instead open the report as a GitHub issue in your browser yourself,
 or save it as a file. `JOBDORK_FEEDBACK_URL=off` turns sending off entirely.
@@ -187,9 +190,11 @@ When a scan finds new job posts (one you start, or a scheduled one), when a
 scan fails, and when a newer jobdork is out, jobdork shows your computer's
 own notification, with a bell: Notification Center on macOS, a toast on
 Windows, `notify-send` on Linux. They are made on your computer and go
-nowhere else; macOS asks once whether to allow them. **Settings →
-Notifications** turns them, or their sound, off; so does
-`JOBDORK_NOTIFY=off`.
+nowhere else; macOS asks once whether to allow them (the desktop app asks
+when its window opens). Clicking one opens jobdork: on Windows the installer
+registers a `jobdork://` link for this, which only starts jobdork and
+carries nothing. **Settings → Notifications** turns them, or their sound,
+off; so does `JOBDORK_NOTIFY=off`.
 
 ## What jobdork does not do
 

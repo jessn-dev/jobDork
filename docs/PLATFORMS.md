@@ -647,6 +647,10 @@ and is disallowed by its robots.txt) · **Dice** · **BuiltIn** ·
 **JobsDB** (SEEK; answer 403 to scripts, robots.txt closes the search API, the
 API is partner-only) · **OnlineJobs.ph**
 
+jobdork never logs into any of these, LinkedIn included, and never posts to
+them or reads a profile there: what it writes for one (a message, a
+profile summary) is text for you to copy.
+
 Discover recognises these by address and says so before sending anything,
 rather than reporting a refusal as if an employer had blocked it. JobStreet,
 JobsDB, Kalibrr and OnlineJobs.ph are in dork mode on request:
