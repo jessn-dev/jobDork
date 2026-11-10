@@ -523,6 +523,10 @@ class Config:
     resume_path: str = ""
     # "master" or "regular" as you said (search/master.py), or "" for jobdork's guess.
     resume_kind: str = ""
+    # The typeface of the resumes jobdork writes (PDF and Word): "sans"
+    # (Arial, Helvetica) or "serif" (Georgia, Times); "" for jobdork's
+    # choice by industry (resume_font).
+    resume_font: str = ""
     # Certifications and licenses you hold, as you write them ("RN",
     # "IAT I"): an advert's are checked against these as well as the resume.
     credentials: list[str] = field(default_factory=list)
@@ -842,6 +846,10 @@ def _build(raw: dict[str, Any]) -> Config:
     if cfg.resume_kind not in ("", "master", "regular"):
         raise ConfigError(f"resume.kind is {cfg.resume_kind!r}: master, regular, "
                           "or leave it out for jobdork to guess")
+    cfg.resume_font = str(resume.get("font") or "").strip().lower()
+    if cfg.resume_font not in ("", "sans", "serif"):
+        raise ConfigError(f"resume.font is {cfg.resume_font!r}: sans, serif, or leave it "
+                          "out for jobdork to choose")
 
     src = raw.get("sources") or {}
     companies = []
@@ -1001,6 +1009,26 @@ def _apply_env_secrets(cfg: Config) -> None:
 
 
 # ── Validation ─────────────────────────────────────────────────────────────────
+
+# Fields where a classic serif face is the usual choice on a resume (law,
+# finance, academia, government); everywhere else a clean sans serif.
+SERIF_FIELDS = ("law", "legal", "finance", "financial", "banking", "accounting",
+                "academ", "university", "education", "government", "public sector")
+
+
+def resume_font(cfg) -> str:
+    """"sans" or "serif" for the resumes jobdork writes: the one chosen
+    (resume.font), else serif when every industry chosen in the search is
+    one where serif is the usual choice, else sans. Both are fonts every
+    Word and every applicant tracking system has (asked 2026-11-09)."""
+    if cfg.resume_font in ("sans", "serif"):
+        return cfg.resume_font
+    chosen = [i.lower() for i in getattr(getattr(cfg.sources, "directory", None),
+                                         "industries", []) or []]
+    if chosen and all(any(f in i for f in SERIF_FIELDS) for i in chosen):
+        return "serif"
+    return "sans"
+
 
 def _validate(cfg: Config) -> None:
     from .setup import STEP_NAMES

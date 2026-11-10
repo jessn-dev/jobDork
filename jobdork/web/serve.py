@@ -290,6 +290,8 @@ def search_changes(old, fresh) -> tuple[bool, bool]:
 
 def _config_payload(cfg) -> dict:
     """The settings the page may edit. Credentials are never included."""
+    from ..core.config import resume_font
+
     return {
         "titles_include": cfg.titles_include,
         "titles_exclude": cfg.titles_exclude,
@@ -303,6 +305,9 @@ def _config_payload(cfg) -> dict:
         "show_days": cfg.freshness.show_days,
         "older_days": cfg.freshness.older_days,
         "resume_path": cfg.resume_path,
+        # The resumes jobdork writes: the face chosen, and the one used.
+        "resume_font": cfg.resume_font,
+        "resume_font_used": resume_font(cfg),
         # Where it is on disk, in full: the setting may be "data/resume.pdf",
         # relative to the folder jobdork started in, which says little.
         "resume_file": str(Path(cfg.resume_path).expanduser().resolve()) if cfg.resume_path else "",

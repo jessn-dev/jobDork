@@ -244,6 +244,7 @@ resume:
 |---|---|---|
 | `resume.path` | path | `""` |
 | `resume.kind` | `master` or `regular` | left out: jobdork guesses (`search/master.py`) |
+| `resume.font` | `sans` or `serif` | left out: serif when every industry chosen suits it, else sans (`config.resume_font`) |
 
 `~` is expanded. **The path is checked on every config load**, so a resume you
 moved fails loudly rather than quietly scoring every role at zero.

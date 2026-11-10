@@ -995,7 +995,9 @@ def _artifact_file(cfg, artifact_id: int, render, suffix: str) -> tuple[bytes, s
         raise ApiError(f"{row['kind']} was recorded but the file is gone: {path}", 410)
     markdown = path.read_text(encoding="utf-8", errors="replace")
     name = resume_doc.name_of(markdown)
-    return (render(markdown, f"{name or 'Resume'}, {row['title'] or ''}"),
+    from ..core.config import resume_font
+    return (render(markdown, f"{name or 'Resume'}, {row['title'] or ''}",
+                   font=resume_font(cfg)),
             resume_doc.filename(name, row["title"] or "", suffix))
 
 

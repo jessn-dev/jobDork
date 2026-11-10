@@ -4135,7 +4135,23 @@ function resumeKindHtml(k) {
     <p class="hint">${why} ${master
       ? 'Your private archive of every job, project and award: jobdork scores job posts against all of it, and each tailored resume takes from it what the job needs.'
       : 'If you keep a master resume (every job, project and award you have done), upload it instead: the AI then has more true facts to work from, and tailored resumes are cut from it.'}</p>
-    ${over}</div>`;
+    ${over}
+    <label for="rf-sel">The resumes jobdork writes are set in</label>
+    <select id="rf-sel" onchange="setResumeFont(this.value)">
+      ${[['', `jobdork's choice by your industries (now ${cfg && cfg.resume_font_used === 'serif' ? 'serif' : 'sans serif'})`],
+         ['sans', 'A sans serif: Arial (Helvetica in the PDF)'],
+         ['serif', 'A serif: Georgia (Times in the PDF)']].map(([v, label]) =>
+        `<option value="${v}"${(cfg && cfg.resume_font || '') === v ? ' selected' : ''}>${esc(label)}</option>`).join('')}
+    </select>
+    <p class="hint">Fonts every copy of Word and every applicant tracking system reads. A serif suits
+      law, finance, academia and government; a sans serif suits most other fields.</p></div>`;
+}
+async function setResumeFont(font) {
+  const r = await api('/api/config', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({resume_font: font})});
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  cfg = null;
+  toast('Saved: the next resume jobdork writes uses it');
 }
 async function setResumeKind(kind) {
   const r = await api('/api/config', {method: 'POST', headers: {'Content-Type': 'application/json'},

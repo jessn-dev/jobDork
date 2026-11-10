@@ -105,6 +105,17 @@ The AI reads the first 20,000 characters of a resume (about eight to ten
 pages). A longer one gets a note: what comes after is not seen, and a claim
 about it is marked unsupported, so put what matters most first.
 
+### The font of the resumes jobdork writes {#font}
+
+Under **This resume is**, **The resumes jobdork writes are set in** chooses
+the typeface of every tailored resume, as a PDF and as Word: a sans serif
+(Arial; Helvetica in the PDF) or a serif (Georgia; Times in the PDF). Both
+are fonts every copy of Word and every applicant tracking system reads. Left
+to jobdork, it is a serif when every industry you chose under Search is one
+where serif is the usual choice (law, finance, banking, accounting, academia,
+government), and a sans serif otherwise. Body text is 11 point and your name
+18, the sizes most advice gives.
+
 ### How a tracking system reads it
 
 **Checks**, on your resume's card, looks at the file the way an applicant
