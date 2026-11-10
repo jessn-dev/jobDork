@@ -92,6 +92,33 @@ def ai_fields(row) -> dict:
     }
 
 
+def last_judging(store) -> dict | None:
+    """The run that judged the newest AI verdict: when it started and ended,
+    its name, and how many posts it judged; None before any verdict.
+
+    "AI: judge top job posts" judges the best posts not yet judged, so they
+    are often well down the list, and nothing told them from the ones judged
+    before (2026-11-10). Job posts marks the posts this run judged.
+    """
+    newest = store.conn.execute(
+        "SELECT MAX(json_extract(llm_judgement, '$.at')) FROM roles "
+        "WHERE llm_judgement IS NOT NULL").fetchone()[0]
+    if not newest:
+        return None
+    run = store.conn.execute(
+        "SELECT job, started_at, COALESCE(finished_at, heartbeat_at, started_at) AS ended "
+        "FROM activity WHERE started_at <= ? "
+        "AND COALESCE(finished_at, heartbeat_at, started_at) >= ? "
+        "ORDER BY id DESC LIMIT 1", (newest, newest)).fetchone()
+    # Judged outside a recorded run (an older copy, say): that verdict alone.
+    start, end, job = (run["started_at"], run["ended"], run["job"]) if run \
+        else (newest, newest, "")
+    judged = store.conn.execute(
+        "SELECT COUNT(*) FROM roles WHERE json_extract(llm_judgement, '$.at') "
+        "BETWEEN ? AND ?", (start, end)).fetchone()[0]
+    return {"from": start, "to": end, "job": job, "judged": judged}
+
+
 def score_parts(row) -> list[dict]:
     """How a stored score was reached; empty for a role not screened since v4."""
     try:

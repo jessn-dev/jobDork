@@ -69,6 +69,15 @@ gives a score out of 100 with a word:
 | 50 to 79 | **Possible** fit |
 | Under 50 | **Weak** fit |
 
+Beside the badge, **Judged** and the day says when the AI read it;
+**Judged in the last run** marks the posts its most recent run judged
+(**AI: judge top job posts**, or the judging after a scan). That run reads
+your best posts it has *not judged yet*, so they are often further down the
+list than the ones it judged before. When the run ends, a message says how
+many it judged, with **Show them**: Job posts, *Judged in the last run*,
+best AI score first. The run's summary on the Dashboard names the first
+five.
+
 Point at it to read why: a summary, the reasons **For** and **Against**,
 and anything it said that is **Not in the advert or resume** (struck out:
 the AI got that wrong, see [the hallucination check](ai.md#the-hallucination-check)).

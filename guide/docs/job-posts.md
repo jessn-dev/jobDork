@@ -73,12 +73,14 @@ buttons. On a narrower window a post opens in a
   *New since last scan*, *Including settled* (also the rejected, withdrawn,
   skipped and closed), or *Dropped by your filters* (below).
 - **Posted within** 2 days, a week or 3 weeks.
-- **Sort:** by Match or Fit, high to low or low to high; or *Unscored only*.
+- **Sort:** by Match, Fit or AI score, high to low or low to high; or
+  *Unscored only*. Sorted by AI score, the posts the AI judged come first.
 - **Search**: by title or employer.
 
 **Second row**, to narrow the list without changing your settings:
 arrangement (remote, hybrid, on-site, not stated), who posted it (the
-employer or a recruiter), a place ("Texas"), within a distance, pay at least
+employer or a recruiter), whether the AI judged it (*AI-judged*, *Judged in
+the last run*, *Not judged yet*), a place ("Texas"), within a distance, pay at least
 an amount, **Pay stated only**, and **Hide posts older than** (this one is
 saved as a setting; posts you acted on are always shown). **Clear filters**
 resets them.
