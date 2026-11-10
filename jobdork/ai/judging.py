@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 
 from ..core import telemetry
@@ -31,7 +32,7 @@ from ..db import grouping
 from ..search import freshness
 from ..writing import resume_doc
 from . import guard
-from .llm import LLMError, Settings, judge
+from .llm import LLMError, Settings, judge, rewrite_summary
 
 log = logging.getLogger("jobdork.ai.judging")
 
@@ -49,6 +50,7 @@ class JudgeReport:
     # "Title, Company" of each post judged, in order: the run's summary names
     # them, so a run is not only a count (2026-11-10).
     names: list[str] = field(default_factory=list)
+    rewritten: int = 0                 # verdicts written again with fewer flags (rewrite)
 
     NAMED = 5                          # named in the summary; the rest counted
 
@@ -62,6 +64,8 @@ class JudgeReport:
         if self.flagged:
             out.append(f"{self.flagged} with a claim the advert and resume do "
                        "not support")
+        if self.rewritten:
+            out.append(f"{self.rewritten} written again without the claims flagged")
         if self.disagreed:
             out.append(f"{self.disagreed} where the second model disagrees")
         if self.skipped_thin:
@@ -147,6 +151,13 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
             telemetry.tick(count="models disagree")
         check_verdict(settings, store, row, verdict, record,
                       enabled=cfg.llm.guard, posting=role["posting"], work=work)
+        if cfg.llm.guard and cfg.llm.rewrite:
+            better = rewrite(settings, store, row, role, verdict, resume_text, record,
+                             notes, work)
+            if better is not verdict:
+                verdict = better
+                report.rewritten += 1
+                telemetry.tick(count="written again")
         if verdict.get("guard", {}).get("unsupported"):
             report.flagged += 1
             telemetry.tick(count="unsupported claims")
@@ -257,9 +268,102 @@ def verdict_text(verdict: dict) -> str:
 def guard_sources(row, resume_text: str, posting: str = "",
                   work: str = "") -> dict[str, str]:
     """What a verdict is checked against: what its model was given, the
-    measured work history with the resume it was counted from."""
+    measured work history with the resume it was counted from. The work
+    history goes first, so no cut can take it: after a long resume it was
+    cut off, and "10 years 10 months of work" was flagged (2026-11-10)."""
     return {"advert": guard.advert_source(row, posting),
-            "resume": resume_text + (f"\n\n{work}" if work else "")}
+            "resume": (f"{work}\n\n" if work else "") + resume_text}
+
+
+# What a verdict that lost to its rewrite (or a rewrite that did not beat
+# it) is recorded as: kept for the numbers, left out of the Dashboard's
+# hallucination rate, which counts what you are shown.
+DRAFT = "judge_draft"
+
+
+# Words too common to tell one sentence of a verdict from another.
+_COMMON = frozenset(["a", "an", "the", "and", "or", "of", "in", "on", "at", "to", "for", "with", "by", "from", "as", "is", "are", "was", "were", "be", "been", "has", "have", "had", "does", "do", "did", "not", "no", "candidate", "candidates", "resume", "shows", "lists", "mentions", "experience", "their", "they", "this", "that", "it", "its", "which", "who", "required", "requirement", "requirements", "role", "job"])
+
+
+def _words(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9+#./-]+", (text or "").lower())
+            if len(w) > 1 and w not in _COMMON}
+
+
+def _source_of(claim: str, sentences: list[str]) -> int:
+    """Which sentence of the verdict a claim was split from: the one sharing
+    most of its words, when that is at least half of them; -1 for none."""
+    words = _words(claim)
+    if not words:
+        return -1
+    scores = [len(words & _words(s)) / len(words) for s in sentences]
+    best = max(range(len(sentences)), key=scores.__getitem__, default=-1)
+    return best if best >= 0 and scores[best] >= 0.5 else -1
+
+
+def rewrite(settings, store, row, role: dict, verdict: dict, resume_text: str,
+            record: str, notes: str = "", work: str = "") -> dict:
+    """The verdict, or a version without its flagged claims when that one
+    flags fewer.
+
+    The reasons and concerns the flagged claims were split from are taken
+    out by script; when one came from the summary, the reader writes that
+    one sentence again without it (llm.rewrite_summary). The result is
+    checked as the first was; the better one is kept and shown, the other
+    recorded as a draft. Nothing to take out, a summary that cannot be
+    written again, or as many flags as before leave the verdict as it was."""
+    first = verdict.get("guard") or {}
+    flagged = [c["claim"] for c in first.get("flagged") or [] if c.get("claim")]
+    if not (first.get("checked") and flagged):
+        return verdict
+    again = revise(settings, role, resume_text, verdict, flagged, notes, uid=row["uid"])
+    if again is None:
+        return verdict
+    check_verdict(settings, store, row, again, record, enabled=True,
+                  posting=role.get("posting", ""), work=work)
+    second = again.get("guard") or {}
+    if second.get("checked") and second.get("claims") \
+            and second.get("unsupported", 0) < first.get("unsupported", 0):
+        store.set_ai_output_kind(verdict["ai_output_id"], DRAFT)
+        again["rewritten"] = {"flagged_before": first.get("unsupported", 0),
+                              "flagged_after": second.get("unsupported", 0)}
+        return again
+    store.set_ai_output_kind(again["ai_output_id"], DRAFT)
+    return verdict
+
+
+def revise(settings, role: dict, resume_text: str, verdict: dict, flagged: list[str],
+           notes: str = "", uid: str = "") -> dict | None:
+    """The verdict without what `flagged` came from, unchecked; None when
+    nothing could be taken out or the summary could not be written again.
+    The benchmark measures with this as a scan runs it."""
+    items = [("summary", 0, verdict.get("summary") or "")]
+    items += [(key, i, text) for key in ("reasons", "concerns")
+              for i, text in enumerate(verdict.get(key) or [])]
+    hits: dict[int, list[str]] = {}
+    for claim in flagged:
+        at = _source_of(claim, [text for _, _, text in items])
+        if at >= 0:
+            hits.setdefault(at, []).append(claim)
+    if not hits:
+        return None
+    again = {**verdict}
+    for key in ("reasons", "concerns"):
+        again[key] = [text for (k, i, text) in items[1:] if k == key
+                      and items.index((k, i, text)) not in hits]
+    if 0 in hits:
+        try:
+            summary = rewrite_summary(settings, role, resume_text, verdict.get("summary") or "",
+                                      hits[0], notes)
+        except LLMError as exc:
+            log.info("summary of %s not written again: %s", uid, exc)
+            summary = ""
+        if not summary:
+            return None
+        again["summary"] = summary
+    again.pop("guard", None)
+    again.pop("ai_output_id", None)
+    return again
 
 
 def check_verdict(settings, store, row, verdict: dict, resume_text: str,
@@ -269,7 +373,7 @@ def check_verdict(settings, store, row, verdict: dict, resume_text: str,
     stored = None
     if enabled:
         report = guard.check(settings, text,
-                             guard_sources(row, resume_text, posting, work))
+                             guard_sources(row, resume_text, posting, work), work=work)
         verdict["guard"] = report.to_dict()
         stored = report.to_dict(with_pending=True)
     verdict["ai_output_id"] = store.add_ai_output(

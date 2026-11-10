@@ -30,12 +30,14 @@ VERDICT = {"score": 82, "verdict": "strong", "summary": "Close match.",
            "at": "2026-09-28T10:00:00"}
 
 
-def _setup(tmp: str, guard_on: bool = True):
+def _setup(tmp: str, guard_on: bool = True, rewrite: bool = False):
     resume = Path(tmp) / "resume.md"
     resume.write_text(RESUME, encoding="utf-8")
     cfg = Config(titles_include=["x"], db_path=str(Path(tmp) / "t.db"),
                  resume_path=str(resume))
-    cfg.llm = Llm(provider="ollama", model="m", guard=guard_on)
+    # The rewrite pass is off unless a test is about it: it asks the reader
+    # again, which here is a stand-in only when a test patches it.
+    cfg.llm = Llm(provider="ollama", model="m", guard=guard_on, rewrite=rewrite)
     role = Role(platform="greenhouse", company="Initech", title="Platform Engineer",
                 url="https://boards.greenhouse.io/initech/jobs/1",
                 location_raw="Remote", description=ADVERT)
@@ -67,7 +69,7 @@ def test_a_judged_verdict_carries_its_guard_and_output_row():
         cfg, uid = _setup(tmp)
         seen = {}
 
-        def fake_check(settings, text, sources):
+        def fake_check(settings, text, sources, work=""):
             seen.update(text=text, sources=sources)
             return _report(1)
         with _Patch(judging, "judge", lambda *a: dict(VERDICT)), \
@@ -82,6 +84,91 @@ def test_a_judged_verdict_carries_its_guard_and_output_row():
                                              "No Go"]
         assert seen["sources"]["advert"].startswith("Role: Platform Engineer")
         assert (output["kind"], output["checked"], output["unsupported"]) == ("judge", 1, 1)
+
+
+def test_a_flagged_verdict_loses_what_was_flagged_and_the_better_one_is_kept():
+    """Guardrails piece 2 (2026-11-10): the concern a flagged claim came from
+    is taken out by script; fewer flags wins, the other is kept as a draft."""
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, uid = _setup(tmp, rewrite=True)
+
+        def fake_check(settings, text, sources, work=""):
+            return _report(2 if "No Go" in text else 0)
+
+        def must_not_run(*a, **k):
+            raise AssertionError("the summary was not flagged")
+        with _Patch(judging, "judge", lambda *a: dict(VERDICT)), \
+                _Patch(judging, "rewrite_summary", must_not_run), \
+                _Patch(guard, "check", fake_check), Store(cfg.db_path) as store:
+            report = judging.run(cfg, store, uid=uid)
+            stored = json.loads(store.get(uid)["llm_judgement"])
+            kinds = [r["kind"] for r in store.conn.execute(
+                "SELECT kind FROM ai_outputs ORDER BY id")]
+        assert stored["concerns"] == [] and stored["reasons"] == ["Seven years of Python"]
+        assert stored["rewritten"] == {"flagged_before": 2, "flagged_after": 0}
+        assert kinds == [judging.DRAFT, "judge"], "the first set aside, the rewrite shown"
+        assert report.rewritten == 1 and report.flagged == 0
+        assert "written again without the claims flagged" in " ".join(report.lines())
+
+
+def test_a_flagged_summary_is_written_again_by_the_reader():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, uid = _setup(tmp, rewrite=True)
+        verdict = {**VERDICT, "summary": "A close match who knows Go well."}
+        asked = {}
+
+        def fake_summary(settings, role, resume_text, summary, flagged, notes=""):
+            asked.update(summary=summary, flagged=flagged)
+            return "A close match; the resume does not mention Go."
+
+        def fake_check(settings, text, sources, work=""):
+            return _report(1 if "knows Go well" in text else 0)
+        with _Patch(judging, "judge", lambda *a: dict(verdict)), \
+                _Patch(judging, "rewrite_summary", fake_summary), \
+                _Patch(guard, "check", fake_check), Store(cfg.db_path) as store:
+            judging.run(cfg, store, uid=uid)
+            stored = json.loads(store.get(uid)["llm_judgement"])
+        assert asked["flagged"] == ["Knows Go"]
+        assert stored["summary"] == "A close match; the resume does not mention Go."
+
+
+def test_a_rewrite_that_flags_as_much_leaves_the_verdict_as_it_was():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, uid = _setup(tmp, rewrite=True)
+        with _Patch(judging, "judge", lambda *a: dict(VERDICT)), \
+                _Patch(guard, "check", lambda *a, **k: _report(1)), Store(cfg.db_path) as store:
+            report = judging.run(cfg, store, uid=uid)
+            stored = json.loads(store.get(uid)["llm_judgement"])
+            kinds = [r["kind"] for r in store.conn.execute(
+                "SELECT kind FROM ai_outputs ORDER BY id")]
+        assert stored["concerns"] == ["No Go"] and "rewritten" not in stored
+        assert kinds == ["judge", judging.DRAFT] and report.rewritten == 0
+
+
+def test_no_rewrite_when_nothing_is_flagged_or_it_is_turned_off():
+    for rewrite_on, flags in ((True, 0), (False, 2)):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg, uid = _setup(tmp, rewrite=rewrite_on)
+            with _Patch(judging, "judge", lambda *a: dict(VERDICT)), \
+                    _Patch(guard, "check", lambda *a, flags=flags, **k: _report(flags)), \
+                    Store(cfg.db_path) as store:
+                judging.run(cfg, store, uid=uid)
+                outputs = store.conn.execute("SELECT COUNT(*) FROM ai_outputs").fetchone()[0]
+            assert outputs == 1, (rewrite_on, flags)
+
+
+def test_drafts_stay_out_of_the_dashboards_rate():
+    from jobdork.web import api
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg, uid = _setup(tmp)
+        with Store(cfg.db_path) as store:
+            store.add_ai_output(judging.DRAFT, "x", uid=uid, model="m",
+                                guard={"checked": True, "claims": 10, "unsupported": 4})
+            store.add_ai_output("judge", "x", uid=uid, model="m",
+                                guard={"checked": True, "claims": 10, "unsupported": 1})
+        h = api.metrics(cfg, 7)["hallucination"]
+    assert (h["claims"], h["unsupported"]) == (10, 1)
+    assert h["rewrites"] == 1 and h["set_aside_flags"] == 4
 
 
 def test_with_the_guard_off_a_verdict_is_still_recorded_but_not_checked():

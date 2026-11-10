@@ -271,6 +271,15 @@ So every verdict, letter, review and tailored resume is checked:
    resume. If it is there after all, the gap is flagged as wrong.
 4. Facts found in neither are **flagged**: struck out in an AI verdict,
    listed on a letter, marked **Read this** on a document.
+5. A verdict with flagged facts is put right once: the reasons and concerns
+   they came from are taken out, and when one came from the summary the AI
+   writes that sentence again without it. The result is checked the same
+   way, and the one with fewer flagged facts is kept and shown (**When the
+   check flags a verdict's claims…** on this page turns it off; it costs a
+   check, and a call when the summary is rewritten).
+
+An overall opinion ("meets the seniority requirements", "overqualified")
+is not counted as a fact either: it is the score in words.
 
 Your years of experience are counted by jobdork from the dates in your
 resume (roles that overlap counted once, study left out). The AI is given
@@ -285,8 +294,9 @@ a resume summary's "seeking a Software Engineer role", is not counted as a
 fact: no source could support it.
 
 The [Dashboard](dashboard.md#the-numbers) shows the share of unsupported
-facts over time (the *hallucination rate*), by kind of writing and by
-model, so you can see which model to trust. It is coloured against
+facts over time (the *hallucination rate*) in what you were shown, by kind
+of writing, by model and by checker, so you can see which model to trust;
+the **Hallucination** tile also says how many verdicts were rewritten. It is coloured against
 jobdork's target of 2 to 5%: **green** at 5% or under (*within target*),
 **amber** above 5% up to 10% (*watch it*), **red** above 10% (*too high*;
 try a bigger model, or add a checker). The method follows

@@ -1193,7 +1193,8 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
           <div class="panel-head"><h3>Hallucination, over time</h3>
             <span class="sub">Claims not supported</span>
             <span class="seg small" id="m-hal-by" role="group" aria-label="Split by">
-              <button data-icon="layers" data-by="kind" class="on">By kind</button><button data-icon="cpu" data-by="model">By model</button></span>
+              <button data-icon="layers" data-by="kind" class="on">By kind</button><button data-icon="cpu" data-by="model">By model</button><button data-icon="search-check" data-by="checker"
+                title="Which model checked the claims: a stricter or looser checker moves the rate as much as the writer does">By checker</button></span>
             <button data-icon="table-2" class="linkbtn" data-table="m-hal">Show as table</button></div>
           <div class="legend lines" id="m-hal-legend" style="margin-top:.35rem"></div>
           <div class="chart" id="m-hal"></div>
@@ -1484,6 +1485,9 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <label class="check"><input type="checkbox" id="ai-guard"> Check each
         verdict and draft for claims your resume and the advert do not
         support</label>
+      <label class="check"><input type="checkbox" id="ai-rewrite"> When the check
+        flags a verdict's claims, have the AI write it again once without them
+        (one more call; the one with fewer flags is kept)</label>
       <div class="hint">Judging needs a resume and at least 200 characters of
         advert. A 26B local model takes about a minute per job post, and the
         check adds two more calls to each.</div></div>
@@ -4824,7 +4828,8 @@ function drawMetrics() {
     tile('Hallucination', h.rate == null ? '-'
            : `<span class="${halBand(h.rate * 100).cls}c">${pct(h.rate)}</span>`,
          h.outputs ? `${h.rate == null ? '' : `<span class="${halBand(h.rate * 100).cls}c">${halBand(h.rate * 100).word}</span> · `}${
-           h.unsupported} of ${n(h.claims)} claims · coverage ${pct(h.coverage)}${late(h.recorded_since)}`
+           h.unsupported} of ${n(h.claims)} claims · coverage ${pct(h.coverage)}${
+           h.rewrites ? ` · ${n(h.rewrites)} rewritten` : ''}${late(h.recorded_since)}`
                    : 'no AI output yet', hTip);
 
   // Runs by tool
@@ -4848,17 +4853,19 @@ function drawMetrics() {
   // Hallucination: one line per kind of output, as a share of its checked
   // claims that day. A day with nothing checked is a gap, not 0%; the
   // tooltip says how many claims a rate stands on, because one of two is 50%.
-  // Split by kind of output, or by model: same claims, other grouping.
-  const byModel = halBy === 'model';
-  const claimsOf = x => byModel ? x.claims_by_model : x.claims;
-  const halKinds = (byModel ? d.models : d.kinds).map((k, i) => {
+  // Split by kind of output, by the model that wrote it, or by the model
+  // that checked it: same claims, other grouping.
+  const claimsOf = x => halBy === 'model' ? x.claims_by_model
+    : halBy === 'checker' ? (x.claims_by_checker || {}) : x.claims;
+  const halKinds = (halBy === 'model' ? d.models : halBy === 'checker' ? (d.checkers || []) : d.kinds).map((k, i) => {
     const tot = d.per_day.reduce((a, x) => {
       const c = claimsOf(x)[k.kind]; if (c) { a.c += c.claims; a.u += c.unsupported; } return a;
     }, {c: 0, u: 0});
     return {...k, ink: toolInk(i), tot};
   });
   $('m-hal-legend').innerHTML = halKinds.map(k =>
-    `<span><i style="background:${k.ink}"></i>${esc(cap(k.label))} <b>${k.tot.c ? `${n(k.tot.u)} of ${n(k.tot.c)}` : '-'}</b></span>`).join('') +
+    `<span><i style="background:${k.ink}"></i>${esc(cap(k.label))} <b>${k.tot.c
+      ? `${n(k.tot.u)} of ${n(k.tot.c)} (${(100 * k.tot.u / k.tot.c).toFixed(1)}%)` : '-'}</b></span>`).join('') +
     `<span class="bands">Background: <b class="okc">5% or under, within target</b> ·
       <b class="warnc">to 10%, watch it</b> · <b class="badc">above 10%, too high</b></span>`;
   const pctOf = c => c ? +(100 * c.unsupported / c.claims).toFixed(1) : null;
@@ -4880,7 +4887,7 @@ function drawMetrics() {
                          halBand(pctOf(claimsOf(x)[k.kind])).word}`})),
       x => { const t = dayTotal(x); return `${t.u} of ${t.c} claims unsupported that day`; },
       {fmt: v => `${+v.toFixed(1)}%`, dots: true, max: 100, floor: 10,
-       empty: 'Nothing checked this day', label: `Share of claims not supported, per day and ${byModel ? 'model' : 'kind'}`,
+       empty: 'Nothing checked this day', label: `Share of claims not supported, per day and ${halBy === 'model' ? 'model' : halBy === 'checker' ? 'checker' : 'kind'}`,
        bands: HAL_BANDS});
   }
 
@@ -5401,6 +5408,7 @@ async function drawAI() {
   $('ai-top').value = ai.judge_top;
   $('ai-pages').checked = ai.read_pages;
   $('ai-guard').checked = ai.guard;
+  $('ai-rewrite').checked = ai.rewrite !== false;
   drawAllowance();
   showAIState(ai, false);
   ai.checkers = ai.checkers && ai.checkers.length ? ai.checkers : [blankReader()];
@@ -5524,7 +5532,7 @@ function drawList(list, loadAll) {
   if (list === 'readers') {
     // The first reader is what everything else on the page waits for.
     ai.provider = items[0].provider;
-    document.querySelectorAll('#ai-on-scan, #ai-top, #ai-pages, #ai-guard')
+    document.querySelectorAll('#ai-on-scan, #ai-top, #ai-pages, #ai-guard, #ai-rewrite')
       .forEach(el => el.disabled = off);
   }
   $(kind.box).querySelectorAll('.reader').forEach(card => wireReader(card, loadAll));
@@ -5754,7 +5762,7 @@ async function saveAI() {
       ollama_url: firstOllama && firstOllama.ollama_url ? firstOllama.ollama_url : (ai.ollama_url || ''),
       judge_on_scan: $('ai-on-scan').checked,
       judge_top: Number($('ai-top').value) || 25, read_pages: $('ai-pages').checked,
-      guard: $('ai-guard').checked, checkers,
+      guard: $('ai-guard').checked, rewrite: $('ai-rewrite').checked, checkers,
       daily_limits: {gemini: Number($('ai-lim-gemini').value) || 0,
                      groq: Number($('ai-lim-groq').value) || 0}})});
   if (!r.ok) { $('ai-msg').className = 'err'; $('ai-msg').textContent = await r.text(); return false; }

@@ -69,8 +69,12 @@ The charts below them:
 - **Runs by tool, over time**: scans, checks, AI judging, AI writing and the
   rest, day by day.
 - **Hallucination, over time**: claims not supported, by kind of writing
-  (**By kind**) or by AI model (**By model**), over the same green, amber
-  and red bands.
+  (**By kind**), by the AI model that wrote them (**By model**), or by the
+  model that checked them (**By checker**), over the same green, amber and
+  red bands. The legend gives each one's total and rate for the period.
+  The **Hallucination** tile mixes every checker used in the period, so
+  after you change checker, **By checker** shows the new one's rate at
+  once, while the tile catches up as the old runs leave the period.
 - **Running and waiting**: the job running now, and the ones waiting
   their turn, first in first out, each with what started it ("Search: added
   Nurse Practitioner"). A change to your search, Projects or Education
@@ -83,6 +87,18 @@ The charts below them:
   writing ([how to rate it](job-window.md#rate-the-ai)).
 
 **Show as table** turns any chart into the numbers.
+
+### How long it is kept
+
+The numbers cover the period you pick: 7, 30 or 90 days. Older records
+stop counting once they are outside it; some are also deleted:
+
+| What | Kept |
+|---|---|
+| The hallucination check of each AI output (its claims and what was flagged) | Always. A fresh scan deletes the job posts, not this history |
+| Runs, and every call to an AI model (Runs, Errored runs, AI calls, AI usage) | 120 days |
+| A run's log lines | The last 200 runs |
+| Warnings and errors from outside a run | The last 500 |
 
 ### AI usage
 

@@ -1650,6 +1650,11 @@ def _percentile(values: list[float], p: float) -> float | None:
     return ordered[max(0, math.ceil(p / 100 * len(ordered)) - 1)]
 
 
+# The model that checked an output's claims, from its guard report.
+CHECKER_SQL = ("COALESCE(NULLIF(json_extract(guard_json, '$.model'), ''), "
+               "'unknown checker')")
+
+
 def metrics(cfg, days: int = 30) -> dict:
     """The Dashboard's numbers for the last `days` days, and a day-by-day split.
 
@@ -1681,13 +1686,19 @@ def metrics(cfg, days: int = 30) -> dict:
         outputs = conn.execute(
             "SELECT kind, COALESCE(NULLIF(model, ''), 'unknown model') AS model, "
             "substr(created_at, 1, 10) AS day, claims, unsupported, "
-            "checked, feedback FROM ai_outputs WHERE created_at >= ?",
+            "checked, feedback, " + CHECKER_SQL + " AS checker "
+            "FROM ai_outputs WHERE created_at >= ?",
             (since,)).fetchall()
         # Every model that has had output checked, in the order first used.
         # That order is the colour order, so a model keeps its colour when
         # another is added; it is taken over all time for the same reason.
         models = [r[0] for r in conn.execute(
             "SELECT COALESCE(NULLIF(model, ''), 'unknown model'), MIN(created_at) "
+            "FROM ai_outputs WHERE checked = 1 GROUP BY 1 ORDER BY 2")]
+        # The checkers the same way: which model marked the claims decides
+        # the rate as much as the one that wrote them (2026-11-10).
+        checkers = [r[0] for r in conn.execute(
+            "SELECT " + CHECKER_SQL + ", MIN(created_at) "
             "FROM ai_outputs WHERE checked = 1 GROUP BY 1 ORDER BY 2")]
         first_output = conn.execute(
             "SELECT MIN(created_at) FROM ai_outputs").fetchone()[0] or ""
@@ -1714,6 +1725,11 @@ def metrics(cfg, days: int = 30) -> dict:
     # jobdork's (the agent wrote it in its own chat): left out of the timings.
     from ..ai.llm import AGENT_LABEL
     seconds = [c["seconds"] for c in calls if not str(c["model"] or "").startswith(AGENT_LABEL)]
+    # A verdict that lost to its rewrite, or a rewrite that did not beat it
+    # (judging.DRAFT), was never shown: counted apart, not in the rate.
+    from ..ai.judging import DRAFT
+    drafts = [o for o in outputs if o["kind"] == DRAFT]
+    outputs = [o for o in outputs if o["kind"] != DRAFT]
     checked = [o for o in outputs if o["checked"]]
     claims = sum(o["claims"] for o in checked)
     unsupported = sum(o["unsupported"] for o in checked)
@@ -1735,12 +1751,17 @@ def metrics(cfg, days: int = 30) -> dict:
     # The same split by model. Past MAX_MODELS the rest fold into "other":
     # more lines than colours is noise, and a colour must not be reused.
     shown = models[:MAX_MODELS] if len(models) <= MAX_MODELS else models[:MAX_MODELS - 1]
+    shown_checkers = (checkers[:MAX_MODELS] if len(checkers) <= MAX_MODELS
+                      else checkers[:MAX_MODELS - 1])
     claims_by_day = {d: {} for d in dates}
     claims_by_model = {d: {} for d in dates}
+    claims_by_checker = {d: {} for d in dates}
     for o in checked:
         if o["day"] in claims_by_day and o["claims"]:
             model = o["model"] if o["model"] in shown else "other models"
-            for split, key in ((claims_by_day, o["kind"]), (claims_by_model, model)):
+            checker = o["checker"] if o["checker"] in shown_checkers else "other checkers"
+            for split, key in ((claims_by_day, o["kind"]), (claims_by_model, model),
+                               (claims_by_checker, checker)):
                 k = split[o["day"]].setdefault(key, {"claims": 0, "unsupported": 0})
                 k["claims"] += o["claims"]
                 k["unsupported"] += o["unsupported"]
@@ -1772,6 +1793,10 @@ def metrics(cfg, days: int = 30) -> dict:
                           "coverage": len(checked) / len(outputs) if outputs else None,
                           "claims": claims, "unsupported": unsupported,
                           "rate": unsupported / claims if claims else None,
+                          # Verdicts the rewrite pass tried again, and the
+                          # claims flagged in what was set aside.
+                          "rewrites": len(drafts),
+                          "set_aside_flags": sum(o["unsupported"] for o in drafts),
                           "by_kind": [kinds[k] for k in OUTPUT_KINDS if k in kinds],
                           "recorded_since": first_output[:10]},
         "feedback": {"up": ups, "down": downs,
@@ -1780,8 +1805,12 @@ def metrics(cfg, days: int = 30) -> dict:
         "usage": {k: v for k, v in usage.items() if k != "per_day"},
         "models": [{"kind": m, "label": m} for m in shown]
         + ([{"kind": "other models", "label": "other models"}] if len(shown) < len(models) else []),
+        "checkers": [{"kind": c, "label": c} for c in shown_checkers]
+        + ([{"kind": "other checkers", "label": "other checkers"}]
+           if len(shown_checkers) < len(checkers) else []),
         "per_day": [{"date": d, "runs": by_day[d], "claims": claims_by_day[d],
-                     "claims_by_model": claims_by_model[d], "usage": usage["per_day"][d],
+                     "claims_by_model": claims_by_model[d],
+                     "claims_by_checker": claims_by_checker[d], "usage": usage["per_day"][d],
                      **feedback[d]} for d in dates],
     }
 
@@ -2480,6 +2509,7 @@ def llm_state(cfg) -> dict:
         "allowance": limits.snapshot(),
         "read_pages": cfg.llm.read_pages,
         "guard": cfg.llm.guard,
+        "rewrite": cfg.llm.rewrite,
         "keys": {p: llm.key_for(p)[1] for p in llm.KEYED},
         # Which variable an environment key came from, named on the page.
         "env_vars": {p: next((n for n in llm.ENV_KEYS[p] if os.environ.get(n)), "")
