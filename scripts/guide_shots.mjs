@@ -233,7 +233,11 @@ try {
       vscode: JSON.stringify({servers: {jobdork: {type: 'stdio', command: '${app}', args: ['--mcp']}}}, null, 2),
       cli: '${app} --agent'};
     ai.readers = [{provider: 'agent', model: '', ollama_url: ''},
-                  {provider: 'ollama', model: 'gemma4:26b', ollama_url: ''}]; drawReaders(false);`);
+                  {provider: 'ollama', model: 'gemma4:26b', ollama_url: ''}];
+    ai.agent_activity = {reader: true, checker: false, seen: null, answers: 0, last_answer: '',
+                         changes: 0, last_change: '', checks_waiting: 0,
+                         instead: 'Ollama (local) · gemma4:26b'};
+    drawReaders(false);`);
   await sleep(500);
   const agentH = await run(`return document.getElementById('ai-agent').getBoundingClientRect().bottom
     - document.getElementById('ai-readers').getBoundingClientRect().top;`);

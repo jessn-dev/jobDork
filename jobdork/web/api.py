@@ -1730,6 +1730,9 @@ def metrics(cfg, days: int = 30) -> dict:
 
     return {
         "days": days, "since": since[:10], "tools": list(TOOLS),
+        # A coding agent's activity, beside the models' usage: it is never
+        # called, so it shows here only when it was asked (agent_activity).
+        "agent": agent_activity(cfg),
         "runs": {"total": len(runs), "errored": len(errored),
                  "error_rate": len(errored) / len(runs) if runs else None,
                  "by_state": {s: sum(1 for r in errored if r["state"] == s)
@@ -2231,6 +2234,52 @@ def agent_only(cfg) -> bool:
         else cfg.llm.provider == llm.AGENT
 
 
+def agent_activity(cfg) -> dict | None:
+    """What the coding agent has done, for the AI page and the Dashboard;
+    None when no agent is listed.
+
+    jobdork never calls a coding agent: it answers what you ask it in its own
+    chat. So a listed agent that was never asked, or never connected, did
+    nothing and showed nothing, which looked the same as working
+    (2026-11-10). This says when it last used jobdork's tools (`seen`), how
+    many answers it gave (`answers`, counted with the model calls), how many
+    changes it made (`changes`, its runs) and what waits for its check.
+    """
+    from ..ai import llm
+    from ..db.store import Store
+    from . import agent as agent_mod
+
+    reader = any(r.provider == llm.AGENT for r in cfg.llm.readers) or (
+        not cfg.llm.readers and cfg.llm.provider == llm.AGENT)
+    checker = any(c.provider == llm.AGENT for c in cfg.llm.checkers)
+    if not (reader or checker):
+        return None
+    settings = llm.Settings.from_config(cfg)
+    with Store(cfg.db_path) as store:
+        try:
+            seen = json.loads(store.get_meta(agent_mod.SEEN_KEY) or "null")
+        except ValueError:
+            seen = None
+        answers, last_answer = store.conn.execute(
+            "SELECT COUNT(*), MAX(at) FROM llm_calls WHERE model LIKE ?",
+            (llm.AGENT_LABEL + "%",)).fetchone()
+        changes, last_change = store.conn.execute(
+            "SELECT COUNT(*), MAX(started_at) FROM activity WHERE origin = ?",
+            (agent_mod.ORIGIN,)).fetchone()
+        waiting = len(store.waiting_checks())
+    return {
+        "reader": reader, "checker": checker,
+        "seen": seen if isinstance(seen, dict) else None,
+        "answers": answers or 0, "last_answer": last_answer or "",
+        "changes": changes or 0, "last_change": last_change or "",
+        "checks_waiting": waiting if checker else 0,
+        # Who answers what jobdork asks for itself (judging, buttons): the
+        # first other reader ready to, or "" when none is.
+        "instead": next((r.label for r in settings.chain()
+                         if r.provider != llm.AGENT and not r.problem()), ""),
+    }
+
+
 def refuse_in_agent_mode(cfg, ask: str) -> None:
     """A job that would ask a model, refused at once when the coding agent
     is the only reader, with what to ask the agent instead. With other
@@ -2427,6 +2476,7 @@ def llm_state(cfg) -> dict:
         # The agents a Coding agent line can name (its `model`).
         "agents": llm.AGENTS,
         "agent_setup": agent_setup(cfg),
+        "agent_activity": agent_activity(cfg),
     }
 
 

@@ -241,6 +241,28 @@ def _store(cfg):
     return Store(cfg.db_path)
 
 
+# When a coding agent last used jobdork's tools, which agent and which tool.
+# Its tools run in a process of its own (`jobdork mcp`), so this is kept in
+# the database, where the AI page and the Dashboard read it to say whether
+# the agent is connected at all (api.agent_activity). Listed but never seen
+# looked the same as working (2026-11-10).
+SEEN_KEY = "coding_agent_seen"
+
+
+def _seen(cfg, name: str, args: dict) -> None:
+    import json
+    import sqlite3
+    import time
+
+    try:
+        with _store(cfg) as store:
+            store.set_meta(SEEN_KEY, json.dumps({
+                "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "agent": _who(args), "tool": name}))
+    except (sqlite3.Error, OSError):
+        pass                    # never stops the tool the agent asked for
+
+
 def _make(cfg, store, kind: str, uid: str, text: str = ""):
     """Run the writer for `kind`: up to the model's call, or past it with the
     queued answer."""
@@ -781,6 +803,7 @@ def call(cfg, name: str, args: dict | None) -> dict:
     missing = [k for k in tool.schema["required"] if args.get(k) in (None, "")]
     if missing:
         raise ToolError(f"{name} needs {', '.join(missing)}")
+    _seen(cfg, name, args)
     if name not in WRITES:
         return tool.run(cfg, args)
     # Every change an agent makes is a run on the Dashboard, from the coding
