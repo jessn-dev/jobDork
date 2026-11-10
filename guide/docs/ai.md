@@ -57,8 +57,15 @@ Code cannot do both. Other readers can still be added after it (below).
 
 ![Coding agent chosen](images/ai-agent.png)
 
+The note at the top of the box says what your agent has done so far: when
+it last used jobdork's tools (or that it has not yet, so it is not
+connected), how many answers and changes it has saved, which model answers
+what jobdork asks for itself instead, and how many checks wait for it. The
+same note is on the [Dashboard](dashboard.md#ai-usage), above AI usage.
+
 Your agent calls jobdork, through jobdork's tools; jobdork does not call
-it by itself. (In the desktop app, the [Ask](ask.md) page sends Claude Code a
+it by itself. A scan whose judging went to another reader says so once in
+its log on the Dashboard, so an agent that did nothing is never a mystery. (In the desktop app, the [Ask](ask.md) page sends Claude Code a
 question you type there, and only one about your job search.) Ask it, in its
 own chat, for instance *"Use jobdork to write a cover
 letter for my best job post"*. It then:

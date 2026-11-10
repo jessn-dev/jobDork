@@ -533,6 +533,63 @@ def test_the_agents_answers_are_left_out_of_the_ai_timings():
     assert timing["p50"] == 12.0, "the agent's 0 seconds would pull it down"
 
 
+
+def test_a_listed_agent_says_whether_it_was_ever_connected_and_what_it_did():
+    """2026-11-10: an agent listed but never connected, or never asked,
+    showed nothing anywhere, which looked the same as working."""
+    with _setup() as (cfg, uid, _):
+        cfg.llm = Llm(provider="ollama", model="m",
+                      readers=[Reader("ollama", "m"), Reader(llm.AGENT)])
+        before = api.agent_activity(cfg)
+        assert before["reader"] and not before["checker"]
+        assert before["seen"] is None and before["answers"] == before["changes"] == 0
+        assert before["instead"] == "Ollama (local) · m", "who answers jobdork's own calls"
+        agent.call(cfg, "overview", {"_client": "claude-code"})
+        seen = api.agent_activity(cfg)["seen"]
+        assert seen["agent"] == "Coding agent · Claude Code" and seen["tool"] == "overview"
+        assert seen["at"][:4].isdigit()
+        # Saved with no model listed, so nothing here asks a real one.
+        cfg.llm = Llm()
+        agent.call(cfg, "save_document", {"uid": uid, "kind": "cover_letter", "answer": LETTER,
+                                          "_client": "codex"})
+        cfg.llm = Llm(provider="ollama", model="m",
+                      readers=[Reader("ollama", "m")], checkers=[Reader(llm.AGENT)])
+        after = api.agent_activity(cfg)
+        assert after["checker"] and not after["reader"]
+        assert after["answers"] == 1 and after["changes"] == 1 and after["last_answer"]
+        assert after["seen"]["tool"] == "save_document"
+        assert api.metrics(cfg)["agent"]["answers"] == 1, "on the Dashboard too"
+        assert api.llm_state(cfg)["agent_activity"]["changes"] == 1, "and on the AI page"
+        cfg.llm = Llm(provider="ollama", model="m", readers=[Reader("ollama", "m")])
+        assert api.agent_activity(cfg) is None and api.metrics(cfg)["agent"] is None
+
+
+def test_a_run_says_once_that_the_listed_agent_was_passed_over():
+    """jobdork never calls an agent; a scan whose judging went to a model
+    now says so, once, instead of the agent looking unused for no reason."""
+    from jobdork.core import telemetry
+
+    with _setup() as (cfg, _uid, _):
+        cfg.llm = Llm(provider="ollama", model="m",
+                      readers=[Reader("ollama", "m"), Reader(llm.AGENT)])
+        settings = llm.Settings.from_config(cfg)
+        real = llm._call_one
+        # lambda: stands in for the Ollama reader, so nothing goes online.
+        llm._call_one = lambda *a, **k: {"ok": True}
+        try:
+            llm.complete_json(settings, "s", "u", {"type": "object"}, purpose="judge")
+            with telemetry.job(cfg.db_path, "scan", "terminal") as rec:
+                for _ in range(3):
+                    llm.complete_json(settings, "s", "u", {"type": "object"}, purpose="judge")
+                rec.flush(force=True)
+        finally:
+            llm._call_one = real
+        with Store(cfg.db_path) as store:
+            lines = [r[0] for r in store.conn.execute("SELECT text FROM activity_events")]
+    told = [t for t in lines if "never calls it" in t]
+    assert len(told) == 1, lines
+    assert "judge and the rest of this run went to Ollama (local) · m" in told[0], told[0]
+
 # ── a coding agent as the checker ─────────────────────────────────────────────
 
 _AGENT_CHECKS = Llm(provider="ollama", model="m", readers=[Reader("ollama", "m")],

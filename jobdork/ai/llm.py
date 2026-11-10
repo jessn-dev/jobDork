@@ -458,12 +458,34 @@ def complete_json(settings: Settings, system: str, user: str,
                 log.warning("AI reader %s could not answer; asking the next one", reader.label)
             continue
         settings.answered = reader
+        if any(r.provider == AGENT for r in settings.chain()):
+            _agent_passed_over(reader.label, purpose)
         return answer
     if agent is not None and not failed:
         from_agent(system, user, schema, purpose)      # keeps the brief, raises AgentBrief
     if len(failed) == 1:
         raise LLMError(failed[0].split(": ", 1)[1])
     raise LLMError("no AI reader could answer. " + "; ".join(failed))
+
+
+# The runs already told that the coding agent was passed over: once a run.
+_told_runs: set[int] = set()
+
+
+def _agent_passed_over(label: str, purpose: str) -> None:
+    """Say once in a run (a scan, say) that the coding agent listed as a
+    reader was not asked: jobdork never calls an agent, and a run that went
+    to a model said nothing about it, so the agent looked unused for no
+    reason given (2026-11-10)."""
+    from ..core import telemetry
+
+    run = telemetry.current_id()
+    if run is None or run in _told_runs:
+        return
+    _told_runs.add(run)
+    telemetry.line(f"{AGENT_LABEL} is listed as a reader, but jobdork never calls it: "
+                   f"{purpose or 'this'} and the rest of this run went to {label}. "
+                   "It answers what you ask it in its own chat.")
 
 
 # ── a coding agent as the writer ──────────────────────────────────────────────

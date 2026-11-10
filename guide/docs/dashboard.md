@@ -91,6 +91,13 @@ The charts below them:
 Every call jobdork made to an AI model, local or on your keys, in the
 period chosen above. **Provider** narrows all of it to one provider.
 
+With a [coding agent](ai.md#coding-agent) among your readers or checkers,
+a note above the charts says when it last used jobdork's tools (or that it
+has not yet), how many answers and changes it saved, who answers what
+jobdork asks for itself, and how many checks wait for it. jobdork never
+calls your agent, so it shows up here only once you ask it something in
+its own chat.
+
 - **Total AI requests**: calls per day, and the share answered as a line.
 - **AI errors, by kind**: the calls that failed, per day: rate limited
   (429), key refused, provider error (5xx), timed out, could not reach,
