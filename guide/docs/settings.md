@@ -57,8 +57,15 @@ due. Never for a scan that found nothing new.
 
 Turn them off, their sound off, or only the follow-up reminders off
 (**Turn off follow-up reminders**), with the buttons here. **Send a test
-notification** checks they reach you. (On a Mac the first one asks your
-permission; in Docker, the page rings a bell while it is open instead.)
+notification** checks they reach you. (On a Mac the desktop app asks
+your permission when its window first opens; in Docker, the page rings a
+bell while it is open instead.)
+
+Clicking a notification from the desktop app opens jobdork, or brings its
+window to the front when it is open already. On Linux that needs a
+`notify-send` with actions (most desktops since 2021); older ones show the
+notification without the click. If a Mac shows no notifications at all,
+allow jobdork in **System Settings → Notifications**.
 
 ## Your keys
 

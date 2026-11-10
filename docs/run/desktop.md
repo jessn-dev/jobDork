@@ -126,7 +126,9 @@ After that it opens on the Dashboard.
   again after moving it. **Run a scan now** sits beside it.
 - **Notifications:** new job posts, a failed scan and a newer jobdork show in
   Notification Center (macOS), as a toast (Windows) or through your
-  desktop's notifications (Linux, `notify-send`). **Settings →
+  desktop's notifications (Linux, `notify-send`). Clicking one opens
+  jobdork, or brings its window to the front (Windows: through the
+  `jobdork://` link the installer registers). **Settings →
   Notifications** turns them, or their sound, off.
 - **Updates:** once a day the app asks GitHub whether a newer release is
   out, and a banner says so. Its **Update**, or **Settings → Updates →

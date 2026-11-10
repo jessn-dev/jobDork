@@ -10,15 +10,24 @@ Each system's own way, so it looks and sounds like every other app's:
 
   macOS    Notification Center. The desktop app posts through the system's
            notification framework (UserNotifications) under its own name and
-           icon, after asking once for permission as every app does; run any
+           icon, after asking once for permission as every app does (when
+           its window opens: web/app.py); a click opens jobdork. Run any
            other way, through `osascript`, which macOS shows under Script
            Editor. The sound is the system's "Glass", a bell.
   Windows  A toast in the Action Center, under the app's name: the installer
            gives the Start menu shortcut jobdork's AppUserModelID, which is
-           how Windows ties a toast to an app. Run any other way, under
-           Windows PowerShell's. The sound is the default notification sound.
+           how Windows ties a toast to an app, and registers `jobdork://`,
+           which a click on the app's toast opens (LAUNCH). Run any other
+           way, under Windows PowerShell's. The sound is the default
+           notification sound.
   Linux    `notify-send`, with the freedesktop "bell" sound where the
-           desktop plays one.
+           desktop plays one. The desktop app's has an "Open jobdork"
+           action where notify-send has `--action` (libnotify 0.7.9+).
+
+A click on the desktop app's notification opens jobdork; with jobdork open
+already, its window comes to the front (web/app.py, `show_open_window`).
+Clicking one used to open Script Editor on a Mac and a folder on Windows,
+as they had nothing to open (2026-11-10).
   Docker   none: a container has no desktop. The page shows a notice and
            rings its own bell instead.
 
@@ -45,6 +54,9 @@ APP_ID = "io.github.jessn-dev.jobdork"     # the macOS bundle id and Windows AUM
 POWERSHELL_AUMID = r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
 MAC_SOUND = "Glass"
 TIMEOUT = 15
+# What a click on the Windows app's toast opens: the installer registers it
+# to start jobdork.exe (packaging/jobdork.iss), which shows jobdork.
+LAUNCH = "jobdork://open"
 
 
 def off() -> bool:
@@ -110,8 +122,15 @@ def scan_failed(cfg, why: str, origin: str = "", run=subprocess.run) -> bool:
 def send(title: str, body: str, sound: bool = True, run=subprocess.run) -> bool:
     title, body = _clean(title, 80), _clean(body, 240)
     if sys.platform == "darwin":
-        if getattr(sys, "frozen", False) and _mac_framework(title, body, sound):
-            return True
+        if getattr(sys, "frozen", False):
+            # The app's own notification, which opens jobdork when clicked.
+            # Never osascript for the app: macOS files those under Script
+            # Editor, and a click opened Script Editor.
+            if _mac_framework(title, body, sound):
+                return True
+            log.warning("macOS did not let jobdork show a notification: allow it in "
+                        "System Settings, Notifications, jobdork")
+            return False
         return _mac_osascript(title, body, sound, run)
     if sys.platform == "win32":
         return _windows_toast(title, body, sound, run)
@@ -135,8 +154,20 @@ def _mac_framework(title: str, body: str, sound: bool) -> bool:
     except ImportError:
         return False
     center = UN.UNUserNotificationCenter.currentNotificationCenter()
-    if center is None:
+    if center is None or not _mac_allowed(UN, center):
         return False
+    content = UN.UNMutableNotificationContent.alloc().init()
+    content.setTitle_(title)
+    content.setBody_(body)
+    if sound:
+        content.setSound_(UN.UNNotificationSound.defaultSound())
+    request = UN.UNNotificationRequest.requestWithIdentifier_content_trigger_(
+        f"jobdork-{time.time_ns()}", content, None)
+    center.addNotificationRequest_withCompletionHandler_(request, None)
+    return True
+
+
+def _mac_allowed(UN, center) -> bool:
     granted = {}
 
     def answered(ok, error):
@@ -149,17 +180,22 @@ def _mac_framework(title: str, body: str, sound: bool) -> bool:
         if "ok" in granted:
             break
         time.sleep(0.1)
-    if not granted.get("ok"):
+    return bool(granted.get("ok"))
+
+
+def ask_permission() -> bool:
+    """The Mac app asks for permission to notify when its window opens, while
+    you are there to answer: a scheduled scan or a reminder runs with no
+    window, and a question it asked could go unseen, leaving every later
+    notification refused. True when allowed; elsewhere nothing to ask."""
+    if sys.platform != "darwin" or not getattr(sys, "frozen", False) or off():
+        return True
+    try:
+        import UserNotifications as UN
+    except ImportError:
         return False
-    content = UN.UNMutableNotificationContent.alloc().init()
-    content.setTitle_(title)
-    content.setBody_(body)
-    if sound:
-        content.setSound_(UN.UNNotificationSound.defaultSound())
-    request = UN.UNNotificationRequest.requestWithIdentifier_content_trigger_(
-        f"jobdork-{time.time_ns()}", content, None)
-    center.addNotificationRequest_withCompletionHandler_(request, None)
-    return True
+    center = UN.UNUserNotificationCenter.currentNotificationCenter()
+    return center is not None and _mac_allowed(UN, center)
 
 
 def _applescript_text(text: str) -> str:
@@ -192,7 +228,8 @@ def toast_xml(title: str, body: str, sound: bool) -> str:
 
 
 def _windows_toast(title: str, body: str, sound: bool, run) -> bool:
-    aumid = APP_ID if getattr(sys, "frozen", False) else POWERSHELL_AUMID
+    app = getattr(sys, "frozen", False)
+    aumid = APP_ID if app else POWERSHELL_AUMID
     # The toast's XML and the app id go in as environment variables, not into
     # the script's text, so nothing in a title can change what PowerShell runs.
     script = (
@@ -205,7 +242,14 @@ def _windows_toast(title: str, body: str, sound: bool, run) -> bool:
         "$t = [Windows.UI.Notifications.ToastNotification]::new($x); "
         "[Windows.UI.Notifications.ToastNotificationManager]::"
         "CreateToastNotifier($env:JOBDORK_AUMID).Show($t)")
-    env = {**os.environ, "JOBDORK_TOAST": toast_xml(title, body, sound),
+    toast = toast_xml(title, body, sound)
+    if app:
+        # What a click opens (LAUNCH). Without it a click had nothing to open,
+        # and Windows opened a folder. Only the installed app has
+        # `jobdork://` registered; anywhere else a click would ask which app
+        # opens it.
+        toast = toast.replace("<toast>", f'<toast launch="{LAUNCH}" activationType="protocol">', 1)
+    env = {**os.environ, "JOBDORK_TOAST": toast,
            "JOBDORK_AUMID": aumid}
     done = run(["powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
                 "-Command", script], capture_output=True, text=True, env=env,
@@ -217,9 +261,45 @@ def _windows_toast(title: str, body: str, sound: bool, run) -> bool:
 # ── Linux ─────────────────────────────────────────────────────────────────────
 
 
+# Starts the shell that waits for a click on the app's notification (_linux),
+# here so a test can stand in for it.
+_spawn = subprocess.Popen
+
+# Waits for the notification's answer, and opens jobdork when it was "open".
+# The program and notify-send's arguments come in as $1 and the rest, never
+# inside the script's text, so nothing in a title can change what it runs.
+_OPEN_ON_CLICK = ('prog=$1; shift; '
+                  'answer=$(notify-send --action=open="Open jobdork" "$@"); '
+                  '[ "$answer" = open ] && exec "$prog"')
+
+
+def _has_actions(run) -> bool:
+    """Whether this notify-send takes --action (libnotify 0.7.9 and later)."""
+    try:
+        done = run(["notify-send", "--help"], capture_output=True, text=True,
+                   timeout=TIMEOUT, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return "--action" in f"{done.stdout or ''}{done.stderr or ''}"
+
+
 def _linux(title: str, body: str, sound: bool, run) -> bool:
     argv = ["notify-send", "--app-name=jobdork", title, body]
     if sound:
         argv.insert(1, "--hint=string:sound-name:bell")
+    if getattr(sys, "frozen", False):
+        # The app: grouped under its desktop entry, and a click opens it.
+        # notify-send waits for the click, so a shell of its own waits, which
+        # outlives a scheduled scan that ends before anyone clicks.
+        argv.insert(1, "--hint=string:desktop-entry:jobdork")
+        if _has_actions(run):
+            from .schedule import program
+            try:
+                _spawn(["sh", "-c", _OPEN_ON_CLICK, "sh", program(), *argv[1:]],
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, start_new_session=True)
+                return True
+            except OSError:
+                pass                 # shown below without the action instead
     done = run(argv, capture_output=True, text=True, timeout=TIMEOUT, check=False)
     return done.returncode == 0

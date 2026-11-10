@@ -281,6 +281,8 @@ def test_a_whole_run_opens_setup_from_the_apps_folder_and_stops():
         assert "js_api" not in made, "the page reaches the Bridge through the server"
         assert made["text_select"] is True        # logs and letters can be copied
         assert len(made["closing"]) == 1          # asks before closing mid-scan
+        started = made["start"].pop("func")
+        assert callable(started), "answers a second start and asks to notify, once up"
         assert made["start"] == {"gui": None, "private_mode": False,
                                  "storage_path": str(home / "window"),
                                  "debug": False}
@@ -451,6 +453,68 @@ def test_self_test_names_what_a_build_is_missing():
     assert problems[0].startswith("cannot import jobdork_no_such_module: ModuleNotFoundError")
     assert problems[1] == "missing data file no-such-file.csv"
 
+
+
+class _RaisedWindow:
+    def __init__(self):
+        self.done, self._top = [], False
+
+    def restore(self):
+        self.done.append("restore")
+
+    def show(self):
+        self.done.append("show")
+
+    @property
+    def on_top(self):
+        return self._top
+
+    @on_top.setter
+    def on_top(self, value):
+        self._top = value
+        self.done.append(f"on_top {value}")
+
+
+def test_a_second_start_brings_the_open_window_to_the_front():
+    """2026-11-10: a click on a notification starts jobdork; with jobdork open
+    already, the second start could not listen on the port and showed
+    nothing. Now the open one raises its window and the second one ends."""
+    import socket
+    import threading
+
+    with tempfile.TemporaryDirectory() as tmp, socket.socket() as listening:
+        home = Path(tmp)
+        listening.bind(("127.0.0.1", 0))
+        listening.listen()
+        port = listening.getsockname()[1]
+        window, stop = _RaisedWindow(), threading.Event()
+        watcher = threading.Thread(target=app.watch_for_show_requests,
+                                   args=(home, window, stop, 0.05), daemon=True)
+        watcher.start()
+        try:
+            assert app.show_open_window(home, port, wait=2)
+        finally:
+            stop.set()
+            watcher.join(2)
+        assert window.done == ["restore", "show", "on_top True", "on_top False"]
+        assert not (home / app.SHOW_REQUEST).exists()
+
+
+def test_with_nothing_open_or_nothing_answering_the_app_starts_as_usual():
+    import socket
+
+    with tempfile.TemporaryDirectory() as tmp:
+        home = Path(tmp)
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            free = probe.getsockname()[1]
+        assert not app.show_open_window(home, free), "nothing listens: start"
+        with socket.socket() as other:
+            other.bind(("127.0.0.1", 0))
+            other.listen()
+            # Something else on the port, not a jobdork that answers.
+            assert not app.show_open_window(home, other.getsockname()[1], wait=0.3)
+        assert not (home / app.SHOW_REQUEST).exists(), "its request is taken back"
 
 if __name__ == "__main__":
     failures = 0
