@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from jobdork.core.config import Config, Locations, Salary
 from jobdork.db.store import Role, Store
+from jobdork.web import api as api_mod
 from jobdork.web import serve as serve_mod
 from jobdork.web.live import Runner
 from jobdork.web.session import new_session
@@ -271,6 +272,44 @@ def test_posts_past_the_age_limit_are_hidden_until_asked_for():
         d = json.loads(run.get("/api/roles?scope=open&older=1")[1])
         assert len(d["roles"]) == 3 and d["older"] == 0
     _with_server(check)
+
+
+def test_job_posts_mark_what_the_ai_judged_and_in_which_run():
+    """2026-11-10: "AI: judge top job posts" judged posts further down the
+    list, and nothing told them from the ones judged before."""
+    def check(run):
+        def post(name, at=None, score=None):
+            role = Role(platform="workable", title="Software Engineer", company=name,
+                        url=f"https://x.test/{name}", location_raw="Chicago, Illinois")
+            store.upsert(role)
+            if at:
+                store.set_judgement(role.uid, {"score": score, "verdict": "strong",
+                                               "summary": "Fits.", "at": at})
+        with Store(run.cfg.db_path) as store:
+            post("before", "2026-11-01T09:00:00", 40)
+            post("run_a", "2026-11-09T11:23:30", 85)
+            post("run_b", "2026-11-09T11:24:10", 60)
+            post("never")
+            store.conn.execute(
+                "INSERT INTO activity(job, origin, started_at, heartbeat_at, finished_at, state) "
+                "VALUES('AI judging', 'dashboard', '2026-11-09T11:23:27', "
+                "'2026-11-09T11:25:00', '2026-11-09T11:25:00', 'done')")
+            store.conn.commit()
+            assert api_mod.last_judging(store) == {
+                "from": "2026-11-09T11:23:27", "to": "2026-11-09T11:25:00",
+                "job": "AI judging", "judged": 2}
+        d = json.loads(run.get("/api/roles?scope=open")[1])
+        by = {r["company"]: r for r in d["roles"]}
+        assert by["run_a"]["ai_score"] == 85 and by["run_a"]["ai_at"] == "2026-11-09T11:23:30"
+        assert by["before"]["ai_at"] == "2026-11-01T09:00:00"
+        assert by["never"]["ai_score"] is None and by["never"]["ai_at"] == ""
+        assert d["last_judging"]["judged"] == 2 and d["last_judging"]["from"] <= by["run_b"]["ai_at"]
+    _with_server(check)
+
+
+def test_with_nothing_judged_there_is_no_last_run():
+    with tempfile.TemporaryDirectory() as tmp, Store(str(Path(tmp) / "t.db")) as store:
+        assert api_mod.last_judging(store) is None
 
 
 def test_the_page_carries_no_external_request():

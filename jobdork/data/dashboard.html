@@ -509,6 +509,10 @@ dialog{overflow:visible}
   font:inherit;font-size:.875rem}
 .copies{font-size:.75rem;padding:.05rem .45rem;border-radius:4px;
   border:1px solid var(--line);color:var(--muted)}
+.judged{font-size:.75rem;padding:.05rem .45rem;border-radius:4px;white-space:nowrap;
+  border:1px solid var(--line);color:var(--muted)}
+.judged.last{color:var(--accent);border-color:var(--accent);font-weight:600}
+.toast .go{margin-left:.5rem}
 .alsoat{width:100%;display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:center;
   margin-top:.45rem;font-size:.8125rem}
 .alsoat a{display:inline-flex;gap:.35rem;align-items:center;padding:.1rem .5rem;
@@ -993,6 +997,8 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
         <option value="score:asc">Match: low to high</option>
         <option value="fit:desc">Fit: high to low</option>
         <option value="fit:asc">Fit: low to high</option>
+        <option value="ai_score:desc">AI score: high to low</option>
+        <option value="ai_score:asc">AI score: low to high</option>
         <option value="unscored">Unscored only</option>
       </select>
       <input type="search" id="q" placeholder="Search" aria-label="Search job posts by title or company">
@@ -1013,6 +1019,13 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
         <option value="">Posted by anyone</option>
         <option value="employer">Posted by the employer</option>
         <option value="agency">Posted by a recruiter</option>
+      </select>
+      <select id="f-ai" aria-label="Judged by the AI"
+        title="The AI judges your best job posts that it has not judged yet, so the ones it just judged are often further down the list.">
+        <option value="">Judged by the AI or not</option>
+        <option value="judged">AI-judged</option>
+        <option value="last">Judged in the last run</option>
+        <option value="none">Not judged yet</option>
       </select>
       <input type="search" id="f-place" placeholder="Place, e.g. Texas" style="width:11rem"
         aria-label="Place: a city, state or country in the location">
@@ -2315,6 +2328,13 @@ function passesFilters(r) {
   // Dropped posts carry no poster: the filter leaves them be.
   const by = $('f-poster').value;
   if (by && r.poster && (r.poster.agency ? 'agency' : 'employer') !== by) return false;
+  // Dropped posts were never judged: the AI filter leaves them be too.
+  const judged = $('f-ai').value;
+  if (judged && r.ai_at !== undefined) {
+    if (judged === 'judged' && !r.ai_at) return false;
+    if (judged === 'none' && r.ai_at) return false;
+    if (judged === 'last' && !judgedLast(r)) return false;
+  }
   if (mode === 'none' ? ['remote', 'hybrid', 'office'].includes(work) : mode && work !== mode) return false;
   if (place && !(r.location || '').toLowerCase().includes(place)) return false;
   if (dist != null && work !== 'remote' && (r.dist == null || r.dist > dist)) return false;
@@ -2325,12 +2345,12 @@ function passesFilters(r) {
 }
 
 function filtersOn() {
-  return !!($('f-mode').value || $('f-poster').value || $('f-place').value.trim() || $('f-dist').value ||
+  return !!($('f-mode').value || $('f-poster').value || $('f-ai').value || $('f-place').value.trim() || $('f-dist').value ||
             $('f-pay').value || $('f-paid').checked || (!$('f-rule').hidden && $('f-rule').value));
 }
 
 $('f-clear').onclick = () => {
-  for (const id of ['f-mode', 'f-poster', 'f-place', 'f-dist', 'f-pay', 'f-rule']) $(id).value = '';
+  for (const id of ['f-mode', 'f-poster', 'f-ai', 'f-place', 'f-dist', 'f-pay', 'f-rule']) $(id).value = '';
   $('f-paid').checked = false; drawRoles();
 };
 
@@ -2487,6 +2507,23 @@ function ageTag(a) {
   return `<span class="age ${esc(a.tier)}" title="${esc(cap(a.text))}">${esc(word ? word + ' · ' + n : n)}</span>`;
 }
 
+// Whether the AI judged this post in the run that judged most recently
+// (api.last_judging): "AI: judge top job posts", or the judging after a scan.
+function judgedLast(r) {
+  const run = rolesMeta && rolesMeta.last_judging;
+  return !!(run && r.ai_at && r.ai_at >= run.from && r.ai_at <= run.to);
+}
+
+// When the AI judged it, beside its AI badge. It judges the best posts not
+// yet judged, so the ones it just judged are often well down the list, and
+// nothing told them from the ones judged before (2026-11-10).
+function judgedTag(r) {
+  if (!r.ai_at) return '';
+  const last = judgedLast(r);
+  return `<span class="judged${last ? ' last' : ''}" title="The AI judged this post ${esc(shortDay(r.ai_at))}${
+    last ? ', in its last run' : ''}">${last ? 'Judged in the last run' : 'Judged ' + esc(shortDay(r.ai_at))}</span>`;
+}
+
 function card(r) {
   const colour = COLOURS[r.status] || '#6b7280';
   const meta = [r.company, r.location, r.distance, cap(r.work_mode), cap(r.salary),
@@ -2503,6 +2540,7 @@ function card(r) {
       ${matchTag(r.score, r.parts)}
       ${fitTag(r.fit, r.parts)}
       ${aiTag(r.ai)}
+      ${judgedTag(r)}
       <span class="title" onclick="openRole('${r.uid}')">${esc(r.title)}</span>
       ${ageTag(r.age)}
       ${recrTag(r.poster)}
@@ -2569,7 +2607,7 @@ $('scope').onchange = loadRoles; $('status').onchange = loadRoles;
 $('q').oninput = () => drawRoles();
 $('posted').onchange = () => drawRoles();
 $('sort').onchange = () => drawRoles();
-for (const id of ['f-mode', 'f-poster', 'f-rule', 'f-paid']) $(id).onchange = () => drawRoles();
+for (const id of ['f-mode', 'f-poster', 'f-ai', 'f-rule', 'f-paid']) $(id).onchange = () => drawRoles();
 for (const id of ['f-place', 'f-dist', 'f-pay']) $(id).oninput = () => drawRoles();
 
 async function saveAdvert(uid) {
@@ -4533,6 +4571,24 @@ function table(cols, rows, empty, key) {
   }</tbody></table></div>${pager}`;
 }
 
+// The AI judging runs seen running, by id. When one ends, Job posts is
+// reloaded and a toast offers to show the posts it judged (judgedLast).
+let judgingSeen = new Set();
+async function judgingEnded(running) {
+  const now = new Set(running.filter(j => j.job === 'AI judging').map(j => j.id));
+  const ended = [...judgingSeen].some(id => !now.has(id));
+  judgingSeen = now;
+  if (!ended) return;
+  await loadRoles({offer: false});
+  const run = rolesMeta && rolesMeta.last_judging;
+  if (!run || !run.judged) return;
+  toast(`The AI judged ${run.judged} job ${run.judged === 1 ? 'post' : 'posts'}`, 'ok', {
+    label: 'Show them', run: () => {
+      $('scope').value = 'open'; $('f-ai').value = 'last'; $('sort').value = 'ai_score:desc';
+      document.querySelector('nav button[data-view="roles"]').click(); loadRoles({offer: false});
+    }});
+}
+
 const LEVEL_CLASS = {error: 'bad', warning: 'warn'};
 async function pollActivity() {
   clearTimeout(actTimer);
@@ -4541,6 +4597,7 @@ async function pollActivity() {
     const r = await api('/api/activity' + (actPick ? `?id=${actPick}` : ''));
     if (r.ok) {
       const d = await r.json();
+      judgingEnded(d.running);
       $('act-dot').hidden = !d.running.length;
       $('act-dot').classList.toggle('live', d.running.length > 0);
       if (visible) drawActivity(d);
@@ -5763,15 +5820,19 @@ async function runTest() {
 const MODE_ICON = {remote: 'house', hybrid: 'arrow-left-right', office: 'building-2'};
 const svgIcon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
-function toast(text, kind = 'ok') {
+// `action`, if given, is {label, run}: a button in the toast that runs it.
+// A toast with one stays up longer, so there is time to press it.
+function toast(text, kind = 'ok', action = null) {
   if (kind === 'err') pageProblem('warning', `shown to you: ${text}`);
   const t = document.createElement('div');
   t.className = `toast ${kind}`;
   t.innerHTML = `${svgIcon(kind === 'err' ? 'circle-alert' : 'circle-check')}<span>${esc(text)}</span>
+    ${action ? `<button type="button" class="act go">${esc(action.label)}</button>` : ''}
     <button class="x" aria-label="Dismiss">×</button>`;
   t.querySelector('.x').onclick = () => t.remove();
+  if (action) t.querySelector('.go').onclick = () => { t.remove(); action.run(); };
   $('toasts').append(t);
-  setTimeout(() => t.remove(), kind === 'err' ? 9000 : 3500);
+  setTimeout(() => t.remove(), kind === 'err' ? 9000 : action ? 12000 : 3500);
 }
 
 // What each list is called on the page, and how one of its rows is named.

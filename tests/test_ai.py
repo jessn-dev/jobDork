@@ -88,6 +88,19 @@ def test_json_is_found_inside_the_prose_small_models_add():
     assert llm._parse_object('Sure! {"ok": true} Hope that helps') == {"ok": True}
 
 
+def test_a_judging_runs_summary_names_the_posts_it_judged():
+    """2026-11-10: the summary was only a count; now it names the first
+    five posts and counts the rest."""
+    from jobdork.ai.judging import JudgeReport
+
+    one = JudgeReport(judged=2, model="m", names=["Nurse, Northbridge", "Charge Nurse, Lakeview"])
+    assert one.lines()[1] == "Nurse, Northbridge; Charge Nurse, Lakeview"
+    many = JudgeReport(judged=7, model="m", names=[f"Job {i}, Co" for i in range(7)])
+    assert many.lines()[1].startswith("Job 0, Co; Job 1, Co; Job 2, Co; Job 3, Co; Job 4, Co;")
+    assert "and 2 more" in many.lines()[1]
+    assert JudgeReport(model="m").lines() == ["m: judged 0"]
+
+
 def test_a_judgement_is_clamped_and_clipped_before_it_is_stored():
     raw = {"score": 140, "verdict": "AMAZING", "summary": "x" * 900,
            "reasons": ["a"] * 9, "concerns": "not a list"}

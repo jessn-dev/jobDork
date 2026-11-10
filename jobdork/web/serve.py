@@ -181,7 +181,11 @@ def _row_to_dict(row, units: str, fresh=None) -> dict:
         "parts": (parts := api_mod.score_parts(row)),
         "age": _age(row, parts, fresh or Freshness()),
         "copies": row["copies"],
-        **api_mod.ai_fields(row),
+        **(ai := api_mod.ai_fields(row)),
+        # For the AI sort and the "AI-judged" filter on Job posts, and the
+        # "Judged <day>" mark beside the AI badge.
+        "ai_score": (ai["ai"] or {}).get("score"),
+        "ai_at": str((ai["ai"] or {}).get("at") or "")[:19],
         "status": row["status"] or "new",
         "title": row["title"] or "",
         "company": row["company"] or "",
@@ -1161,6 +1165,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     include_settled=(scope == "all"),
                 )
                 counts = store.status_counts()
+                judging = api_mod.last_judging(store)
                 units = cfg.locations.units or "mi"
                 posted_by = api_mod.recruiters(store, rows)
                 payload = [{**_row_to_dict(row, units, cfg.freshness), **posted_by[row["uid"]]}
@@ -1193,7 +1198,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             settled = sum(counts.get(s, 0) for s in SETTLED_STATUSES)
             self._json(200, {"roles": payload, "counts": counts,
                              "settled": settled, "ghosts": ghosts,
-                             "older": older, "show_days": limit})
+                             "older": older, "show_days": limit,
+                             "last_judging": judging})
 
         def _events(self) -> None:
             """Server-sent events. Held open for the life of the page."""

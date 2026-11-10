@@ -46,9 +46,19 @@ class JudgeReport:
     skipped_thin: int = 0
     model: str = ""
     disagreed: int = 0                 # the second model scored it 20+ apart
+    # "Title, Company" of each post judged, in order: the run's summary names
+    # them, so a run is not only a count (2026-11-10).
+    names: list[str] = field(default_factory=list)
+
+    NAMED = 5                          # named in the summary; the rest counted
 
     def lines(self) -> list[str]:
         out = [f"{self.model}: judged {self.judged}"]
+        if self.names:
+            more = len(self.names) - self.NAMED
+            out.append("; ".join(self.names[:self.NAMED])
+                       + (f"; and {more} more (Job posts, AI-judged: in the last run)"
+                          if more > 0 else ""))
         if self.flagged:
             out.append(f"{self.flagged} with a claim the advert and resume do "
                        "not support")
@@ -142,6 +152,8 @@ def run(cfg, store, limit: int = 0, uid: str = "", force: bool = False,
             telemetry.tick(count="unsupported claims")
         store.set_judgement(row["uid"], verdict)
         report.judged += 1
+        report.names.append(", ".join(x for x in ((row["title"] or "").strip(),
+                                                  (row["company"] or "").strip()) if x))
         telemetry.tick(done=report.judged + len(report.failed),
                        count=verdict["verdict"])
         if progress:
