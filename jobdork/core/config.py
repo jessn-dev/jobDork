@@ -1010,26 +1010,6 @@ def _apply_env_secrets(cfg: Config) -> None:
 
 # ── Validation ─────────────────────────────────────────────────────────────────
 
-# Fields where a classic serif face is the usual choice on a resume (law,
-# finance, academia, government); everywhere else a clean sans serif.
-SERIF_FIELDS = ("law", "legal", "finance", "financial", "banking", "accounting",
-                "academ", "university", "education", "government", "public sector")
-
-
-def resume_font(cfg) -> str:
-    """"sans" or "serif" for the resumes jobdork writes: the one chosen
-    (resume.font), else serif when every industry chosen in the search is
-    one where serif is the usual choice, else sans. Both are fonts every
-    Word and every applicant tracking system has (asked 2026-11-09)."""
-    if cfg.resume_font in ("sans", "serif"):
-        return cfg.resume_font
-    chosen = [i.lower() for i in getattr(getattr(cfg.sources, "directory", None),
-                                         "industries", []) or []]
-    if chosen and all(any(f in i for f in SERIF_FIELDS) for i in chosen):
-        return "serif"
-    return "sans"
-
-
 def _validate(cfg: Config) -> None:
     from .setup import STEP_NAMES
     if cfg.setup_step and cfg.setup_step not in STEP_NAMES:
@@ -1252,6 +1232,26 @@ def _validate(cfg: Config) -> None:
         raise ConfigError("llm.ollama_url must be an http(s) address")
     if not 1 <= cfg.llm.judge_top <= 500:
         raise ConfigError("llm.judge_top must be between 1 and 500")
+
+
+# Fields where a classic serif face is the usual choice on a resume (law,
+# finance, academia, government); everywhere else a clean sans serif.
+SERIF_FIELDS = ("law", "legal", "finance", "financial", "banking", "accounting",
+                "academ", "university", "education", "government", "public sector")
+
+
+def resume_font(cfg) -> str:
+    """"sans" or "serif" for the resumes jobdork writes: the one chosen
+    (resume.font), else serif when every industry chosen in the search is
+    one where serif is the usual choice, else sans. Both are fonts every
+    Word and every applicant tracking system has (asked 2026-11-09)."""
+    if cfg.resume_font in ("sans", "serif"):
+        return cfg.resume_font
+    chosen = [i.lower() for i in getattr(getattr(cfg.sources, "directory", None),
+                                         "industries", []) or []]
+    if chosen and all(any(f in i for f in SERIF_FIELDS) for i in chosen):
+        return "serif"
+    return "sans"
 
 
 def _dealbreaker(i: int, entry) -> Dealbreaker:
