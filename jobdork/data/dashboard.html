@@ -741,6 +741,8 @@ main > section#view-ask{max-width:48rem;margin:0 auto;display:flex;flex-directio
 .agentbox{border:1px solid var(--line);background:var(--card);border-radius:12px;
   padding:.7rem .9rem;margin:-.2rem 0 .8rem;font-size:.875rem;line-height:1.5}
 .agentbox p{margin:.2rem 0 .5rem}
+.addpost details.more{margin:.3rem 0}
+.addpost details.more summary{cursor:pointer}
 .agentnote{border-left:3px solid var(--line);padding:.35rem .7rem;margin:.3rem 0 .7rem;line-height:1.5}
 .agentcmd{margin:.55rem 0}
 .agentcmd summary{cursor:pointer}
@@ -1065,30 +1067,8 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       from after. Choose one for its Application tab: the next step and its date, who you are
       talking to, what you sent, and your notes.</p>
     <details class="paste" id="track">
-      <summary>Track an application you sent</summary>
-      <p class="hint">Applied somewhere jobdork did not find? Give the job post's link: it is
-        read into Job posts and listed here as applied, dated the day you applied.</p>
-      <form id="track-form">
-        <div class="bar">
-          <input id="tr-url" type="url" required placeholder="The job post's link" aria-label="The job post's link"
-            style="flex:1;min-width:16rem">
-          <label class="hint" for="tr-date">Applied on</label>
-          <input id="tr-date" type="date" aria-label="The day you applied">
-          <button data-icon="clipboard-check" class="act primary" type="submit" id="btn-track">Track it</button>
-        </div>
-        <div id="tr-more" hidden>
-          <p class="hint">jobdork could not read that page. Give the job title and employer to track
-            it anyway; paste the advert too and it is scored like any other post.</p>
-          <div class="picker">
-            <label>Job title<input id="tr-title"></label>
-            <label>Employer<input id="tr-company"></label>
-            <label>Place<input id="tr-place" placeholder="e.g. Austin, TX, or Remote"></label>
-          </div>
-          <label>The advert (optional)<textarea id="tr-text" rows="6" style="width:100%"
-            placeholder="Everything the post says: duties, requirements, pay"></textarea></label>
-        </div>
-        <div id="tr-msg" role="status"></div>
-      </form>
+      <summary>Add a job post you applied to</summary>
+      <div class="addpost" data-prefix="apa" data-applied="1"></div>
     </details>
     <div class="appchips" id="app-chips"></div>
     <div class="split">
@@ -1826,28 +1806,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <div id="keyinfo"></div>
 
     <h2 style="margin-top:1.25rem">Add a Job Post</h2>
-    <p class="hint">A job post you found yourself, anywhere: paste its link and it is
-      read into Job posts like any scanned post, advert and all. An employer's board
-      (Greenhouse, Lever, Workday, Oracle, Taleo Enterprise and others) gives the whole
-      post; any other page is read from what it publishes for search engines. When a
-      page cannot be read, paste the advert's text instead.</p>
-    <div class="bar">
-      <input id="add-url" placeholder="The job post's link" style="flex:1;min-width:22rem">
-      <input id="add-token" placeholder="Board token, if the link has none" style="width:15rem">
-      <button data-icon="plus" class="act" id="btn-add">Add</button>
-    </div>
-    <div id="addmsg"></div>
-    <form class="field" id="add-paste" hidden>
-      <div class="picker">
-        <label>Job title<input id="add-p-title" required></label>
-        <label>Employer<input id="add-p-company"></label>
-        <label>Place<input id="add-p-place" placeholder="e.g. Austin, TX, or Remote"></label>
-      </div>
-      <label>The advert, pasted from the page<textarea id="add-p-text" rows="10"
-        style="width:100%" placeholder="Everything the post says: duties, requirements, pay"></textarea></label>
-      <div class="bar"><button data-icon="plus" class="act primary" type="submit">Add from the text</button>
-        <button class="act" type="button" id="add-p-cancel">Cancel</button></div>
-    </form>
+    <div class="addpost" data-prefix="aps" data-applied="0"></div>
 
     <h2 style="margin-top:1.25rem" id="boards-head">Employer boards</h2>
     <p class="hint">These give full advert text, which aggregators do not. A board
@@ -2826,7 +2785,7 @@ const ICONS = {
 const TAB_ICON = {tools: 'cpu', advert: 'file-text', ats: 'search-check', application: 'clipboard-check', screen: 'clipboard-check', cv: 'file-user',
                   cover_letter: 'mail', letter: 'mail', resume_review: 'file-search',
                   tailored_resume: 'file-user', interview_prep: 'messages-square',
-                  recruiter_message: 'send'};
+                  recruiter_message: 'send', sent_resume: 'upload', sent_letter: 'upload'};
 const STATUS_ICON = {new: 'circle-dot', viewed: 'eye', interested: 'star', applied: 'send',
   submitted: 'file-check', interviewing: 'messages-square', offer: 'award',
   rejected: 'circle-x', withdrawn: 'undo-2', skipped: 'skip-forward', closed: 'archive'};
@@ -2847,7 +2806,8 @@ decorate(document.body);
 const TOOL_KINDS = ['resume_edits', 'keywords', 'highlight', 'feedback', 'revise'];
 const TAB_LABEL = {tools: 'AI tools', ats: 'ATS match', application: 'application', cover_letter: 'cover letter', resume_review: 'resume review', cv: 'CV',
                    tailored_resume: 'tailored resume', interview_prep: 'interview prep',
-                   recruiter_message: 'recruiter message'};
+                   recruiter_message: 'recruiter message', sent_resume: 'resume you sent',
+                   sent_letter: 'letter you sent'};
 // Documents that are resumes: shown formatted, with their PDF to open or save.
 const PDF_KINDS = ['tailored_resume', 'cv'];
 const tabLabel = t => TAB_LABEL[t] || t.replace('_', ' ');
@@ -3599,41 +3559,6 @@ $('fbk-save').onclick = () => {
   if (!fbkShown) return;
   saveFile(new Blob([`# ${fbkShown.subject}\n\n${fbkShown.text}\n`], {type: 'text/markdown'}),
            'jobdork-feedback.md');
-};
-
-// A link jobdork could not read (422) opens the form for its pasted advert.
-function showAdded(d) {
-  $('addmsg').innerHTML = `<span class="saved">${d.added ? 'added' : 'updated'}</span> ` +
-    `${esc(d.title)} at ${esc(d.company)}` +
-    (d.passes_filters ? '' :
-      `<div class="hint">Does not pass your filters (${esc(d.why_not)}). ` +
-      `Stored anyway because you asked for it.</div>`);
-  loadRoles();
-}
-$('btn-add').onclick = async () => {
-  const btn = $('btn-add'), msg = $('addmsg');
-  btn.disabled = true; msg.innerHTML = '<span class="hint">Reading the link…</span>';
-  const r = await api('/api/add', {method: 'POST',
-    body: form({url: $('add-url').value, token: $('add-token').value})});
-  btn.disabled = false;
-  if (!r.ok) {
-    msg.innerHTML = `<span class="err">${esc(cap(await r.text()))}</span>`;
-    $('add-paste').hidden = r.status !== 422;
-    if (r.status === 422) $('add-p-title').focus();
-    return;
-  }
-  $('add-paste').hidden = true;
-  showAdded(await r.json());
-};
-$('add-p-cancel').onclick = () => { $('add-paste').hidden = true; $('addmsg').innerHTML = ''; };
-$('add-paste').onsubmit = async ev => {
-  ev.preventDefault();
-  const r = await api('/api/add/text', {method: 'POST', body: form({url: $('add-url').value,
-    title: $('add-p-title').value, company: $('add-p-company').value,
-    location: $('add-p-place').value, text: $('add-p-text').value})});
-  if (!r.ok) { $('addmsg').innerHTML = `<span class="err">${esc(cap(await r.text()))}</span>`; return; }
-  $('add-paste').reset(); $('add-paste').hidden = true;
-  showAdded(await r.json());
 };
 
 let liveEvents = null;
@@ -6426,43 +6351,124 @@ async function loadApps() {
   if (!$('view-apps').hidden) drawApps();
 }
 
-// Track an application sent outside jobdork: its link (or, for a page that
-// cannot be read, its title and employer, and the advert if you have it).
-function trackReset() {
-  $('track-form').reset();
-  $('tr-date').value = new Date().toLocaleDateString('en-CA');   // today, as YYYY-MM-DD
-  $('tr-date').max = $('tr-date').value;
-  $('tr-more').hidden = true;
+// "Add a job post": one form, on Sources and on My applications (ticked
+// "I already applied" there). A link, read in as a scanned post; when the
+// page names the job but gives no advert, or cannot be read, the fields for
+// its title, employer, place and pasted advert open, filled with what was
+// found. Applied: the day, and the resume and letter you sent, uploaded for
+// the post's "Documents sent". Add and Track were two forms reading links
+// the same way (2026-11-09; api.add_post).
+function addPostForm(box) {
+  const p = box.dataset.prefix, applied = box.dataset.applied === '1';
+  const id = k => `${p}-${k}`;
+  box.innerHTML = `<p class="hint">${applied
+      ? 'Applied somewhere jobdork did not find? Give the job post\'s link: it is read into Job posts and listed here as applied, on the day you applied.'
+      : 'A job post you found yourself, anywhere: paste its link and it is read into Job posts like any scanned post, advert and all. An employer\'s board (Greenhouse, Lever, Workday, Oracle, Taleo Enterprise and others) gives the whole post; any other page is read from what it publishes for search engines.'}</p>
+    <form class="addform" id="${id('form')}">
+      <div class="bar">
+        <input id="${id('url')}" type="url" required placeholder="The job post's link"
+          aria-label="The job post's link" style="flex:1;min-width:16rem">
+        <button data-icon="plus" class="act primary" type="submit" id="${id('go')}">Add</button>
+      </div>
+      <div class="bar">
+        <label class="fnum"><input type="checkbox" id="${id('applied')}"${applied ? ' checked' : ''}> I already applied</label>
+        <label class="fnum" id="${id('when')}"${applied ? '' : ' hidden'}>on <input type="date" id="${id('date')}"
+          aria-label="The day you applied"></label>
+      </div>
+      <div id="${id('sent')}"${applied ? '' : ' hidden'}>
+        <p class="hint" style="margin:.4rem 0 .2rem">What you sent, if you have the files (PDF, Word, text):
+          kept with the post as its documents sent, and read by its interview prep, recruiter message
+          and AI tools.</p>
+        <div class="bar">
+          <label class="fnum">Resume <input type="file" id="${id('resume')}" accept=".pdf,.docx,.md,.markdown,.txt"></label>
+          <label class="fnum">Cover letter <input type="file" id="${id('letter')}" accept=".pdf,.docx,.md,.markdown,.txt"></label>
+        </div>
+      </div>
+      <details class="more"><summary class="hint">More options</summary>
+        <input id="${id('token')}" placeholder="Board token, if the link has none" style="width:15rem;margin-top:.3rem">
+      </details>
+      <div id="${id('more')}" hidden>
+        <p class="hint" id="${id('why')}"></p>
+        <div class="picker">
+          <label>Job title<input id="${id('title')}"></label>
+          <label>Employer<input id="${id('company')}"></label>
+          <label>Place<input id="${id('place')}" placeholder="e.g. Austin, TX, or Remote"></label>
+        </div>
+        <label>The advert, pasted from the page<textarea id="${id('text')}" rows="8" style="width:100%"
+          placeholder="Everything the post says: duties, requirements, pay"></textarea></label>
+      </div>
+      <div id="${id('msg')}" role="status"></div>
+    </form>`;
+  const reset = () => {
+    $(id('form')).reset();
+    $(id('applied')).checked = applied;
+    $(id('date')).value = new Date().toLocaleDateString('en-CA');   // today, as YYYY-MM-DD
+    $(id('date')).max = $(id('date')).value;
+    $(id('more')).hidden = true;
+    sync();
+  };
+  const sync = () => {
+    const on = $(id('applied')).checked;
+    $(id('when')).hidden = $(id('sent')).hidden = !on;
+  };
+  $(id('applied')).onchange = sync;
+  reset();
+  $(id('form')).onsubmit = async ev => {
+    ev.preventDefault();
+    const go = $(id('go')), msg = $(id('msg')), more = !$(id('more')).hidden;
+    const on = $(id('applied')).checked;
+    go.disabled = true;
+    msg.innerHTML = `<span class="hint">${more ? 'Saving…' : 'Reading the link…'}</span>`;
+    const body = {url: $(id('url')).value, token: $(id('token')).value};
+    if (on) body.applied_on = $(id('date')).value;
+    if (more) Object.assign(body, {title: $(id('title')).value, company: $(id('company')).value,
+                                   location: $(id('place')).value, text: $(id('text')).value});
+    const r = await api('/api/post/add', {method: 'POST', body: form(body)});
+    go.disabled = false;
+    if (!r.ok) {
+      const raw = await r.text();
+      let got = null;
+      try { got = JSON.parse(raw); } catch (e) { /* a plain message */ }
+      const why = cap(got ? got.error : raw);
+      if (r.status === 422 && !more) {
+        // Open the fields, filled with what the link gave (api.add_post).
+        const f = (got && got.found) || {};
+        $(id('more')).hidden = false;
+        $(id('why')).textContent = `${why} ${on ? 'Give the title and employer to add it anyway; paste the advert too and it is scored like any other post.' : ''}`;
+        if (f.title) $(id('title')).value = f.title;
+        if (f.company) $(id('company')).value = f.company;
+        if (f.location) $(id('place')).value = f.location;
+        msg.innerHTML = '';
+        $(id(f.title ? 'text' : 'title')).focus();
+      } else msg.innerHTML = `<span class="err">${esc(why)}</span>`;
+      return;
+    }
+    const d = await r.json();
+    // The files you sent, once the post exists to keep them with.
+    const sent = [];
+    for (const [key, kind] of [['resume', 'sent_resume'], ['letter', 'sent_letter']]) {
+      const file = on && $(id(key)).files[0];
+      if (!file || !d.uid) continue;
+      const up = await api('/api/application/document', {method: 'POST', body: file, headers: {
+        'X-Filename': encodeURIComponent(file.name), 'X-Uid': d.uid, 'X-Kind': kind,
+        'Content-Type': 'application/octet-stream'}});
+      sent.push(up.ok ? `${key === 'resume' ? 'resume' : 'cover letter'} kept`
+                      : `${key === 'resume' ? 'resume' : 'cover letter'} not kept: ${esc(cap(await up.text()))}`);
+    }
+    reset();
+    const what = d.tracked === false
+      ? `<span class="saved">Already tracked</span> ${esc(d.title)} at ${esc(d.company)} is at ${esc(d.status)}; left as it is.`
+      : d.tracked
+        ? `<span class="saved">Added</span> ${esc(d.title)} at ${esc(d.company)}, applied ${esc(shortDay(d.applied_on))}.`
+        : `<span class="saved">${d.added ? 'Added' : 'Updated'}</span> ${esc(d.title)} at ${esc(d.company)}.`;
+    msg.innerHTML = what + (sent.length ? ` <span class="hint">${sent.join('; ')}.</span>` : '') +
+      (d.passes_filters === false ? `<div class="hint">Does not pass your filters (${esc(d.why_not)}). Stored anyway because you asked for it.</div>` : '');
+    loadRoles();
+    if (on) { await loadApps(); drawApps(); }
+  };
+  decorate(box);
 }
-trackReset();
-$('track-form').onsubmit = async ev => {
-  ev.preventDefault();
-  const btn = $('btn-track'), msg = $('tr-msg'), more = !$('tr-more').hidden;
-  btn.disabled = true;
-  msg.innerHTML = `<span class="hint">${more ? 'Saving…' : 'Reading the link…'}</span>`;
-  const body = {url: $('tr-url').value, applied_on: $('tr-date').value};
-  if (more) Object.assign(body, {title: $('tr-title').value, company: $('tr-company').value,
-                                 location: $('tr-place').value, text: $('tr-text').value});
-  const r = await api('/api/application/track', {method: 'POST', body: form(body)});
-  btn.disabled = false;
-  if (!r.ok) {
-    const why = cap(await r.text());
-    if (r.status === 422 && !more) {
-      $('tr-more').hidden = false;
-      msg.innerHTML = '';
-      $('tr-title').focus();
-    } else msg.innerHTML = `<span class="err">${esc(why)}</span>`;
-    return;
-  }
-  const d = await r.json();
-  trackReset();
-  msg.innerHTML = d.tracked
-    ? `<span class="saved">Tracked</span> ${esc(d.title)} at ${esc(d.company)}, applied ${esc(shortDay(d.applied_on))}.`
-    : `<span class="saved">Already tracked</span> ${esc(d.title)} at ${esc(d.company)} is at ${esc(d.status)}; left as it is.`;
-  await loadApps();
-  drawApps();
-  loadRoles();
-};
+document.querySelectorAll('.addpost').forEach(addPostForm);
 
 function drawApps() {
   const all = apps ? apps.applications : [];
@@ -6513,8 +6519,13 @@ function applicationHtml(d) {
     </div>
     <h4>Documents sent</h4>
     <div class="appform">
-      <label>Resume <select id="ap-resume">${docOpt(a.resumes, k.resume_id, a.resumes.length ? 'Not chosen' : 'None written for this post')}</select></label>
-      <label>Cover letter <select id="ap-letter">${docOpt(a.letters, k.letter_id, a.letters.length ? 'Not chosen' : 'None written for this post')}</select></label>
+      <label>Resume <select id="ap-resume">${docOpt(a.resumes, k.resume_id, a.resumes.length ? 'Not chosen' : 'None yet: write one, or upload yours')}</select></label>
+      <label>Cover letter <select id="ap-letter">${docOpt(a.letters, k.letter_id, a.letters.length ? 'Not chosen' : 'None yet: write one, or upload yours')}</select></label>
+    </div>
+    <div class="bar">
+      <label class="fnum">Upload the resume you sent <input type="file" id="ap-up-resume" accept=".pdf,.docx,.md,.markdown,.txt"></label>
+      <label class="fnum">the letter you sent <input type="file" id="ap-up-letter" accept=".pdf,.docx,.md,.markdown,.txt"></label>
+      <span class="hint" id="ap-up-msg"></span>
     </div>
     <div class="bar"><button type="button" class="act primary" data-icon="save" id="ap-save">Save application</button>
       <span class="hint" id="ap-msg"></span></div>
@@ -6538,6 +6549,26 @@ function bindApplication(d) {
     uid: d.uid, next_step: $('ap-step').value, next_date: $('ap-date').value,
     contact_name: $('ap-name').value, contact_email: $('ap-email').value, contact_link: $('ap-link').value,
     resume_id: $('ap-resume').value, letter_id: $('ap-letter').value})}), 'Application saved');
+  // The resume or letter you sent, uploaded: kept with the post, chosen as
+  // its document sent, and read by its prep and AI tools (api.save_sent_document).
+  for (const [key, kind, pick] of [['resume', 'sent_resume', 'resume_id'], ['letter', 'sent_letter', 'letter_id']]) {
+    $(`ap-up-${key}`).onchange = async ev => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      $('ap-up-msg').textContent = 'Uploading…';
+      const r = await api('/api/application/document', {method: 'POST', body: file, headers: {
+        'X-Filename': encodeURIComponent(file.name), 'X-Uid': d.uid, 'X-Kind': kind,
+        'Content-Type': 'application/octet-stream'}});
+      if (!r.ok) { $('ap-up-msg').textContent = cap(await r.text()); return; }
+      const up = await r.json();
+      after(await api('/api/application', {method: 'POST', body: form({
+        uid: d.uid, next_step: $('ap-step').value, next_date: $('ap-date').value,
+        contact_name: $('ap-name').value, contact_email: $('ap-email').value, contact_link: $('ap-link').value,
+        resume_id: pick === 'resume_id' ? up.id : $('ap-resume').value,
+        letter_id: pick === 'letter_id' ? up.id : $('ap-letter').value})}),
+        `The ${key === 'resume' ? 'resume' : 'letter'} you sent is kept`);
+    };
+  }
   $('ap-add').onclick = async () => {
     if (!$('ap-note').value.trim()) { $('ap-note').focus(); return; }
     after(await api('/api/application/note', {method: 'POST', body: form({uid: d.uid, note: $('ap-note').value})}), 'Note added');

@@ -985,18 +985,39 @@ def render_review(review: Review, row=None) -> str:
 # ── running them: files, artifacts, ai_outputs ────────────────────────────────
 
 
-def _resume_text(cfg) -> str:
+def _resume_text(cfg, store=None, uid: str = "") -> str:
     """The resume's text, or an LLMError saying why there is none: a draft
     is not written without it. (writing/generate.py has its own, which gives
-    "" instead, because there a missing resume only skips a check.)"""
+    "" instead, because there a missing resume only skips a check.)
+
+    With a job post (`store`, `uid`) that has a resume you sent uploaded for
+    it, that one: interview prep, a recruiter message and the AI tools for
+    an application go by what the employer has, not the resume set now."""
     from ..search import resume as resume_mod
 
+    sent = sent_resume_text(store, uid) if store is not None and uid else ""
+    if sent:
+        return sent
     if not cfg.resume_path:
         raise LLMError("no resume configured. Upload one on the Resume page")
     try:
         return resume_mod.load(cfg.resume_path).text
     except resume_mod.ResumeError as exc:
         raise LLMError(f"the resume could not be read: {exc}") from exc
+
+
+def sent_resume_text(store, uid: str) -> str:
+    """The text of the resume you sent for this post (uploaded as
+    `sent_resume`), or "" when there is none or it no longer reads."""
+    from ..search import resume as resume_mod
+
+    for row in store.artifacts(uid, "sent_resume"):
+        if row["path"] and Path(row["path"]).is_file():
+            try:
+                return resume_mod.load(row["path"]).text
+            except resume_mod.ResumeError:
+                return ""
+    return ""
 
 
 def _settings(cfg) -> Settings:
@@ -1068,7 +1089,7 @@ def prep(cfg, store, uid: str, root: str = "", progress=None) -> Draft:
     from ..writing import resume_doc
 
     settings = _settings(cfg)
-    resume_text = _resume_text(cfg)
+    resume_text = _resume_text(cfg, store, uid)
     row = _row(store, uid)
     telemetry.tick(total=2)
     if progress:
@@ -1087,7 +1108,7 @@ def prep(cfg, store, uid: str, root: str = "", progress=None) -> Draft:
 def message(cfg, store, uid: str, root: str = "", progress=None) -> Draft:
     """`jobdork message UID`: a short message to a recruiter, saved and recorded."""
     settings = _settings(cfg)
-    resume_text = _resume_text(cfg)
+    resume_text = _resume_text(cfg, store, uid)
     row = _row(store, uid)
     telemetry.tick(total=2)
     if progress:

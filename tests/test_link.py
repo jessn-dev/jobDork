@@ -39,12 +39,19 @@ def _cfg():
     return Config(titles_include=["nurse"], locations=Locations(countries=["US"]))
 
 
+# An advert long enough to be one: a link that gives less is refused as
+# naming the job without its advert (link.MIN_ADVERT).
+DUTIES = (" Assess patients, give medication, keep charts in Epic, and work with"
+          " doctors and families on care plans across day and night shifts.") * 2
+
+
 def _taleo_page(title="Charge Nurse", number="12345"):
     parts = ["ftlx0", "ftlUtil_resetPage!$!requisitionDescriptionInterface", "descRequisition",
              "rdPager!$!1", "true", "1", "false",
              f"Submission for the position\\: {title} - (Job Number\\: {number})",
              "false", "1", "false", "false", title, number,
-             "!*!<p>Lead a 30-bed medical unit.</p>", "!*!<p>Lead a 30-bed medical unit.</p>",
+             "!*!<p>Lead a 30-bed medical unit." + DUTIES + "</p>",
+             "!*!<p>Lead a 30-bed medical unit." + DUTIES + "</p>",
              "!*!<p>Required: an RN licence.</p>", "!*!<p>Required: an RN licence.</p>",
              "Nursing", "Nursing", "US-TX-Austin", "US-TX-Austin", "", "",
              "Acme Nursing", "Acme Nursing", "Full-time", "Full-time",
@@ -58,7 +65,7 @@ def _taleo_page(title="Charge Nurse", number="12345"):
 def _ld_page(**extra):
     posting = {"@context": "https://schema.org", "@type": "JobPosting",
                "title": "Registered Nurse", "datePosted": "2026-10-20",
-               "description": "<p>Care for patients on a busy ward.</p>",
+               "description": "<p>Care for patients on a busy ward." + DUTIES + "</p>",
                "hiringOrganization": {"@type": "Organization", "name": "Acme Health"},
                "jobLocation": {"@type": "Place", "address": {
                    "addressLocality": "Austin", "addressRegion": "TX",

@@ -312,6 +312,36 @@ def test_with_nothing_judged_there_is_no_last_run():
         assert api_mod.last_judging(store) is None
 
 
+def test_the_add_form_route_answers_what_it_found_and_takes_uploads():
+    """POST /api/post/add answers 422 JSON with the fields the link gave; the
+    documents you sent go up as raw bytes to /api/application/document."""
+    from jobdork.fetch import link
+
+    def check(run):
+        real = link._read
+        # lambda: a page with the job's title and no advert, so nothing goes online.
+        link._read = lambda *a, **k: Role(platform="site", company="Acme", title="ICU Nurse",
+                                          url="https://a.test/9", description="Apply now")
+        try:
+            code, body = run.post("/api/post/add", {"url": "https://a.test/9"})
+        finally:
+            link._read = real
+        got = json.loads(body)
+        assert code == 422 and got["found"]["title"] == "ICU Nurse", (code, body)
+        request = urllib.request.Request(
+            run.base + "/api/application/document", data=b"# Jane\n\nRN licence.\n",
+            headers={"X-Jobdork-Token": run.token, "X-Uid": run.uid, "X-Kind": "sent_resume",
+                     "X-Filename": "my%20cv.md", "Content-Type": "application/octet-stream"})
+        os.environ["JOBDORK_DOCS_DIR"] = run.tmp.name     # never the real ~/Documents
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                saved = json.loads(response.read())
+        finally:
+            os.environ.pop("JOBDORK_DOCS_DIR", None)
+        assert saved["kind"] == "sent_resume" and saved["name"] == "sent-resume.md"
+    _with_server(check)
+
+
 def test_the_page_carries_no_external_request():
     """Local tool, no CDN: nothing here should phone anywhere."""
     def check(run):

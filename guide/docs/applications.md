@@ -8,20 +8,27 @@ on [Job posts](job-posts.md).
 
 ![My applications](images/applications.png)
 
-## Track an application you sent
+## Add a job post you applied to
 
 Applied somewhere jobdork did not find, or before you used it? Open
-**Track an application you sent** at the top, paste the job post's link,
-set **Applied on** (today, unless you change it; not a day still to come)
-and press **Track it**. jobdork reads the post into [Job posts](job-posts.md),
-as **Add a Job Post** on the [Sources](sources.md#add-a-job-post) page does,
-marks it *applied*, dated the day you gave, and lists it here.
+**Add a job post you applied to** at the top. It is the same form as
+**Add a Job Post** on the [Sources](sources.md#add-a-job-post) page, with
+**I already applied** ticked: paste the job post's link, set the day (today,
+unless you change it; not a day still to come) and press **Add**. jobdork
+reads the post into [Job posts](job-posts.md), marks it *applied*, dated the
+day you gave, and lists it here.
 
-When the page cannot be read (a sign-in page, or one that publishes nothing
-for search engines), more fields open: give the **Job title** and
-**Employer**, and the **Place** if you like, then **Track it** again. Paste
-the advert too and the post is scored like any other; without it, it is
-tracked all the same, with nothing to score against.
+Have the files you sent? Choose the **Resume** and **Cover letter** before
+**Add** (PDF, Word or text): they are kept with the post as its documents
+sent, and its interview prep, recruiter message, AI tools and ATS match read
+the resume you sent rather than the one set now.
+
+When the page cannot be read (a sign-in page, one that publishes nothing for
+search engines, or one that names the job but carries no advert), more
+fields open, filled with whatever the link gave: check the **Job title**,
+**Employer** and **Place**, then **Add** again. Paste the advert too and the
+post is scored like any other; without it, it is tracked all the same, with
+nothing to score against.
 
 A job you already moved on to *interviewing* or *offer* is left there; a
 post jobdork already had is not added twice.
@@ -55,9 +62,11 @@ wherever it is opened:
   on Tuesday, or *Follow up* in a week.
 - **Contact**: the recruiter or hiring manager, with an email address or
   a link (a LinkedIn profile, say).
-- **Documents sent**: which of this post's tailored resumes and cover
-  letters you sent. Only documents written for this post are offered; write
-  them from its **AI tools** tab.
+- **Documents sent**: which resume and cover letter you sent: one jobdork
+  wrote for this post (from its **AI tools** tab), or a file of yours.
+  **Upload the resume you sent** or **the letter you sent** keeps the file
+  with the post and chooses it; uploading again replaces it. The post's
+  window shows its text, and its prep and tools read it.
 
 **Save application** keeps all three. Everything stays on this computer.
 

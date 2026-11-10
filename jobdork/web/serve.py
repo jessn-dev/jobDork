@@ -710,6 +710,14 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     done["rescore"] = ("Re-scoring your job posts with it." if now else
                                        f"Your job posts are re-scored with it after {runner.current}.")
                 return self._json(200, done)
+            if path == "/api/post/add":
+                # The one Add a job post form; sized for a pasted advert.
+                form = self._body(limit=api_mod.MAX_ADVERT_CHARS * 12)
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.add_post, cfg_holder["cfg"], form)
+            if path == "/api/application/document":
+                return self._sent_document()
             if path == "/api/application/track":
                 # Sized for a pasted advert, as /api/add/text is.
                 form = self._body(limit=api_mod.MAX_ADVERT_CHARS * 12)
@@ -930,11 +938,31 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             return self._json(200, {"value": value})
 
         def _wrap(self, fn, *args) -> None:
-            """Run an api function and turn its refusal into a status code."""
+            """Run an api function and turn its refusal into a status code.
+            A refusal that read something anyway (a link that gave the title
+            but no advert) answers JSON: the error and what was found."""
             try:
                 self._json(200, fn(*args))
             except api_mod.ApiError as exc:
+                if exc.found:
+                    return self._json(exc.status, {"error": str(exc), "found": exc.found})
                 self._reject(exc.status, str(exc))
+
+        def _sent_document(self) -> None:
+            """A resume or letter you sent, as raw bytes, its name in
+            X-Filename and the post and kind in X-Uid and X-Kind, as the
+            resume upload does: no multipart parser."""
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return self._reject(400, "bad Content-Length")
+            if length <= 0 or length > api_mod.MAX_RESUME_BYTES:
+                return self._reject(400, "empty or oversized upload")
+            payload = self.rfile.read(length)
+            self._wrap(api_mod.save_sent_document, cfg_holder["cfg"],
+                       (self.headers.get("X-Uid") or "").strip(),
+                       (self.headers.get("X-Kind") or "").strip(),
+                       (self.headers.get("X-Filename") or "").strip(), payload)
 
         def _resume(self) -> None:
             """Raw bytes with the name in a header — no multipart parser.
