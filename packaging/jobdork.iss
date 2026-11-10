@@ -58,6 +58,16 @@ Source: "{#Source}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs cre
 Name: "{group}\jobdork"; Filename: "{app}\jobdork.exe"; AppUserModelID: "io.github.jessn-dev.jobdork"
 Name: "{autodesktop}\jobdork"; Filename: "{app}\jobdork.exe"; Tasks: desktopicon; AppUserModelID: "io.github.jessn-dev.jobdork"
 
+[Registry]
+; jobdork://, which a click on the app's notification opens (notify.LAUNCH in
+; jobdork/core/notify.py): it starts jobdork.exe, which shows jobdork, or
+; brings its window to the front when it is open already. jobdork.exe reads
+; nothing from the link. HKA: the user's own keys for a per-user install.
+Root: HKA; Subkey: "Software\Classes\jobdork"; ValueType: string; ValueName: ""; ValueData: "URL:jobdork"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\jobdork"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\jobdork\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\jobdork.exe"",0"
+Root: HKA; Subkey: "Software\Classes\jobdork\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\jobdork.exe"" ""%1"""
+
 [Run]
 Filename: "{app}\jobdork.exe"; Description: "{cm:LaunchProgram,jobdork}"; Flags: nowait postinstall skipifsilent
 ; The app's own Update runs this installer silently with /restart=yes: then

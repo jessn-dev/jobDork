@@ -419,6 +419,69 @@ def _ask_page(window, plan: str, bridge) -> None:
         bridge.quit_app()
 
 
+# The file a second start of jobdork leaves for the one already open: that
+# one sees it, removes it and brings its window to the front. A click on a
+# notification starts jobdork (notify.LAUNCH, the Linux "Open jobdork"
+# action), and with jobdork open already the second one could not listen on
+# its port and showed nothing (2026-11-10). A file, not a request to the
+# server: the server answers nothing without the session token.
+SHOW_REQUEST = "show-window.request"
+SHOW_WAIT = 3.0                     # how long the second one waits to be answered
+
+
+def _port_in_use(port: int) -> bool:
+    import socket
+
+    with socket.socket() as sock:
+        sock.settimeout(0.5)
+        return sock.connect_ex(("127.0.0.1", port)) == 0
+
+
+def show_open_window(home: Path, port: int, wait: float = SHOW_WAIT) -> bool:
+    """True when a jobdork already open in `home` was asked to show its
+    window and answered, so this start can end. False when nothing listens
+    on `port`, or what does is not a jobdork that answers."""
+    import time
+
+    if not _port_in_use(port):
+        return False
+    request = home / SHOW_REQUEST
+    try:
+        request.write_text(str(os.getpid()), encoding="utf-8")
+    except OSError:
+        return False
+    end = time.monotonic() + wait
+    while time.monotonic() < end:
+        if not request.exists():
+            return True
+        time.sleep(0.1)
+    with contextlib.suppress(OSError):
+        request.unlink()
+    return False
+
+
+def raise_window(window) -> None:
+    """Bring the app's window to the front: un-minimised, shown, and on top
+    for a moment, which is what raises it on every system."""
+    for step in ("restore", "show"):
+        with contextlib.suppress(Exception):
+            getattr(window, step)()
+    with contextlib.suppress(Exception):
+        window.on_top = True
+        window.on_top = False
+
+
+def watch_for_show_requests(home: Path, window, stop: threading.Event,
+                            every: float = 1.0) -> None:
+    """Answer a second start of jobdork (show_open_window) until `stop`."""
+    request = home / SHOW_REQUEST
+    while not stop.wait(every):
+        if request.exists():
+            with contextlib.suppress(OSError):
+                request.unlink()
+            raise_window(window)
+
+
 def run(port: int, home: Path | None = None, debug: bool = False) -> int:
     """Open the app window. Returns an exit code once it is closed."""
     try:
@@ -439,6 +502,11 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
         logging.getLogger().setLevel(level)
     widen_path()
     os.chdir(home)
+    if show_open_window(home, port):
+        print("jobdork is open already: its window was brought to the front")
+        return 0
+    with contextlib.suppress(OSError):
+        (home / SHOW_REQUEST).unlink()          # one left by a start that gave up
     print(f"jobdork app: keeping settings and job posts in {home}")
 
     cfg = config.load(require=False)
@@ -484,8 +552,20 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
     api_mod.QUIT_APP = bridge.quit_app
     # Not private: the page keeps small conveniences (a remembered tab) in
     # local storage. The token is never stored; it lives in the page.
-    webview.start(gui=window_gui(), private_mode=False, storage_path=str(home / "window"),
-                  debug=debug)
+    watching = threading.Event()
+
+    def started():
+        # Once the window is up: answer a second start of jobdork, and on a
+        # Mac ask for permission to notify while you are here to answer.
+        threading.Thread(target=watch_for_show_requests, name="jobdork-show",
+                         args=(home, bridge._window, watching), daemon=True).start()
+        from ..core import notify
+        with contextlib.suppress(Exception):
+            notify.ask_permission()
+
+    webview.start(func=started, gui=window_gui(), private_mode=False,
+                  storage_path=str(home / "window"), debug=debug)
+    watching.set()
 
     # The window is closed: nothing of jobdork goes on running. Ask's Claude
     # Code run is stopped, then the server; shutdown() waits for the server

@@ -105,6 +105,69 @@ def test_linux_uses_notify_send_with_the_bell_sound():
     assert argv[0] == "notify-send" and "--hint=string:sound-name:bell" in argv
 
 
+def test_the_mac_app_never_falls_back_to_osascript():
+    """2026-11-10: the app's fallback was osascript, which macOS files under
+    Script Editor, so a click on the notification opened Script Editor."""
+    run, real = _Run(), notify._mac_framework
+    # lambda: macOS refusing the app's own notification.
+    notify._mac_framework = lambda title, body, sound: False
+    try:
+        with _platform("darwin", frozen=True):
+            assert notify.send("t", "b", run=run) is False
+    finally:
+        notify._mac_framework = real
+    assert run.calls == [], "no osascript, so no Script Editor"
+
+
+def test_a_click_on_the_windows_apps_toast_opens_jobdork():
+    """It had nothing to open, and Windows opened a folder instead."""
+    run = _Run()
+    with _platform("win32", frozen=True):
+        notify.send("t", "b", run=run)
+    xml = run.calls[0][1]["env"]["JOBDORK_TOAST"]
+    assert xml.startswith('<toast launch="jobdork://open" activationType="protocol">'), xml
+    run = _Run()
+    with _platform("win32"):
+        notify.send("t", "b", run=run)
+    assert "launch=" not in run.calls[0][1]["env"]["JOBDORK_TOAST"], \
+        "only the installed app has jobdork:// registered"
+
+
+def test_the_linux_apps_notification_opens_jobdork_when_clicked():
+    class _Help(_Run):
+        def __call__(self, argv, **kw):
+            self.calls.append((list(argv), kw))
+            out = "  -A, --action=[NAME=]Text..." if argv[1:] == ["--help"] else ""
+            return types.SimpleNamespace(returncode=0, stdout=out, stderr="")
+
+    spawned, real = [], notify._spawn
+    # lambda: records the shell that waits for the click instead of starting it.
+    notify._spawn = lambda argv, **kw: spawned.append((argv, kw))
+    try:
+        with _platform("linux", frozen=True), _env(APPIMAGE="/home/me/jobdork.AppImage"):
+            assert notify.send('3 new "posts"; rm -rf ~', "b", run=_Help())
+    finally:
+        notify._spawn = real
+    (argv, kw), = spawned
+    assert argv[:2] == ["sh", "-c"] and argv[2] == notify._OPEN_ON_CLICK
+    assert argv[3:5] == ["sh", "/home/me/jobdork.AppImage"]
+    assert "--hint=string:desktop-entry:jobdork" in argv and '3 new "posts"; rm -rf ~' in argv
+    assert "rm -rf" not in argv[2], "the title is an argument, never part of the script"
+    assert kw["start_new_session"], "outlives a scheduled scan that ends first"
+    # An older notify-send without --action: shown as before, no action.
+    run = _Run()
+    with _platform("linux", frozen=True):
+        assert notify.send("t", "b", run=run)
+    assert run.calls[-1][0][0] == "notify-send" and "--hint=string:desktop-entry:jobdork" in run.calls[-1][0]
+
+
+def test_only_the_mac_app_asks_for_permission():
+    with _platform("linux", frozen=True):
+        assert notify.ask_permission() is True
+    with _platform("darwin"):
+        assert notify.ask_permission() is True, "osascript needs none"
+
+
 def test_settings_and_the_environment_decide():
     cfg = Config(notifications=Notifications(enabled=True, sound=False))
     with _env(JOBDORK_NOTIFY=None):
