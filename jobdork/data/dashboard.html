@@ -3490,7 +3490,7 @@ async function drawReview() {
   const g = o.guard || {};
   const check = g.checked
     ? `${g.claims - g.unsupported} of ${g.claims} claims found in your resume` +
-      (g.second ? `, checked by ${g.model}` : '')
+      (g.second ? `, checked by ${esc(g.model)}` : '')
     : g.waiting ? 'claims waiting for your coding agent to check'
     : `claims not checked${g.error ? ': ' + g.error : ''}`;
   out.innerHTML = `<div class="bar" style="margin-bottom:.4rem">
@@ -5327,7 +5327,9 @@ function aiTag(a) {
   const flagged = g && g.checked ? (g.flagged || []) : [];
   const checked = (!g ? '' : g.waiting ? ' · claims waiting for your coding agent' : !g.checked ? ' · claims not checked'
     : ` · ${g.claims - g.unsupported} of ${g.claims} claims found in the advert or resume`) +
-    (g && g.second ? `, checked by ${g.model}` : '');
+    // The checker's name comes from a model list or a connection code: escaped,
+    // as it is set into the page's HTML (Claude Security F4, 2026-11-06).
+    (g && g.second ? `, checked by ${esc(g.model)}` : '');
   // The second model's own score (judging.second_opinion).
   const s = a.second;
   const second = !s ? '' : s.error

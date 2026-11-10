@@ -349,8 +349,11 @@ class Crontab:
     def line(self, plan: Plan, argv: list[str], cwd: str) -> str:
         dow = {"daily": "*", "weekdays": "1-5"}.get(
             plan.every, str((DAYS.index(plan.day) + 1) % 7))
-        return (f"{plan.minute} {plan.hour} * * {dow} "
-                f"cd {shlex.quote(cwd)} && {shlex.join(argv)} {CRON_MARKER}")
+        # cron reads a bare % in the command as a new line, so a folder or
+        # program path with one broke the scheduled scan without a word
+        # (code scan #13, 2026-11-06); \% is a literal %.
+        command = f"cd {shlex.quote(cwd)} && {shlex.join(argv)}".replace("%", "\\%")
+        return f"{plan.minute} {plan.hour} * * {dow} {command} {CRON_MARKER}"
 
     def _lines(self) -> list[str]:
         done = self.run(["crontab", "-l"], capture_output=True, text=True, check=False)
@@ -380,7 +383,7 @@ class Crontab:
         if len(fields) < 6:
             return None, []
         minute, hour, _dom, _mon, dow, rest = fields
-        rest = rest.rsplit(CRON_MARKER, 1)[0]
+        rest = rest.rsplit(CRON_MARKER, 1)[0].replace("\\%", "%")   # as line() wrote it
         try:
             argv = shlex.split(rest.split("&&", 1)[-1])
         except ValueError:

@@ -82,6 +82,28 @@ def xml_text(value) -> str:
     return _xml_escape(str(value), {'"': "&quot;"})
 
 
+# What a spreadsheet reads as the start of a formula (Excel, Sheets,
+# LibreOffice): a job title from a board that began "=HYPERLINK(" ran as
+# one in a CSV export (code scan #2, 2026-11-06).
+_FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+
+
+def spreadsheet_cell(value) -> str:
+    """`value` for a CSV cell: text that would start a formula gets a
+    leading apostrophe, which a spreadsheet shows as plain text."""
+    text = str(value or "")
+    return "'" + text if text.startswith(_FORMULA_START) else text
+
+
+def web_href(url) -> str:
+    """`url` when it is an http(s) address, else "": for a link built from a
+    board's or employer's data, where a `javascript:` address became a
+    clickable script in the HTML report and the digest (code scan #3,
+    2026-11-06). The dashboard has its own, webHref."""
+    text = str(url or "").strip()
+    return text if re.match(r"^https?://", text, re.IGNORECASE) else ""
+
+
 def folded(text: str) -> str:
     """Lower case, every run of whitespace one space, trimmed: for comparing
     a quote with its source."""

@@ -142,6 +142,19 @@ class Server(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
+def _count(value) -> int:
+    """A count the page sent (a job's `limit`), as a whole number of 0 or
+    more. `int("abc")` raised ValueError, which nothing answered: the page
+    got no reply and the log a traceback (code scan #12, 2026-11-06)."""
+    try:
+        count = int(value or 0)
+    except (TypeError, ValueError):
+        raise api_mod.ApiError("limit must be a whole number") from None
+    if count < 0:
+        raise api_mod.ApiError("limit must be 0 or more")
+    return count
+
+
 def _age(row, parts: list, fresh) -> dict:
     """How old the post is today, for its badge and the "posted within" filter."""
     part = next((p for p in parts if p.get("part") == "freshness"), None)
@@ -1079,7 +1092,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             try:
                 if which == "enrich":
                     name, work = "enrich", api_mod.enrich_job(
-                        cfg, int(form.get("limit") or 0))
+                        cfg, _count(form.get("limit")))
                 elif which == "rescreen":
                     name, work = "rescreen", api_mod.rescreen_job(
                         cfg, str(form.get("remove") or "") in ("1", "true", "yes"))
@@ -1095,7 +1108,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 elif which in ("judge", "check"):
                     uid = str(form.get("uid") or "")
                     force = str(form.get("force") or "") in ("1", "true", "yes")
-                    limit = int(form.get("limit") or 0)
+                    limit = _count(form.get("limit"))
                     maker = api_mod.judge_job if which == "judge" else api_mod.check_job
                     name = {"judge": "AI judging", "check": "checking postings"}[which]
                     work = maker(cfg, limit=limit, uid=uid, force=force)
@@ -1331,6 +1344,18 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._reject(400, "bad request body")
 
             old = cfg_holder["cfg"]
+            # The resume is set by uploading it (POST /api/resume, which
+            # writes the path itself) or in config.yaml by hand, never by the
+            # page naming a path: {"resume_path": "~/.ssh/id_rsa"} made
+            # /api/resume/file hand back any file the token holder named, and
+            # sent its text to the AI (code scan #1, 2026-11-06). The page's
+            # own value sent back unchanged is let through.
+            if not isinstance(payload, dict):
+                return self._reject(400, "bad request body")
+            if str(payload.get("resume_path", old.resume_path) or "") != (old.resume_path or ""):
+                return self._reject(400, "not saved: the resume is set by uploading it "
+                                         "on the Resume page")
+            payload.pop("resume_path", None)
             try:
                 fresh = self._write_config(payload)
             except Exception as exc:

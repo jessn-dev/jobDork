@@ -831,8 +831,10 @@ def test_an_uploaded_resume_is_deleted_but_your_own_file_is_only_unset():
 
         mine = Path(run.tmp.name) / "my-own-cv.md"
         mine.write_text("# Me\n\nPython\n", encoding="utf-8")
-        code, _ = _post_json(run, "/api/config", {"resume_path": str(mine)})
-        assert code == 200
+        # A file of your own is named in config.yaml by hand (the page cannot
+        # name one: test_quick_security.py), and the server reads it again.
+        from jobdork.core import setup
+        run.holder["cfg"] = setup.write(run.config_path, {"resume_path": str(mine)})
         code, body = run.post("/api/resume/delete", {})
         assert code == 200 and json.loads(body)["deleted"] is False, body
         assert mine.is_file(), "a file you chose must never be deleted"

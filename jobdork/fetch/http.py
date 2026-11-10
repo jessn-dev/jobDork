@@ -38,9 +38,9 @@ among them, are reached through ai/llm.py, not through here.
 
 from __future__ import annotations
 
-import contextlib
 import ipaddress
 import logging
+import math
 import re
 import socket
 import threading
@@ -372,6 +372,18 @@ class Fetcher:
         self.blocked_hosts.add(host)
         log.warning("%s blocked for %.0fs: %s", host, seconds, why)
 
+    @staticmethod
+    def retry_seconds(retry_after: str) -> float:
+        """A Retry-After header's seconds, or 0 when it is not a usable number.
+        `-1`, `NaN` and `inf` parse as floats: a negative pause made
+        time.sleep raise, and stopped a check or a page read (code scan #10,
+        2026-11-06)."""
+        try:
+            seconds = float(retry_after)
+        except (TypeError, ValueError):
+            return 0.0
+        return seconds if math.isfinite(seconds) and seconds > 0 else 0.0
+
     def _note_429(self, host: str, retry_after: str) -> None:
         """Decide whether a 429 is a pause or a refusal."""
         state = self._state(host)
@@ -379,12 +391,7 @@ class Fetcher:
             state.consecutive_429 += 1
             count = state.consecutive_429
 
-        seconds = 0.0
-        if retry_after:
-            try:
-                seconds = float(retry_after)
-            except ValueError:
-                seconds = 0.0
+        seconds = self.retry_seconds(retry_after)
 
         if seconds > RETRY_AFTER_REFUSAL:
             self._block(host, seconds, f"Retry-After {seconds:.0f}s reads as a refusal")
@@ -472,9 +479,8 @@ class Fetcher:
             if resp.status_code == 429:
                 retry_after = resp.headers.get("Retry-After", "")
                 if attempt + 1 < attempts:
-                    pause = 2.0 + attempt * 2
-                    with contextlib.suppress(ValueError):
-                        pause = min(float(retry_after), RETRY_AFTER_REFUSAL) or pause
+                    pause = min(self.retry_seconds(retry_after), RETRY_AFTER_REFUSAL) \
+                        or 2.0 + attempt * 2
                     time.sleep(pause)
                     continue
                 self._note_429(host, retry_after)
