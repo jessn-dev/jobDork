@@ -19,7 +19,9 @@ from jobdork.ai import llm  # noqa: E402
 from jobdork.writing import gates, humanize  # noqa: E402
 
 # Dashes that are data, not prose: counted, or matched in addresses.
-DATA = {("gates.py", "—"), ("geo.py", "[-–—]")}
+# Strings that are data, not wording: a pattern, or the stock phrases a
+# check refuses (prep.STOCK).
+DATA = {("gates.py", "—"), ("geo.py", "[-–—]"), ("prep.py", "leverage")}
 
 
 def rules(text: str) -> set[int]:

@@ -741,6 +741,9 @@ main > section#view-ask{max-width:48rem;margin:0 auto;display:flex;flex-directio
 .agentbox{border:1px solid var(--line);background:var(--card);border-radius:12px;
   padding:.7rem .9rem;margin:-.2rem 0 .8rem;font-size:.875rem;line-height:1.5}
 .agentbox p{margin:.2rem 0 .5rem}
+.writingform label{display:block;margin:.35rem 0}
+.writingform input,.writingform textarea{width:100%}
+.mdout{line-height:1.55}
 .agentnote{border-left:3px solid var(--line);padding:.35rem .7rem;margin:.3rem 0 .7rem;line-height:1.5}
 .agentcmd{margin:.55rem 0}
 .agentcmd summary{cursor:pointer}
@@ -1803,6 +1806,11 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
     <div class="log" id="resumelog" style="height:8rem" hidden></div>
     <div class="review-out" id="review-out"></div>
 
+    <h2 style="margin-top:1.5rem">For your search</h2>
+    <p class="hint">From your resume alone, by the model on the AI page and checked as
+      everything it writes is. Text for you to read, change and copy.</p>
+    <div class="writingbox" id="writing-career"></div>
+
     <h2 style="margin-top:1.5rem">Cover letters</h2>
     <p class="hint">Every cover letter written for a job post. Write one from a job
       post's window with <b>Write cover letter (AI)</b>. Delete removes the file and
@@ -2133,7 +2141,7 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
     if (b.dataset.view === 'ask') drawAsk();
     if (b.dataset.view === 'settings') drawConfig();
     if (b.dataset.view === 'sources') drawSources();
-    if (b.dataset.view === 'resume') { drawResume(); drawProjects(); drawEducation(); drawReview(); drawLetters(); }
+    if (b.dataset.view === 'resume') { drawResume(); drawProjects(); drawEducation(); drawReview(); drawLetters(); drawWriting('writing-career', ''); }
     if (b.dataset.view === 'ai') drawAI();
     if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); }
     if (b.dataset.view === 'prefs') drawPrefs();
@@ -2844,7 +2852,9 @@ new MutationObserver(() => decorate(document.body))
   .observe(document.body, {childList: true, subtree: true, attributes: true, attributeFilter: ['data-icon']});
 decorate(document.body);
 
-const TOOL_KINDS = ['resume_edits', 'keywords', 'highlight', 'feedback', 'revise'];
+const TOOL_KINDS = ['resume_edits', 'keywords', 'highlight', 'feedback', 'revise',
+  // The writing tools' answers (ai/prep.py), shown in the AI tools tab too.
+  'prep_tailoring', 'prep_star', 'prep_thank_you', 'prep_offer', 'prep_outreach'];
 const TAB_LABEL = {tools: 'AI tools', ats: 'ATS match', application: 'application', cover_letter: 'cover letter', resume_review: 'resume review', cv: 'CV',
                    tailored_resume: 'tailored resume', interview_prep: 'interview prep',
                    recruiter_message: 'recruiter message'};
@@ -2926,7 +2936,8 @@ function drawDetail(tab) {
   let body = tabsBar;
 
   if (tab === 'tools') {
-    $('dlg-body').innerHTML = body + aiBars + toolsIntro(d.uid) + '<div id="tools-out"><p class="empty">Loading…</p></div>';
+    $('dlg-body').innerHTML = body + aiBars + toolsIntro(d.uid) + '<div id="tools-out"><p class="empty">Loading…</p></div>'
+      + '<div class="writingbox" id="writing-post"></div>';
     drawTools(d.uid);
     return;
   }
@@ -3374,6 +3385,7 @@ const figs = f => (f || []).length ? `<div class="chk bad">Adds a figure your te
 
 let toolData = {};
 async function drawTools(uid) {
+  drawWriting('writing-post', uid);
   const r = await api('/api/tools?uid=' + uid);
   if (!$('tools-out')) return;
   if (!r.ok) { $('tools-out').innerHTML = `<p class="err">${esc(await r.text())}</p>`; return; }
@@ -3424,6 +3436,68 @@ async function drawTools(uid) {
       ${checks(t)}${inner}</section>`;
   });
   $('tools-out').innerHTML = cards.join('') || '<p class="hint">No results yet for this job post. Pick a tool above.</p>';
+}
+
+// The writing and preparing tools (ai/prep.py): a button each, a small form
+// from its fields, and its newest answer, checked. For a job post in its
+// window's AI tools tab (`uid`), the others on the Resume page.
+let writingData = {};
+async function drawWriting(box, uid) {
+  const el = $(box);
+  if (!el) return;
+  const r = await api('/api/writing' + (uid ? '?uid=' + uid : ''));
+  if (!r.ok) { el.innerHTML = `<p class="err">${esc(await r.text())}</p>`; return; }
+  const d = await r.json();
+  const tools = d.catalog.filter(t => t.post === !!uid);
+  writingData[box] = {uid, tools, results: d.results};
+  el.innerHTML = `${uid ? '<h4 style="margin-top:1rem">Prepare</h4>' : ''}
+    <div class="bar toolbar">${tools.map(t => `<button type="button" class="act spend" data-icon="pen-line"
+      data-writing="${esc(t.kind)}" title="${esc(t.blurb)}">${esc(t.label)}</button>`).join('')}
+      <span class="hint" id="${box}-state"></span></div>
+    <div id="${box}-form"></div>
+    <div id="${box}-out">${tools.filter(t => d.results[t.kind]).map(t => writingCard(box, t, d.results[t.kind])).join('')}</div>`;
+  el.querySelectorAll('[data-writing]').forEach(b => b.onclick = () => writingForm(box, b.dataset.writing));
+  el.querySelectorAll('[data-copy-key]').forEach(b => b.onclick = () => {
+    const res = writingData[box].results[b.dataset.kind] || {};
+    navigator.clipboard.writeText(String((res.data || {})[b.dataset.copyKey] || ''))
+      .then(() => toast('Copied'), () => toast('Copying was refused by the browser', 'err'));
+  });
+  decorate(el);
+}
+
+function writingCard(box, t, res) {
+  const copy = (res.copy || []).map(k => `<button type="button" class="act" data-icon="copy"
+    data-kind="${esc(t.kind)}" data-copy-key="${esc(k)}">Copy ${esc(k.replace(/_/g, ' '))}</button>`).join('');
+  const problems = (res.problems || []).map(pb => `<div class="chk bad">Read this: ${esc(pb)}</div>`).join('');
+  return `<section class="toolcard"><div class="toolhead"><strong>${esc(t.label)}</strong>
+    <span class="hint">${esc((res.at || '').slice(0, 16).replace('T', ' '))}</span></div>
+    ${checks(res)}${problems}<div class="mdout">${mdLite(res.text || '')}</div>
+    ${copy ? `<div class="bar">${copy}</div>` : ''}</section>`;
+}
+
+function writingForm(box, kind) {
+  const w = writingData[box], t = w.tools.find(x => x.kind === kind);
+  const prior = (w.results[kind] || {}).given || {};
+  const field = f => `<label>${esc(f.label)}${f.long
+      ? `<textarea data-field="${esc(f.name)}" rows="4" maxlength="${f.most}" placeholder="${esc(f.hint)}">${esc(prior[f.name] || '')}</textarea>`
+      : `<input data-field="${esc(f.name)}" maxlength="${f.most}" placeholder="${esc(f.hint)}" value="${esc(prior[f.name] || '')}">`}</label>`;
+  $(`${box}-form`).innerHTML = `<form class="field writingform"><p class="hint">${esc(t.blurb)}</p>
+    ${t.fields.map(field).join('')}
+    <div class="bar"><button type="submit" class="act primary spend" data-icon="pen-line">Write it</button>
+      <button type="button" class="act" data-icon="x" data-close>Cancel</button></div></form>`;
+  const form_ = $(`${box}-form`).querySelector('form');
+  form_.querySelector('[data-close]').onclick = () => { $(`${box}-form`).innerHTML = ''; };
+  form_.onsubmit = async ev => {
+    ev.preventDefault();
+    const fields = {};
+    form_.querySelectorAll('[data-field]').forEach(x => { fields[x.dataset.field] = x.value; });
+    const r = await api('/api/writing', {method: 'POST', body: form({kind, uid: w.uid, fields: JSON.stringify(fields)})});
+    if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+    $(`${box}-form`).innerHTML = '';
+    $(`${box}-state`).textContent = 'The AI is working; the result appears here when it is done…';
+  };
+  decorate($(`${box}-form`));
+  (form_.querySelector('[data-field]') || form_.querySelector('button')).focus();
 }
 
 function copyVersion(i) {
@@ -3675,6 +3749,7 @@ function connect() {
     }
     if (e.kind === 'done') {
       loadRoles(); cfg = null; redrawDetail(); loadMetrics();
+      if (/^AI: /.test(e.job || '') && !$('view-resume').hidden) drawWriting('writing-career', '');
       // A scan just finished: offer to drop what it left risky or stale.
       if (/scan$/.test(e.job || '')) offerAged('aged-scan');
       if (!$('view-sources').hidden) drawSources();   // a board may have been added

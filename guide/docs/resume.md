@@ -193,6 +193,20 @@ your resume is dropped, so it cannot invent problems. To compare your resume
 with one job, use **Review resume for this post** in that post's
 [window](job-window.md#the-main-buttons).
 
+## For your search {#for-your-search}
+
+From your resume alone, by the model on the [AI page](ai.md) and checked as
+everything it writes is. Each button opens a short form; **Write it** starts
+it, and the answer appears below, with **Copy** for what you would paste.
+
+| Button | What you get | What it asks |
+|---|---|---|
+| **LinkedIn headline and About** | A headline (at most 220 characters) and an About section (about 1,500) in the words recruiters search for, ten skills your resume shows (one it does not is left out and named), five phrases for your Experience entries, and a few quick wins. Text to copy: jobdork never logs into LinkedIn or posts there | The job you want; optionally your headline and About now, and the fields or employers you aim for |
+| **Changing field** | What in your background carries over and what the new field calls it, a 30-second and a 2-minute way to explain the move, an honest list of gaps (and which ones employers screen for), a paragraph for your resume summary or LinkedIn, and answers to "why you over someone with direct experience?" | The field you are moving to; optionally the kind of job and why |
+| **30-day search plan** | Four weeks, each with a focus and specific actions; the time blocks of a typical day, adding up to no more than the hours you gave; what to count each week; the columns of a tracking sheet; and how to take rejection and when to rest. Advice, not claims about you, so it is not claim-checked | The job you want, where you are now, the hours a week you can give; optionally your biggest hurdle |
+
+The answers are kept beside your resume.
+
 ## Cover letters
 
 Every cover letter written for a job post, with the post, the employer and

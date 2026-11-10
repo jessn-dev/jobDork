@@ -167,6 +167,31 @@ says what to ask your agent instead, with **Copy** (with your pasted text
 for a revision or a letter). Your agent answers in its own chat, from the
 same instructions a model gets; nothing is saved under the tab.
 
+### Prepare {#prepare}
+
+Under **Prepare**, at the foot of the tab, the AI helps with the rest of an
+application. Each button opens a short form (what it needs from you); **Write
+it** starts it, and the answer appears under the buttons when it is done,
+with **Copy** for the parts you would paste somewhere.
+
+| Button | What you get | What it asks |
+|---|---|---|
+| **Tailoring report** | What the advert stresses most; each requirement, ✓ with the line of your resume that shows it or ✗; how to handle one you lack (a related skill, being willing to learn, or saying it is a gap); what a recruiter may question and how to prepare; what a summary should lead with | Nothing |
+| **Interview story (STAR)** | Your story as situation, task, action, result, and the same said aloud in 60 to 90 seconds, with three likely follow-up questions and anything in it that could sound like blame | The question, and what happened, in your words |
+| **Thank-you email** | A subject and a 150 to 200 word email for the day after the interview, about what you actually talked about, answering a concern if they raised one | Who interviewed you, what you talked about; optionally what you wish you had said better and a concern they raised |
+| **Offer negotiation** | The words to counter with, three or four reasons tied to what you gave, replies to the usual pushbacks, what to ask for when the salary cannot move, and how to settle your minimum. Never an ultimatum | What they offered and what you want; optionally the market figure and where you read it, your strongest points and what else you would take |
+| **Outreach message** | A LinkedIn connection request (under 300 characters) and InMail (under 500) to someone at the employer, with one small ask and an easy way to say no, a follow-up for a week later, and what to be ready to talk about | Their role, the one thing you want to learn; optionally how you found them and something you share |
+
+Every answer is held to the rules of this tab: what it says about you comes
+from your resume or what you typed into its form, and it is checked as every
+result is (below). A script also checks what it can and lists it as **Read
+this**: a requirement marked as yours with no line of your resume behind it
+is turned to ✗; a story whose action says "we", or that is too long to say in
+90 seconds; an email outside its length; a message over LinkedIn's limit or
+that mentions a job in a first message; a stock phrase a reader sees through
+("passionate", "team player", "pick your brain"). The answers are kept in the
+post's folder.
+
 ### Drafts through Claude Code
 
 **Draft: Screen, CV, Cover letter** use the `claude` command-line tool, a
