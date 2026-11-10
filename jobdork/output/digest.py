@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import base64
 import html as html_mod
-import json
 import logging
 import os
 import re
@@ -37,8 +36,9 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..core.textutil import cap
 from ..search.resume import flag_label
+from .render import flags_of as _flags
+from .render import meta_parts
 
 log = logging.getLogger("jobdork.output.digest")
 
@@ -59,7 +59,8 @@ def resend_api_key() -> str:
 
 
 def resend_from_address() -> str:
-    """Matches the dork generator's resolution order, including its old name."""
+    """RESEND_FROM, or its old name JOB_DORK_EMAIL_FROM. The dork generator's
+    email uses this too."""
     return (
         os.environ.get("RESEND_FROM")
         or os.environ.get("JOB_DORK_EMAIL_FROM")
@@ -88,32 +89,10 @@ class Digest:
         return not self.rows
 
 
-def _flags(row: sqlite3.Row) -> list[str]:
-    try:
-        return json.loads(row["flags"] or "[]")
-    except (json.JSONDecodeError, TypeError):
-        return []
-
-
-def _salary(row: sqlite3.Row) -> str:
-    if not row["salary_stated"]:
-        return "unconfirmed salary"
-    lo, hi, cur = row["salary_min"], row["salary_max"], row["salary_currency"] or ""
-    if lo and hi:
-        return f"{cur} {lo:,.0f}–{hi:,.0f}"
-    value = hi or lo
-    return f"{cur} {value:,.0f}" if value else "unconfirmed salary"
-
-
 def _meta(row: sqlite3.Row, units: str) -> list[str]:
-    from ..core.textutil import platform_name
-    from ..search.geo import distance_label
-    return [str(part) for part in (
-        row["company"], row["location_raw"],
-        distance_label(row["distance_mi"], units),   # stored in miles
-        cap(row["work_mode"] or "arrangement not stated"),
-        cap(_salary(row)), platform_name(row["platform"]),
-    ) if part]
+    """The report's line of company, place, distance, arrangement, pay and
+    source (render.meta_parts), without the parts a row does not have."""
+    return [str(part) for part in meta_parts(row, units) if part]
 
 
 def build(rows: list[sqlite3.Row], cfg, new_only: bool = True) -> Digest:

@@ -109,6 +109,15 @@ CONFIG_CANDIDATES = ("config.local.yaml", "config.yaml", "data/config.yaml")
 # container. Both conditions, as for binding beyond loopback in web.serve: the
 # variable is set by the Dockerfile, the marker file by the runtime.
 CONTAINER_ENV = "JOBDORK_IN_CONTAINER"
+
+# The words that turn an environment switch off (JOBDORK_NOTIFY,
+# JOBDORK_UPDATE_CHECK): one list, so every switch reads them the same way.
+OFF_WORDS = ("off", "0", "no", "false")
+
+
+def env_off(name: str) -> bool:
+    """Whether the environment variable `name` says off."""
+    return os.environ.get(name, "").strip().lower() in OFF_WORDS
 CONTAINER_MARKERS = ("/.dockerenv", "/run/.containerenv")
 NEW_CONFIG = "config.yaml"
 NEW_CONFIG_IN_CONTAINER = "data/config.yaml"

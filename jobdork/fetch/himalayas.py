@@ -40,6 +40,7 @@ from ..core.textutil import to_text
 from ..db.store import Role
 from ..search import geo
 from . import SourceResult, register
+from . import day_from_epoch as _day
 from .boards import clean, normalise_interval
 
 API = "https://himalayas.app/jobs/api/search"
@@ -60,13 +61,6 @@ def utc_offset(cfg) -> float | None:
         if anchor.located:
             return round(anchor.lon / 15)
     return None
-
-
-def _day(seconds) -> date | None:
-    try:
-        return datetime.fromtimestamp(int(seconds), timezone.utc).date()
-    except (TypeError, ValueError, OverflowError, OSError):
-        return None
 
 
 def _to_role(job: dict, today: date, offset: float | None) -> Role | None:

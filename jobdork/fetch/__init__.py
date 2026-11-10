@@ -23,8 +23,10 @@ found nothing.
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
 
 from ..db.store import Role
 
@@ -90,6 +92,27 @@ def register(name: str):
 
 def get(name: str) -> Callable | None:
     return REGISTRY.get(name)
+
+
+# ── small readers the boards share ────────────────────────────────────────────
+
+def number(value) -> float | None:
+    """A board's number (a salary, say), or None. "nan" and "inf" parse as
+    floats but are not amounts: a NaN salary failed every comparison with
+    your pay floor and printed as "nan" (code scan #16, 2026-11-06)."""
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return None
+    return out if math.isfinite(out) else None
+
+
+def day_from_epoch(seconds) -> date | None:
+    """The UTC day of a Unix timestamp, or None when it is not one."""
+    try:
+        return datetime.fromtimestamp(int(seconds), timezone.utc).date()
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
 
 
 # Import for side effects: each module registers itself.

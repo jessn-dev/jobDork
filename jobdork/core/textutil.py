@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import html
 import re
+from xml.sax.saxutils import escape as _xml_escape  # nosec B406 - escapes, parses nothing
 
 _SCRIPT_STYLE = re.compile(
     r"<(script|style)\b[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL
@@ -73,6 +74,18 @@ _INVISIBLE = re.compile(
     "[\u00ad\u180e\u200b\u200e\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069"
     "\ufe00-\ufe0f\ufeff\U000e0000-\U000e007f\U000e0100-\U000e01ef]")
 _TAGS = re.compile("[\U000e0000-\U000e007f]")
+
+
+def xml_text(value) -> str:
+    """`value` safe inside an XML element or a double-quoted attribute: a
+    Windows toast and a Task Scheduler task are written with it."""
+    return _xml_escape(str(value), {'"': "&quot;"})
+
+
+def folded(text: str) -> str:
+    """Lower case, every run of whitespace one space, trimmed: for comparing
+    a quote with its source."""
+    return re.sub(r"\s+", " ", (text or "").lower()).strip()
 
 
 def visible(text: str) -> str:

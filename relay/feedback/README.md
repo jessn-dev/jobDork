@@ -47,7 +47,11 @@ sets one by hand instead.
 - **Rate limit** (recommended once the address is public):
   `npx wrangler@4.150.0 kv namespace create FEEDBACK_KV`, put the id in
   `wrangler.toml`'s `[[kv_namespaces]]`, deploy again: five reports an hour
-  per address.
+  per address, forty an hour in all. An IPv6 sender counts by its /64.
+  `wrangler.toml`'s `[[ratelimits]]` binding (`FEEDBACK_LIMITER`) adds a
+  limit per minute that holds even for requests sent all at once, which the
+  KV counts alone do not (they read and write in two steps). Both are
+  optional: the relay runs without either.
 
 ## Point the app at it
 
@@ -59,7 +63,18 @@ sets one by hand instead.
 
 ## What it accepts
 
-`POST` JSON, at most 9 MB: `kind` (problem, idea, question), `title`, `body`
+`POST` JSON (`Content-Type: application/json`, anything else is refused
+with 415), at most 9 MB: `kind` (problem, idea, question), `title`, `body`
 (the text the app's preview showed), `reply_to` (optional) and up to three
 PNG, JPEG or WebP `screenshots` as `{name, type, data}` with base64 `data`.
 It answers `{"issue_url": "..."}`.
+
+Anyone can post here, not only the app, so the relay checks for itself:
+
+- Each screenshot must decode from base64 to at most 2 MB and start the way
+  its type does (PNG, JPEG or WebP). The email names it `screenshot-1.png`
+  and so on from that type; the `name` sent is never used.
+- The issue's body is the report's text inside a code fence longer than any
+  run of backticks in it, so nothing in it renders: no mentions, issue
+  references, links or images. The title gets a zero-width joiner after
+  each `@` and `#`, so it mentions and references nothing either.

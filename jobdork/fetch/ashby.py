@@ -24,6 +24,7 @@ from __future__ import annotations
 from ..core.textutil import to_text
 from ..db.store import Role
 from . import SourceResult, register
+from . import number as _num
 from .boards import _result_for, annualise, clean, normalise_interval
 
 API = "https://api.ashbyhq.com/posting-api/job-board/{name}"
@@ -59,13 +60,6 @@ def _salary(job: dict) -> tuple[float | None, float | None, str, str, bool]:
             return (annualise(lo, period), annualise(hi, period),
                     currency, period, True)
     return None, None, "", "", False
-
-
-def _num(value) -> float | None:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 @register("ashby")

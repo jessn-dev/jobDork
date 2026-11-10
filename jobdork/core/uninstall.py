@@ -89,6 +89,8 @@ def app_home() -> Path:
 
 
 def documents_root() -> Path:
+    """The folder job applications are written to, wherever this copy keeps
+    them (storage.container_documents_root is only a container's)."""
     from ..writing import generate
     return Path(generate.default_root()).expanduser()
 

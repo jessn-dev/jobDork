@@ -55,8 +55,48 @@ def test_a_name_is_refused_if_any_address_it_gives_is_private():
                         resolve=_resolves_to("104.18.1.1", "192.168.0.10"))
 
 
-def test_a_name_that_does_not_resolve_is_left_to_fail_by_itself():
-    assert http.refusal("https://no-such-host.invalid/", resolve=_fails) == ""
+def test_a_name_that_does_not_resolve_is_refused_not_looked_up_again():
+    """Claude Security F11: a name let through unchecked was looked up a
+    second time by the connection, and that answer could be private."""
+    why = http.refusal("https://no-such-host.invalid/", resolve=_fails)
+    assert why.startswith(http.UNRESOLVED) and "no-such-host.invalid" in why, why
+    # lambda: an answer that names no usable address is no better.
+    empty = lambda host, port, proto=0: []  # noqa: E731
+    assert http.refusal("https://a.test/", resolve=empty).startswith(http.UNRESOLVED)
+
+
+def test_a_failed_lookup_never_connects_and_is_asked_again():
+    """The fetcher stops at the check: no second lookup by the connection.
+    It is a connection error, so it is retried like one (a passing DNS
+    hiccup), and every try is checked again."""
+    calls = []
+
+    def resolve(host, port, proto=0):
+        calls.append(host)
+        raise socket.gaierror("no such name")
+
+    saved, sleep = http._getaddrinfo, http.time.sleep
+    http._getaddrinfo = resolve
+    # lambda: the retry's pause is skipped, so the test does not wait.
+    http.time.sleep = lambda seconds: None
+    try:
+        resp = http.Fetcher("jobdork-test", timeout=2, retries=2).get(
+            "https://gone.test/job", expect_json=False)
+    finally:
+        http._getaddrinfo, http.time.sleep = saved, sleep
+    assert resp.status == 0 and resp.error.startswith(http.UNRESOLVED), resp.error
+    assert calls == ["gone.test"] * 3, calls
+
+
+def test_an_error_keeps_no_query_string():
+    """Claude Security F12: a connection error repeats the address, and
+    Adzuna's key is in its query string. It was logged and shown."""
+    exc = ("HTTPSConnectionPool(host='api.adzuna.com', port=443): Max retries "
+           "exceeded with url: /v1/api/jobs/us/search/1?app_id=abc123&app_key="
+           "s3cr3tvalue&what=nurse (Caused by NameResolutionError(...))")
+    out = http.quiet(exc)
+    assert "s3cr3tvalue" not in out and "abc123" not in out, out
+    assert "/v1/api/jobs/us/search/1?…" in out and "NameResolutionError" in out, out
 
 
 def test_the_fetcher_refuses_without_connecting_or_retrying():
@@ -137,7 +177,8 @@ def test_the_check_names_the_first_address_or_refuses():
     why, address = http.checked("https://a.test/", _resolves_to("8.8.8.8", "10.0.0.1"))
     assert "10.0.0.1" in why and address == ""
     assert http.checked("https://8.8.4.4/") == ("", "8.8.4.4")
-    assert http.checked("https://a.test/", _fails) == ("", ""), "left to fail by itself"
+    why, address = http.checked("https://a.test/", _fails)
+    assert why.startswith(http.UNRESOLVED) and address == "", "refused, not let through"
 
 
 # ── keep this block LAST ───────────────────────────────────────────────────────

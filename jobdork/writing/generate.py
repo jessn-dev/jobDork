@@ -115,7 +115,7 @@ def default_root() -> str:
     ~/Documents/job-applications.
     """
     from ..core import storage
-    temp = storage.documents_root()
+    temp = storage.container_documents_root()
     return str(temp if temp else documents_dir() / "job-applications")
 
 
@@ -469,6 +469,9 @@ def record(store, row, result: Result) -> dict:
 
 
 def _resume_text(path: Path) -> str:
+    """The resume's text for the gate checks, or "" when it cannot be read:
+    the draft is already written, so a missing resume skips a check rather
+    than failing it (ai/writer.py's raises instead)."""
     from ..search import resume as resume_mod
     try:
         return resume_mod.load(str(path)).text

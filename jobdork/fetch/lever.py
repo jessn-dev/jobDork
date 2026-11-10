@@ -23,6 +23,7 @@ from __future__ import annotations
 from ..core.textutil import to_text
 from ..db.store import Role
 from . import SourceResult, register
+from . import number as _num
 from .boards import _result_for, annualise, clean, normalise_interval
 
 HOSTS = (
@@ -42,13 +43,6 @@ def _salary(job: dict) -> tuple[float | None, float | None, str, str, bool]:
     period = normalise_interval(rng.get("interval") or "year") or "year"
     currency = (rng.get("currency") or "USD").upper()
     return annualise(lo, period), annualise(hi, period), currency, period, True
-
-
-def _num(value) -> float | None:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def _description(job: dict) -> str:

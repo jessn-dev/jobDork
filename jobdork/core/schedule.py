@@ -43,6 +43,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from .config import CONTAINER_ENV, ConfigError
+from .textutil import xml_text as _xml_text
 
 EVERY = ("daily", "weekdays", "weekly")
 DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -458,11 +459,6 @@ def uninstall(config_path: str, sched=None) -> dict:
     sched = sched or scheduler()
     sched.remove()
     return status(config_path, sched)
-
-
-def _xml_text(value: str) -> str:
-    return (str(value).replace("&", "&amp;").replace("<", "&lt;")
-            .replace(">", "&gt;"))
 
 
 def _split_windows(text: str) -> list[str]:
