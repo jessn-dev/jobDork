@@ -1581,6 +1581,18 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <div class="clearall" id="clear-exclude"></div>
       </div>
       <div class="sgroup">
+      <h3>Employers to skip</h3>
+      <p class="hint">Job posts from these employers are dropped wherever they come
+        from: a past employer, or a staffing agency that floods your results. Case and
+        endings like Inc or LLC do not matter: "Acme" skips "ACME Corp.", not "Acme Health".</p>
+      <div id="ed-skip"></div>
+      <form class="bar addform" id="f-skip">
+        <input id="add-skip" placeholder="An employer's name, e.g. Acme Staffing">
+        <button data-icon="plus" class="act primary">Add</button><span id="msg-skip"></span>
+      </form>
+      <div class="clearall" id="clear-skip"></div>
+      </div>
+      <div class="sgroup">
       <h3>Your certifications and licenses</h3>
       <p class="hint">An opened job post checks the ones its advert asks for against
         these and your resume. Write them as adverts do: RN, BLS, CPA, CDL, CISSP.</p>
@@ -2268,7 +2280,7 @@ async function loadRoles(opts = {}) {
 const RULE_WORDS = {title: 'title not searched for', age: 'too old (ghost listing)',
   closed: 'advert says it is closed', 'work mode': 'work arrangement',
   location: 'too far or wrong country', salary: 'pay below your floor',
-  dealbreaker: 'dealbreaker'};
+  dealbreaker: 'dealbreaker', employer: 'an employer you skip'};
 // Rendering tens of thousands of cards would hang the tab.
 const DROPPED_SHOWN = 300;
 
@@ -2826,6 +2838,17 @@ const TAB_LABEL = {tools: 'AI tools', ats: 'ATS match', application: 'applicatio
 const PDF_KINDS = ['tailored_resume', 'cv'];
 const tabLabel = t => TAB_LABEL[t] || t.replace('_', ' ');
 
+// Adds the employer to Search's Employers to skip; the re-screen that a save
+// starts drops its posts. Taken back by removing it there.
+async function skipEmployer(company) {
+  if (!cfg) cfg = await (await api('/api/config')).json();
+  const have = cfg.skip_employers || [];
+  if (have.some(n => n.toLowerCase() === company.toLowerCase())) {
+    toast(`${company} is already skipped.`); return;
+  }
+  if (await saveList('skip_employers', [...have, company], 'msg-skip')) closeDetail();
+}
+
 function drawDetail(tab) {
   const d = detail;
   detailTab = tab;
@@ -2860,6 +2883,9 @@ function drawDetail(tab) {
         title="${esc(cap(c.note || 'not checked yet'))} · last listed ${esc(c.last_seen)} · advert ${c.advert_chars} chars">${
         esc(platformName(c.platform))}${c.listing ? ' ' + listingTag({state: c.listing, note: c.note, checked_at: ''}, true) : ''}</a>`).join('')
     }<span class="hint">A status set here applies to every copy.</span></div>` : ''}
+    ${d.company ? `<div class="hint skipemp" style="width:100%">Never want posts from ${esc(d.company)}?
+      <button type="button" class="act linkish" data-company="${esc(d.company)}"
+        onclick="skipEmployer(this.dataset.company)">Skip this employer</button></div>` : ''}
     ${d.poster && d.poster.agency ? `<div class="hint" style="width:100%">Posted by a recruitment
       firm: ${esc(d.poster.why)}. The employer may be named in the advert, or only to you.</div>` : ''}
     ${overlapBox(d.overlap, true)}
@@ -5895,7 +5921,7 @@ function toast(text, kind = 'ok', action = null) {
 const LIST_NAMES = {titles_include: 'Job titles', titles_exclude: 'Never show these titles',
   credentials: 'Your certifications and licenses',
   countries: 'Countries to keep job posts from', dealbreakers: 'Dealbreakers',
-  companies: 'Employer boards'};
+  companies: 'Employer boards', skip_employers: 'Employers to skip'};
 const rowName = (key, r) => typeof r === 'string'
   ? (key === 'countries' ? ((placeCountries || []).find(c => c.code === r) || {}).name || r : r)
   : r.name;
@@ -6035,7 +6061,8 @@ function drawLists() {
   for (const [box, key, msg, empty] of [
       ['ed-titles', 'titles_include', 'msg-titles', 'None yet. A scan needs at least one.'],
       ['ed-exclude', 'titles_exclude', 'msg-exclude', 'None. Every title is kept.'],
-      ['ed-credentials', 'credentials', 'msg-credentials', 'None listed.']]) {
+      ['ed-credentials', 'credentials', 'msg-credentials', 'None listed.'],
+      ['ed-skip', 'skip_employers', 'msg-skip', 'None. Posts from every employer are kept.']]) {
     const rows = cfg[key] || [];
     $(box).innerHTML = editorTable(word, rows, empty, key);
     wireRemove($(box), rows, async next => await saveList(key, next, msg) && (drawLists(), true));
@@ -6065,6 +6092,7 @@ function drawLists() {
   drawClearAll('clear-titles', 'titles_include', 'msg-titles', 'job titles', true);
   drawClearAll('clear-exclude', 'titles_exclude', 'msg-exclude', 'titles you never want shown', false);
   drawClearAll('clear-deal', 'dealbreakers', 'msg-deal', 'dealbreakers', false);
+  drawClearAll('clear-skip', 'skip_employers', 'msg-skip', 'employers to skip', false);
 }
 
 // One add handler per form: read it, refuse the obvious, append, save.
@@ -6094,6 +6122,7 @@ wireAdd('f-countries', 'msg-countries', () =>
 wireAdd('f-titles', 'msg-titles', addWord('add-title', 'titles_include'), 'titles_include');
 wireAdd('f-exclude', 'msg-exclude', addWord('add-exclude', 'titles_exclude'), 'titles_exclude');
 wireAdd('f-credentials', 'msg-credentials', addWord('add-credential', 'credentials'), 'credentials');
+wireAdd('f-skip', 'msg-skip', addWord('add-skip', 'skip_employers'), 'skip_employers');
 // Dealbreakers are words; the server turns them into a pattern, with the
 // usual other wordings (search/dealbreakers.py). A typed phrase that names a
 // common one takes its name and its usual effect.

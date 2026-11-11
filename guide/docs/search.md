@@ -29,6 +29,20 @@ Several short titles find more than one long one: *registered nurse* and
 Words that drop a post when its title contains them: *intern*, *travel*,
 *senior* if you are not. The advert is not read for these, only the title.
 
+## Employers to skip {#skip-employers}
+
+Employers whose job posts you never want: a past employer, or a staffing
+agency that floods your results. Their posts are dropped wherever they come
+from (keyword boards, the built-in employer boards and your own), and the
+ones already stored go at the re-screen a change starts. Case and endings
+like *Inc*, *LLC* or *Corp* do not matter: *Acme* skips *ACME Corp.* and
+*Acme, Inc.*, but not *Acme Health*, a different name.
+
+A dropped post shows on Job posts' **Dropped** list with the reason *an
+employer you skip*. **Skip this employer**, in the
+[job post window](job-window.md#the-top), adds its employer here in one click;
+remove a name here to see its posts again.
+
 ## Your certifications and licenses
 
 The ones you hold, written the way adverts write them: *RN*, *BLS*, *CPA*,

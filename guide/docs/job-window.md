@@ -21,7 +21,9 @@ window over the page. Both hold the same things.
   **Close** closes the window, or empties the space beside the list.
 - The employer, place, arrangement, source, and how long the stored advert
   is. **Also posted at** lists the other places the same job was found,
-  and whether each is still up.
+  and whether each is still up. **Skip this employer** adds the employer to
+  Search's [Employers to skip](search.md#skip-employers): its posts are
+  dropped, this one with them, and the window closes.
 - **The status buttons** ([what each means](statuses.md#statuses)). The
   current status is outlined in its colour. Under them, your **Note** on the post
   (Enter saves), the same one the card has.

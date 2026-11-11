@@ -524,6 +524,10 @@ class Config:
     screening: Screening = field(default_factory=Screening)
     freshness: Freshness = field(default_factory=Freshness)
     dealbreakers: list[Dealbreaker] = field(default_factory=list)
+    # Employers whose posts are dropped wherever they come from (a past
+    # employer, a staffing agency that floods results), compared without
+    # case or "Inc", "LLC" and the like (search/screen.py).
+    skip_employers: list[str] = field(default_factory=list)
     resume_path: str = ""
     # "master" or "regular" as you said (search/master.py), or "" for jobdork's guess.
     resume_kind: str = ""
@@ -816,6 +820,8 @@ def _build(raw: dict[str, Any]) -> Config:
 
     for i, entry in enumerate(raw.get("dealbreakers") or []):
         cfg.dealbreakers.append(_dealbreaker(i, entry))
+    cfg.skip_employers = [n.strip() for n in _str_list(raw.get("skip_employers"), "skip_employers")
+                          if n.strip()]
 
     scr = raw.get("screening") or {}
     cfg.screening = Screening(

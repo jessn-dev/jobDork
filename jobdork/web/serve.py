@@ -245,6 +245,7 @@ def _screen_key(cfg) -> str:
     return json.dumps({
         "titles": [cfg.titles_include, cfg.titles_exclude],
         "dealbreakers": [(d.name, d.pattern, d.hard, d.words) for d in cfg.dealbreakers],
+        "skip_employers": sorted(n.casefold() for n in cfg.skip_employers),
         "locations": asdict(cfg.locations), "salary": asdict(cfg.salary),
         "screening": asdict(cfg.screening), "ghost_days": cfg.freshness.ghost_days,
     }, sort_keys=True, default=str)
@@ -265,7 +266,8 @@ def change_words(old, fresh) -> str:
             ("Search", old.titles_include, fresh.titles_include),
             ("Never show", old.titles_exclude, fresh.titles_exclude),
             ("Countries", old.locations.countries, fresh.locations.countries),
-            ("Dealbreakers", [d.name for d in old.dealbreakers], [d.name for d in fresh.dealbreakers])):
+            ("Dealbreakers", [d.name for d in old.dealbreakers], [d.name for d in fresh.dealbreakers]),
+            ("Employers to skip", old.skip_employers, fresh.skip_employers)):
         added, gone = diff(a, b), diff(b, a)
         if added or gone:
             said.append(f"{label}: " + "; ".join(
@@ -332,6 +334,7 @@ def _config_payload(cfg) -> dict:
                           "hard": d.hard}
                          for d in cfg.dealbreakers],
         "dealbreaker_suggestions": _deal_suggestions(),
+        "skip_employers": cfg.skip_employers,
         "update_check": cfg.update_check,
         "remember_keys": cfg.remember_keys,
         "ask_on_close": cfg.ask_on_close,

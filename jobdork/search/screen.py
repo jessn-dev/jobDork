@@ -495,6 +495,18 @@ def _explain_fit(match, resume, description: str) -> str:
 
 # ── The whole screen ───────────────────────────────────────────────────────────
 
+def skipped_employer(company: str, cfg: Config) -> str:
+    """The name in skip_employers this post's employer matches, or "".
+    Compared as advert names are (agency.core_name): "Acme" skips "ACME
+    Corp." and "Acme, Inc.", not "Acme Health"."""
+    from .agency import core_name
+
+    have = core_name(company)
+    if not have:
+        return ""
+    return next((n for n in cfg.skip_employers if core_name(n) == have), "")
+
+
 def screen(
     role: Role,
     cfg: Config,
@@ -521,6 +533,12 @@ def screen(
     # one — and this used to overwrite them wholesale at the end, so anything
     # the fetch layer knew never reached the database.
     verdict.flags.extend(role.flags)
+
+    skipped = skipped_employer(role.company, cfg)
+    if skipped:
+        verdict.keep, verdict.rule = False, "employer"
+        verdict.reasons.append(f"an employer you skip ({skipped})")
+        return verdict
 
     matched, why, points = title_verdict(role.title, cfg)
     if not matched:
