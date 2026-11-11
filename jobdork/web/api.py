@@ -3383,6 +3383,60 @@ def tool_job(cfg, uid: str, kind: str, text: str = ""):
     return work
 
 
+def writing_job(cfg, kind: str, uid: str, fields_json: str):
+    """One of the writing and preparing tools (ai/prep.py): for a job post
+    (`uid`) or from the resume alone. `fields_json` is its form, as JSON."""
+    from ..ai import prep
+
+    spec = prep.SPECS.get(kind)
+    if spec is None:
+        raise ApiError("unknown tool")
+    if spec.post and not UID.match(uid or ""):
+        raise ApiError("not a job post id")
+    try:
+        given = json.loads(fields_json or "{}")
+    except ValueError:
+        raise ApiError("the form is not JSON") from None
+    if not isinstance(given, dict) or len(fields_json) > 20_000:
+        raise ApiError("the form is too long or not a form")
+    try:
+        prep.form_fields(kind, given)              # a required field left empty, said now
+    except prep.LLMError as exc:
+        raise ApiError(str(exc)) from None
+    refuse_in_agent_mode(cfg, f"Use jobdork to write my {spec.label.lower()}"
+                         + (f" for job post {uid}." if spec.post else "."))
+
+    def work(progress):
+        from ..ai import llm
+        from ..db.store import Store
+
+        with Store(cfg.db_path) as store:
+            try:
+                result = prep.run(cfg, store, kind, uid if spec.post else "", given,
+                                  progress=progress)
+            except llm.LLMError as exc:
+                raise ApiError(str(exc)) from exc
+        g = result.guard
+        return (f"{spec.label} ready"
+                + (f"; {len(g.unsupported)} of {len(g.claims)} claims not supported"
+                   if g.checked and g.unsupported else "")
+                + (f"; {len(result.problems)} to read" if result.problems else ""))
+    return work
+
+
+def latest_writing(cfg, uid: str = "") -> dict:
+    """The writing tools' newest answers, a post's (`uid`) or the resume's,
+    and the tools with their forms."""
+    from ..ai import prep
+    from ..db.store import Store
+
+    if uid and not UID.match(uid):
+        raise ApiError("not a job post id")
+    with Store(cfg.db_path) as store:
+        found = prep.latest(cfg, store, uid)
+    return {"results": found, "catalog": prep.catalog()}
+
+
 def latest_tools(cfg, uid: str) -> dict:
     """The newest result of each AI tool for one job post."""
     from ..ai import tools

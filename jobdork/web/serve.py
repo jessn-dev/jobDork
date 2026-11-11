@@ -588,6 +588,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._wrap(api_mod.list_projects, cfg_holder["cfg"])
             if path == "/api/education":
                 return self._wrap(api_mod.list_education, cfg_holder["cfg"])
+            if path == "/api/writing":
+                uid = parse_qs(urlsplit(self.path).query).get("uid", [""])[0]
+                return self._wrap(api_mod.latest_writing, cfg_holder["cfg"], uid)
             if path == "/api/tools":
                 uid = parse_qs(urlsplit(self.path).query).get("uid", [""])[0]
                 return self._wrap(api_mod.latest_tools, cfg_holder["cfg"], uid)
@@ -898,7 +901,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if path in ("/api/enrich", "/api/rescreen", "/api/discover",
                         "/api/generate", "/api/digest", "/api/judge",
                         "/api/check", "/api/letter", "/api/review", "/api/tool",
-                        "/api/tailor", "/api/prep", "/api/message"):
+                        "/api/tailor", "/api/prep", "/api/message", "/api/writing"):
                 return self._job(path.rsplit("/", 1)[1])
             return self._reject(404, "no such path")
 
@@ -1160,6 +1163,13 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 elif which == "review":
                     name = "resume review"
                     work = api_mod.review_job(cfg, str(form.get("uid") or ""))
+                elif which == "writing":
+                    kind = str(form.get("kind") or "")
+                    from ..ai import prep as prep_mod
+                    label = prep_mod.SPECS[kind].label if kind in prep_mod.SPECS else kind
+                    name = f"AI: {label.lower()}"
+                    work = api_mod.writing_job(cfg, kind, str(form.get("uid") or ""),
+                                               str(form.get("fields") or "{}"))
                 elif which == "tool":
                     kind = str(form.get("kind") or "")
                     name = f"AI tool: {kind.replace('_', ' ')}"
