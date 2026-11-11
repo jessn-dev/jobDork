@@ -20,8 +20,8 @@ from jobdork.writing import gates, humanize  # noqa: E402
 
 # Dashes that are data, not prose: counted, or matched in addresses.
 # Strings that are data, not wording: a pattern, or the stock phrases a
-# check refuses (prep.STOCK).
-DATA = {("gates.py", "—"), ("geo.py", "[-–—]"), ("prep.py", "leverage")}
+# check refuses (gates.STOCK).
+DATA = {("gates.py", "—"), ("gates.py", "leverage"), ("geo.py", "[-–—]")}
 
 
 def rules(text: str) -> set[int]:
