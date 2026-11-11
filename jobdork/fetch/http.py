@@ -41,6 +41,7 @@ from __future__ import annotations
 import ipaddress
 import logging
 import math
+import os
 import re
 import socket
 import threading
@@ -50,6 +51,7 @@ from dataclasses import dataclass, field
 
 import requests
 from requests.adapters import HTTPAdapter
+from requests.utils import select_proxy
 from urllib3.connection import HTTPConnection, HTTPSConnection
 from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
 from urllib3.exceptions import ConnectTimeoutError, NewConnectionError
@@ -261,6 +263,44 @@ class _PublicOnly(HTTPAdapter):
         self.poolmanager.pool_classes_by_scheme = {"http": _PinnedHTTPPool,
                                                    "https": _PinnedHTTPSPool}
 
+    # Through a proxy the proxy looks the name up itself, so a name that
+    # passed the check could resolve again, inside the proxy's network, to
+    # a private address (Claude Security F14, 2026-11-06). The proxy is
+    # given the address checked instead: CONNECT to it for https, with TLS
+    # still checking the certificate against the name, and the address in
+    # the URL for http, with the name in the Host header. A proxy that only
+    # lets names through takes JOBDORK_PROXY_BY_NAME=1, and the names as before.
+
+    def _through_proxy(self, request, proxies) -> tuple[str, str]:
+        """(host, checked address) when this request goes through a proxy
+        and is pinned; ("", "") otherwise."""
+        if os.environ.get("JOBDORK_PROXY_BY_NAME") == "1" or not select_proxy(request.url, proxies):
+            return "", ""
+        host = (urllib.parse.urlsplit(request.url).hostname or "").rstrip(".")
+        address = _pinned().get(host, "")
+        return (host, address) if address and address != host else ("", "")
+
+    def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
+        host, address = self._through_proxy(request, proxies)
+        if not host:
+            return super().get_connection_with_tls_context(request, verify, proxies, cert)
+        host_params, pool_kwargs = self.build_connection_pool_key_attributes(request, verify, cert)
+        host_params = {**host_params, "host": address}
+        if host_params["scheme"] == "https":
+            pool_kwargs = {**pool_kwargs, "server_hostname": host, "assert_hostname": host}
+        manager = self.proxy_manager_for(select_proxy(request.url, proxies))
+        return manager.connection_from_host(**host_params, pool_kwargs=pool_kwargs)
+
+    def request_url(self, request, proxies):
+        url = super().request_url(request, proxies)
+        host, address = self._through_proxy(request, proxies)
+        if host and url.lower().startswith("http://"):
+            parts = urllib.parse.urlsplit(url)
+            where = f"[{address}]" if ":" in address else address
+            netloc = where + (f":{parts.port}" if parts.port else "")
+            url = urllib.parse.urlunsplit(parts._replace(netloc=netloc))
+        return url
+
     def send(self, request, *args, **kwargs):
         why, address = checked(request.url)
         if why.startswith(UNRESOLVED):
@@ -271,6 +311,11 @@ class _PublicOnly(HTTPAdapter):
         pins = _pinned()
         if address and host:
             pins[host] = address
+            # The connection's own host is the address when it goes through
+            # a proxy (above): the site still has to see its name.
+            if self._through_proxy(request, kwargs.get("proxies"))[0]:
+                port = urllib.parse.urlsplit(request.url).port
+                request.headers["Host"] = host + (f":{port}" if port else "")
         try:
             return super().send(request, *args, **kwargs)
         finally:

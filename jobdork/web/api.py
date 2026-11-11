@@ -2178,7 +2178,11 @@ def _start_over_targets(cfg) -> dict:
     if source_keys_path(cfg).is_file():
         files.append(source_keys_path(cfg))
     # Reports, only from an output folder beside the config: one pointed
-    # somewhere else may hold more than jobdork's own files.
+    # somewhere else may hold more than jobdork's own files. And only the
+    # report files themselves: with `output.dir: .` the folder is the
+    # config's, and every file in it went, .env and all (code scan #15,
+    # 2026-11-06).
+    from ..output.render import REPORT_FILES
     out = Path(cfg.output.dir)
     home = Path(cfg.path).parent if cfg.path else Path.cwd()
     if not out.is_absolute():
@@ -2187,7 +2191,8 @@ def _start_over_targets(cfg) -> dict:
         inside = out.resolve().is_relative_to(home.resolve())
     except OSError:
         inside = False
-    reports = [p for p in out.glob("*") if p.is_file()] if inside and out.is_dir() else []
+    reports = [out / name for name in REPORT_FILES
+               if inside and (out / name).is_file()]
     return {"files": files, "documents": documents, "reports": reports, "posts": posts}
 
 

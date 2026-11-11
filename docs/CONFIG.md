@@ -766,6 +766,7 @@ true; the environment and `.env` win over both. A key written into
 | `JOBDORK_UPDATE_CHECK` | `off` stops the Dashboard asking GitHub, once a day, whether a newer jobdork is out, whatever `update_check` says (one request to `api.github.com` for the latest release; the answer is kept in `version-check.json` beside the database) |
 | `JOBDORK_ALLOW_HOSTS` | The dashboard: addresses besides the machine itself it may be opened by, comma separated (a NAS's network address, its Tailscale name); a wildcard is refused. See [run/nas.md](run/nas.md) |
 | `JOBDORK_DOCS_DIR` | Where the uploaded resume and generated documents are kept. The Docker image sets `/app/data/documents`, inside the kept volume |
+| `JOBDORK_PROXY_BY_NAME` | `1` sends a proxy (`HTTPS_PROXY`, `HTTP_PROXY`) each site's name, as before, instead of the address jobdork checked is public. Only for a proxy that refuses addresses; otherwise the proxy could look the name up again and reach your own network |
 | `JOBDORK_TEMP_DOCS` | Opt-in instead: a temporary folder for the resume and documents, emptied when the dashboard starts and stops; wins over `JOBDORK_DOCS_DIR` |
 
 ---

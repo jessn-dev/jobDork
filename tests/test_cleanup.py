@@ -179,7 +179,7 @@ def test_start_over_deletes_only_what_jobdork_wrote_after_the_typed_words():
                      path=str(root / "config.yaml"), resume_path=str(resume))
         cfg.output.dir = str(root / "out")
         (root / "out").mkdir()
-        (root / "out" / "report.html").write_text("<p>")
+        (root / "out" / "index.html").write_text("<p>")
         with Store(cfg.db_path) as store:
             role = Role(platform="workable", company="a", title="x", url="https://x.test/a")
             store.upsert(role)
@@ -203,7 +203,7 @@ def test_start_over_deletes_only_what_jobdork_wrote_after_the_typed_words():
         done = api.start_over(cfg, "Start over", backup=True)
         assert keystore.load("ai:gemini") == "" and keystore.load("ADZUNA_APP_KEY") == ""
         for gone in (resume, letter, root / "config.yaml", root / "data" / "t.db",
-                     root / "data" / "source-keys.env", root / "out" / "report.html"):
+                     root / "data" / "source-keys.env", root / "out" / "index.html"):
             assert not gone.exists(), gone
         assert own.is_file()
         backup = Path(done["backup"])

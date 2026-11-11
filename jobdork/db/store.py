@@ -1184,10 +1184,17 @@ class Store:
             (int(note_id), uid)).fetchone()
         if row is None:
             return False
-        members = grouping.uids(self.conn, uid)
-        self.conn.execute(
-            f"DELETE FROM application_notes WHERE note = ? AND at = ? "  # nosec B608
-            f"AND uid IN ({','.join('?' * len(members))})", (row["note"], row["at"], *members))
+        # This note, and one twin on each other copy: one add writes one row
+        # per copy. By text and time alone, the same note saved twice in a
+        # second (a double click) went entirely on one delete (code scan #14,
+        # 2026-11-06).
+        self.conn.execute("DELETE FROM application_notes WHERE id = ?", (int(note_id),))
+        for member in grouping.uids(self.conn, uid):
+            if member == uid:
+                continue
+            self.conn.execute(
+                "DELETE FROM application_notes WHERE id = (SELECT MIN(id) FROM application_notes "
+                "WHERE uid = ? AND note = ? AND at = ?)", (member, row["note"], row["at"]))
         self.conn.commit()
         return True
 

@@ -21,6 +21,8 @@ the change, so the guide shows the app as it is (guide/README.md).
 from __future__ import annotations
 
 import os
+import re
+import secrets
 import shutil
 import socket
 import subprocess
@@ -31,7 +33,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "guide" / "docs" / "images"
-TOKEN = "guide-screenshots"
+# A new token each run, and none of your keys in the demo server's
+# environment: a fixed token let any program on the computer use the demo
+# server while it ran, and the keys gave it your AI and job-board accounts
+# (Claude Security F18, 2026-11-06). The pictures need neither.
+TOKEN = secrets.token_urlsafe(16)
+_SECRET = re.compile(r"(KEY|TOKEN|SECRET|PASSWORD|PASS|CREDENTIALS?)$|^(ANTHROPIC|OPENAI|"
+                     r"GEMINI|GOOGLE|GROQ|ADZUNA|USAJOBS|RESEND|JOBDORK_OLLAMA)_", re.I)
+
+
+def _clean_env() -> dict:
+    """This process's environment without anything that looks like a key."""
+    return {k: v for k, v in os.environ.items() if not _SECRET.search(k)}
 
 
 def _free_port() -> int:
@@ -41,7 +54,7 @@ def _free_port() -> int:
 
 
 def _serve(folder: Path, port: int, config: Path | None) -> subprocess.Popen:
-    env = {**os.environ,
+    env = {**_clean_env(),
            "JOBDORK_FEEDBACK_URL": "https://feedback.invalid/", "JOBDORK_HOME": str(folder)}
     # Settings in the demo shows both as people see them: its version check
     # is already answered (guide_demo.py), so nothing asks GitHub, and the
