@@ -125,7 +125,7 @@ def test_a_click_on_the_windows_apps_toast_opens_jobdork():
     with _platform("win32", frozen=True):
         notify.send("t", "b", run=run)
     xml = run.calls[0][1]["env"]["JOBDORK_TOAST"]
-    assert xml.startswith('<toast launch="jobdork://open" activationType="protocol" '), xml
+    assert xml.startswith('<toast launch="jobdork://notifications" activationType="protocol" '), xml
     run = _Run()
     with _platform("win32"):
         notify.send("t", "b", run=run)

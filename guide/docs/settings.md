@@ -68,8 +68,9 @@ and the Mac app's notifications are Alerts. A Mac lets you change that in
 jobdork run outside the app (in Terminal) go as banners, which macOS closes
 by itself.
 
-Clicking a notification from the desktop app opens jobdork, or brings its
-window to the front when it is open already. On Linux that needs a
+Clicking a notification from the desktop app opens jobdork on its
+[Notifications page](#notifications-page), or brings its window to the
+front there when it is open already. On Linux that needs a
 `notify-send` with actions (most desktops since 2021); older ones show the
 notification without the click. If a Mac shows no notifications at all,
 allow jobdork in **System Settings → Notifications**.

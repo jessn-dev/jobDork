@@ -14,6 +14,16 @@ open, so an older database gains it), the newest 500, and the same words
 within a day once: a follow-up reminder the desktop could not show is tried
 again at every check. Nothing is kept before there is a database.
 
+**A click on a notification opens the Notifications page** (asked the
+same day): jobdork starts there, or its open window comes to the front and
+turns to it. Windows' toast opens `jobdork://notifications`, the Linux
+click starts it with `--notifications`, and on a Mac the app answers the
+click itself (a UserNotifications delegate, set before it finishes
+launching so a click that starts it counts too); an open window is told
+through the same request file a second start already used
+(`app.open_view`, the page's `openView`). Not yet tried on a real desktop:
+the Mac click and the Windows protocol are checked only by tests here.
+
 **Desktop notifications stay until closed.** Windows: a reminder toast,
 with Windows' own Dismiss button, which Windows needs to keep one on
 screen. Linux: `notify-send --urgency=critical --expire-time=0` (GNOME

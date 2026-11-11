@@ -102,6 +102,52 @@ def test_desktop_notifications_stay_until_closed():
     assert '"NSUserNotificationAlertStyle": "alert"' in spec
 
 
+def test_a_click_on_a_notification_opens_the_notifications_page():
+    import socket
+    import threading
+
+    from jobdork.web import app
+
+    assert notify.LAUNCH == "jobdork://notifications"          # Windows' click
+    assert '"$prog" --notifications' in notify._OPEN_ON_CLICK   # Linux's
+    starter = (Path(__file__).resolve().parent.parent / "packaging" / "jobdork_app.py").read_text()
+    assert "--notifications" in starter and "jobdork://notifications" in starter
+    page = (Path(__file__).resolve().parent.parent / "jobdork" / "data" / "dashboard.html").read_text()
+    assert "START_VIEW" in page and "window.openView" in page
+
+    class Window:
+        def __init__(self):
+            self.done = []
+
+        def restore(self):
+            self.done.append("restore")
+
+        def show(self):
+            self.done.append("show")
+
+        def run_js(self, script):
+            self.done.append(script)
+    # jobdork open already: the second start asks it for the page.
+    with tempfile.TemporaryDirectory() as tmp, socket.socket() as listening:
+        home = Path(tmp)
+        listening.bind(("127.0.0.1", 0))
+        listening.listen()
+        window, stop = Window(), threading.Event()
+        watcher = threading.Thread(target=app.watch_for_show_requests,
+                                   args=(home, window, stop, 0.05), daemon=True)
+        watcher.start()
+        try:
+            assert app.show_open_window(home, listening.getsockname()[1], wait=2, view="notes")
+        finally:
+            stop.set()
+            watcher.join(2)
+        assert window.done[:2] == ["restore", "show"]
+        assert 'window.openView("notes")' in window.done[-1]
+        # Anything else asked for opens nothing.
+        app.open_view(window, "settings")
+        assert 'window.openView("notes")' in window.done[-1]
+
+
 if __name__ == "__main__":
     failures = 0
     tests = [(name, fn) for name, fn in sorted(globals().items())

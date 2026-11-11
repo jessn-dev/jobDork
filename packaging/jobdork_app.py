@@ -55,4 +55,7 @@ if __name__ == "__main__":
         uninstall.remove(set(items))
         raise SystemExit(0)
     # Closing the window ends the program for good (web/app.py exit_now).
-    app.exit_now(app.run(port=8765, debug="--debug" in args) or 0)
+    # A click on a notification (core/notify.py): open on its Notifications page.
+    view = "notes" if "--notifications" in args or any(
+        a.startswith("jobdork://notifications") for a in args) else ""
+    app.exit_now(app.run(port=8765, debug="--debug" in args, view=view) or 0)

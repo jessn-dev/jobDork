@@ -58,7 +58,11 @@ MAC_SOUND = "Glass"
 TIMEOUT = 15
 # What a click on the Windows app's toast opens: the installer registers it
 # to start jobdork.exe (packaging/jobdork.iss), which shows jobdork.
-LAUNCH = "jobdork://open"
+LAUNCH = "jobdork://notifications"
+# What a click asks the app to show: its Notifications page (asked
+# 2026-11-11), read by the app's start (packaging/jobdork_app.py) from this
+# argument, LAUNCH on Windows, or a Mac click (web/app.py, mac_click_opens).
+OPEN_ARG = "--notifications"
 
 
 def off() -> bool:
@@ -292,7 +296,7 @@ _spawn = subprocess.Popen
 # inside the script's text, so nothing in a title can change what it runs.
 _OPEN_ON_CLICK = ('prog=$1; shift; '
                   'answer=$(notify-send --action=open="Open jobdork" "$@"); '
-                  '[ "$answer" = open ] && exec "$prog"')
+                  '[ "$answer" = open ] && exec "$prog" --notifications')
 
 
 def _has_actions(run) -> bool:
