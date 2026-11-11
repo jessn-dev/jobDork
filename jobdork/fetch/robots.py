@@ -66,12 +66,42 @@ def robots_allows(rules: list[tuple[bool, str]], url: str) -> bool:
     parts = urllib.parse.urlsplit(url)
     path = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
     best: tuple[int, bool] = (-1, True)
-    for allow, pattern in rules:
-        regex = "".join(".*" if ch == "*" else "$" if ch == "$" and i == len(pattern) - 1
-                        else re.escape(ch) for i, ch in enumerate(pattern))
-        if re.match(regex, path):
+    for allow, pattern in rules[:MAX_RULES]:
+        if _matches(pattern, path):
             best = max(best, (len(pattern), allow))
     return best[1]
+
+
+# A robots.txt is a stranger's file: its "*" rules became ".*" regexes that a
+# crafted rule ("/*a*a*a*…b") made backtrack until the whole process froze
+# (Claude Security F1, 2026-11-06). Matched by str.find now, which is linear,
+# and only so many rules and wildcards are read.
+MAX_RULES = 500
+MAX_WILDCARDS = 20
+
+
+def _matches(pattern: str, path: str) -> bool:
+    """RFC 9309 matching: `*` any run of characters, a final `$` the end.
+    Each piece is found at its first place after the one before, which is
+    where a match can start if there is one at all."""
+    anchored = pattern.endswith("$")
+    pieces = (pattern[:-1] if anchored else pattern).split("*")
+    if len(pieces) - 1 > MAX_WILDCARDS:
+        return False
+    if not path.startswith(pieces[0]):
+        return False
+    at = len(pieces[0])
+    for piece in pieces[1:-1]:
+        found = path.find(piece, at)
+        if found < 0:
+            return False
+        at = found + len(piece)
+    if len(pieces) == 1:
+        return not anchored or at == len(path)
+    last = pieces[-1]
+    if anchored:
+        return len(path) - len(last) >= at and path.endswith(last)
+    return path.find(last, at) >= 0
 
 
 class Robots:

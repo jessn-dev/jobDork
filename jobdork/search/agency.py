@@ -74,7 +74,7 @@ _NAME_WORDS = re.compile(
 # A bare name that is also an employer's ("Kelly", "Hays", "Atrium") is not in
 # KNOWN_FIRMS: Atrium Health and HaysMed are hospitals.
 _ADVERT = re.compile(
-    r"\bour client(?:['\u2019]s)?\b(?!\s*-?\s*(?:base|teams?|services?|success|relation\w*|"
+    r"\bour client(?:['\u2019]s)?\b(?!\s*(?:-\s*)?(?:base|teams?|services?|success|relation\w*|"
     r"portfolio|experience|facing|list|satisfaction|engagements?|delivery|accounts?|"
     r"support|projects?|work|partners?|management|needs)\b)|"
     r"\bmy client\b|\bon behalf of (?:our|my|a|an) client|"

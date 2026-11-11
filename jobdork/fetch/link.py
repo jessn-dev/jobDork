@@ -206,9 +206,16 @@ def _why_closed(resp) -> str:
 
 def _site_name(page: str) -> str:
     """"Careers at UnitedHealth Group" -> "UnitedHealth Group"; "" if none."""
-    match = re.search(r"<title>\s*(?:Careers? (?:at|with) )?([^<|\u2013-]{2,80}?)\s*(?:[|\u2013-][^<]*)?</title>",
-                      page or "", re.IGNORECASE)
-    return clean(html.unescape(match.group(1))) if match else ""
+    # The title found first, then read in Python: the one pattern that did
+    # both stalled on a long run of spaces with no </title> (Claude Security
+    # F13, 2026-11-06).
+    match = re.search(r"<title[^<>]{0,200}>([^<]{0,500})</title>", page or "", re.IGNORECASE)
+    if not match:
+        return ""
+    title = html.unescape(match.group(1)).strip()
+    title = re.sub(r"^Careers? (?:at|with) ", "", title, flags=re.IGNORECASE)
+    title = re.split(r"\s*[|\u2013-]\s*", title, maxsplit=1)[0].strip()
+    return clean(title) if 2 <= len(title) <= 80 else ""
 
 
 # ── Taleo Enterprise ─────────────────────────────────────────────────────────

@@ -46,9 +46,9 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 from ..core import telemetry
-from ..core.textutil import folded, to_text
+from ..core.textutil import folded, ld_json_blocks, to_text
 from ..db import grouping
-from .enrich import _LD_BLOCK, _walk
+from .enrich import _walk
 from .freshness import CLOSED_TEXT  # one pattern for pages and adverts
 
 log = logging.getLogger("jobdork.search.listing")
@@ -103,7 +103,7 @@ def _page_text(html: str) -> str:
 
 def _postings(html: str) -> list[dict]:
     found: list[dict] = []
-    for block in _LD_BLOCK.findall(html or ""):
+    for block in ld_json_blocks(html):
         try:
             found.extend(_walk(json.loads(block)))
         except (json.JSONDecodeError, TypeError):

@@ -27,10 +27,9 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from dataclasses import dataclass, field
 
-from ..core.textutil import to_text
+from ..core.textutil import ld_json_blocks, to_text
 from ..db import grouping
 from ..db.store import Role, Store
 
@@ -51,10 +50,6 @@ UNREACHABLE = {
     "himalayas": "pages answer 403 to scripts, and the search sends the full advert",
 }
 
-_LD_BLOCK = re.compile(
-    r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
-    re.IGNORECASE | re.DOTALL,
-)
 
 
 @dataclass
@@ -116,7 +111,7 @@ def extract_description(html: str) -> str:
     full one, and the summary is the thing already stored.
     """
     best = ""
-    for block in _LD_BLOCK.findall(html or ""):
+    for block in ld_json_blocks(html):
         try:
             data = json.loads(block)
         except (json.JSONDecodeError, TypeError):
@@ -138,7 +133,7 @@ def extract_posted(html: str) -> str:
     """
     from . import freshness
 
-    for block in _LD_BLOCK.findall(html or ""):
+    for block in ld_json_blocks(html):
         try:
             data = json.loads(block)
         except (json.JSONDecodeError, TypeError):
