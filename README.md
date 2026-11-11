@@ -93,19 +93,25 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
   ([Coding agent](https://jessn-dev.github.io/jobDork/ai/#coding-agent)).
   It can judge posts (Job posts marks which ones each run judged, and sorts
   and filters by its score), write a cover letter, review your resume, and write a
-  tailored resume as a PDF and a Word file, held to Indeed's length advice
-  (one page up to ten years), interview prep and a recruiter message. A
-  second model checks each output, claim by claim, against your resume and
-  the advert, and anything unsupported is flagged: 2.9% of claims with the
-  recommended local model, measured on seven resumes in six fields
-  ([models compared](docs/AI-MODELS.md)). It never applies or sends for
-  you. [The AI page](https://jessn-dev.github.io/jobDork/ai/)
+  tailored resume as a PDF and a Word file (in a sans or serif face), held to
+  Indeed's length advice (one page up to ten years), interview prep (fifteen
+  likely questions, with STAR outlines) and a recruiter message. Eight more
+  tools help you prepare: a tailoring report, an interview story, a thank-you
+  email, offer negotiation, an outreach message, a LinkedIn headline and
+  About, changing field, and a 30-day search plan. A second model checks
+  each output, claim by claim, against your whole resume and the advert, and
+  anything unsupported is flagged: 2.9% of claims with the recommended local
+  model, measured on seven resumes in six fields
+  ([models compared](docs/AI-MODELS.md)). A flagged claim is then taken out
+  or rewritten, and checked again, before you see it. It never applies or
+  sends for you. [The AI page](https://jessn-dev.github.io/jobDork/ai/)
 - **Keeps track.** Statuses from *new* to *offer*, notes, a check for posts
   that have closed, scans on a schedule, notifications (a click opens
   jobdork), and an email digest.
   **My applications** keeps every job you applied to, by stage, with each
   status dated, the next step and its date, the contact, the resume and
-  letter you sent, and notes.
+  letter you sent (uploaded, and read by that job's AI tools), and notes. One
+  **Add a job post** form adds a post from its link, already applied or not.
   [My applications](https://jessn-dev.github.io/jobDork/applications/)
 - **Reaches past what it can read.** A **Search Google Jobs** link opens your
   search in Google's job results, and `jobdork dork` builds Google searches
@@ -140,8 +146,8 @@ fully. [Limits](#limits) has the list.
 
 | | For | Guide |
 |---|---|---|
-| **Desktop app** | macOS (Apple Silicon or Intel), Windows, and Linux (an AppImage, or a .deb for Ubuntu and Debian): an installer, its own window, scheduled scans, notifications, and updates from inside the app | [docs/run/desktop.md](docs/run/desktop.md) |
-| **From source** | Any system with Python 3.10 or newer, ARM Linux included | [docs/run/source.md](docs/run/source.md) |
+| **Desktop app** | macOS (Apple Silicon or Intel), Windows, and Linux on x86-64 or ARM64 (an AppImage, or a .deb for Ubuntu and Debian): an installer, its own window, scheduled scans, notifications, and updates from inside the app | [docs/run/desktop.md](docs/run/desktop.md) |
+| **From source** | Any system with Python 3.10 or newer, ARM Linux older than 2024 included | [docs/run/source.md](docs/run/source.md) |
 | **In the terminal** | Every command without the dashboard: scripts, cron jobs, servers with no screen | [docs/run/cli.md](docs/run/cli.md) |
 | **Docker** | The published image on your computer, or always on a NAS | [docs/run/docker.md](docs/run/docker.md), [docs/run/nas.md](docs/run/nas.md) |
 

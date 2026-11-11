@@ -41,8 +41,8 @@ _PROJECT_VERSION = re.compile(r'^(version = ")(' + VERSION + r')(")$', re.MULTIL
 # the version, and the part after it. Each is (prefix, suffix) of one regex.
 CURRENT = (
     (r"jessengolab/jobdork:", r""),                       # the image tag
-    (r"jobdork-", r"-(?:macos-(?:arm64|x86_64)\.dmg|windows-x64-setup\.exe|linux-x86_64\.AppImage)"),  # installers
-    (r"jobdork_", r"_amd64\.deb"),                          # the Linux .deb
+    (r"jobdork-", r"-(?:macos-(?:arm64|x86_64)\.dmg|windows-x64-setup\.exe|linux-(?:x86_64|aarch64)\.AppImage)"),  # installers
+    (r"jobdork_", r"_(?:amd64|arm64)\.deb"),               # the Linux .deb
     (r"git tag v", r" && git push origin v"),               # SECURITY.md, step 2
     (r"git push origin v", r"\b"),
 )

@@ -11,6 +11,15 @@ Nothing to type, no Python to install. Other ways to run it:
 | Windows 10 or 11, 64-bit | `jobdork-0.16.3-windows-x64-setup.exe` |
 | Linux, 64-bit (x86-64), any distribution from 2022 on | `jobdork-0.16.3-linux-x86_64.AppImage` (from 0.16.2) |
 | Ubuntu 22.04 or newer, Debian 12 or newer, Linux Mint 21 or newer | `jobdork_0.16.3_amd64.deb` (from 0.16.2) |
+| Linux on ARM64 (a Raspberry Pi 4 or 5, a Linux VM on an Apple Silicon Mac), any distribution from 2024 on | `jobdork-0.16.3-linux-aarch64.AppImage` (from 0.16.4) |
+| Ubuntu 24.04 or newer, Debian 13 or newer, on ARM64 | `jobdork_0.16.3_arm64.deb` (from 0.16.4) |
+
+**Which Linux do I have?** `dpkg --print-architecture` in a terminal:
+`amd64` is x86-64, `arm64` is ARM64. ARM64 needs a system from 2024 on
+(glibc 2.39), since that is the oldest the ARM build of Qt runs on: Ubuntu
+22.04 and Debian 12 on ARM cannot run it, and the Docker image is the way
+there. An `amd64` package on an ARM computer fails to install with every
+dependency "not installable".
 
 **Which Mac do I have?** Apple menu → **About This Mac**. "Chip: Apple M…"
 is Apple Silicon; "Processor: … Intel" is Intel.
@@ -73,7 +82,7 @@ or AppImageLauncher adds it.
 **Linux, the .deb.** In a terminal, in the folder you downloaded it to:
 
 ```bash
-sudo apt install ./jobdork_0.16.3_amd64.deb
+sudo apt install ./jobdork_0.16.3_amd64.deb     # ARM64: ./jobdork_0.16.3_arm64.deb
 ```
 
 It installs to `/opt/jobdork`, with **jobdork** in the menu and the

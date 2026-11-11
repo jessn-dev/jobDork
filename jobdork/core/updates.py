@@ -210,9 +210,10 @@ def _uploader(asset: dict) -> str:
 def installer_name(version: str) -> str:
     """The installer this computer takes from a release, or "" when there is
     none for it (a copy that is not the desktop app, a Linux computer that is
-    not x86-64). Macs have one for Apple silicon and one for Intel (from
-    0.15.3). On Linux the AppImage replaces an AppImage, and the .deb a copy
-    installed from one."""
+    neither x86-64 nor ARM64). Macs have one for Apple silicon and one for
+    Intel (from 0.15.3); Linux one for x86-64 and, from 0.16.4, ARM64. On
+    Linux the AppImage replaces an AppImage, and the .deb a copy installed
+    from one."""
     if not getattr(sys, "frozen", False):
         return ""
     if sys.platform == "darwin":
@@ -220,10 +221,13 @@ def installer_name(version: str) -> str:
         return f"jobdork-{version}-macos-{arch}.dmg"
     if sys.platform == "win32":
         return f"jobdork-{version}-windows-x64-setup.exe"
-    if sys.platform.startswith("linux") and platform.machine() in ("x86_64", "AMD64"):
+    linux = {"x86_64": ("x86_64", "amd64"), "AMD64": ("x86_64", "amd64"),
+             "aarch64": ("aarch64", "arm64"), "arm64": ("aarch64", "arm64")}
+    if sys.platform.startswith("linux") and platform.machine() in linux:
+        appimage, deb = linux[platform.machine()]
         if os.environ.get(APPIMAGE_ENV):
-            return f"jobdork-{version}-linux-x86_64.AppImage"
-        return f"jobdork_{version}_amd64.deb"
+            return f"jobdork-{version}-linux-{appimage}.AppImage"
+        return f"jobdork_{version}_{deb}.deb"
     return ""
 
 

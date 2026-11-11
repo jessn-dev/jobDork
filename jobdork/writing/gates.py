@@ -218,10 +218,13 @@ def resume_writing(draft: str) -> Gate:
 
 # Phrases a hiring manager has read a thousand times: they say nothing, and
 # mark a letter as a template (asked 2026-11-09, from the prompt pack).
+# One list for every check that refuses them: the cover letter's and the
+# recruiter message's here, and the writing tools' (ai/prep.py).
 STOCK = ("passionate", "team player", "excited about this opportunity", "excited to apply",
          "i am writing to apply", "i am writing to express", "perfect fit", "dream job",
          "go-getter", "results-driven", "think outside the box", "hit the ground running",
-         "pick your brain")
+         "pick your brain", "synergy", "leverage", "dynamic", "seeking opportunities",
+         "i really enjoyed learning about the role", "thank you for your time")
 
 
 def stock_phrases(draft: str) -> Gate:

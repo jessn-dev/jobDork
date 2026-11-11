@@ -11,8 +11,9 @@ Windows: dist/jobdork/, then dist/jobdork-<version>-windows-x64-setup.exe from
 packaging/jobdork.iss. Needs Inno Setup 6 (`iscc` on PATH, or where its
 installer puts it).
 
-Linux (x86-64): dist/jobdork/, then dist/jobdork-<version>-linux-x86_64.AppImage
-and dist/jobdork_<version>_amd64.deb, the same build in each. The AppImage
+Linux (x86-64 and, from 0.16.4, ARM64): dist/jobdork/, then
+dist/jobdork-<version>-linux-<x86_64|aarch64>.AppImage and
+dist/jobdork_<version>_<amd64|arm64>.deb, the same build in each. The AppImage
 needs appimagetool and the AppImage runtime it puts in front, both given as
 files (APPIMAGETOOL, APPIMAGE_RUNTIME; desktop.yml fetches pinned ones), so
 nothing is downloaded while building; the .deb needs dpkg-deb.
@@ -270,13 +271,41 @@ def prune_linux(bundle: Path) -> list[str]:
     return gone
 
 
-def build_packages() -> list[str]:
-    """DEB_DEPENDS as the build machine (Ubuntu 22.04) names them, for apt:
-    the alternative from before Ubuntu 24.04's renaming."""
+# Each Linux machine jobdork is packaged for: (the AppImage's name for it,
+# the .deb's, the oldest glibc its Qt wheels run on). PyQt6's ARM64 wheels
+# need glibc 2.39 (manylinux_2_39_aarch64), so the ARM build runs on Ubuntu
+# 24.04 and its .deb needs Ubuntu 24.04, Debian 13 or newer (2026-11-11).
+LINUX = {"x86_64": ("x86_64", "amd64", "2.35"), "aarch64": ("aarch64", "arm64", "2.39")}
+
+
+def linux_arch(machine: str = "") -> tuple[str, str, str]:
+    """LINUX's entry for this machine (or the one named)."""
+    machine = machine or platform.machine()
+    return LINUX["aarch64" if machine in ("aarch64", "arm64") else machine]
+
+
+def deb_depends(deb_arch: str = "amd64") -> list[str]:
+    """DEB_DEPENDS with the glibc this machine's build needs."""
+    glibc = next(g for _, d, g in LINUX.values() if d == deb_arch)
+    return [f"libc6 (>= {glibc})" if dep.startswith("libc6 ") else dep for dep in DEB_DEPENDS]
+
+
+def build_packages(t64: bool | None = None) -> list[str]:
+    """DEB_DEPENDS as the build machine names them, for apt: Ubuntu 22.04's
+    names from before 24.04's renaming, or with `t64` (the ARM build, on
+    24.04; worked out from /etc/os-release when not given) the new ones,
+    since there "libasound2" is only a name others answer to."""
+    if t64 is None:
+        try:
+            release = Path("/etc/os-release").read_text(encoding="utf-8")
+        except OSError:
+            release = ""
+        found = re.search(r'^VERSION_ID="?(\d+)', release, re.M)
+        t64 = bool(found) and int(found.group(1)) >= 24
     names = []
     for dep in DEB_DEPENDS:
         alts = [a.split(" (")[0] for a in dep.split(" | ")]
-        names.append(next((a for a in alts if not a.endswith("t64")), alts[0]))
+        names.append(next((a for a in alts if a.endswith("t64") == t64), alts[0]))
     return names
 
 
@@ -287,16 +316,93 @@ def desktop_entry(command: str) -> str:
             f"StartupWMClass=jobdork\n")
 
 
-def _linux_files(root: Path, command: str) -> None:
-    """The menu entry and the icon, where the desktop looks for them."""
+# The AppStream id: what software centres (GNOME Software, KDE Discover)
+# know jobdork by. Without its metainfo file they showed a package opened
+# from a file with a generic gear for its icon and "No Screenshots" (2026-11-11).
+APP_ID = "io.github.jessn_dev.jobdork"
+ICON_SIZES = (64, 128, 256, 512)
+# Guide pictures shown as screenshots, from the release's own tag so they
+# match the version installed: (picture, caption).
+SCREENSHOTS = (("dashboard", "The Dashboard: scans, job posts found and the AI's numbers"),
+               ("job-posts", "Job posts, scored against your resume"),
+               ("job-window", "One job post: its scores, advert and what to do next"),
+               ("resume", "Your resume, the ones tailored from it, and its checks"))
+
+
+def _xml(text: str) -> str:
+    return (text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            .replace('"', "&quot;"))
+
+
+def metainfo(ver: str, date: str = "") -> str:
+    """The AppStream metainfo: name, description, icon, screenshots and the
+    release, for software centres."""
+    date = date or time.strftime("%Y-%m-%d")
+    raw = f"https://raw.githubusercontent.com/jessn-dev/jobDork/v{ver}"
+    default = ' type="default"'
+    shots = "\n".join(
+        f'    <screenshot{default if i == 0 else ""}>\n'
+        f"      <caption>{_xml(caption)}</caption>\n"
+        f'      <image type="source">{raw}/guide/docs/images/{name}.png</image>\n'
+        "    </screenshot>"
+        for i, (name, caption) in enumerate(SCREENSHOTS))
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>{APP_ID}</id>
+  <name>jobdork</name>
+  <summary>{_xml(SUMMARY)}</summary>
+  <developer id="io.github.jessn_dev"><name>jessn-dev</name></developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>jobdork searches job sites and employers' own boards for the jobs you want,
+    scores each post against your resume, and keeps what you applied to.</p>
+    <p>An AI model of your choice, local or with your own key, can judge posts,
+    draft cover letters, tailored resumes and interview prep, and every claim it
+    makes is checked against your resume and the advert. It never applies for you.</p>
+    <p>Your search, resume and job posts stay on this computer.</p>
+  </description>
+  <launchable type="desktop-id">jobdork.desktop</launchable>
+  <icon type="stock">jobdork</icon>
+  <icon type="remote" width="512" height="512">{raw}/packaging/icon.png</icon>
+  <url type="homepage">{HOMEPAGE}</url>
+  <url type="bugtracker">{HOMEPAGE}/issues</url>
+  <url type="help">https://jessn-dev.github.io/jobDork/</url>
+  <categories><category>Office</category></categories>
+  <provides><binary>jobdork</binary></provides>
+  <screenshots>
+{shots}
+  </screenshots>
+  <releases>
+    <release version="{ver}" date="{date}">
+      <url type="details">{HOMEPAGE}/releases/tag/v{ver}</url>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>
+"""
+
+
+def _linux_files(root: Path, command: str, ver: str = "") -> None:
+    """The menu entry, the icon in each size the desktop looks for, and the
+    AppStream metainfo software centres read."""
     from PIL import Image
 
     apps = root / "usr" / "share" / "applications"
-    icons = root / "usr" / "share" / "icons" / "hicolor" / "256x256" / "apps"
     apps.mkdir(parents=True, exist_ok=True)
-    icons.mkdir(parents=True, exist_ok=True)
     (apps / "jobdork.desktop").write_text(desktop_entry(command), encoding="utf-8")
-    Image.open(PACKAGING / "icon.png").resize((256, 256)).save(icons / "jobdork.png")
+    hicolor = root / "usr" / "share" / "icons" / "hicolor"
+    for size in ICON_SIZES:
+        icons = hicolor / f"{size}x{size}" / "apps"
+        icons.mkdir(parents=True, exist_ok=True)
+        Image.open(PACKAGING / "icon.png").resize((size, size)).save(icons / "jobdork.png")
+    scalable = hicolor / "scalable" / "apps"
+    scalable.mkdir(parents=True, exist_ok=True)
+    shutil.copy(PACKAGING / "icon.svg", scalable / "jobdork.svg")
+    if ver:
+        meta = root / "usr" / "share" / "metainfo"
+        meta.mkdir(parents=True, exist_ok=True)
+        (meta / f"{APP_ID}.metainfo.xml").write_text(metainfo(ver), encoding="utf-8")
 
 
 APPRUN = """#!/bin/sh
@@ -316,7 +422,7 @@ def appimage(ver: str) -> Path:
     appdir = WORK / "AppDir"
     shutil.rmtree(appdir, ignore_errors=True)
     shutil.copytree(DIST / "jobdork", appdir / "usr" / "lib" / "jobdork", symlinks=True)
-    _linux_files(appdir, "jobdork")
+    _linux_files(appdir, "jobdork", ver)
     (appdir / "AppRun").write_text(APPRUN, encoding="utf-8")
     (appdir / "AppRun").chmod(0o755)
     # The AppImage's own entry and icon, at its top, as the format asks.
@@ -324,19 +430,20 @@ def appimage(ver: str) -> Path:
     shutil.copy(appdir / "usr" / "share" / "icons" / "hicolor" / "256x256" / "apps"
                 / "jobdork.png", appdir)
     (appdir / ".DirIcon").symlink_to("jobdork.png")
-    out = DIST / f"jobdork-{ver}-linux-x86_64.AppImage"
+    arch = linux_arch()[0]
+    out = DIST / f"jobdork-{ver}-linux-{arch}.AppImage"
     out.unlink(missing_ok=True)
     # appimagetool is itself an AppImage: unpacked to run, so the build
     # machine needs no FUSE.
-    os.environ.update(ARCH="x86_64", APPIMAGE_EXTRACT_AND_RUN="1")
+    os.environ.update(ARCH=arch, APPIMAGE_EXTRACT_AND_RUN="1")
     run(tool, "--no-appstream", "--runtime-file", runtime, appdir, out)
     return out
 
 
-def deb_control(ver: str, installed_kb: int) -> str:
-    return (f"Package: jobdork\nVersion: {ver}\nArchitecture: amd64\n"
+def deb_control(ver: str, installed_kb: int, deb_arch: str = "amd64") -> str:
+    return (f"Package: jobdork\nVersion: {ver}\nArchitecture: {deb_arch}\n"
             f"Maintainer: {MAINTAINER}\nInstalled-Size: {installed_kb}\n"
-            f"Depends: {', '.join(DEB_DEPENDS)}\n"
+            f"Depends: {', '.join(deb_depends(deb_arch))}\n"
             # notify-send, for notifications (core/notify.py); without it
             # jobdork runs and shows none.
             "Recommends: libnotify-bin\nSection: utils\nPriority: optional\n"
@@ -355,15 +462,16 @@ def deb(ver: str) -> Path:
     shutil.copytree(DIST / "jobdork", root / "opt" / "jobdork", symlinks=True)
     (root / "usr" / "bin").mkdir(parents=True)
     (root / "usr" / "bin" / "jobdork").symlink_to("/opt/jobdork/jobdork")
-    _linux_files(root, "/opt/jobdork/jobdork")
+    _linux_files(root, "/opt/jobdork/jobdork", ver)
     docs = root / "usr" / "share" / "doc" / "jobdork"
     docs.mkdir(parents=True)
     shutil.copy(ROOT / "LICENSE", docs / "copyright")
     size = sum(p.lstat().st_size for p in root.rglob("*") if not p.is_dir())
     (root / "DEBIAN").mkdir()
-    (root / "DEBIAN" / "control").write_text(deb_control(ver, size // 1024 + 1),
+    deb_arch = linux_arch()[1]
+    (root / "DEBIAN" / "control").write_text(deb_control(ver, size // 1024 + 1, deb_arch),
                                              encoding="utf-8")
-    out = DIST / f"jobdork_{ver}_amd64.deb"
+    out = DIST / f"jobdork_{ver}_{deb_arch}.deb"
     out.unlink(missing_ok=True)
     run("dpkg-deb", "--root-owner-group", "-Zxz", "--build", root, out)
     return out
@@ -380,7 +488,7 @@ def main() -> int:
         built = [dmg(ver)]
     elif sys.platform == "win32":
         built = [windows_installer(ver)]
-    elif platform.machine() == "x86_64":
+    elif platform.machine() in ("x86_64", "aarch64", "arm64"):
         built = [appimage(ver), deb(ver)]
     else:
         print(f"Linux on {platform.machine()} is not packaged; the build is in dist/jobdork/.")

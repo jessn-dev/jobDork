@@ -112,10 +112,33 @@ def test_the_linux_packages_say_what_they_are_and_what_they_need():
             name = alt.split(" (")[0]
             assert name and name == name.strip() and " " not in name, dep
     assert "libxcb-cursor0" in fields["Depends"] and "libnss3" in fields["Depends"]
+    assert fields["Depends"].startswith("libc6 (>= 2.35)")
+    # ARM64 (from 0.16.4): its own architecture and the glibc its Qt needs.
+    arm = dict(line.split(": ", 1) for line in build.deb_control("1.2.3", 1, "arm64").splitlines()
+               if not line.startswith(" "))
+    assert arm["Architecture"] == "arm64" and arm["Depends"].startswith("libc6 (>= 2.39)")
+    assert build.linux_arch("aarch64")[:2] == ("aarch64", "arm64")
+    assert build.linux_arch("x86_64")[:2] == ("x86_64", "amd64")
+    assert "libasound2t64" in build.build_packages(t64=True)
+    assert "libasound2" in build.build_packages(t64=False)
     assert build.APPRUN.startswith("#!/bin/sh") and "usr/lib/jobdork/jobdork" in build.APPRUN
+    # What software centres show: icon and screenshots (2026-11-11: a generic
+    # gear and "No Screenshots" without it).
+    import xml.etree.ElementTree as ET
+    meta = ET.fromstring(build.metainfo("1.2.3", "2026-11-11"))
+    assert meta.get("type") == "desktop-application" and meta.findtext("id") == build.APP_ID
+    assert meta.find("launchable").text == "jobdork.desktop"
+    assert {i.get("type") for i in meta.findall("icon")} == {"stock", "remote"}
+    shots = [s.find("image").text for s in meta.find("screenshots")]
+    assert len(shots) == len(build.SCREENSHOTS) and all("/v1.2.3/guide/docs/images/" in s for s in shots)
+    for name, _ in build.SCREENSHOTS:
+        assert (ROOT / "guide" / "docs" / "images" / f"{name}.png").is_file(), name
+    assert meta.find("releases/release").get("version") == "1.2.3"
     # Ubuntu 24.04's real ALSA first: its "libasound2" is also a stand-in's.
     assert "libasound2t64 | libasound2" in fields["Depends"]
-    pkgs = build.build_packages()
+    # The x86-64 build machine's names (Ubuntu 22.04); named, since the
+    # machine running this test may be 24.04.
+    pkgs = build.build_packages(t64=False)
     assert "libasound2" in pkgs and "libglib2.0-0" in pkgs and not any(p.endswith("t64") for p in pkgs)
 
 
