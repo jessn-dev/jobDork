@@ -35,6 +35,7 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 CHANGELOG = "docs/CHANGELOG.md"
 BUDGET = 105_000
@@ -123,6 +124,24 @@ def notes(tag: str, previous: str = "") -> str:
     return "\n".join(out)
 
 
+# jobdork's GPG key for the Linux installers (docker.yml, sign-linux): the
+# release page tells how to check their .asc files once its public half is
+# in the repository, and says nothing of them before.
+SIGNING_KEY = Path(__file__).resolve().parent.parent / "packaging" / "jobdork-signing-key.asc"
+
+
+def gpg_lines(tag: str, appimage: str) -> list[str]:
+    if not SIGNING_KEY.is_file():
+        return []
+    raw = REPO.replace("github.com", "raw.githubusercontent.com")
+    return ["The Linux installers are signed with jobdork's GPG key too, as `<installer>.asc`, "
+            f"its public half [in the repository]({REPO}/blob/{tag}/packaging/jobdork-signing-key.asc):",
+            "", "```bash",
+            f"curl -fsSL {raw}/{tag}/packaging/jobdork-signing-key.asc | gpg --import",
+            f"gpg --verify {appimage}.asc {appimage}",
+            "```", ""]
+
+
 def page(tag: str, image: str, digest: str, previous: str = "") -> str:
     """The whole release page: downloads, first opening, checking, changes."""
     version = tag.removeprefix("v")
@@ -179,6 +198,7 @@ def page(tag: str, image: str, digest: str, previous: str = "") -> str:
         f"gh attestation verify {mac} --bundle {mac}.sigstore.json "
         f"--repo {REPO.removeprefix('https://github.com/')}",
         "```", "",
+        *gpg_lines(tag, appimage),
         f"The image `{image}:{version}` is exactly:", "",
         "```", f"{image}@{digest}", "```", "",
         "Built, scanned, checked and signed by this repository's workflow after approval.",

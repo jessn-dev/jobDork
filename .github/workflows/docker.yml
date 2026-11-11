@@ -14,6 +14,10 @@ name: "CI: test, scan and build every change; release on a tag"
 #   secret   DOCKERHUB_TOKEN      in the `release` environment: a Docker Hub
 #                                 personal access token with the Read & Write
 #                                 scope (not Delete), used for nothing else
+#   secret   LINUX_GPG_KEY        in the `release` environment: jobdork's GPG
+#   secret   LINUX_GPG_PASSPHRASE signing key (armoured) and its passphrase,
+#                                 for the Linux installers' .asc signatures;
+#                                 its public half is packaging/jobdork-signing-key.asc
 # The account name is a variable rather than a secret: it is part of the
 # image name, which a secret would mask in the logs and blank out on pull
 # requests from forks.
@@ -247,7 +251,7 @@ jobs:
           fi
           # The build's own files, its locked dependencies and the version,
           # the two workflows, and the code only the installed app runs.
-          if printf '%s\n' "$files" | grep -qE '^(packaging/|requirements-desktop\.lock$|pyproject\.toml$|\.github/workflows/(desktop|docker)\.yml$|jobdork/web/app\.py$|jobdork/core/(updates|notify|keystore|uninstall)\.py$)'; then
+          if printf '%s\n' "$files" | grep -qE '^(packaging/|scripts/gpg_sign\.sh$|requirements-desktop\.lock$|pyproject\.toml$|\.github/workflows/(desktop|docker)\.yml$|jobdork/web/app\.py$|jobdork/core/(updates|notify|keystore|uninstall)\.py$)'; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -379,15 +383,98 @@ jobs:
           DIGEST: ${{ steps.push.outputs.digest }}
         run: echo "Published $ACCOUNT/jobdork@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
 
+  # The signing, tried on every change that builds the installers: the same
+  # script the release uses, with a key made here and thrown away, so a
+  # broken signing step shows on its pull request, not on release day.
+  gpg-check:
+    name: "Installers: GPG signing works (a throwaway key)"
+    needs: desktop
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Fetch the Linux installers
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: desktop-Linux-*
+          path: installers
+          merge-multiple: true
+
+      - name: Sign with a throwaway key and check against its public half
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/throwaway"
+          mkdir -m 700 "$GNUPGHOME"
+          gpg --batch --pinentry-mode loopback --passphrase 'ci-only' \
+            --quick-gen-key 'jobdork CI test <ci@example.invalid>' ed25519 sign 1d
+          gpg --armor --export > "$RUNNER_TEMP/test-public.asc"
+          JOBDORK_GPG_KEY=$(gpg --batch --pinentry-mode loopback --passphrase 'ci-only' \
+            --armor --export-secret-keys)
+          export JOBDORK_GPG_KEY JOBDORK_GPG_PASSPHRASE=ci-only
+          unset GNUPGHOME
+          sh scripts/gpg_sign.sh installers "$RUNNER_TEMP/test-public.asc"
+          ls -l installers/*.asc
+
+  # The Linux installers signed with jobdork's GPG key (scripts/gpg_sign.sh):
+  # an .asc beside each, checked against the public key in the repository.
+  # In the `release` environment with publish, so the one approval covers
+  # both and the key is only handed to a run you approved. Without the key
+  # set, it says so and the release goes out with no .asc files.
+  sign-linux:
+    name: "Release: sign the Linux installers with GPG (after your approval)"
+    needs: [image, desktop]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Fetch the Linux installers desktop.yml built
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: desktop-Linux-*
+          path: installers
+          merge-multiple: true
+
+      - name: Sign them, and check each signature against the public key
+        # Through the environment, not expanded into the script (zizmor).
+        env:
+          JOBDORK_GPG_KEY: ${{ secrets.LINUX_GPG_KEY }}
+          JOBDORK_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+        run: |
+          if [ -z "$JOBDORK_GPG_KEY" ]; then
+            echo "::warning::LINUX_GPG_KEY is not set in the release environment: the Linux installers go out without .asc signatures"
+            exit 0
+          fi
+          sh scripts/gpg_sign.sh installers
+
+      - name: Keep the signatures
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-signatures
+          path: installers/*.asc
+          if-no-files-found: ignore
+          retention-days: 7
+
   # A GitHub Release page for the version: the exact image, the desktop
   # installers, how to verify them, and what changed. A separate job, because
   # it needs to write to the repository and publishing must not.
   release-page:
     name: "Release: create the GitHub Release page"
-    needs: [publish, desktop]
+    needs: [publish, desktop, sign-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      discussions: write     # the release's announcement in Discussions
     steps:
       # The whole history: what changed is read from the changelog at this
       # tag and at the release before it.
@@ -403,6 +490,15 @@ jobs:
           pattern: desktop-*
           path: installers
           merge-multiple: true
+
+      # The .asc signatures sign-linux made, when the key is set; none
+      # otherwise, which is not a reason to hold the release up.
+      - name: Fetch the Linux installers' GPG signatures
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: linux-signatures
+          path: installers
 
       - name: Checksums for the installers
         working-directory: installers
@@ -423,8 +519,12 @@ jobs:
         run: |
           version="${TAG#v}"
           python3 scripts/release_notes.py --page "$TAG" "$IMAGE" "$DIGEST" > notes.md
+          # --discussion-category: the release is also announced in the
+          # repository's Discussions, under Announcements, with the same
+          # text, so people following the project hear of it there.
           gh release create "$TAG" --repo "$REPO" --title "jobdork $version" \
-            --notes-file notes.md --verify-tag installers/*
+            --notes-file notes.md --verify-tag --discussion-category Announcements \
+            installers/*
 
       # The WinGet manifest for this release (scripts/winget_manifest.py),
       # from the checksums above and the tag's installer script: nothing is
