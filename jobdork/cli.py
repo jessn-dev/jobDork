@@ -459,6 +459,9 @@ def cmd_add(args) -> int:
               file=sys.stderr)
         return 1
 
+    if args.applied_on:
+        return _add_applied(cfg, urls, args)
+
     fetcher = Fetcher(cfg.fetch.user_agent, cfg.fetch.timeout, cfg.fetch.retries)
     home = screen.home_of(cfg)
     tally = {"added": 0, "updated": 0, "failed": 0}
@@ -473,6 +476,26 @@ def cmd_add(args) -> int:
         print(f"\n{tally['added']} added, {tally['updated']} updated, "
               f"{tally['failed']} could not be read")
     return 0 if tally["added"] or tally["updated"] else 1
+
+
+def _add_applied(cfg, urls: list[str], args) -> int:
+    """`jobdork add --applied-on DAY`: each post read in and marked applied
+    on that day, as the page's form does (api.add_post)."""
+    from .web import api
+
+    done = 0
+    for url in urls:
+        try:
+            got = api.add_post(cfg, {"url": url, "token": args.token, "company": args.company,
+                                     "applied_on": args.applied_on})
+        except api.ApiError as exc:
+            print(f"  failed   {url}: {exc}", file=sys.stderr)
+            continue
+        done += 1
+        word = "applied" if got.get("tracked") else f"left at {got.get('status')}"
+        print(f"  {word:8} {got.get('uid', '')}  {got.get('title', '')} at "
+              f"{got.get('company', '')}, {got.get('applied_on', '')}")
+    return 0 if done else 1
 
 
 def cmd_ollama_code(args) -> int:
@@ -1526,6 +1549,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--token", default="",
                    help="board token, when the URL does not carry one")
     p.add_argument("--company", default="")
+    p.add_argument("--applied-on", default="", metavar="YYYY-MM-DD",
+                   help="you applied already: mark it applied on that day, as "
+                        "My applications' Add a job post does")
     p.set_defaults(func=cmd_add)
 
     p = subs.add_parser("generate", parents=[over],

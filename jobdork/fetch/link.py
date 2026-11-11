@@ -37,7 +37,17 @@ from .boards import clean
 
 
 class LinkError(Exception):
-    """Nothing could be read from the link; the message says why."""
+    """Nothing could be read from the link; the message says why. `found`
+    holds what was read anyway (title, company, location), for the form
+    that asks for the rest."""
+
+    def __init__(self, message: str, found: dict | None = None):
+        super().__init__(message)
+        self.found = found or {}
+
+
+# Shorter than this is a title, not an advert: nothing to score against.
+MIN_ADVERT = 200
 
 
 # Boards whose token is in the address. Each is read whole and the post found.
@@ -71,8 +81,23 @@ def platform_for(url: str) -> tuple[str, str]:
 def read(fetcher, cfg, url: str, token: str = "", company: str = "") -> Role:
     """The job post at `url`, read the best way its system allows.
 
-    Raises LinkError when nothing could be read, saying what was tried.
+    Raises LinkError when nothing could be read, saying what was tried, and
+    when the page gave the job's title but not its advert: a page marked up
+    for search engines with no description was stored with an empty advert,
+    tracked and listed with nothing to score against, and no word of it
+    (2026-11-09). The error carries what was found, so the form asking for
+    the advert starts filled in.
     """
+    role = _read(fetcher, cfg, url, token, company)
+    if len((role.description or "").strip()) < MIN_ADVERT:
+        raise LinkError(
+            "the page names the job but carries no advert to read",
+            {"title": role.title or "", "company": role.company or "",
+             "location": role.location_raw or "", "url": role.url or url})
+    return role
+
+
+def _read(fetcher, cfg, url: str, token: str = "", company: str = "") -> Role:
     url = canonical_url((url or "").strip())
     if not url.startswith(("http://", "https://")):
         raise LinkError("give the job post's address, starting https://")

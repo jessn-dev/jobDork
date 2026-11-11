@@ -268,6 +268,108 @@ def test_tracking_from_a_link_reads_it_and_a_page_it_cannot_read_asks_for_more()
             link.read = real
 
 
+
+def test_a_link_that_names_the_job_but_gives_no_advert_asks_for_it():
+    """2026-11-09: a page marked up for search engines with no description
+    was tracked with an empty advert and nothing said. Now the form is asked
+    for the advert, filled with what the link gave."""
+    from jobdork.fetch import link
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _track_cfg(tmp)
+        real = link._read
+        # lambda: a page that gives the job's title and place and no advert.
+        link._read = lambda *a, **k: Role(platform="site", company="Acme", title="ICU Nurse",
+                                          url="https://a.test/9", location_raw="Austin, TX",
+                                          description="Apply now")
+        try:
+            for call in (lambda: api.track_application(cfg, {"url": "https://a.test/9"}),
+                         lambda: api.add_post(cfg, {"url": "https://a.test/9"})):
+                try:
+                    call()
+                except api.ApiError as exc:
+                    assert exc.status == 422 and "no advert" in str(exc), exc
+                    assert exc.found == {"title": "ICU Nurse", "company": "Acme",
+                                         "location": "Austin, TX", "url": "https://a.test/9"}
+                else:
+                    raise AssertionError("an empty advert was stored")
+            with Store(cfg.db_path) as store:
+                assert store.list_roles(include_settled=True) == [], "nothing stored"
+        finally:
+            link._read = real
+
+
+def test_one_form_adds_a_post_or_tracks_it_when_you_applied():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _track_cfg(tmp)
+        added = api.add_post(cfg, {"url": "https://a.test/1", "title": "ICU Nurse",
+                                   "company": "Acme", "text": ADVERT})
+        assert added["added"] and "tracked" not in added
+        today = datetime.date.today().isoformat()
+        tracked = api.add_post(cfg, {"url": "https://a.test/2", "title": "Charge Nurse",
+                                     "company": "Acme", "text": ADVERT, "applied_on": today})
+        assert tracked["tracked"] and tracked["applied_on"] == today
+        with Store(cfg.db_path) as store:
+            statuses = {r["company"] + r["title"]: r["status"] or "new"
+                        for r in store.list_roles(include_settled=True)}
+        assert statuses == {"AcmeICU Nurse": "new", "AcmeCharge Nurse": "applied"}
+
+
+def test_the_documents_you_sent_are_kept_with_the_post_and_read_by_its_tools():
+    import os
+
+    from jobdork.ai import writer
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _track_cfg(tmp)
+        was = os.environ.get("JOBDORK_DOCS_DIR")
+        os.environ["JOBDORK_DOCS_DIR"] = tmp            # never the real ~/Documents
+        try:
+            done = api.add_post(cfg, {"url": "https://a.test/3", "title": "ICU Nurse",
+                                      "company": "Acme", "text": ADVERT,
+                                      "applied_on": datetime.date.today().isoformat()})
+            uid = done["uid"]
+            sent = b"# Jane Doe\n\nICU nurse. RN licence. Epic and telemetry.\n"
+            first = api.save_sent_document(cfg, uid, "sent_resume", "my cv.md", sent)
+            assert first["name"] == "sent-resume.md" and Path(first["path"]).is_file()
+            again = api.save_sent_document(cfg, uid, "sent_resume", "cv.txt", sent)
+            assert again["id"] == first["id"], "a new upload keeps the record"
+            assert not Path(first["path"]).exists(), "and replaces the file"
+            for bad in ("x.exe", ""):
+                # lambda: deferred, so _refused can catch what the call raises.
+                _refused(lambda bad=bad: api.save_sent_document(cfg, uid, "sent_resume", bad, sent),
+                         "not a format")
+            # lambda: deferred, as above.
+            _refused(lambda: api.save_sent_document(cfg, uid, "notes", "x.md", sent), "kind is")
+            _refused(lambda: api.save_sent_document(cfg, "../etc", "sent_resume", "x.md", sent),
+                     "not a job post")
+            with Store(cfg.db_path) as store:
+                detail = api.application_detail(store, uid, [dict(r) for r in store.artifacts(uid)])
+                assert [r["kind"] for r in detail["resumes"]] == ["sent_resume"]
+                assert "Epic and telemetry" in writer._resume_text(cfg, store, uid)
+            api.save_application(cfg, {"uid": uid, "resume_id": str(again["id"])})
+            text = api.artifact_text(cfg, again["id"])["text"]
+            assert "RN licence" in text
+        finally:
+            if was is None:
+                os.environ.pop("JOBDORK_DOCS_DIR", None)
+            else:
+                os.environ["JOBDORK_DOCS_DIR"] = was
+
+
+def test_jobdork_add_applied_on_marks_each_post_applied():
+    from types import SimpleNamespace
+
+    from jobdork import cli
+    calls, real = [], api.add_post
+    # lambda: records what the CLI asks for instead of reading a link.
+    api.add_post = lambda cfg, form: calls.append(form) or {
+        "uid": "abc", "title": "T", "company": "C", "tracked": True, "applied_on": form["applied_on"]}
+    try:
+        code = cli._add_applied(object(), ["https://a.test/1", "https://a.test/2"],
+                                SimpleNamespace(token="", company="", applied_on="2026-11-01"))
+    finally:
+        api.add_post = real
+    assert code == 0 and [c["applied_on"] for c in calls] == ["2026-11-01", "2026-11-01"]
+
 if __name__ == "__main__":
     failures = 0
     tests = [(name, fn) for name, fn in sorted(globals().items())

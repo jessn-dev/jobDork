@@ -57,11 +57,13 @@ MAX_ADVERT_CHARS = 80_000
 
 
 class ApiError(Exception):
-    """Something the page asked for that cannot be done. Carries a status."""
+    """Something the page asked for that cannot be done. Carries a status,
+    and `found`: what was read anyway, for a form that asks for the rest."""
 
-    def __init__(self, message: str, status: int = 400):
+    def __init__(self, message: str, status: int = 400, found: dict | None = None):
         super().__init__(message)
         self.status = status
+        self.found = found or {}
 
 
 # ── reading ───────────────────────────────────────────────────────────────────
@@ -592,13 +594,12 @@ def list_projects(cfg) -> dict:
 def role_ats(cfg, uid: str) -> dict:
     """A job post's ATS match (search/ats.py): your resume file against its
     advert, and the advert's skills you have, could add, and lack."""
+    from ..ai.writer import sent_resume_text
     from ..db.store import Store
     from ..search import ats
     from ..search import resume as resume_mod
     from ..writing import resume_doc
 
-    if not cfg.resume_path:
-        raise ApiError("no resume uploaded: upload one on the Resume page", 404)
     with Store(cfg.db_path) as store:
         row = store.conn.execute("SELECT title, description FROM roles WHERE uid = ?",
                                  (str(uid),)).fetchone()
@@ -606,13 +607,18 @@ def role_ats(cfg, uid: str) -> dict:
             raise ApiError("no such job post", 404)
         notes = resume_doc.store_notes(store)
         confirmed = store.confirmed_skills()
+        # The resume you sent for it, when you uploaded one: the match the
+        # employer's system made, not the one your current resume would.
+        sent = sent_resume_text(store, str(uid))
+    if not sent and not cfg.resume_path:
+        raise ApiError("no resume uploaded: upload one on the Resume page", 404)
     try:
-        text = resume_mod.load(cfg.resume_path).text
+        text = sent or resume_mod.load(cfg.resume_path).text
     except resume_mod.ResumeError as exc:
         raise ApiError(str(exc)) from None
     found = ats.match(text, f"{text}\n\n{notes}" if notes else text,
                       row["description"] or "", row["title"] or "")
-    return {**found.to_dict(), "confirmed": confirmed,
+    return {**found.to_dict(), "confirmed": confirmed, "sent": bool(sent),
             "advert_chars": len(row["description"] or "")}
 
 
@@ -663,6 +669,12 @@ def list_applications(cfg) -> dict:
             "overdue": sum(1 for a in out if a["overdue"])}
 
 
+# What an application's "Documents sent" can name: drafts jobdork wrote for
+# the post, and the files you uploaded as what you sent.
+APP_RESUME_KINDS = ("tailored_resume", "cv", "sent_resume")
+APP_LETTER_KINDS = ("cover_letter", "sent_letter")
+
+
 def application_detail(store, uid: str, artifacts: list[dict]) -> dict:
     """One job post's application, for its window's Application tab: the
     statuses it went through, what you keep about it and its notes."""
@@ -685,8 +697,8 @@ def application_detail(store, uid: str, artifacts: list[dict]) -> dict:
         "notes": [{"id": n["id"], "stage": n["stage"], "note": n["note"], "at": n["at"], "by": n["by"]}
                   for n in store.application_notes(uid)],
         # What could have been sent: this post's resumes and cover letters.
-        "resumes": [a for a in artifacts if a["kind"] in ("tailored_resume", "cv")],
-        "letters": [a for a in artifacts if a["kind"] == "cover_letter"],
+        "resumes": [a for a in artifacts if a["kind"] in APP_RESUME_KINDS],
+        "letters": [a for a in artifacts if a["kind"] in APP_LETTER_KINDS],
     }
 
 
@@ -715,7 +727,7 @@ def save_application(cfg, form: dict) -> dict:
         if store.get(uid) is None:
             raise ApiError("no such job post", 404)
         mine = {a["id"]: a["kind"] for a in store.artifacts(uid)}
-        for key, kinds in (("resume_id", ("tailored_resume", "cv")), ("letter_id", ("cover_letter",))):
+        for key, kinds in (("resume_id", APP_RESUME_KINDS), ("letter_id", APP_LETTER_KINDS)):
             raw = str(form.get(key) or "")
             if raw and not (raw.isdigit() and mine.get(int(raw)) in kinds):
                 raise ApiError("not a document of this job post")
@@ -948,11 +960,23 @@ def artifact_text(cfg, artifact_id: int) -> dict:
     return {
         "id": row["id"], "uid": row["uid"], "kind": row["kind"],
         "path": str(path),
-        "text": path.read_text(encoding="utf-8", errors="replace"),
+        "text": _document_text(row["kind"], path),
         "gates": gates,
         "output": {"id": output["id"], "feedback": output["feedback"]}
         if output else None,
     }
+
+
+def _document_text(kind: str, path: Path) -> str:
+    """A document's text: a file you uploaded as what you sent (a PDF or
+    Word file, say) read as the resume reader reads it; a draft as written."""
+    if kind in SENT_KINDS:
+        from ..search import resume as resume_mod
+        try:
+            return resume_mod.load(str(path)).text
+        except resume_mod.ResumeError as exc:
+            raise ApiError(f"the file you uploaded no longer reads: {exc}", 410) from None
+    return path.read_text(encoding="utf-8", errors="replace")
 
 
 # Documents that have a PDF beside them, under the same name.
@@ -1215,8 +1239,10 @@ def add_by_url(cfg, url: str, token: str = "", company: str = "") -> dict:
     try:
         wanted = link.read(fetcher, cfg, url, token, company)
     except link.LinkError as exc:
-        # 422: the page offers to take the advert's text pasted in instead.
-        raise ApiError(f"{exc}. Paste the advert's text below to add it anyway.", 422) from exc
+        # 422: the page offers to take the advert's text pasted in instead,
+        # with what the link gave already filled in.
+        raise ApiError(f"{exc}. Paste the advert's text below to add it anyway.", 422,
+                       found=exc.found) from exc
     return _store_added(cfg, wanted)
 
 
@@ -1244,6 +1270,79 @@ def add_by_text(cfg, url: str, title: str, company: str, location: str,
 
 # Statuses past "applied": tracking an application leaves these as they are.
 FURTHER_THAN_APPLIED = ("interviewing", "offer")
+
+
+def add_post(cfg, form: dict) -> dict:
+    """The one "Add a job post" form (Job posts and My applications): a link,
+    or a pasted advert when the link cannot be read; with `applied_on`, also
+    marked applied on that day (track_application). Add and Track were two
+    forms doing the same reading (2026-11-09)."""
+    def get(key: str) -> str:
+        return str(form.get(key) or "").strip()
+
+    if get("applied_on"):
+        return track_application(cfg, form)
+    if get("text"):
+        return add_by_text(cfg, get("url"), get("title"), get("company"),
+                           get("location"), get("text"))
+    return add_by_url(cfg, get("url"), get("token"), get("company"))
+
+
+# Documents you sent with an application, uploaded for its post: kinds as
+# recorded in artifacts, and the file name each is kept under.
+SENT_KINDS = {"sent_resume": "sent-resume", "sent_letter": "sent-cover-letter"}
+
+
+def save_sent_document(cfg, uid: str, kind: str, filename: str, payload: bytes) -> dict:
+    """A resume or cover letter you sent, uploaded for one job post: kept in
+    its folder, read back to be sure it reads, and recorded as its document.
+    "Documents sent" could only name drafts jobdork wrote (2026-11-09)."""
+    from ..db.store import Store
+    from ..search import resume as resume_mod
+    from ..writing import generate
+
+    if not UID.match(uid or ""):
+        raise ApiError("not a job post id")
+    if kind not in SENT_KINDS:
+        raise ApiError("kind is sent_resume or sent_letter")
+    if not payload:
+        raise ApiError("empty upload")
+    if len(payload) > MAX_RESUME_BYTES:
+        raise ApiError(f"{len(payload) / 1e6:.1f}MB is over the "
+                       f"{MAX_RESUME_BYTES // 1_000_000}MB limit")
+    given = Path(filename or "").suffix.lower()
+    suffix = next((s for s in RESUME_SUFFIXES if s == given), None)
+    if suffix is None:
+        raise ApiError(f"{given or 'that'} is not a format jobdork reads. "
+                       f"Use {', '.join(RESUME_SUFFIXES)}.")
+    with Store(cfg.db_path) as store:
+        row = store.get(uid)
+        if row is None:
+            raise ApiError("no such job post", 404)
+        folder = generate.folder_for(row)
+        folder.mkdir(parents=True, exist_ok=True)
+        # Our name and our suffix: the browser's name only chose the suffix.
+        target = folder / f"{SENT_KINDS[kind]}{suffix}"
+        target.write_bytes(payload)
+        try:
+            resume_mod.load(str(target))
+        except resume_mod.ResumeError as exc:
+            target.unlink(missing_ok=True)
+            raise ApiError(f"saved nothing: {exc}") from exc
+        for old in folder.glob(f"{SENT_KINDS[kind]}.*"):
+            if old != target:
+                old.unlink(missing_ok=True)
+        # One of each kind per post: a new upload replaces the file and keeps
+        # the record, so an application that names it still does.
+        old = store.artifacts(uid, kind)
+        if old:
+            doc_id = old[0]["id"]
+            store.conn.execute("UPDATE artifacts SET path = ?, created_at = ? WHERE id = ?",
+                               (str(target), time.strftime("%Y-%m-%dT%H:%M:%S"), doc_id))
+        else:
+            doc_id = store.add_artifact(uid, kind, str(target))
+        store.conn.commit()
+    return {"id": doc_id, "kind": kind, "path": str(target), "name": target.name}
 
 
 def track_application(cfg, form: dict) -> dict:

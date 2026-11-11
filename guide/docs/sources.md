@@ -36,18 +36,22 @@ both.
 ## Add a job post
 
 Found a post yourself, anywhere? Paste its link and **Add**: it is read into
-[Job posts](job-posts.md) like any scanned post, with the whole advert.
+[Job posts](job-posts.md) like any scanned post, with the whole advert. Tick
+**I already applied** and it is also marked *applied* on the day you give
+and listed on [My applications](applications.md#add-a-job-post-you-applied-to),
+where the same form starts ticked, with the files you sent.
 
 - A post on Greenhouse, Lever, Ashby, Breezy, SmartRecruiters, Workday,
   Oracle, Eightfold or Taleo Enterprise comes in whole.
 - Any other page is read from what it publishes for search engines, which
   most careers sites do.
-- When a page cannot be read (it is drawn by script, or it keeps the post
-  behind a login), jobdork says why and opens a form: paste the advert's
-  text, with its title, employer and place, and **Add from the text**.
+- When a page cannot be read (it is drawn by script, it keeps the post
+  behind a login, or it names the job but carries no advert), jobdork says
+  why and opens more fields, filled with whatever the link gave: paste the
+  advert's text, check the title, employer and place, and **Add** again.
 
 A Greenhouse post on the employer's own site (`?gh_jid=` in the link) can
-also be read with its board name, typed in the box beside the link.
+also be read with its board name: open **More options** and type it there.
 
 ## Employer boards
 

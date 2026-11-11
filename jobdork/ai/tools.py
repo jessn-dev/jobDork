@@ -503,7 +503,7 @@ def run(cfg, store, uid: str, kind: str, text: str = "", progress=None) -> ToolR
     if kind not in TOOLS:
         raise LLMError(f"no tool called {kind!r}")
     settings = _settings(cfg)
-    resume_text = _resume_text(cfg)
+    resume_text = _resume_text(cfg, store, uid)
     row = _row(store, uid)
     if progress:
         progress(f"{settings.label}: {TOOLS[kind].lower()} for {row['title']} "
