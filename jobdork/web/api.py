@@ -1650,11 +1650,6 @@ def _percentile(values: list[float], p: float) -> float | None:
     return ordered[max(0, math.ceil(p / 100 * len(ordered)) - 1)]
 
 
-# The model that checked an output's claims, from its guard report.
-CHECKER_SQL = ("COALESCE(NULLIF(json_extract(guard_json, '$.model'), ''), "
-               "'unknown checker')")
-
-
 def metrics(cfg, days: int = 30) -> dict:
     """The Dashboard's numbers for the last `days` days, and a day-by-day split.
 
@@ -1686,8 +1681,9 @@ def metrics(cfg, days: int = 30) -> dict:
         outputs = conn.execute(
             "SELECT kind, COALESCE(NULLIF(model, ''), 'unknown model') AS model, "
             "substr(created_at, 1, 10) AS day, claims, unsupported, "
-            "checked, feedback, " + CHECKER_SQL + " AS checker "
-            "FROM ai_outputs WHERE created_at >= ?",
+            "checked, feedback, "
+            "COALESCE(NULLIF(json_extract(guard_json, '$.model'), ''), 'unknown checker') "
+            "AS checker FROM ai_outputs WHERE created_at >= ?",
             (since,)).fetchall()
         # Every model that has had output checked, in the order first used.
         # That order is the colour order, so a model keeps its colour when
@@ -1698,7 +1694,8 @@ def metrics(cfg, days: int = 30) -> dict:
         # The checkers the same way: which model marked the claims decides
         # the rate as much as the one that wrote them (2026-11-10).
         checkers = [r[0] for r in conn.execute(
-            "SELECT " + CHECKER_SQL + ", MIN(created_at) "
+            "SELECT COALESCE(NULLIF(json_extract(guard_json, '$.model'), ''), "
+            "'unknown checker'), MIN(created_at) "
             "FROM ai_outputs WHERE checked = 1 GROUP BY 1 ORDER BY 2")]
         first_output = conn.execute(
             "SELECT MIN(created_at) FROM ai_outputs").fetchone()[0] or ""
