@@ -23,6 +23,13 @@ services:
       # The NAS's home-network address and its Tailscale name, comma separated.
       # Nothing else is let in, and a wildcard is refused.
       JOBDORK_ALLOW_HOSTS: "192.168.1.50,my-nas.tail1234.ts.net"
+      # The Tailscale name works as it is: its traffic is encrypted. The
+      # home-network address is opened only over HTTPS (a certificate and key
+      # mapped in and named here) or with plain HTTP accepted, since the
+      # access token would otherwise cross your network readable.
+      # JOBDORK_TLS_CERT: /app/data/tls/cert.pem
+      # JOBDORK_TLS_KEY: /app/data/tls/key.pem
+      # JOBDORK_ALLOW_HTTP: "1"
       # For a shared machine where nothing personal should outlive a run:
       # the resume and letters go to a folder emptied at every start and stop.
       # JOBDORK_TEMP_DOCS: /tmp/jobdork

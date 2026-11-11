@@ -41,6 +41,8 @@ class Session:
     host: str
     port: int
     token: str
+    # "https" when the dashboard is opened to the network with a certificate.
+    scheme: str = "http"
     # What the browser is opened with instead of the token: the address
     # handed to the system's "open" command is in its command line, which
     # any program on the computer can read (Claude Security F11,
@@ -50,7 +52,7 @@ class Session:
 
     @property
     def origin(self) -> str:
-        return f"http://{self.host}:{self.port}"
+        return f"{self.scheme}://{self.host}:{self.port}"
 
     @property
     def url(self) -> str:
@@ -92,10 +94,11 @@ def free_port(host: str = "127.0.0.1", preferred: int = 0) -> int:
 
 
 def new_session(host: str = "127.0.0.1", preferred_port: int = 0,
-                token: str = "") -> Session:
+                token: str = "", scheme: str = "http") -> Session:
     """Mint a session. `token` is only passed in by a parent that supplied one."""
     return Session(
         host=host,
         port=free_port(host, preferred_port),
         token=token or secrets.token_urlsafe(TOKEN_BYTES),
+        scheme=scheme,
     )
