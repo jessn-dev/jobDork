@@ -3725,8 +3725,50 @@ def newer_version(cfg=None, force: bool = False) -> dict:
     found["can_install"] = bool(found.get("installer"))
     if found.get("newer") and cfg is not None and updates.first_notice(folder, found["latest"]):
         notify.notify(cfg, f"jobdork {found['latest']} is out",
-                      f"You have {found['current']}. Settings, Updates installs it.")
+                      f"You have {found['current']}. Settings, Updates installs it.",
+                      kind="update")
     return found
+
+
+def notifications_unseen(cfg) -> int:
+    """How many notifications the Notifications page has not shown yet."""
+    from ..db.store import Store
+
+    if not Path(cfg.db_path).is_file():        # before setup: none, and no database made
+        return 0
+    try:
+        with Store(cfg.db_path) as store:
+            return store.notifications_unseen()
+    except Exception:          # a newer database: no count
+        return 0
+
+
+def notifications_list(cfg) -> dict:
+    """Every notification jobdork kept, newest first, for the Notifications page."""
+    from ..db.store import Store
+
+    if not Path(cfg.db_path).is_file():
+        return {"notifications": [], "unseen": 0}
+    with Store(cfg.db_path) as store:
+        return {"notifications": store.notifications(), "unseen": store.notifications_unseen()}
+
+
+def notifications_seen(cfg) -> dict:
+    from ..db.store import Store
+
+    if Path(cfg.db_path).is_file():
+        with Store(cfg.db_path) as store:
+            store.see_notifications()
+    return {"unseen": 0}
+
+
+def notifications_clear(cfg) -> dict:
+    from ..db.store import Store
+
+    if not Path(cfg.db_path).is_file():
+        return {"cleared": 0}
+    with Store(cfg.db_path) as store:
+        return {"cleared": store.clear_notifications()}
 
 
 def notify_test(cfg) -> dict:

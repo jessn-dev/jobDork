@@ -135,5 +135,9 @@ if sys.platform == "darwin":
             "CFBundleShortVersionString": VERSION,
             "NSHighResolutionCapable": True,
             "LSMinimumSystemVersion": "12.0",
+            # Notifications as Alerts, which stay until closed, rather than
+            # banners, which go in seconds (asked 2026-11-11). The default
+            # only: System Settings, Notifications, jobdork can change it.
+            "NSUserNotificationAlertStyle": "alert",
         },
     )

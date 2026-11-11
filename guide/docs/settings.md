@@ -61,11 +61,30 @@ notification** checks they reach you. (On a Mac the desktop app asks
 your permission when its window first opens; in Docker, the page rings a
 bell while it is open instead.)
 
+A notification stays on screen until you close it: on Windows it has a
+**Dismiss** button, on Linux it is marked urgent (most desktops keep those),
+and the Mac app's notifications are Alerts. A Mac lets you change that in
+**System Settings → Notifications → jobdork**, and notifications from
+jobdork run outside the app (in Terminal) go as banners, which macOS closes
+by itself.
+
 Clicking a notification from the desktop app opens jobdork, or brings its
 window to the front when it is open already. On Linux that needs a
 `notify-send` with actions (most desktops since 2021); older ones show the
 notification without the click. If a Mac shows no notifications at all,
 allow jobdork in **System Settings → Notifications**.
+
+## The Notifications page {#notifications-page}
+
+**Notifications**, in the menu, lists every notification jobdork sent,
+newest first, with when: the ones you closed, and the ones this computer
+could not show (in Docker, say). A count beside it says how many you have
+not seen. Click one to open what it was about (new job posts open Job
+posts, a follow-up My applications, a failed scan the Dashboard). **Clear
+all** empties the list. With none, the page says only "You have no
+notifications from jobdork". It keeps the newest 500.
+
+![Notifications](images/notifications.png)
 
 ## Your keys
 

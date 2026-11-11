@@ -67,7 +67,8 @@ def test_every_page_of_the_menu_has_a_page_in_the_guide():
     page_for = {"scan": "dashboard.md", "roles": "job-posts.md", "apps": "applications.md",
                 "settings": "search.md",
                 "resume": "resume.md", "sources": "sources.md", "ai": "ai.md",
-                "ask": "ask.md", "tools": "feedback.md", "prefs": "settings.md"}
+                "ask": "ask.md", "tools": "feedback.md", "prefs": "settings.md",
+                "notes": "settings.md"}
     assert set(menu) == set(page_for), (
         f"the menu is now {menu}: add the new page to page_for here and to guide/docs/")
     for view, page in page_for.items():
