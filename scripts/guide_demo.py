@@ -233,8 +233,13 @@ def build(folder: Path) -> Path:
                               "end": "Expected May 2027"})
         _tailored(store, folder, uids)
         _applications(store, uids, now)
-        # A skill a coding agent suggested, waiting on the Resume page.
+        # A skill a coding agent suggested, waiting on the Resume page, and a
+        # change it asked for to an application, waiting in My applications.
         store.confirm_skill("wound care", suggested_by="Coding agent · claude-code")
+        store.suggest_application_change(
+            uids[4], {"next_step": "Send the reference list",
+                      "next_date": time.strftime("%Y-%m-%d", time.localtime(now + 2 * 86400))},
+            "Coding agent · claude-code")
         _runs(store, now)
     _checked_for_updates(Path(cfg.db_path).parent, now)
     return config

@@ -145,7 +145,7 @@ DOING = {
     "save_document": "Saving a document",
     "save_verdict": "Saving a verdict",
     "list_applications": "Reading your applications",
-    "update_application": "Updating an application",
+    "update_application": "Suggesting a change to an application",
     "add_project": "Suggesting a project for your resume",
     "add_education": "Suggesting education for your resume",
     "confirm_skill": "Suggesting a skill for your resume",

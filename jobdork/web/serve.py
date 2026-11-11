@@ -569,6 +569,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     "agent_fallback": ai["agent_fallback"],
                     "unkept_data": _unkept(cfg_holder["cfg"]),
                     "suggested": api_mod.suggestions_count(cfg_holder["cfg"]),
+                    "suggested_apps": api_mod.suggestions_count(cfg_holder["cfg"],
+                                                                applications=True),
                     "notifications": {
                         "enabled": cfg_holder["cfg"].notifications.enabled,
                         "sound": cfg_holder["cfg"].notifications.sound,
@@ -754,7 +756,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     return self._reject(exc.status, str(exc))
                 done["rescore"] = ""
                 # Approved, it is part of the record: job posts are re-scored with it.
-                if done["approved"] and cfg.resume_path and cfg.titles_include:
+                # A change to an application is not part of the record.
+                if done["approved"] and done["kind"] != "application" \
+                        and cfg.resume_path and cfg.titles_include:
                     # lambda: built when its turn comes, from the newest settings.
                     now = runner.queue("re-score", lambda: api_mod.rescreen_job(cfg_holder["cfg"]),
                                        why="Approved a suggestion from your coding agent")

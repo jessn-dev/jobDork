@@ -294,6 +294,20 @@ CREATE TABLE IF NOT EXISTS confirmed_skills (
     suggested_by TEXT NOT NULL DEFAULT ''
 );
 
+-- A coding agent's change to an application (status, next step, contact,
+-- documents sent, a note), waiting for your OK in My applications: what
+-- it reads from a stranger's advert could ask it to change your records
+-- (Claude Security F19, code scan #9, 2026-11-06). `changes` is a JSON
+-- object of only the fields given. Approved, it is applied as given;
+-- turned down, it goes. A new table, so an older database gains it here.
+CREATE TABLE IF NOT EXISTS application_suggestions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    uid         TEXT NOT NULL REFERENCES roles(uid) ON DELETE CASCADE,
+    changes     TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    suggested_by TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_roles_first_seen ON roles(first_seen);
 CREATE INDEX IF NOT EXISTS idx_roles_company    ON roles(company);
 CREATE INDEX IF NOT EXISTS idx_roles_url        ON roles(url);
@@ -1213,7 +1227,41 @@ class Store:
     def suggestions_waiting(self) -> int:
         return sum(self.conn.execute(
             f"SELECT COUNT(*) FROM {table} WHERE suggested_by <> ''").fetchone()[0]  # nosec B608
-            for table, _ in self.SUGGESTION_TABLES.values())
+            for table, _ in self.SUGGESTION_TABLES.values()) + self.conn.execute(
+            "SELECT COUNT(*) FROM application_suggestions").fetchone()[0]
+
+    def application_suggestions_waiting(self) -> int:
+        return self.conn.execute("SELECT COUNT(*) FROM application_suggestions").fetchone()[0]
+
+    def suggest_application_change(self, uid: str, changes: dict, suggested_by: str) -> int:
+        """A coding agent's change to an application, kept until you decide."""
+        cur = self.conn.execute(
+            "INSERT INTO application_suggestions(uid, changes, created_at, suggested_by) "
+            "VALUES(?, ?, ?, ?)", (uid, json.dumps(changes), _now(), suggested_by))
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def application_suggestions(self) -> list[dict]:
+        """Every application change waiting, oldest first, with its job."""
+        return [{"id": r["id"], "uid": r["uid"], "changes": json.loads(r["changes"]),
+                 "suggested_by": r["suggested_by"], "created_at": r["created_at"],
+                 "title": r["title"] or "", "company": r["company"] or ""}
+                for r in self.conn.execute(
+                    "SELECT s.*, r.title, r.company FROM application_suggestions s "
+                    "LEFT JOIN roles r ON r.uid = s.uid ORDER BY s.id")]
+
+    def take_application_suggestion(self, suggestion_id: int) -> dict | None:
+        """Remove one waiting change and return it (uid, changes,
+        suggested_by), or None when it is gone already."""
+        row = self.conn.execute(
+            "SELECT uid, changes, suggested_by FROM application_suggestions WHERE id = ?",
+            (int(suggestion_id),)).fetchone()
+        if row is None:
+            return None
+        self.conn.execute("DELETE FROM application_suggestions WHERE id = ?", (int(suggestion_id),))
+        self.conn.commit()
+        return {"uid": row["uid"], "changes": json.loads(row["changes"]),
+                "suggested_by": row["suggested_by"]}
 
     def decide_suggestion(self, kind: str, key, approve: bool) -> bool:
         """Your OK on a coding agent's suggestion (it joins your record), or
