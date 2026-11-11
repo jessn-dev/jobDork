@@ -7322,6 +7322,7 @@ async function drawDirectory() {
     <div class="bar"><label class="check-inline"><input type="checkbox" id="dir-on" ${d.enabled ? 'checked' : ''}>
       Read the built-in boards</label>
       <span class="hint">${d.countries.length ? 'Hiring in ' + esc(d.countries.map(c => COUNTRIES[c] || c).join(', ')) : 'Every country'}</span></div>
+    ${d.none_why ? `<div class="cleanup" id="dir-none" role="status">${esc(d.none_why)}</div>` : ''}
     <div ${d.enabled ? '' : 'hidden'}>
     <p class="hint" style="margin:.6rem 0 0">Industries: ${picked.size ? 'only the ticked ones are read' : 'none ticked, so every one is read'}.</p>
     <div class="inds">${Object.entries(d.by_industry).map(([k, v]) => `<label>

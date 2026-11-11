@@ -137,6 +137,53 @@ def why_not(cfg: Config, board: Board) -> str:
     return ""
 
 
+# What to change for each reason none is read, in the Sources page's words.
+_FIX = {
+    "built-in boards are off": "tick Read the built-in boards",
+    "switched off": "switch some back on in the list",
+    "hires outside your countries": "add a country under Search, or read every country",
+    "not one of your industries": "tick another industry, or none to read every one",
+}
+
+
+def none_read_why(cfg: Config, boards: list[Board] | None = None) -> str:
+    """Why no built-in board is read, in one sentence, with what to change;
+    "" when at least one is. A scan that read none said nothing, and
+    the Sources page showed only "0 of 420 read" (asked for in TODO)."""
+    from .geo import country_name
+
+    boards = load() if boards is None else boards
+    reasons: dict[str, int] = {}
+    for b in boards:
+        why = why_not(cfg, b)
+        if not why:
+            return ""
+        reasons[why] = reasons.get(why, 0) + 1
+    if not boards:
+        return "jobdork found no built-in boards to read (its list is missing)"
+    if "built-in boards are off" in reasons:
+        return "No built-in employer board is read: they are off. To read them, " \
+               + _FIX["built-in boards are off"] + "."
+    d = cfg.sources.directory
+    countries = [country_name(c) or c for c in (d.countries or cfg.locations.countries)]
+    parts = []
+    # lambda: the reason that leaves out the most boards comes first.
+    for why, n in sorted(reasons.items(), key=lambda kv: -kv[1]):
+        if why == "hires outside your countries":
+            what = f"{n} {'hires' if n == 1 else 'hire'} outside your countries" \
+                + (f" ({', '.join(countries)})" if countries else "")
+        elif why == "not one of your industries":
+            what = f"{n} {'is' if n == 1 else 'are'} not in your industries"
+        elif why == "switched off":
+            what = f"{n} you switched off"
+        else:
+            what = f"{n} {'runs' if n == 1 else 'run'} on a system not among your sources " \
+                   f"({why.split(' is not')[0]})"
+        parts.append(what + (f": {_FIX[why]}" if why in _FIX else ""))
+    return (f"No built-in employer board is read. Of the {len(boards)}, "
+            + "; ".join(parts) + ".")
+
+
 # A board with fewer jobs than this is read last in a first scan's quick part:
 # small is fast, but a board with one job (Alorica, 2026-10-23) shows nothing.
 QUICK_MIN_JOBS = 10
