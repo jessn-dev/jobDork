@@ -286,14 +286,6 @@ CREATE TABLE IF NOT EXISTS board_reads (
     PRIMARY KEY (platform, token)
 );
 
--- Skills the person confirmed having ("I have this", on a job post's ATS
--- match): part of their record, as projects are.
-CREATE TABLE IF NOT EXISTS confirmed_skills (
-    term        TEXT PRIMARY KEY,
-    created_at  TEXT NOT NULL,
-    suggested_by TEXT NOT NULL DEFAULT ''
-);
-
 -- Every notification jobdork sent, shown on the desktop or not, for the
 -- Notifications page: what it said, what it was about ("posts", "activity"),
 -- and whether the page has shown it yet. Cleared there. A new table, so an
@@ -305,6 +297,14 @@ CREATE TABLE IF NOT EXISTS notifications (
     kind    TEXT NOT NULL DEFAULT '',
     at      TEXT NOT NULL,
     seen    INTEGER NOT NULL DEFAULT 0
+);
+
+-- Skills the person confirmed having ("I have this", on a job post's ATS
+-- match): part of their record, as projects are.
+CREATE TABLE IF NOT EXISTS confirmed_skills (
+    term        TEXT PRIMARY KEY,
+    created_at  TEXT NOT NULL,
+    suggested_by TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_roles_first_seen ON roles(first_seen);

@@ -3720,6 +3720,7 @@ async function refreshState() {
   const s = await (await api('/api/state')).json();
   if (s.notifications) noteCfg = s.notifications;
   if (s.keys) { keysInfo = s.keys; askForKeys(s.keys); }
+  noteCount((s.notifications || {}).unseen || 0);
   if (s.setup) drawSetup(s.setup);
   // Just finished: open the dashboard. The token lives only in this page's
   // memory, so it goes back in the address for the one load that reads it.
@@ -3731,7 +3732,6 @@ async function refreshState() {
   agentOn = !!s.agent;
   $('nav-sugg').hidden = !s.suggested;
   $('nav-sugg').textContent = s.suggested || '';
-  noteCount((s.notifications || {}).unseen || 0);
   agentFallback = s.agent_fallback || '';
   $('aihint').textContent = s.ai_problem ? `AI: ${s.ai_problem}` : `AI: ${s.ai}`;
   // Docker without -v: the data lives in the container and goes with it.

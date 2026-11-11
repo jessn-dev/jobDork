@@ -232,9 +232,6 @@ def build(folder: Path) -> Path:
                               "location": "Chicago, IL", "start": "Aug 2025",
                               "end": "Expected May 2027"})
         _tailored(store, folder, uids)
-        _applications(store, uids, now)
-        # A skill a coding agent suggested, waiting on the Resume page.
-        store.confirm_skill("wound care", suggested_by="Coding agent · claude-code")
         # The Notifications page: what jobdork told this person lately.
         for title, body, kind in (
                 ("Scan failed", "The scheduled scan stopped: no network.", "activity"),
@@ -243,6 +240,9 @@ def build(folder: Path) -> Path:
                 ("6 new job posts", "The scheduled scan found 6 new job posts (48 kept in all). "
                  "Open jobdork to see them.", "posts")):
             store.add_notification(title, body, kind)
+        _applications(store, uids, now)
+        # A skill a coding agent suggested, waiting on the Resume page.
+        store.confirm_skill("wound care", suggested_by="Coding agent · claude-code")
         _runs(store, now)
     _checked_for_updates(Path(cfg.db_path).parent, now)
     return config
