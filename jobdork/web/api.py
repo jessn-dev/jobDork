@@ -2517,7 +2517,10 @@ def llm_models(cfg, provider: str, ollama_url: str = "", ollama_key: bool = Fals
     if not re.match(r"https?://[^\s/]+$", settings.ollama_url.rstrip("/")):
         raise ApiError("the Ollama address must look like http://host:port")
     try:
-        return {"models": llm.list_models(settings)}
+        from ..core.config import MODEL_NAME
+        # Names from another computer's Ollama: only ones that are names.
+        return {"models": [m for m in llm.list_models(settings)
+                           if isinstance(m, str) and MODEL_NAME.match(m)]}
     except llm.LLMError as exc:
         raise ApiError(str(exc), 502) from exc
 

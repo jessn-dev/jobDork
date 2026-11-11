@@ -21,7 +21,7 @@ import sqlite3
 import time
 from pathlib import Path
 
-from ..core.textutil import cap, platform_name
+from ..core.textutil import cap, platform_name, spreadsheet_cell, web_href
 from ..search.geo import distance_label
 from ..search.resume import flag_label
 
@@ -160,23 +160,24 @@ def to_csv(rows: list[sqlite3.Row], path: Path) -> Path:
                 row["uid"],
                 "" if row["score"] is None else f"{row['score']:.1f}",
                 row["status"] or "new",
-                row["title"] or "",
-                row["company"] or "",
-                row["location_raw"] or "",
+                # Text from job boards: never a formula in a spreadsheet.
+                spreadsheet_cell(row["title"]),
+                spreadsheet_cell(row["company"]),
+                spreadsheet_cell(row["location_raw"]),
                 "" if distance is None else f"{distance:.1f}",
-                row["work_mode"] or "",
+                spreadsheet_cell(row["work_mode"]),
                 # The distinction the whole salary rule turns on: a blank pay
                 # range because nobody published one is not a zero.
                 "yes" if row["salary_stated"] else "no",
                 "" if row["salary_min"] is None else f"{row['salary_min']:.0f}",
                 "" if row["salary_max"] is None else f"{row['salary_max']:.0f}",
-                row["salary_currency"] or "",
-                row["salary_period"] or "",
+                spreadsheet_cell(row["salary_currency"]),
+                spreadsheet_cell(row["salary_period"]),
                 row["platform"] or "",
-                row["posted_at"] or "",
+                spreadsheet_cell(row["posted_at"]),
                 (row["first_seen"] or "")[:10],
-                row["url"] or "",
-                "; ".join(flags_of(row)),
+                spreadsheet_cell(row["url"]),
+                spreadsheet_cell("; ".join(flags_of(row))),
                 "" if row["fit"] is None else f"{row['fit']:.1f}",
             ])
     return path
@@ -286,7 +287,7 @@ def to_html(rows: list[sqlite3.Row], path: Path, cfg=None,
         <div class="role-head">
           <span class="score" title="Title, arrangement, distance, salary and resume fit, added up">Match {'-' if row['score'] is None else f"{row['score']:.0f}"}</span>
           <span class="uid" title="Resume fit, out of 25">Fit {'–' if row['fit'] is None else f"{row['fit']:.0f}"}/25</span>
-          <span class="title"><a href="{_e(row['url'])}" rel="noopener noreferrer"
+          <span class="title"><a href="{_e(web_href(row['url']) or '#')}" rel="noopener noreferrer"
             target="_blank">{_e(row['title'])}</a></span>
           <span class="pill" style="background:{colour}">{_e(status)}</span>
           <span class="uid">{_e(row['uid'])}</span>

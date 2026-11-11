@@ -246,7 +246,10 @@ resume:
 | `resume.kind` | `master` or `regular` | left out: jobdork guesses (`search/master.py`) |
 
 `~` is expanded. **The path is checked on every config load**, so a resume you
-moved fails loudly rather than quietly scoring every role at zero.
+moved fails loudly rather than quietly scoring every role at zero. Set it by
+uploading the resume on the Resume page (which writes the path itself) or
+here by hand: the dashboard's settings save never takes a path from the
+page, so nothing with the page's token can point jobdork at another file.
 
 `resume.kind` says whether the resume is your **master** resume (a private
 archive of every job, project and award, never sent as it is) or a

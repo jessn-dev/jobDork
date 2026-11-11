@@ -36,6 +36,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ..core.textutil import web_href
 from ..search.resume import flag_label
 from .render import flags_of as _flags
 from .render import meta_parts
@@ -167,7 +168,7 @@ def build(rows: list[sqlite3.Row], cfg, new_only: bool = True) -> Digest:
             "<div style='border:1px solid #e4e4e7;border-radius:8px;"
             "padding:12px 14px;margin-bottom:8px'>"
             f"<div><b style='color:#1d4ed8'>{esc(score)}</b> "
-            f"<a href='{esc(row['url'])}' style='color:#18181b;font-weight:600;"
+            f"<a href='{esc(web_href(row['url']) or '#')}' style='color:#18181b;font-weight:600;"
             f"text-decoration:none'>{esc(row['title'])}</a></div>"
             f"<div style='color:#71717a;font-size:13px;margin-top:4px'>"
             f"{esc(' · '.join(_meta(row, units)))}</div>"

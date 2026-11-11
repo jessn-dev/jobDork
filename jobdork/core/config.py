@@ -1002,6 +1002,13 @@ def _apply_env_secrets(cfg: Config) -> None:
 
 # ── Validation ─────────────────────────────────────────────────────────────────
 
+# What a model's name may hold: Ollama's ("gemma4:26b",
+# "hf.co/org/model:Q4_K_M") and the providers' ("claude-opus-5-5"). A name
+# reaches the page's HTML; one from a remote Ollama's list or a connection
+# code is not trusted to be only that (Claude Security F4, 2026-11-06).
+MODEL_NAME = re.compile(r"^[A-Za-z0-9._:/@+-]{1,200}$")
+
+
 def _validate(cfg: Config) -> None:
     from .setup import STEP_NAMES
     if cfg.setup_step and cfg.setup_step not in STEP_NAMES:
@@ -1220,6 +1227,9 @@ def _validate(cfg: Config) -> None:
                                   f"Accepted: {', '.join(PROVIDERS)}")
             if reader.ollama_url and not re.match(r"https?://[^\s/]+", reader.ollama_url):
                 raise ConfigError(f"llm.{name} entry {i}: ollama_url must be an http(s) address")
+            if reader.model and not MODEL_NAME.match(reader.model):
+                raise ConfigError(f"llm.{name} entry {i}: {reader.model[:60]!r} is not a model "
+                                  "name (letters, digits and . _ : / @ + - only)")
     if not re.match(r"https?://[^\s/]+", cfg.llm.ollama_url):
         raise ConfigError("llm.ollama_url must be an http(s) address")
     if not 1 <= cfg.llm.judge_top <= 500:
