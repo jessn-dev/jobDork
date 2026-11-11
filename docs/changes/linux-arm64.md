@@ -16,6 +16,13 @@ still use Docker or the source. desktop.yml installs the ARM `.deb` in bare
 Ubuntu 24.04 and Debian 13, runs its self-test, opens its window and runs
 the AppImage's self-test, as for x86-64.
 
+The ARM Qt wheels load from the system what the x86-64 ones carry
+inside (the web engine's Opus, Snappy, WebP, minizip and LittleCMS, and
+the window plugin's ICE and SM): the ARM `.deb` depends on them
+(`DEB_DEPENDS_ARM64`), and two plugins only the ARM wheels have and
+jobdork never loads (text-to-speech by flite, GStreamer media) are left
+out of the build.
+
 The in-app update takes the ARM installer on an ARM computer
 (`updates.installer_name`), the release page lists both, and
 `docs/run/desktop.md`, the README and the guide's Getting started say which
