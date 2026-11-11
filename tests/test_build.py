@@ -117,6 +117,9 @@ def test_the_linux_packages_say_what_they_are_and_what_they_need():
     arm = dict(line.split(": ", 1) for line in build.deb_control("1.2.3", 1, "arm64").splitlines()
                if not line.startswith(" "))
     assert arm["Architecture"] == "arm64" and arm["Depends"].startswith("libc6 (>= 2.39)")
+    # What the ARM wheels load from the system that the x86 ones carry.
+    assert "libopus0" in arm["Depends"] and "libsm6" in arm["Depends"]
+    assert "libopus0" not in fields["Depends"]
     assert build.linux_arch("aarch64")[:2] == ("aarch64", "arm64")
     assert build.linux_arch("x86_64")[:2] == ("x86_64", "amd64")
     assert "libasound2t64" in build.build_packages(t64=True)

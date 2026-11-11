@@ -264,6 +264,10 @@ def prune_linux(bundle: Path) -> list[str]:
                 shutil.rmtree(path)
             else:
                 path.unlink()
+    for name in UNUSED_PLUGINS:
+        for path in sorted(internal.rglob(name)):
+            path.unlink()
+            gone.append(str(path.relative_to(internal)))
     for path in sorted(internal.rglob("*")):
         if path.is_symlink() and not path.exists():
             path.unlink()
@@ -278,6 +282,20 @@ def prune_linux(bundle: Path) -> list[str]:
 LINUX = {"x86_64": ("x86_64", "amd64", "2.35"), "aarch64": ("aarch64", "arm64", "2.39")}
 
 
+# What the ARM64 Qt wheels load from the system that the x86-64 ones carry
+# inside: the web engine's codecs and image libraries, and the X11 session
+# libraries its window plugin uses. Found by comparing what each wheel's
+# libraries ask for (2026-11-11: the first ARM build failed its self-test on
+# libopus.so.0). Debian 13 and Ubuntu 24.04 names; minizip took "t64" in both.
+DEB_DEPENDS_ARM64 = (
+    "libopus0", "libsnappy1v5", "libwebp7", "libwebpdemux2", "libwebpmux3",
+    "libminizip1t64 | libminizip1", "liblcms2-2", "libbz2-1.0", "libice6", "libsm6",
+)
+# Qt plugins only the ARM64 wheels carry, that jobdork never loads and that
+# need more from the system (flite, GStreamer): left out of the build.
+UNUSED_PLUGINS = ("libqtexttospeech_flite.so", "libgstreamermediaplugin.so")
+
+
 def linux_arch(machine: str = "") -> tuple[str, str, str]:
     """LINUX's entry for this machine (or the one named)."""
     machine = machine or platform.machine()
@@ -287,7 +305,8 @@ def linux_arch(machine: str = "") -> tuple[str, str, str]:
 def deb_depends(deb_arch: str = "amd64") -> list[str]:
     """DEB_DEPENDS with the glibc this machine's build needs."""
     glibc = next(g for _, d, g in LINUX.values() if d == deb_arch)
-    return [f"libc6 (>= {glibc})" if dep.startswith("libc6 ") else dep for dep in DEB_DEPENDS]
+    deps = [f"libc6 (>= {glibc})" if dep.startswith("libc6 ") else dep for dep in DEB_DEPENDS]
+    return deps + list(DEB_DEPENDS_ARM64) if deb_arch == "arm64" else deps
 
 
 def build_packages(t64: bool | None = None) -> list[str]:
@@ -303,7 +322,9 @@ def build_packages(t64: bool | None = None) -> list[str]:
         found = re.search(r'^VERSION_ID="?(\d+)', release, re.M)
         t64 = bool(found) and int(found.group(1)) >= 24
     names = []
-    for dep in DEB_DEPENDS:
+    deps = deb_depends(linux_arch()[1]) if platform.machine() in LINUX or \
+        platform.machine() == "arm64" else DEB_DEPENDS
+    for dep in deps:
         alts = [a.split(" (")[0] for a in dep.split(" | ")]
         names.append(next((a for a in alts if a.endswith("t64") == t64), alts[0]))
     return names

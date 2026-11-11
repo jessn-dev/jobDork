@@ -26,8 +26,8 @@ it and into an entry when the work is done.
   serif face.
 - **One Add a job post form**, already applied or not, and the resume and
   letter you sent uploaded for a job, read by its AI tools.
-- **A Notifications page** with every notification jobdork sent, and
-  desktop notifications that stay until you close them.
+- **A Notifications page** with every notification jobdork sent, opened by
+  a click on one, and desktop notifications that stay until you close them.
 - **Employers to skip**: never see posts from a named employer, from any
   source. **Sources** says why no built-in board is read, when none is.
 - **Job posts** mark what the AI judged, in which run; the AI page and the
@@ -75,6 +75,13 @@ PyQt6's ARM wheels need glibc 2.39, so the ARM packages run on systems from
 still use Docker or the source. desktop.yml installs the ARM `.deb` in bare
 Ubuntu 24.04 and Debian 13, runs its self-test, opens its window and runs
 the AppImage's self-test, as for x86-64.
+
+The ARM Qt wheels load from the system what the x86-64 ones carry
+inside (the web engine's Opus, Snappy, WebP, minizip and LittleCMS, and
+the window plugin's ICE and SM): the ARM `.deb` depends on them
+(`DEB_DEPENDS_ARM64`), and two plugins only the ARM wheels have and
+jobdork never loads (text-to-speech by flite, GStreamer media) are left
+out of the build.
 
 The in-app update takes the ARM installer on an ARM computer
 (`updates.installer_name`), the release page lists both, and
@@ -212,6 +219,16 @@ in the middle. Each one is kept in a new `notifications` table (created on
 open, so an older database gains it), the newest 500, and the same words
 within a day once: a follow-up reminder the desktop could not show is tried
 again at every check. Nothing is kept before there is a database.
+
+**A click on a notification opens the Notifications page** (asked the
+same day): jobdork starts there, or its open window comes to the front and
+turns to it. Windows' toast opens `jobdork://notifications`, the Linux
+click starts it with `--notifications`, and on a Mac the app answers the
+click itself (a UserNotifications delegate, set before it finishes
+launching so a click that starts it counts too); an open window is told
+through the same request file a second start already used
+(`app.open_view`, the page's `openView`). Not yet tried on a real desktop:
+the Mac click and the Windows protocol are checked only by tests here.
 
 **Desktop notifications stay until closed.** Windows: a reminder toast,
 with Windows' own Dismiss button, which Windows needs to keep one on
