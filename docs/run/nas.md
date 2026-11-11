@@ -194,7 +194,7 @@ without compose, asks for each value instead:
 | Image | `jessengolab/jobdork:0.16.3` |
 | Port | NAS `8765` → container `8765` |
 | Volume | `…/docker/jobdork/data` → `/app/data`, read/write |
-| Environment | `JOBDORK_ALLOW_HOSTS` = the NAS's addresses, comma separated: its home-network address and its Tailscale name, e.g. `10.0.0.122,my-nas.tail1234.ts.net` |
+| Environment | `JOBDORK_ALLOW_HOSTS` = the NAS's addresses, comma separated: its home-network address and its Tailscale name, e.g. `10.0.0.122,my-nas.tail1234.ts.net` (the home-network address also needs HTTPS or `JOBDORK_ALLOW_HTTP`, below) |
 | Memory limit | 1 GB is plenty |
 | Auto restart | On |
 
@@ -211,6 +211,21 @@ docker run -d --name jobdork --restart unless-stopped -p 8765:8765 \
   -v /volume1/docker/jobdork/data:/app/data \
   jessengolab/jobdork:0.16.3
 ```
+
+**The home-network address.** The Tailscale name works as it is, since
+Tailscale encrypts its traffic. The home-network address carries the access
+token in plain text, so jobdork opens it only when you choose one of:
+
+- **HTTPS**: a certificate and key in the data folder (Tailscale's
+  `tailscale cert my-nas.tail1234.ts.net` makes one; so does your NAS's own
+  certificate manager), named with `JOBDORK_TLS_CERT` and `JOBDORK_TLS_KEY`
+  as paths inside the container, such as `/app/data/tls/cert.pem`. Then open
+  `https://` and the name the certificate is for.
+- **Plain HTTP, accepted**: `JOBDORK_ALLOW_HTTP=1`. Anyone on your home
+  network could then read the token and use the dashboard.
+
+Without either, the container's log says the address was not opened, and
+the dashboard answers only by its Tailscale name.
 
 **Opening it.** The container's log prints the address with its access token,
 `http://127.0.0.1:8765/?t=…`, and a line for each allowed address. Use the
@@ -276,7 +291,7 @@ about 3 GB, and a model on top leaves too little for the NAS's own work.
 
 | You see | Meaning |
 |---|---|
-| "unrecognised Host header" | The address you opened is not in `JOBDORK_ALLOW_HOSTS`. Add it and restart the container |
+| "unrecognised Host header" | The address you opened is not in `JOBDORK_ALLOW_HOSTS`, or it is a home-network address with neither HTTPS nor `JOBDORK_ALLOW_HTTP` set (the log says "not opened to"). Add it, or choose one of the two, and restart the container |
 | "missing or wrong token" | The token changed on restart, or was left off. Take the link from the container's log |
 | The AI page's test cannot reach Ollama | The AI machine is asleep or off, Tailscale is not connected on it, or `OLLAMA_HOST` is not its Tailscale address. Check with `curl` from another device |
 | It works from a laptop but not from jobdork | Containers cannot reach Tailscale (step 2's test) |

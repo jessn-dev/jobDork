@@ -72,4 +72,9 @@ countries.
 - Switch **single boards** off.
 - More boards make scans longer.
 
+When none is read, the section says why at the top and what to change:
+for example "3 hire outside your countries (Philippines): add a country
+under Search, or read every country". A scan says the same in its log, and
+so does `jobdork sources` in the terminal.
+
 **Settings → Built-in employer boards** switches them all off or on.

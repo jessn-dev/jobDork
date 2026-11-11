@@ -141,6 +141,10 @@ def _jobs_for(cfg: Config, part: str = "all") -> list[tuple[str, dict]]:
     # Your own boards, then the ones jobdork ships with (data/boards.csv)
     # for your countries and industries.
     own = {(c.platform.lower(), c.token.lower()) for c in cfg.sources.companies}
+    if part != "rest" and cfg.sources.directory.enabled:
+        why = directory.none_read_why(cfg)
+        if why:                 # a scan that read none said nothing of it
+            log.warning("%s", why)
     sample = directory.quick(cfg, QUICK_BOARDS) if part != "all" else set()
     for company in directory.companies(cfg):
         if company.platform not in cfg.sources.keyless:

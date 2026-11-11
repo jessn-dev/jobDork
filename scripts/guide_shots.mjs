@@ -191,6 +191,7 @@ try {
   await run(`[...document.querySelectorAll('#apps tr[data-uid]')].find(t => t.textContent.includes('Remote Care')).click()`);
   await sleep(1500);
   await shoot('applications');
+  await shoot('applications-suggested', {clip: '#suggested-apps'});
   await shoot('application-tab', {clip: '#apps-pane', tall: 2000});
   await run(`closeDetail();`);
 

@@ -123,5 +123,6 @@
 
 **Suggestion**
 : A project, education entry or skill a coding agent proposed for your
-  record. It counts for nothing until you approve it.
-  [Resume](resume.md#suggestions)
+  record, or a change it asked for to an application. It counts for nothing
+  until you approve it.
+  [Resume](resume.md#suggestions), [My applications](applications.md#suggestions)

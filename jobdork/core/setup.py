@@ -240,6 +240,14 @@ def rewrite(original: str, payload: dict) -> str:
     if "dealbreakers" in payload:
         data["dealbreakers"] = [_deal_row(d) for d in payload["dealbreakers"] or []
                                 if isinstance(d, dict)]
+    if "skip_employers" in payload:
+        # One of each, however it is cased: the first spelling given is kept.
+        names: dict[str, str] = {}
+        for raw in payload["skip_employers"] or []:
+            name = " ".join(str(raw).split())
+            if name:
+                names.setdefault(name.casefold(), name)
+        data["skip_employers"] = sorted(names.values(), key=str.casefold)
     if "companies" in payload:
         data.setdefault("sources", {})["companies"] = [
             {"name": str(c.get("name") or "").strip(),

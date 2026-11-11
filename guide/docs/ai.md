@@ -134,6 +134,9 @@ model, and some more:
 - **What it adds to your record waits for your OK** on the
   [Resume page](resume.md#suggestions). It cannot take back a skill you
   confirmed.
+- **What it changes in an application waits for your OK** in
+  [My applications](applications.md#suggestions): a status, a next step, a
+  contact or a note is made only when you approve it.
 - **Job adverts are data, not instructions.** An advert can hide text
   meant for an AI. Hidden characters are removed from everything the agent
   reads from a job board, every answer says that text is from strangers, and
