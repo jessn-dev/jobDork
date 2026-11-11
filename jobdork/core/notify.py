@@ -58,7 +58,11 @@ MAC_SOUND = "Glass"
 TIMEOUT = 15
 # What a click on the Windows app's toast opens: the installer registers it
 # to start jobdork.exe (packaging/jobdork.iss), which shows jobdork.
-LAUNCH = "jobdork://open"
+LAUNCH = "jobdork://notifications"
+# What a click asks the app to show: its Notifications page (asked
+# 2026-11-11), read by the app's start (packaging/jobdork_app.py) from this
+# argument, LAUNCH on Windows, or a Mac click (web/app.py, mac_click_opens).
+OPEN_ARG = "--notifications"
 
 
 def off() -> bool:
@@ -83,9 +87,28 @@ def wanted(cfg) -> tuple[bool, bool]:
     return enabled, enabled and bool(getattr(n, "sound", True))
 
 
-def notify(cfg, title: str, body: str, run=subprocess.run) -> bool:
+def _keep(cfg, title: str, body: str, kind: str) -> None:
+    """Every notification is kept for the Notifications page, shown on the
+    desktop or not (asked 2026-11-11): one closed, or one this system cannot
+    show (a container), is still there to read. Only in a database that
+    exists already; never raises."""
+    from pathlib import Path
+
+    path = str(getattr(cfg, "db_path", "") or "")
+    if not path or not Path(path).is_file():
+        return
+    try:
+        from ..db.store import Store
+        with Store(path) as store:
+            store.add_notification(_clean(title, 80), _clean(body, 240), kind)
+    except Exception as exc:                 # a notification is never worth a failure
+        log.warning("notification not kept: %s", exc)
+
+
+def notify(cfg, title: str, body: str, run=subprocess.run, kind: str = "") -> bool:
     """Show one, if the settings want it. True if one was handed to the
     system. Never raises: a notification is never worth a failed scan."""
+    _keep(cfg, title, body, kind)
     enabled, sound = wanted(cfg)
     if not enabled or not native():
         return False
@@ -105,7 +128,7 @@ def scan_finished(cfg, new: int, kept: int, origin: str = "", run=subprocess.run
     where = {"schedule": "The scheduled scan", "": "The scan"}.get(origin, "The scan")
     return notify(cfg, f"{new} new {what}",
                   f"{where} found {new} new {what} ({kept} kept in all). "
-                  "Open jobdork to see them.", run=run)
+                  "Open jobdork to see them.", run=run, kind="posts")
 
 
 def first_scan_ready(cfg, kept: int, run=subprocess.run) -> bool:
@@ -114,12 +137,12 @@ def first_scan_ready(cfg, kept: int, run=subprocess.run) -> bool:
     what = "job post" if kept == 1 else "job posts"
     return notify(cfg, "Your job posts are ready",
                   f"jobdork has read every employer board: {kept} {what} to look at. "
-                  "Open jobdork and choose View job posts.", run=run)
+                  "Open jobdork and choose View job posts.", run=run, kind="posts")
 
 
 def scan_failed(cfg, why: str, origin: str = "", run=subprocess.run) -> bool:
     where = "The scheduled scan" if origin == "schedule" else "The scan"
-    return notify(cfg, "Scan failed", f"{where} stopped: {why}", run=run)
+    return notify(cfg, "Scan failed", f"{where} stopped: {why}", run=run, kind="activity")
 
 
 def send(title: str, body: str, sound: bool = True, run=subprocess.run) -> bool:
@@ -218,11 +241,16 @@ def _mac_osascript(title: str, body: str, sound: bool, run) -> bool:
 
 
 def toast_xml(title: str, body: str, sound: bool) -> str:
+    """A reminder toast, which stays on screen until it is closed (asked
+    2026-11-11): Windows keeps one only with a button, so it has Dismiss,
+    Windows' own."""
     audio = ('<audio src="ms-winsoundevent:Notification.Default"/>' if sound
              else '<audio silent="true"/>')
-    return ('<toast><visual><binding template="ToastGeneric">'
+    return ('<toast scenario="reminder"><visual><binding template="ToastGeneric">'
             f"<text>{_xml_text(title)}</text><text>{_xml_text(body)}</text>"
-            f"</binding></visual>{audio}</toast>")
+            "</binding></visual>"
+            '<actions><action activationType="system" arguments="dismiss" content=""/></actions>'
+            f"{audio}</toast>")
 
 
 def _windows_toast(title: str, body: str, sound: bool, run) -> bool:
@@ -246,7 +274,7 @@ def _windows_toast(title: str, body: str, sound: bool, run) -> bool:
         # and Windows opened a folder. Only the installed app has
         # `jobdork://` registered; anywhere else a click would ask which app
         # opens it.
-        toast = toast.replace("<toast>", f'<toast launch="{LAUNCH}" activationType="protocol">', 1)
+        toast = toast.replace("<toast ", f'<toast launch="{LAUNCH}" activationType="protocol" ', 1)
     env = {**os.environ, "JOBDORK_TOAST": toast,
            "JOBDORK_AUMID": aumid}
     done = run(["powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
@@ -268,7 +296,7 @@ _spawn = subprocess.Popen
 # inside the script's text, so nothing in a title can change what it runs.
 _OPEN_ON_CLICK = ('prog=$1; shift; '
                   'answer=$(notify-send --action=open="Open jobdork" "$@"); '
-                  '[ "$answer" = open ] && exec "$prog"')
+                  '[ "$answer" = open ] && exec "$prog" --notifications')
 
 
 def _has_actions(run) -> bool:
@@ -282,7 +310,10 @@ def _has_actions(run) -> bool:
 
 
 def _linux(title: str, body: str, sound: bool, run) -> bool:
-    argv = ["notify-send", "--app-name=jobdork", title, body]
+    # Kept on screen until closed (asked 2026-11-11): no expiry, and critical,
+    # since GNOME keeps only a critical one.
+    argv = ["notify-send", "--app-name=jobdork", "--urgency=critical", "--expire-time=0",
+            title, body]
     if sound:
         argv.insert(1, "--hint=string:sound-name:bell")
     if getattr(sys, "frozen", False):

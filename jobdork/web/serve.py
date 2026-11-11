@@ -638,7 +638,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                         "enabled": cfg_holder["cfg"].notifications.enabled,
                         "sound": cfg_holder["cfg"].notifications.sound,
                         "reminders": cfg_holder["cfg"].notifications.reminders,
-                        "native": notify_mod.native()},
+                        "native": notify_mod.native(),
+                        "unseen": api_mod.notifications_unseen(cfg_holder["cfg"])},
                     "setup": _setup_state(cfg_holder["cfg"]),
                     "keys": api_mod.keys_state(cfg_holder["cfg"]),
                 })
@@ -675,6 +676,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._send(200, body, kind)
             if path == "/api/letters":
                 return self._wrap(api_mod.list_letters, cfg_holder["cfg"])
+            if path == "/api/notifications":
+                return self._wrap(api_mod.notifications_list, cfg_holder["cfg"])
             if path == "/api/record/suggested":
                 return self._wrap(api_mod.list_suggestions, cfg_holder["cfg"])
             if path == "/api/applications":
@@ -808,6 +811,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                         "/api/education/save", "/api/education/delete",
                         "/api/skills/confirm"):
                 return self._project(path)
+            if path in ("/api/notifications/seen", "/api/notifications/clear"):
+                return self._wrap(api_mod.notifications_seen if path.endswith("seen")
+                                  else api_mod.notifications_clear, cfg_holder["cfg"])
             if path == "/api/record/decide":
                 form = self._body()
                 if form is None:

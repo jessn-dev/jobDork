@@ -286,6 +286,19 @@ CREATE TABLE IF NOT EXISTS board_reads (
     PRIMARY KEY (platform, token)
 );
 
+-- Every notification jobdork sent, shown on the desktop or not, for the
+-- Notifications page: what it said, what it was about ("posts", "activity"),
+-- and whether the page has shown it yet. Cleared there. A new table, so an
+-- older database gains it here.
+CREATE TABLE IF NOT EXISTS notifications (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    title   TEXT NOT NULL,
+    body    TEXT NOT NULL DEFAULT '',
+    kind    TEXT NOT NULL DEFAULT '',
+    at      TEXT NOT NULL,
+    seen    INTEGER NOT NULL DEFAULT 0
+);
+
 -- Skills the person confirmed having ("I have this", on a job post's ATS
 -- match): part of their record, as projects are.
 CREATE TABLE IF NOT EXISTS confirmed_skills (
@@ -1217,6 +1230,43 @@ class Store:
                 "WHERE uid = ? AND note = ? AND at = ?)", (member, row["note"], row["at"]))
         self.conn.commit()
         return True
+
+    # ── notifications (core/notify.py, the Notifications page) ─────────────────
+
+    NOTIFICATIONS_KEPT = 500
+
+    def add_notification(self, title: str, body: str, kind: str = "") -> None:
+        """One more, and only the newest NOTIFICATIONS_KEPT kept. The same
+        words within a day are one: a reminder the desktop could not show is
+        tried again at every check (core/reminders.py)."""
+        day_ago = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(time.time() - 86400))
+        if self.conn.execute(
+                "SELECT 1 FROM notifications WHERE title = ? AND body = ? AND at >= ?",
+                (title, body, day_ago)).fetchone():
+            return
+        self.conn.execute("INSERT INTO notifications(title, body, kind, at) VALUES(?, ?, ?, ?)",
+                          (title, body, kind, _now()))
+        self.conn.execute(
+            "DELETE FROM notifications WHERE id NOT IN "
+            "(SELECT id FROM notifications ORDER BY id DESC LIMIT ?)", (self.NOTIFICATIONS_KEPT,))
+        self.conn.commit()
+
+    def notifications(self) -> list[dict]:
+        return [dict(r) for r in self.conn.execute(
+            "SELECT id, title, body, kind, at, seen FROM notifications ORDER BY id DESC")]
+
+    def notifications_unseen(self) -> int:
+        return self.conn.execute(
+            "SELECT COUNT(*) FROM notifications WHERE seen = 0").fetchone()[0]
+
+    def see_notifications(self) -> None:
+        self.conn.execute("UPDATE notifications SET seen = 1 WHERE seen = 0")
+        self.conn.commit()
+
+    def clear_notifications(self) -> int:
+        cur = self.conn.execute("DELETE FROM notifications")
+        self.conn.commit()
+        return cur.rowcount
 
     # ── a coding agent's suggestions for your record (web/agent.py) ───────────
 

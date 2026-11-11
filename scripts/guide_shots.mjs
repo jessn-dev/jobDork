@@ -180,6 +180,11 @@ try {
   await shoot('job-posts-dropped');
   await run(`document.getElementById('scope').value = 'open'; await loadRoles();`);
 
+  // Notifications: what jobdork told this person, newest first.
+  await run(view('notes'));
+  await sleep(1200);
+  await shoot('notifications');
+
   // My applications, with the interviewing one chosen: its Application tab.
   await run(view('apps'));
   await sleep(1500);

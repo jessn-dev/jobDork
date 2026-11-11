@@ -679,6 +679,18 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .atsadvice{margin:.2rem 0;padding-left:1.1rem;font-size:.875rem}
 .act.linkish{border:none;background:none;padding:0;color:var(--accent);text-decoration:underline;font-size:inherit}
 /* A coding agent's suggestions for the record, waiting for your OK. */
+/* Notifications: every one jobdork sent, newest first; none, one line in the middle. */
+.noteshead{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.notelist{list-style:none;margin:0;padding:0}
+.notelist li{display:grid;grid-template-columns:1fr auto;gap:.15rem 1rem;padding:.7rem .2rem;
+  border-top:1px solid var(--line);cursor:pointer}
+.notelist li:hover{background:var(--hover, rgba(127,127,127,.06))}
+.notelist li.new b::before{content:'';display:inline-block;width:.5rem;height:.5rem;border-radius:50%;
+  background:var(--accent);margin-right:.45rem;vertical-align:middle}
+.notelist .when{color:var(--muted);font-size:.8125rem;white-space:nowrap}
+.notelist .body{grid-column:1/-1;color:var(--muted);font-size:.875rem}
+.notes-none{display:flex;align-items:center;justify-content:center;min-height:55vh;
+  color:var(--muted);font-size:1rem;text-align:center}
 .sugglist{list-style:none;margin:.5rem 0 0;padding:0}
 .sugglist li{display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:center;padding:.4rem 0;border-top:1px solid var(--line)}
 .sugglist .pill{--c:var(--accent)}
@@ -961,6 +973,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <button class="item" data-view="roles" title="Job posts"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 3h6a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v4H2V8a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 1.8V6h6V4.8H9zM2 13.8h8v.7a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7h8V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.2z"/></svg><span class="label">Job posts</span><span class="count" id="nav-new" title="new since you last looked" hidden></span></button>
   <button class="item" data-view="apps" title="My applications"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 2h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a1 1 0 0 1 1-1zm1 1.8v1.4h4V3.8h-4zm5.7 7.5-1.4-1.4-3.3 3.3-1.6-1.6-1.4 1.4 3 3 4.7-4.7z"/></svg><span class="label">My applications</span><span class="count due" id="nav-apps" title="follow-ups past their date" hidden></span><span class="count" id="nav-appsugg" title="changes from your coding agent, waiting for your OK" hidden></span></button>
   <button class="item" data-view="ask" hidden data-label="Ask" data-info="Ask Claude Code about your job search, in the desktop app: it answers from your job posts, resume and applications through jobdork's tools, and can draft and save documents. Every question is checked first, and only job-search questions are sent." aria-description="Ask Claude Code about your job search, in the desktop app: it answers from your job posts, resume and applications through jobdork's tools, and can draft and save documents. Every question is checked first, and only job-search questions are sent."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5 3h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-7.6l-4.7 3.8A1 1 0 0 1 5 20v-3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 5v1.8h10V8H7zm0 3.4v1.8h7v-1.8H7z"/></svg><span class="label">Ask</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
+  <button class="item" data-view="notes" title="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2a6 6 0 0 1 6 6v3.6l1.7 3.4a1 1 0 0 1-.9 1.5H5.2a1 1 0 0 1-.9-1.5L6 11.6V8a6 6 0 0 1 6-6zm-2.6 16h5.2a2.6 2.6 0 0 1-5.2 0z"/></svg><span class="label">Notifications</span><span class="count" id="nav-notes" title="notifications you have not seen" hidden></span></button>
   <div class="sec">Setup</div>
   <button class="item" data-view="settings" data-label="Search" data-info="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen." aria-description="What you are looking for: job titles to include and exclude, where you are and how far you will travel, work arrangement, salary floor and dealbreakers. Saved to your config and applied by every scan and re-screen."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24a1 1 0 0 1-1.42 1.42l-4.24-4.25A7.5 7.5 0 1 1 10.5 3zm0 2.5a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg><span class="label">Search</span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
   <button class="item" data-view="resume" data-label="Resume" data-info="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine." aria-description="Upload your resume as PDF, Word, Markdown or text. Its skills drive the fit score, and the AI reader compares adverts against it. Have the AI review it here too. It stays on this machine."><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.8V8a1 1 0 0 0 1 1h4.2L13 3.8zM8 12.2h8v1.6H8v-1.6zm0 3.6h8v1.6H8v-1.6z"/></svg><span class="label">Resume</span><span class="count" id="nav-sugg" title="suggestions from your coding agent, waiting for your OK" hidden></span><span class="info" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.1 8.5v7h2.2v-7h-2.2zm1.1-4a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7z"/></svg></span></button>
@@ -1257,6 +1270,12 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <div id="act-history"></div>
     </details>
 
+  </section>
+
+  <section id="view-notes" hidden>
+    <div class="noteshead"><h2>Notifications</h2>
+      <button type="button" class="act" data-icon="eraser" id="notes-clear" hidden>Clear all</button></div>
+    <div id="notes"></div>
   </section>
 
   <section id="view-prefs" hidden>
@@ -1936,6 +1955,9 @@ const flagLabel = f => cap(String(f || '').startsWith('fit: ')
     }).join('; ')
   : f);
 const TOKEN = new URLSearchParams(location.search).get('t') || '';
+// The view a notification's click asked for (web/app.py VIEWS), read before
+// the address is cleaned of the token.
+const START_VIEW = new URLSearchParams(location.search).get('view') || '';
 if (TOKEN) history.replaceState(null, '', location.pathname);
 // Problems the page meets go to the server's Warnings and errors (Activity),
 // where the Feedback page picks them up: a script error, a request the server
@@ -2112,7 +2134,7 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
   b.onclick = () => {
     document.querySelectorAll('nav button[data-view]').forEach(x =>
       x.classList.toggle('on', x === b));
-    ['roles','apps','scan','tools','settings','resume','sources','ai','ask','prefs'].forEach(v =>
+    ['roles','apps','scan','tools','settings','resume','sources','ai','ask','prefs','notes'].forEach(v =>
       $('view-' + v).hidden = v !== b.dataset.view);
     if (b.dataset.view === 'ask') drawAsk();
     if (b.dataset.view === 'settings') drawConfig();
@@ -2122,8 +2144,16 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
     if (b.dataset.view === 'scan') { pollActivity(); loadMetrics(); }
     if (b.dataset.view === 'prefs') drawPrefs();
     if (b.dataset.view === 'apps') loadApps();
+    if (b.dataset.view === 'notes') drawNotes();
   };
 });
+// Opens a page by its menu item: the desktop app calls it when a click on a
+// notification raises the window (web/app.py open_view).
+window.openView = v => {
+  const b = document.querySelector(`nav button[data-view="${CSS.escape(String(v))}"]`);
+  if (b && !b.hidden) b.click();
+};
+if (START_VIEW) setTimeout(() => window.openView(START_VIEW), 0);
 
 // ── ask (the desktop app's): Claude Code about your job search (ai/ask.py) ───
 // The server answers only in the app, where Claude Code is on the same
@@ -3727,6 +3757,7 @@ async function refreshState() {
   const s = await (await api('/api/state')).json();
   if (s.notifications) noteCfg = s.notifications;
   if (s.keys) { keysInfo = s.keys; askForKeys(s.keys); }
+  noteCount((s.notifications || {}).unseen || 0);
   if (s.setup) drawSetup(s.setup);
   // Just finished: open the dashboard. The token lives only in this page's
   // memory, so it goes back in the address for the one load that reads it.
@@ -6717,6 +6748,50 @@ function bindApplication(d) {
     after(await api('/api/application/note', {method: 'POST', body: form({uid: d.uid, delete: b.dataset.note})}), 'Note deleted');
   });
 }
+
+// ── notifications ───────────────────────────────────────────────────────────
+// Every notification jobdork sent (core/notify.py), shown on the desktop or
+// not: newest first, a click opens what it was about, Clear all empties it.
+const NOTE_VIEW = {posts: 'roles', activity: 'scan', apps: 'apps', update: 'prefs'};
+function noteCount(n) {
+  $('nav-notes').hidden = !n;
+  $('nav-notes').textContent = n || '';
+}
+
+async function drawNotes() {
+  const box = $('notes');
+  let d;
+  try {
+    const r = await api('/api/notifications');
+    if (!r.ok) { box.innerHTML = `<p class="err">${esc(await r.text())}</p>`; return; }
+    d = await r.json();
+  } catch (e) { return; }
+  const list = d.notifications;
+  $('notes-clear').hidden = !list.length;
+  box.innerHTML = list.length ? `<ul class="notelist">${list.map(n => `<li class="${n.seen ? '' : 'new'}"
+      data-kind="${esc(n.kind)}" tabindex="0"><b>${esc(n.title)}</b>
+      <span class="when">${esc(new Date(n.at).toLocaleString(undefined,
+        {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}))}</span>
+      <span class="body">${esc(n.body)}</span></li>`).join('')}</ul>`
+    : '<div class="notes-none">You have no notifications from jobdork</div>';
+  box.querySelectorAll('li[data-kind]').forEach(li => {
+    const go = () => {
+      const view = NOTE_VIEW[li.dataset.kind];
+      if (view) document.querySelector(`nav .item[data-view="${view}"]`).click();
+    };
+    li.onclick = go;
+    li.onkeydown = e => { if (e.key === 'Enter') go(); };
+  });
+  if (d.unseen) { await api('/api/notifications/seen', {method: 'POST'}); noteCount(0); }
+}
+
+$('notes-clear').onclick = async () => {
+  const r = await api('/api/notifications/clear', {method: 'POST'});
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  toast('Notifications cleared.');
+  noteCount(0);
+  drawNotes();
+};
 
 // ── resume ───────────────────────────────────────────────────────────────────
 // What a coding agent suggested for your record (web/agent.py): it counts

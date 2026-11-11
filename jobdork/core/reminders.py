@@ -103,7 +103,7 @@ def remind(cfg, store, today: str = "", run=subprocess.run) -> int:
         if not new:
             return 0
         title, body = message(new, today)
-        if not notify.notify(cfg, title, body, run=run):
+        if not notify.notify(cfg, title, body, run=run, kind="apps"):
             return 0
         # Only what is still due is kept: a step done or moved drops out.
         still = {a["uid"] for a in items}
