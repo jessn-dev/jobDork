@@ -233,7 +233,12 @@ def check(cache_dir: str | Path, current: str = __version__, fetch=_fetch,
     with "failed" saying why when GitHub could not be asked, so the page
     does not call this copy the newest. `enabled` is the config's
     `update_check`; False asks nothing."""
+    from . import store
+
     mine = parse(current)
+    if store.packaged():
+        # The Microsoft Store updates its copy; GitHub is not asked.
+        return {"newer": False, "current": current, "store": True}
     if mine is None or off() or not enabled:
         return {"newer": False, "current": current}
     release, why = _latest(cache_dir, fetch, now, force)

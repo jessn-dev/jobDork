@@ -226,8 +226,11 @@ def toast_xml(title: str, body: str, sound: bool) -> str:
 
 
 def _windows_toast(title: str, body: str, sound: bool, run) -> bool:
+    from . import store
+
     app = getattr(sys, "frozen", False)
-    aumid = APP_ID if app else POWERSHELL_AUMID
+    # The Store's package has an app id of its own (core/store.py).
+    aumid = store.aumid() or (APP_ID if app else POWERSHELL_AUMID)
     # The toast's XML and the app id go in as environment variables, not into
     # the script's text, so nothing in a title can change what PowerShell runs.
     script = (
