@@ -195,6 +195,8 @@ jobs:
           echo "--- self-test:"; cat /tmp/report
           test "$(cat /tmp/report)" = ok
           test -x /usr/bin/jobdork && test -f /usr/share/applications/jobdork.desktop
+          test -f /usr/share/metainfo/io.github.jessn_dev.jobdork.metainfo.xml
+          test -f /usr/share/icons/hicolor/512x512/apps/jobdork.png
           apt-get remove -y -qq jobdork > /dev/null
           test ! -e /opt/jobdork/jobdork
           echo "installed, self-tested and removed"
