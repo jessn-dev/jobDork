@@ -146,8 +146,8 @@ fully. [Limits](#limits) has the list.
 
 | | For | Guide |
 |---|---|---|
-| **Desktop app** | macOS (Apple Silicon or Intel), Windows, and Linux (an AppImage, or a .deb for Ubuntu and Debian): an installer, its own window, scheduled scans, notifications, and updates from inside the app | [docs/run/desktop.md](docs/run/desktop.md) |
-| **From source** | Any system with Python 3.10 or newer, ARM Linux included | [docs/run/source.md](docs/run/source.md) |
+| **Desktop app** | macOS (Apple Silicon or Intel), Windows, and Linux on x86-64 or ARM64 (an AppImage, or a .deb for Ubuntu and Debian): an installer, its own window, scheduled scans, notifications, and updates from inside the app | [docs/run/desktop.md](docs/run/desktop.md) |
+| **From source** | Any system with Python 3.10 or newer, ARM Linux older than 2024 included | [docs/run/source.md](docs/run/source.md) |
 | **In the terminal** | Every command without the dashboard: scripts, cron jobs, servers with no screen | [docs/run/cli.md](docs/run/cli.md) |
 | **Docker** | The published image on your computer, or always on a NAS | [docs/run/docker.md](docs/run/docker.md), [docs/run/nas.md](docs/run/nas.md) |
 

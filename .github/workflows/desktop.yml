@@ -60,6 +60,19 @@ jobs:
             file: |
               dist/jobdork-*-linux-x86_64.AppImage
               dist/jobdork_*_amd64.deb
+            appimage: x86_64
+            tool_sha256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+            runtime_sha256: 2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d
+          # ARM64 (from 0.16.4): PyQt6's ARM wheels need glibc 2.39, so 24.04,
+          # and the .deb runs on Ubuntu 24.04, Debian 13 or newer.
+          - os: ubuntu-24.04-arm
+            label: Linux (ARM64)
+            file: |
+              dist/jobdork-*-linux-aarch64.AppImage
+              dist/jobdork_*_arm64.deb
+            appimage: aarch64
+            tool_sha256: f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158
+            runtime_sha256: 00cbdfcf917cc6c0ff6d3347d59e0ca1f7f45a6df1a428a0d6d8a78664d87444
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     permissions:
@@ -107,10 +120,10 @@ jobs:
       - name: "Linux: fetch appimagetool and the AppImage runtime, checked"
         if: runner.os == 'Linux'
         env:
-          TOOL_URL: https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
-          TOOL_SHA256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
-          RUNTIME_URL: https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
-          RUNTIME_SHA256: 2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d
+          TOOL_URL: https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-${{ matrix.appimage }}.AppImage
+          TOOL_SHA256: ${{ matrix.tool_sha256 }}
+          RUNTIME_URL: https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-${{ matrix.appimage }}
+          RUNTIME_SHA256: ${{ matrix.runtime_sha256 }}
         run: |
           mkdir -p "$RUNNER_TEMP/appimage"
           cd "$RUNNER_TEMP/appimage"
@@ -161,12 +174,33 @@ jobs:
   # the real window opened on a virtual screen, left a while, and
   # photographed, and the AppImage's self-test.
   linux:
-    name: "Linux: install on Ubuntu and Debian, and open the window"
+    name: "Linux (${{ matrix.label }}): install on Ubuntu and Debian, and open the window"
     needs: build
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            label: x86-64
+            artifact: desktop-Linux-X64
+            deb: amd64
+            appimage: x86_64
+            images: ubuntu:22.04 ubuntu:24.04 debian:12
+          # glibc 2.39 and newer only (packaging/build.py, LINUX).
+          - os: ubuntu-24.04-arm
+            label: ARM64
+            artifact: desktop-Linux-ARM64
+            deb: arm64
+            appimage: aarch64
+            images: ubuntu:24.04 debian:13
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     permissions:
       contents: read
+    env:
+      DEB_ARCH: ${{ matrix.deb }}
+      APPIMAGE_ARCH: ${{ matrix.appimage }}
+      IMAGES: ${{ matrix.images }}
     steps:
       # Only for scripts/ci_apt_mirror.sh.
       - name: Checkout repository
@@ -178,16 +212,16 @@ jobs:
       - name: Fetch the Linux builds
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: desktop-Linux-X64
+          name: ${{ matrix.artifact }}
           path: dist
 
-      - name: Install the .deb on bare Ubuntu 22.04, 24.04 and Debian 12
+      - name: Install the .deb on bare Ubuntu and Debian
         run: |
           cat > check.sh <<'SH'
           set -e
           export DEBIAN_FRONTEND=noninteractive
           sh /ci_apt_mirror.sh > /dev/null
-          apt-get install -y -qq /dist/jobdork_*_amd64.deb > /dev/null
+          apt-get install -y -qq /dist/jobdork_*_"$DEB_ARCH".deb > /dev/null
           # Searched as the app searches: its own folder first. Every file:
           # a library the build machine had and a bare system lacks fails here.
           echo "--- libraries the app's files ask for that this system lacks:"
@@ -209,9 +243,9 @@ jobs:
           test ! -e /opt/jobdork/jobdork
           echo "installed, self-tested and removed"
           SH
-          for image in ubuntu:22.04 ubuntu:24.04 debian:12; do
+          for image in $IMAGES; do
             echo "=== $image"
-            docker run --rm -v "$PWD/dist:/dist:ro" -v "$PWD/check.sh:/check.sh:ro" \
+            docker run --rm -e DEB_ARCH -v "$PWD/dist:/dist:ro" -v "$PWD/check.sh:/check.sh:ro" \
               -v "$PWD/scripts/ci_apt_mirror.sh:/ci_apt_mirror.sh:ro" "$image" sh /check.sh
           done
 
@@ -222,7 +256,7 @@ jobs:
         run: |
           # An Ubuntu mirror this runner can reach (scripts/ci_apt_mirror.sh).
           sudo sh scripts/ci_apt_mirror.sh
-          sudo apt-get install -y -q --no-install-recommends xvfb x11-apps imagemagick libgl1-mesa-dri ./dist/jobdork_*_amd64.deb
+          sudo apt-get install -y -q --no-install-recommends xvfb x11-apps imagemagick libgl1-mesa-dri ./dist/jobdork_*_"$DEB_ARCH".deb
           mkdir -p pictures
           export JOBDORK_HOME="$RUNNER_TEMP/window" JOBDORK_UPDATE_CHECK=off JOBDORK_NOTIFY=off
           cat > window.sh <<'SH'
@@ -241,7 +275,7 @@ jobs:
 
       - name: The AppImage's self-test
         run: |
-          app=$(ls dist/jobdork-*-linux-x86_64.AppImage)
+          app=$(ls dist/jobdork-*-linux-"$APPIMAGE_ARCH".AppImage)
           # After the window: the .deb it installed brought the libraries every
           # desktop has (EGL, fonts, X11), which this server image lacks and the
           # AppImage leaves to the system, as the .deb does.
@@ -255,7 +289,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: linux-pictures
+          name: linux-pictures-${{ matrix.deb }}
           path: pictures/
           if-no-files-found: warn
           retention-days: 7
