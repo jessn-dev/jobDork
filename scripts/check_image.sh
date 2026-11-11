@@ -36,7 +36,7 @@ cp config.example.yaml "$work/config.yaml"
 mkdir "$work/data" && chmod 777 "$work/data"
 name=jobdork-check-$$
 docker run -d --name "$name" -p "127.0.0.1:$PORT:8765" \
-  -e JOBDORK_ALLOW_HOSTS=nas.test \
+  -e JOBDORK_ALLOW_HOSTS=nas.test -e JOBDORK_ALLOW_HTTP=1 \
   -v "$work/config.yaml:/app/config.yaml" -v "$work/data:/app/data" \
   "$IMAGE" serve --no-open --token "$TOKEN" >/dev/null
 trap 'docker rm -f "$name" >/dev/null 2>&1; rm -rf "$work"' EXIT

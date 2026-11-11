@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import contextlib
 import hmac
+import ipaddress
 import json
 import logging
 import os
@@ -94,8 +95,44 @@ ALLOW_ENV = "JOBDORK_ALLOW_HOSTS"
 _HOSTNAME = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:\d{1,5})?$")
 
 
+# Opening the dashboard to the network sends its token across it with every
+# request, and over plain HTTP anyone on the network could read it and take
+# the dashboard over (Claude Security F2, 2026-11-06). So it is opened only
+# over HTTPS (your certificate and key, named here: `tailscale cert` makes
+# one), or to Tailscale addresses alone, whose traffic is already encrypted,
+# or when JOBDORK_ALLOW_HTTP=1 says you accept plain HTTP.
+TLS_CERT_ENV, TLS_KEY_ENV = "JOBDORK_TLS_CERT", "JOBDORK_TLS_KEY"
+ALLOW_HTTP_ENV = "JOBDORK_ALLOW_HTTP"
+_TAILNET = ipaddress.ip_network("100.64.0.0/10")
+
+
+def tls_files() -> tuple[str, str] | None:
+    """(certificate, key) for HTTPS, when both are named and exist."""
+    cert = os.path.expanduser(os.environ.get(TLS_CERT_ENV, "").strip())
+    key = os.path.expanduser(os.environ.get(TLS_KEY_ENV, "").strip())
+    if cert and key and Path(cert).is_file() and Path(key).is_file():
+        return cert, key
+    return None
+
+
+def _tailscale(name: str) -> bool:
+    """A Tailscale name or address: traffic to it is WireGuard-encrypted."""
+    host = name.rsplit(":", 1)[0] if name.count(":") == 1 else name
+    if host.endswith(".ts.net"):
+        return True
+    try:
+        return ipaddress.ip_address(host) in _TAILNET
+    except ValueError:
+        return False
+
+
+def _plain_http_ok() -> bool:
+    return bool(tls_files()) or os.environ.get(ALLOW_HTTP_ENV, "").strip() == "1"
+
+
 def allowed_extra_hosts() -> list[str]:
-    """The addresses named in JOBDORK_ALLOW_HOSTS, lower-cased, checked."""
+    """The addresses named in JOBDORK_ALLOW_HOSTS, lower-cased, checked;
+    none when the token would cross the network in plain text (above)."""
     names = []
     for raw in os.environ.get(ALLOW_ENV, "").split(","):
         name = raw.strip().lower()
@@ -106,7 +143,30 @@ def allowed_extra_hosts() -> list[str]:
             log.warning("%s: %r is not an address; ignored", ALLOW_ENV, raw.strip())
             continue
         names.append(name)
+    if names and not _plain_http_ok():
+        dropped = [n for n in names if not _tailscale(n)]
+        if dropped:
+            log.warning("%s: not opened to %s: over plain HTTP the token would cross your "
+                        "network readable. Name a certificate and key in %s and %s "
+                        "(Tailscale: `tailscale cert`), open it by its Tailscale name, or set "
+                        "%s=1 to accept plain HTTP", ALLOW_ENV, ", ".join(dropped),
+                        TLS_CERT_ENV, TLS_KEY_ENV, ALLOW_HTTP_ENV)
+            names = [n for n in names if _tailscale(n)]
     return names
+
+
+def wrap_tls(server, files: tuple[str, str]) -> str:
+    """Serve HTTPS on `server` with (certificate, key). "" when it does, or
+    why it cannot."""
+    import ssl
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    try:
+        context.load_cert_chain(*files)
+    except (OSError, ssl.SSLError) as exc:
+        return f"cannot use the certificate in {TLS_CERT_ENV} and {TLS_KEY_ENV}: {exc}"
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    return ""
 
 
 def bind_address() -> str:
@@ -1522,7 +1582,10 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
     # and the one the Host check accepts, and in a container the browser
     # still reaches it as 127.0.0.1 through the published port.
     bind = bind_address()
-    session = new_session(HOST, preferred_port=port, token=token)
+    extra = allowed_extra_hosts()
+    tls = tls_files() if extra else None
+    session = new_session(HOST, preferred_port=port, token=token,
+                          scheme="https" if tls else "http")
     cfg_holder = {"cfg": cfg}
     # lambda: looked up on every use, so a config edit that moves the database
     # is followed; passing the path itself would freeze it.
@@ -1547,6 +1610,12 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
     except OSError as exc:
         print(f"cannot listen on {bind}:{session.port}: {exc}")
         return 1
+    if tls:
+        why = wrap_tls(server, tls)
+        if why:
+            server.server_close()
+            print(why)
+            return 1
 
     if session.port != port:
         print(f"port {port} was busy; using {session.port}")
@@ -1562,14 +1631,15 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
               "Your job posts, settings, resume and letters are deleted with the "
               f"container. Start it with -v <a folder on this machine>:{unkept} "
               "to keep them.")
-    extra = allowed_extra_hosts()
     if extra:
         # A port named with the host is how that address reaches it (a NAS
         # may publish 8765 as another port); a bare name uses this one.
         for name in extra:
             where = name if ":" in name else f"{name}:{session.port}"
-            print(f"  also at: http://{where}/?t={session.token}")
-        print(f"Open to {', '.join(extra)} on your network ({ALLOW_ENV}); "
+            print(f"  also at: {session.scheme}://{where}/?t={session.token}")
+        how = ("over HTTPS" if tls else "over Tailscale" if all(_tailscale(n) for n in extra)
+               else f"over plain HTTP, as {ALLOW_HTTP_ENV}=1 asks")
+        print(f"Open to {', '.join(extra)} on your network ({ALLOW_ENV}), {how}; "
               "the token is still required. Ctrl-C to stop.")
     elif bind != HOST:
         print(f"In a container, listening on {bind}. Publish it to the host's "

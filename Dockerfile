@@ -66,7 +66,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # To open it from another computer (a NAS opened from a laptop), publish the
 # port to the network instead and name the address it is opened by:
 #   -p 8765:8765 -e JOBDORK_ALLOW_HOSTS=192.168.1.50
-# The access token is still required; see docs/run/nas.md.
+# The access token is still required; see docs/run/nas.md. An address outside
+# Tailscale also needs HTTPS (JOBDORK_TLS_CERT, JOBDORK_TLS_KEY) or
+# JOBDORK_ALLOW_HTTP=1, or the token would cross the network in plain text.
 ENV JOBDORK_IN_CONTAINER=1
 
 # Print as it happens. Without this Python holds output back when it is not

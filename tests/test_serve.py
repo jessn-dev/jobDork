@@ -483,6 +483,7 @@ def test_named_addresses_may_open_the_dashboard_and_nothing_else():
     import os
     saved = os.environ.get(serve_mod.ALLOW_ENV)
     os.environ[serve_mod.ALLOW_ENV] = "192.168.1.50, nas.local:9000, *, 0.0.0.0"
+    os.environ[serve_mod.ALLOW_HTTP_ENV] = "1"        # plain HTTP accepted (F2)
     try:
         assert serve_mod.allowed_extra_hosts() == ["192.168.1.50", "nas.local:9000"]
         assert serve_mod.bind_address() == "0.0.0.0"
@@ -496,6 +497,7 @@ def test_named_addresses_may_open_the_dashboard_and_nothing_else():
             assert run.get("/api/roles", host="192.168.1.50", token=None)[0] == 401
         _with_server(check)
     finally:
+        os.environ.pop(serve_mod.ALLOW_HTTP_ENV, None)
         if saved is None:
             os.environ.pop(serve_mod.ALLOW_ENV, None)
         else:
@@ -1526,11 +1528,13 @@ def test_the_folders_are_listed_and_only_opened_on_this_machine():
             code, _ = run.post("/api/folders/open", {"which": "/etc"})
             assert code == 400
             os.environ["JOBDORK_ALLOW_HOSTS"] = "nas.local"
+            os.environ["JOBDORK_ALLOW_HTTP"] = "1"
             try:
                 code, _ = run.post("/api/folders/open", {"which": "settings"})
                 assert code == 409
             finally:
                 os.environ.pop("JOBDORK_ALLOW_HOSTS")
+                os.environ.pop("JOBDORK_ALLOW_HTTP")
         finally:
             app_mod.open_with_system = saved
         assert len(opened) == 1

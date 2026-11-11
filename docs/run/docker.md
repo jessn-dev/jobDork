@@ -56,7 +56,9 @@ compose.
 
 | Variable | Meaning |
 |---|---|
-| `JOBDORK_ALLOW_HOSTS` | Addresses besides `127.0.0.1` the dashboard may be opened by, comma separated. Only needed to open it from another device ([nas.md](nas.md)) |
+| `JOBDORK_ALLOW_HOSTS` | Addresses besides `127.0.0.1` the dashboard may be opened by, comma separated. Only needed to open it from another device ([nas.md](nas.md)). A Tailscale name or address works as it is; any other needs the two below, or `JOBDORK_ALLOW_HTTP` |
+| `JOBDORK_TLS_CERT`, `JOBDORK_TLS_KEY` | A certificate and its key, as paths inside the container: the dashboard is then served over HTTPS, and opened by the name the certificate is for (`tailscale cert` makes one for a Tailscale name) |
+| `JOBDORK_ALLOW_HTTP` | `1` opens it to the addresses in `JOBDORK_ALLOW_HOSTS` over plain HTTP. Anyone on that network can then read the access token and use the dashboard |
 | `JOBDORK_TEMP_DOCS` | `/tmp/jobdork` keeps the resume and documents in a folder emptied at every start and stop, for a shared machine |
 | `JOBDORK_UPDATE_CHECK` | `off` stops the daily check for a newer release |
 
