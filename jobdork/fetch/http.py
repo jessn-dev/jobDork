@@ -196,6 +196,35 @@ def quiet(exc: BaseException | str) -> str:
     return _QUERY.sub("?…", str(exc))
 
 
+# The most of one answer that is read. A page reached through a link, a
+# sitemap or discover is a stranger's, and `resp.text` read all of it, so a
+# hostile one could fill the memory (code scan #6, 2026-11-06). Room for the
+# largest board answers (a Greenhouse board of thousands of jobs with their
+# adverts); past it the rest is not read and the answer is what came first.
+MAX_BODY_BYTES = 32 * 1024 * 1024
+
+
+def _read_capped(resp, url: str) -> None:
+    """Read a streamed answer into `resp`, at most MAX_BODY_BYTES of it, so
+    `resp.text` and `resp.json()` read what was kept."""
+    if not hasattr(resp, "iter_content"):
+        return
+    kept, size = [], 0
+    try:
+        for chunk in resp.iter_content(64 * 1024):
+            size += len(chunk)
+            if size > MAX_BODY_BYTES:
+                kept.append(chunk[:len(chunk) - (size - MAX_BODY_BYTES)])
+                log.warning("%s is larger than %d MB: read the first %d MB", url,
+                            MAX_BODY_BYTES // 2**20, MAX_BODY_BYTES // 2**20)
+                break
+            kept.append(chunk)
+    finally:
+        resp.close()
+    resp._content = b"".join(kept)
+    resp._content_consumed = True
+
+
 # The name lookup the check uses, here so a test can answer it.
 _getaddrinfo = socket.getaddrinfo
 
@@ -467,7 +496,9 @@ class Fetcher:
                     json=json_body if method == "POST" else None,
                     headers=headers,
                     timeout=self.timeout,
+                    stream=True,
                 )
+                _read_capped(resp, url)
             except PrivateAddress as exc:      # asking again changes nothing
                 return Response(url=url, status=0, host=host, error=str(exc))
             except requests.RequestException as exc:

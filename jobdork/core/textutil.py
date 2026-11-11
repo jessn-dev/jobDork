@@ -17,20 +17,61 @@ import html
 import re
 from xml.sax.saxutils import escape as _xml_escape  # nosec B406 - escapes, parses nothing
 
-_SCRIPT_STYLE = re.compile(
-    r"<(script|style)\b[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL
-)
+# A tag never spans another "<": "<[^>]+>" on a page of "<<<<" with no ">"
+# tried every one to the end, and a hostile page stalled the scan (Claude
+# Security F15, 2026-11-06). Scripts and styles are cut by str.find
+# (_strip_blocks), not by ".*?", for the same reason.
+_SCRIPT_OPEN = re.compile(r"<(script|style)\b[^<>]{0,2000}>", re.IGNORECASE)
 _BLOCK_TAGS = re.compile(
     r"</?(p|div|br|li|ul|ol|h[1-6]|tr|td|th|table|section|article|"
-    r"header|footer|blockquote|pre)\b[^>]*>",
+    r"header|footer|blockquote|pre)\b[^<>]*>",
     re.IGNORECASE,
 )
-_ANY_TAG = re.compile(r"<[^>]+>")
+_ANY_TAG = re.compile(r"<[^<>]+>")
 _MULTI_BLANK = re.compile(r"\n{3,}")
 _TRAILING_SPACE = re.compile(r"[ \t]+\n")
 
 
-_ESCAPED_HTML = re.compile(r"&lt;/?[a-zA-Z][^&]*&gt;")
+_ESCAPED_HTML = re.compile(r"&lt;/?[a-zA-Z][^&]{0,500}&gt;")
+
+
+def _strip_blocks(text: str) -> str:
+    """Scripts and styles out, each up to its closing tag, found by str.find;
+    an unclosed one takes the rest of the page."""
+    out, at = [], 0
+    while True:
+        m = _SCRIPT_OPEN.search(text, at)
+        if not m:
+            out.append(text[at:])
+            return " ".join(out)
+        out.append(text[at:m.start()])
+        close = text.lower().find(f"</{m.group(1).lower()}", m.end())
+        if close < 0:
+            return " ".join(out)
+        end = text.find(">", close)
+        at = len(text) if end < 0 else end + 1
+
+
+def ld_json_blocks(page: str) -> list[str]:
+    """The text of each <script type="application/ld+json"> on a page, found
+    by str.find: "(.*?)</script>" over a page of unclosed ones read it to the
+    end once for each (Claude Security F12, 2026-11-06)."""
+    out, at = [], 0
+    low = (page or "").lower()
+    while True:
+        start = low.find("<script", at)
+        if start < 0:
+            return out
+        tag_end = low.find(">", start)
+        if tag_end < 0:
+            return out
+        tag = low[start:tag_end]
+        close = low.find("</script", tag_end)
+        if close < 0:
+            return out
+        if "application/ld+json" in tag:
+            out.append(page[tag_end + 1:close])
+        at = close + 8
 
 
 def html_to_text(raw: str) -> str:
@@ -46,7 +87,7 @@ def html_to_text(raw: str) -> str:
     text = raw
     if _ESCAPED_HTML.search(text):
         text = html.unescape(text)
-    text = _SCRIPT_STYLE.sub(" ", text)
+    text = _strip_blocks(text)
     text = _BLOCK_TAGS.sub("\n", text)
     text = _ANY_TAG.sub(" ", text)
     text = html.unescape(text)

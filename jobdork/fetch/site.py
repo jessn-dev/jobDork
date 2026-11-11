@@ -50,7 +50,7 @@ import re
 import urllib.parse
 from html.parser import HTMLParser
 
-from ..core.textutil import to_text
+from ..core.textutil import ld_json_blocks, to_text
 from ..db.store import Role
 from . import SourceResult, register
 from .boards import annualise, clean, normalise_interval
@@ -79,9 +79,6 @@ SITE_RATE = 1.0             # posting pages a second, per site
 
 log = logging.getLogger("jobdork.fetch.site")
 
-_LD_BLOCK = re.compile(
-    r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
-    re.IGNORECASE | re.DOTALL)
 
 
 def _postings_in(node) -> list[dict]:
@@ -102,7 +99,7 @@ def _postings_in(node) -> list[dict]:
 
 def job_posting(html: str) -> dict:
     """The page's schema.org JobPosting, or {}: JSON-LD, else microdata."""
-    for block in _LD_BLOCK.findall(html or ""):
+    for block in ld_json_blocks(html):
         try:
             data = json.loads(block.strip())
         except (json.JSONDecodeError, TypeError):
@@ -276,13 +273,29 @@ _LOC = re.compile(r"<loc>([^<]*)</loc>", re.IGNORECASE)
 _LASTMOD = re.compile(r"<lastmod>([^<]*)</lastmod>", re.IGNORECASE)
 
 
+def _url_blocks(xml: str) -> list[str]:
+    """Each <url>…</url> of a sitemap, found by str.find: "<url>(.*?)</url>"
+    over a sitemap of unclosed ones read it to the end once for each (Claude
+    Security F12, 2026-11-06)."""
+    out, at, low = [], 0, xml.lower()
+    while True:
+        start = low.find("<url>", at)
+        if start < 0:
+            return out
+        end = low.find("</url>", start + 5)
+        if end < 0:
+            return out
+        out.append(xml[start + 5:end])
+        at = end + 6
+
+
 def sitemap_urls(xml: str) -> tuple[list[str], list[tuple[str, str]]]:
     """(child sitemaps, [(page, lastmod)]) in a sitemap or sitemap index.
     discover.py reads sitemaps with this too."""
     if re.search(r"<sitemapindex", xml, re.IGNORECASE):
         return [u.strip() for u in _LOC.findall(xml) if u.strip()], []
     pages = []
-    for block in re.findall(r"<url>(.*?)</url>", xml, re.IGNORECASE | re.DOTALL):
+    for block in _url_blocks(xml):
         loc = _LOC.search(block)
         mod = _LASTMOD.search(block)
         if loc and loc.group(1).strip():
