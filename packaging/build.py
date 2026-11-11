@@ -11,8 +11,9 @@ Windows: dist/jobdork/, then dist/jobdork-<version>-windows-x64-setup.exe from
 packaging/jobdork.iss. Needs Inno Setup 6 (`iscc` on PATH, or where its
 installer puts it).
 
-Linux (x86-64): dist/jobdork/, then dist/jobdork-<version>-linux-x86_64.AppImage
-and dist/jobdork_<version>_amd64.deb, the same build in each. The AppImage
+Linux (x86-64 and, from 0.16.4, ARM64): dist/jobdork/, then
+dist/jobdork-<version>-linux-<x86_64|aarch64>.AppImage and
+dist/jobdork_<version>_<amd64|arm64>.deb, the same build in each. The AppImage
 needs appimagetool and the AppImage runtime it puts in front, both given as
 files (APPIMAGETOOL, APPIMAGE_RUNTIME; desktop.yml fetches pinned ones), so
 nothing is downloaded while building; the .deb needs dpkg-deb.
@@ -270,13 +271,41 @@ def prune_linux(bundle: Path) -> list[str]:
     return gone
 
 
-def build_packages() -> list[str]:
-    """DEB_DEPENDS as the build machine (Ubuntu 22.04) names them, for apt:
-    the alternative from before Ubuntu 24.04's renaming."""
+# Each Linux machine jobdork is packaged for: (the AppImage's name for it,
+# the .deb's, the oldest glibc its Qt wheels run on). PyQt6's ARM64 wheels
+# need glibc 2.39 (manylinux_2_39_aarch64), so the ARM build runs on Ubuntu
+# 24.04 and its .deb needs Ubuntu 24.04, Debian 13 or newer (2026-11-11).
+LINUX = {"x86_64": ("x86_64", "amd64", "2.35"), "aarch64": ("aarch64", "arm64", "2.39")}
+
+
+def linux_arch(machine: str = "") -> tuple[str, str, str]:
+    """LINUX's entry for this machine (or the one named)."""
+    machine = machine or platform.machine()
+    return LINUX["aarch64" if machine in ("aarch64", "arm64") else machine]
+
+
+def deb_depends(deb_arch: str = "amd64") -> list[str]:
+    """DEB_DEPENDS with the glibc this machine's build needs."""
+    glibc = next(g for _, d, g in LINUX.values() if d == deb_arch)
+    return [f"libc6 (>= {glibc})" if dep.startswith("libc6 ") else dep for dep in DEB_DEPENDS]
+
+
+def build_packages(t64: bool | None = None) -> list[str]:
+    """DEB_DEPENDS as the build machine names them, for apt: Ubuntu 22.04's
+    names from before 24.04's renaming, or with `t64` (the ARM build, on
+    24.04; worked out from /etc/os-release when not given) the new ones,
+    since there "libasound2" is only a name others answer to."""
+    if t64 is None:
+        try:
+            release = Path("/etc/os-release").read_text(encoding="utf-8")
+        except OSError:
+            release = ""
+        found = re.search(r'^VERSION_ID="?(\d+)', release, re.M)
+        t64 = bool(found) and int(found.group(1)) >= 24
     names = []
     for dep in DEB_DEPENDS:
         alts = [a.split(" (")[0] for a in dep.split(" | ")]
-        names.append(next((a for a in alts if not a.endswith("t64")), alts[0]))
+        names.append(next((a for a in alts if a.endswith("t64") == t64), alts[0]))
     return names
 
 
@@ -401,19 +430,20 @@ def appimage(ver: str) -> Path:
     shutil.copy(appdir / "usr" / "share" / "icons" / "hicolor" / "256x256" / "apps"
                 / "jobdork.png", appdir)
     (appdir / ".DirIcon").symlink_to("jobdork.png")
-    out = DIST / f"jobdork-{ver}-linux-x86_64.AppImage"
+    arch = linux_arch()[0]
+    out = DIST / f"jobdork-{ver}-linux-{arch}.AppImage"
     out.unlink(missing_ok=True)
     # appimagetool is itself an AppImage: unpacked to run, so the build
     # machine needs no FUSE.
-    os.environ.update(ARCH="x86_64", APPIMAGE_EXTRACT_AND_RUN="1")
+    os.environ.update(ARCH=arch, APPIMAGE_EXTRACT_AND_RUN="1")
     run(tool, "--no-appstream", "--runtime-file", runtime, appdir, out)
     return out
 
 
-def deb_control(ver: str, installed_kb: int) -> str:
-    return (f"Package: jobdork\nVersion: {ver}\nArchitecture: amd64\n"
+def deb_control(ver: str, installed_kb: int, deb_arch: str = "amd64") -> str:
+    return (f"Package: jobdork\nVersion: {ver}\nArchitecture: {deb_arch}\n"
             f"Maintainer: {MAINTAINER}\nInstalled-Size: {installed_kb}\n"
-            f"Depends: {', '.join(DEB_DEPENDS)}\n"
+            f"Depends: {', '.join(deb_depends(deb_arch))}\n"
             # notify-send, for notifications (core/notify.py); without it
             # jobdork runs and shows none.
             "Recommends: libnotify-bin\nSection: utils\nPriority: optional\n"
@@ -438,9 +468,10 @@ def deb(ver: str) -> Path:
     shutil.copy(ROOT / "LICENSE", docs / "copyright")
     size = sum(p.lstat().st_size for p in root.rglob("*") if not p.is_dir())
     (root / "DEBIAN").mkdir()
-    (root / "DEBIAN" / "control").write_text(deb_control(ver, size // 1024 + 1),
+    deb_arch = linux_arch()[1]
+    (root / "DEBIAN" / "control").write_text(deb_control(ver, size // 1024 + 1, deb_arch),
                                              encoding="utf-8")
-    out = DIST / f"jobdork_{ver}_amd64.deb"
+    out = DIST / f"jobdork_{ver}_{deb_arch}.deb"
     out.unlink(missing_ok=True)
     run("dpkg-deb", "--root-owner-group", "-Zxz", "--build", root, out)
     return out
@@ -457,7 +488,7 @@ def main() -> int:
         built = [dmg(ver)]
     elif sys.platform == "win32":
         built = [windows_installer(ver)]
-    elif platform.machine() == "x86_64":
+    elif platform.machine() in ("x86_64", "aarch64", "arm64"):
         built = [appimage(ver), deb(ver)]
     else:
         print(f"Linux on {platform.machine()} is not packaged; the build is in dist/jobdork/.")

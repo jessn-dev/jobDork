@@ -4,8 +4,8 @@
 
 | Your computer | How |
 |---|---|
-| A Mac (Apple Silicon or Intel) with macOS 12 or newer, Windows 10 or 11, or 64-bit Linux | Download the installer from the [Releases page](https://github.com/jessn-dev/jobDork/releases/latest) and open it: on Linux the AppImage (any distribution) or the .deb (Ubuntu, Debian, Mint). Step by step, including the one-time security warning: [desktop app guide](https://github.com/jessn-dev/jobDork/blob/main/docs/run/desktop.md) |
-| ARM Linux, or if you prefer Python | [Run it from source](https://github.com/jessn-dev/jobDork/blob/main/docs/run/source.md) |
+| A Mac (Apple Silicon or Intel) with macOS 12 or newer, Windows 10 or 11, or 64-bit Linux | Download the installer from the [Releases page](https://github.com/jessn-dev/jobDork/releases/latest) and open it: on Linux the AppImage (any distribution) or the .deb (Ubuntu, Debian, Mint), the `amd64`/`x86_64` one for most computers and the `arm64`/`aarch64` one for ARM (a Raspberry Pi, a Linux VM on an Apple Silicon Mac; Ubuntu 24.04, Debian 13 or newer). Step by step, including the one-time security warning: [desktop app guide](https://github.com/jessn-dev/jobDork/blob/main/docs/run/desktop.md) |
+| ARM Linux older than 2024, or if you prefer Python | [Run it from source](https://github.com/jessn-dev/jobDork/blob/main/docs/run/source.md) |
 | A NAS or home server, always on | [Docker](https://github.com/jessn-dev/jobDork/blob/main/docs/run/docker.md) or the [NAS guide](https://github.com/jessn-dev/jobDork/blob/main/docs/run/nas.md) |
 
 On a Mac you can also install it with one command in Terminal, which

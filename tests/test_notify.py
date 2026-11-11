@@ -393,8 +393,16 @@ def test_only_the_desktop_app_on_a_known_system_gets_an_installer():
     finally:
         updates.platform.machine = saved
     try:
-        # lambda: a Linux computer's processor, which only x86-64 has builds for.
+        # lambda: an ARM64 Linux computer, which has builds from 0.16.4.
         updates.platform.machine = lambda: "aarch64"
+        with _platform("linux", frozen=True):
+            os.environ.pop("APPIMAGE", None)
+            assert updates.installer_name("9.0.0") == "jobdork_9.0.0_arm64.deb"
+            os.environ["APPIMAGE"] = "/home/me/Apps/jobdork.AppImage"
+            assert updates.installer_name("9.0.0") == "jobdork-9.0.0-linux-aarch64.AppImage"
+            os.environ.pop("APPIMAGE", None)
+        # lambda: a processor with no build at all.
+        updates.platform.machine = lambda: "riscv64"
         with _platform("linux", frozen=True):
             assert updates.installer_name("9.0.0") == ""
         # lambda: an x86-64 Linux computer.
