@@ -79,6 +79,7 @@ salary:
 dealbreakers:
   - {words: "night shift only", hard: false}
   - {words: "travel nursing", hard: true}
+skip_employers: [Apex Travel Staffing]
 resume:
   path: {resume}
 db: {db}

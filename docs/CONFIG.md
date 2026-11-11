@@ -412,6 +412,18 @@ Python flavour, which is what a scan uses.
 
 ---
 
+## skip_employers
+
+```yaml
+skip_employers: [Acme Staffing, Initech]
+```
+
+Employers whose job posts are dropped wherever they come from (the Search
+page's **Employers to skip**). Compared without case or endings like Inc,
+LLC and Corp (`agency.core_name`): `Acme` skips `ACME Corp.`, not `Acme
+Health`. A dropped post's reason is "an employer you skip"
+(`screen.skipped_employer`). Default: empty.
+
 ## screening
 
 Advanced. The judgements built into title matching and arrangement
