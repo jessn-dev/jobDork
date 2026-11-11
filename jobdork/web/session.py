@@ -28,7 +28,7 @@ import contextlib
 import hmac
 import secrets
 import socket
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # Long enough that guessing is hopeless, short enough to sit in a URL.
 TOKEN_BYTES = 32
@@ -41,6 +41,12 @@ class Session:
     host: str
     port: int
     token: str
+    # What the browser is opened with instead of the token: the address
+    # handed to the system's "open" command is in its command line, which
+    # any program on the computer can read (Claude Security F11,
+    # 2026-11-06). The code works once, for a minute, and swaps itself for
+    # the token by a redirect.
+    launch_code: str = field(default_factory=lambda: secrets.token_urlsafe(16))
 
     @property
     def origin(self) -> str:
@@ -56,6 +62,11 @@ class Session:
         anything that logs URLs.
         """
         return f"{self.origin}/?t={self.token}"
+
+    @property
+    def launch_url(self) -> str:
+        """The address the browser is opened with: the one-use code, not the token."""
+        return f"{self.origin}/?c={self.launch_code}"
 
     def matches(self, candidate: str) -> bool:
         """Constant-time comparison — a timing side channel is still a channel."""

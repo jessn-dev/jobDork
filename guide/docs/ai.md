@@ -180,7 +180,8 @@ the key like any other (in memory, or in this computer's keychain if you
 chose that). Click **Save** to keep the lines. Keep the code private, like
 a password: it carries the key. Without a code, tick **Send the Ollama key**
 on the line and paste the key they gave you in its box. The key goes only
-to the lines with that box ticked.
+to the lines with that box ticked, and only once they are saved: click
+**Save**, and the line's list of models then loads with the key.
 
 ## When to use it
 
