@@ -8296,6 +8296,23 @@ open; a digest arrives, and what arrived with it is what was not there before.
   kept in the keychain like a key; PRIVACY.md to say what leaves the
   computer (job titles, employers). Scheduled scans already run with the
   app closed, so they can send too.
+- **One "Add a job post" form, and the documents you sent** (asked
+  2026-11-09). Add a job post (Sources) and Track an application you sent
+  (My applications) read a link the same way: one form, with "I already
+  applied" and its date, in both places. A link that names the job but
+  carries no advert asks for the advert instead of storing an empty one.
+  The resume and cover letter you sent can be uploaded for the post's
+  "Documents sent", and its interview prep, recruiter message and AI tools
+  read the resume you sent.
+- **Writing and preparing, beyond the letter** (asked 2026-11-09): a
+  tailoring report beside the tailored resume (what the advert asks, what
+  you have and lack, what changed and why, what to prepare for), cover
+  letter rules (length, no stock phrases, nothing the resume says already),
+  interview prep with a story builder (situation, task, action, result),
+  a thank-you email after an interview, help with an offer, an outreach
+  message, a LinkedIn headline and About section to copy, career-change
+  positioning, a choice of resume font, and a 30-day search plan. Each
+  from your resume and the post only, checked as every AI output is.
 - **Sources: say why no employer boards are read.** With `sources.keyless`
   narrowed to sources that are not employer-board platforms (no workday,
   greenhouse…), `jobdork sources` says "0 built-in employer boards" without

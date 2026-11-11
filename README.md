@@ -88,9 +88,11 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
   coding agent (Claude Code, Codex, Antigravity CLI, Cursor, GitHub Copilot,
   Claude Desktop) does the writing through jobdork's MCP server or command
   line, with no key, within guardrails: jobdork checks and keeps what it
-  writes, and what it adds to your record waits for your OK
+  writes, and what it adds to your record waits for your OK; the AI page
+  and the Dashboard say when it last used jobdork's tools and what it did
   ([Coding agent](https://jessn-dev.github.io/jobDork/ai/#coding-agent)).
-  It can judge posts, write a cover letter, review your resume, and write a
+  It can judge posts (Job posts marks which ones each run judged, and sorts
+  and filters by its score), write a cover letter, review your resume, and write a
   tailored resume as a PDF and a Word file, held to Indeed's length advice
   (one page up to ten years), interview prep and a recruiter message. A
   second model checks each output, claim by claim, against your resume and
@@ -99,7 +101,8 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
   ([models compared](docs/AI-MODELS.md)). It never applies or sends for
   you. [The AI page](https://jessn-dev.github.io/jobDork/ai/)
 - **Keeps track.** Statuses from *new* to *offer*, notes, a check for posts
-  that have closed, scans on a schedule, notifications, and an email digest.
+  that have closed, scans on a schedule, notifications (a click opens
+  jobdork), and an email digest.
   **My applications** keeps every job you applied to, by stage, with each
   status dated, the next step and its date, the contact, the resume and
   letter you sent, and notes.
