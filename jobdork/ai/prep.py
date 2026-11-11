@@ -40,6 +40,7 @@ from pathlib import Path
 
 from ..core import telemetry
 from ..writing import humanize
+from ..writing.gates import STOCK  # one list of stock phrases, the cover letter's too
 from . import guard
 from .llm import MAX_ADVERT, MAX_RESUME, LLMError, Settings, _fenced, complete_json
 from .tools import _DATA, _FACTS
@@ -58,12 +59,6 @@ class Field:
     hint: str = ""
 
 
-# Stock phrases a reader sees through, from the prompt pack's lists and the
-# humanizer's: refused in everything written here.
-STOCK = ("passionate", "team player", "excited about this opportunity",
-         "excited to apply", "synergy", "leverage", "dynamic", "pick your brain",
-         "i really enjoyed learning about the role", "thank you for your time",
-         "seeking opportunities", "go-getter", "results-driven")
 
 
 def stock_phrases(text: str) -> list[str]:
@@ -637,7 +632,9 @@ def run(cfg, store, kind: str, uid: str = "", given: dict | None = None,
     given = form_fields(kind, given or {})
     settings = _settings(cfg)
     row = _row(store, uid) if spec.post else None
-    resume_text = _resume_text(cfg)
+    # For a job post with the resume you sent uploaded, that one (writer):
+    # a thank-you or a negotiation goes by what the employer has.
+    resume_text = _resume_text(cfg, store, uid) if spec.post else _resume_text(cfg)
     if progress:
         progress(f"{settings.label}: {spec.label.lower()}"
                  + (f" for {row['title']} at {row['company']}" if row is not None else ""))

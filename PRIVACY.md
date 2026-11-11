@@ -22,7 +22,7 @@ Everything stays in folders on the machine jobdork runs on:
 | Job posts found, your statuses and notes, AI verdicts, run history, warnings and errors | `data/jobdork.db` |
 | Copies of the database, made before anything is deleted | `data/backups/` |
 | Your resume, as you uploaded it, and the projects and education you add | `data/` |
-| Cover letters and tailored resumes you ask for | `Documents/job-applications/` (in Docker, `data/documents/`) |
+| Cover letters and tailored resumes you ask for, and the resume and letter you sent for a job, if you upload them | `Documents/job-applications/` (in Docker, `data/documents/`) |
 | What a scheduled scan printed | `logs/scheduled-scan.log` |
 
 The desktop app keeps these in its own folder: `~/Library/Application
