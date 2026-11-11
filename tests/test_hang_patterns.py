@@ -83,12 +83,12 @@ def test_one_answer_is_read_only_so_far():
     http.MAX_BODY_BYTES = 10
     try:
         resp = _Resp([b"12345", b"67890", b"abcde"])
-        http._read_capped(resp, "https://a.test/")
+        http._read_capped(resp)
     finally:
         http.MAX_BODY_BYTES = was
     assert resp._content == b"1234567890" and resp.closed
     small = _Resp([b"ok"])
-    http._read_capped(small, "https://a.test/")
+    http._read_capped(small)
     assert small._content == b"ok"
 
 

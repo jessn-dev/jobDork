@@ -204,7 +204,7 @@ def quiet(exc: BaseException | str) -> str:
 MAX_BODY_BYTES = 32 * 1024 * 1024
 
 
-def _read_capped(resp, url: str) -> None:
+def _read_capped(resp) -> None:
     """Read a streamed answer into `resp`, at most MAX_BODY_BYTES of it, so
     `resp.text` and `resp.json()` read what was kept."""
     if not hasattr(resp, "iter_content"):
@@ -215,9 +215,9 @@ def _read_capped(resp, url: str) -> None:
             size += len(chunk)
             if size > MAX_BODY_BYTES:
                 kept.append(chunk[:len(chunk) - (size - MAX_BODY_BYTES)])
-                # The host only: a query string can carry a key (Adzuna's).
-                log.warning("an answer from %s is larger than %d MB: read the first %d MB",
-                            urllib.parse.urlsplit(url).hostname or "a site",
+                # Nothing of the address: a query string can carry a key
+                # (Adzuna's), and the request's own log line names the site.
+                log.warning("an answer is larger than %d MB: read the first %d MB",
                             MAX_BODY_BYTES // 2**20, MAX_BODY_BYTES // 2**20)
                 break
             kept.append(chunk)
@@ -500,7 +500,7 @@ class Fetcher:
                     timeout=self.timeout,
                     stream=True,
                 )
-                _read_capped(resp, url)
+                _read_capped(resp)
             except PrivateAddress as exc:      # asking again changes nothing
                 return Response(url=url, status=0, host=host, error=str(exc))
             except requests.RequestException as exc:

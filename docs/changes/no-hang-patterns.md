@@ -24,7 +24,7 @@ could freeze the whole process, and with it the scan and the dashboard.
   are cut at their closing tag by `str.find`.
 - **One answer's size** (#6): every answer is read streamed, at most 32 MB
   of it (room for the largest board answers); past that the rest is not
-  read and a warning names the site (its host only: a query string can carry a key).
+  read and a warning says so (without the address: a query string can carry a key).
 
 tests/test_hang_patterns.py feeds each one the input that used to stall it,
 with a two-second limit, and checks the ordinary case still reads the same.
