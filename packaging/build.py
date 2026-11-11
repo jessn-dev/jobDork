@@ -567,12 +567,14 @@ def main() -> int:
     if sys.platform == "darwin":
         built = [dmg(ver)]
     elif sys.platform == "win32":
-        built = [windows_installer(ver), msix(ver)]
+        built = [windows_installer(ver)]
     elif platform.machine() == "x86_64":
         built = [appimage(ver), deb(ver)]
     else:
         print(f"Linux on {platform.machine()} is not packaged; the build is in dist/jobdork/.")
         return 0
+    if sys.platform == "win32":
+        built.append(msix(ver))                 # the Microsoft Store's package
     for out in built:
         print(f"built {out} ({out.stat().st_size // (1024 * 1024)} MB)")
     return 0
