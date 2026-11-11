@@ -8280,15 +8280,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   tokens per verdict against each free tier's daily and per-minute limits,
   so the guide can say which free models to pick and how many job posts a
   day a free key covers before it is capped.
-- **Guardrails, from Guardrails AI's ideas** (guardrails-ai/guardrails, used
-  as reference, not as a dependency): a rewrite pass that asks the reader
-  once to fix only the claims the check flagged ("reask"), the biggest
-  lever for smaller models (10% to 18% in docs/AI-MODELS.md).
-  `bespoke-minicheck` as the checker was measured and not adopted (0.16.3,
-  docs/AI-MODELS.md). Matching claims to the resume by meaning (embeddings)
-  is not planned: it would loosen the rule that a supported claim is quoted
-  from its source. Smaller: a gap claim the checker answers "unsupported"
-  could be settled by the gap rule too, as "absent" is (guard.verify).
 - **Notifications on your phone** (asked 2026-11-05): the same
   notifications (new job posts, a failed scan, follow-ups due) sent on to
   ntfy (a free phone app), a Discord or Slack webhook, or Mattermost,

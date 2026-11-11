@@ -935,6 +935,12 @@ class Store:
 
     # ── AI outputs ─────────────────────────────────────────────────────────────
 
+    def set_ai_output_kind(self, output_id: int, kind: str) -> None:
+        """Relabel one recorded output (a verdict that lost to its rewrite
+        becomes a draft, judging.DRAFT)."""
+        self.conn.execute("UPDATE ai_outputs SET kind = ? WHERE id = ?", (kind, int(output_id)))
+        self.conn.commit()
+
     def add_ai_output(self, kind: str, text: str, uid: str = "",
                       model: str = "", guard: dict | None = None,
                       activity_id: int | None = None) -> int:

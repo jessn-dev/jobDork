@@ -295,6 +295,31 @@ def test_an_ai_output_keeps_its_guard_counts_and_takes_feedback():
                 raise AssertionError("feedback is 1, -1 or None")
 
 
+def test_the_hallucination_rate_splits_by_the_checker_too():
+    """2026-11-10: the rate mixed every checker used in the period, so a
+    strict one tried for a day kept it high for weeks. Split by checker, a
+    change of checker shows at once."""
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp)
+        with Store(cfg.db_path) as store:
+            for checker, claims, unsupported in (("Ollama · strict", 10, 7),
+                                                 ("Ollama · qwen", 20, 1),
+                                                 ("Ollama · qwen", 10, 1)):
+                store.add_ai_output("judge", "{}", uid="abc", model="Ollama · writer",
+                                    guard={"checked": True, "claims": claims,
+                                           "unsupported": unsupported, "model": checker})
+            store.add_ai_output("judge", "{}", uid="abc", model="Ollama · writer",
+                                guard={"checked": True, "claims": 4, "unsupported": 0})
+        d = api.metrics(cfg, 7)
+    # In the order first used (colours stay put); all three here are the same second.
+    assert {c["kind"] for c in d["checkers"]} == {"Ollama · strict", "Ollama · qwen",
+                                                  "unknown checker"}
+    today = d["per_day"][-1]["claims_by_checker"]
+    assert today["Ollama · qwen"] == {"claims": 30, "unsupported": 2}
+    assert today["Ollama · strict"] == {"claims": 10, "unsupported": 7}
+    assert d["hallucination"]["claims"] == 44, "the overall rate still counts them all"
+
+
 def test_a_one_post_judging_still_shows_on_its_card():
     """The card said "recorded before run history" the day a post was judged."""
     with tempfile.TemporaryDirectory() as tmp:

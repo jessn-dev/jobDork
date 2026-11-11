@@ -88,6 +88,35 @@ def pick(store, limit: int) -> list[str]:
     return list(dict.fromkeys(judged + rest))[:limit]
 
 
+def rewritten(reader, writer, row, uid, verdict, report, resume_text, posting, work, tag):
+    """The rewrite pass as a scan runs it (judging.rewrite): the verdict
+    written again without the flagged claims, checked, and kept when it
+    flags fewer. Returns the report counted and its flagged claims."""
+    if verdict is None:
+        try:
+            verdict = json.loads(row["llm_judgement"] or "null")
+        except ValueError:
+            verdict = None
+    if not isinstance(verdict, dict):
+        return report, report.unsupported
+    role = {"title": row["title"], "company": row["company"], "location": row["location_raw"],
+            "description": row["description"], "posting": posting, "work": work}
+    started = time.time()
+    again = judging.revise(reader, role, resume_text, verdict,
+                           [c.claim for c in report.unsupported], uid=uid)
+    if again is None:
+        print(f"{tag}: rewrite: nothing it could take out", flush=True)
+        return report, report.unsupported
+    second = guard.check(writer, judging.verdict_text(again), judging.guard_sources(
+        row, resume_text, posting, work), work=work)
+    better = (second.checked and second.claims
+              and len(second.unsupported) < len(report.unsupported))
+    print(f"{tag}: rewrite {len(report.unsupported)} -> "
+          f"{len(second.unsupported) if second.checked else '?'} flagged "
+          f"({time.time() - started:.0f}s, {'kept' if better else 'set aside'})", flush=True)
+    return (second, second.unsupported) if better else (report, report.unsupported)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[1],
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -109,6 +138,9 @@ def main() -> int:
                     help="check the verdicts the first database holds, against the "
                          "first resume; judge nothing")
     ap.add_argument("--rejudge", action="store_true")
+    ap.add_argument("--rewrite", action="store_true",
+                    help="as a scan with llm.rewrite: a flagged verdict is written again "
+                         "once and the one with fewer flags counted")
     ap.add_argument("--judge-only", action="store_true",
                     help="fill the verdict cache and stop: one model loaded at a time")
     ap.add_argument("--out", default=str(ROOT / "out" / "hallucination"))
@@ -178,12 +210,15 @@ def main() -> int:
                     text = judging.verdict_text(cache[key])
                 started = time.time()
                 report = guard.check(writer, text, judging.guard_sources(
-                    row, resume_text, posting, work))
+                    row, resume_text, posting, work), work=work)
                 if not report.checked:
                     print(f"{tag}: check failed: {report.error}", flush=True)
                     total["unchecked"] += 1
                     continue
                 bad = report.unsupported
+                if args.rewrite and bad:
+                    report, bad = rewritten(reader, writer, row, uid, cache.get(
+                        f"{reader.label}|{who}|{uid}"), report, resume_text, posting, work, tag)
                 mine = per.setdefault(who, Counter())
                 pair = per_set.setdefault(f"{who[:24]} x {jobset}", Counter())
                 for c in (total, mine, pair):

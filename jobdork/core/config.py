@@ -494,6 +494,10 @@ class Llm:
     # Check each verdict and draft for claims its sources do not support
     # (guard.py). Two more model calls per output.
     guard: bool = True
+    # A verdict with claims the check flagged is rewritten once by its
+    # reader, from the sources only, and checked again (judging.rewrite).
+    # One more reader call and one more check per flagged verdict.
+    rewrite: bool = True
     # Tokens an Ollama model may use per call (llm.DEFAULT_CONTEXT). Ignored
     # by hosted models, which size themselves.
     context: int = 16_384
@@ -901,6 +905,7 @@ def _build(raw: dict[str, Any]) -> Config:
         judge_top=int(ai.get("judge_top", 25)),
         read_pages=bool(ai.get("read_pages", False)),
         guard=bool(ai.get("guard", True)),
+        rewrite=bool(ai.get("rewrite", True)),
         context=_context(ai.get("context")),
         checker_provider=str(ai.get("checker_provider") or "").strip().lower(),
         checker_model=str(ai.get("checker_model") or "").strip(),

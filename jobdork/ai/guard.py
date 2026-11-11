@@ -45,14 +45,22 @@ from .llm import (
     AGENT,
     AGENT_LABEL,
     AGENTS,
+    MAX_ADVERT,
+    MAX_RESUME,
     LLMError,
     Settings,
     agent_key,
     complete_json,
+    total_only,
 )
 
 MAX_CLAIMS = 25
-MAX_SOURCE = 16_000
+# Each source the checker reads is cut here. It must cover everything the
+# writer read (llm.MAX_RESUME, llm.MAX_ADVERT), plus the measured work
+# history added to the resume (judging.guard_sources): at 16,000 a resume of
+# 16,718 characters lost its end and the work-history line after it, and
+# the checker called claims from them unsupported (2026-11-10).
+MAX_SOURCE = max(MAX_RESUME, MAX_ADVERT) + 2_000
 
 CLAIMS_SCHEMA = {
     "type": "object",
@@ -271,7 +279,12 @@ _MISSING_AFTER = re.compile(
 _MISSING_TAIL = re.compile(
     r"(?:\s+(?:explicitly|specifically|required|requested|needed|"
     r"(?:as\s+)?(?:mentioned|listed|requested|required)\s+in\s+the\s+(?:job\s+)?advert\w*|"
-    r"for\s+(?:the|this)\s+(?:role|position|job)))+\s*$", re.IGNORECASE)
+    r"(?:(?:required|requested|needed|expected)\s+)?for\s+(?:the|this|a|an)\s+"
+    r"(?:[\w-]+\s+){0,3}(?:role|position|job|level|post)|"
+    # The thing, not the word for having it: "Python experience" is Python
+    # (it was looked for as "pythonexperience" and never found, 2026-11-10).
+    r"experience|expertise|skills?|knowledge|background|familiarity|proficiency|exposure))+"
+    r"\s*$", re.IGNORECASE)
 # A gap naming several things or examples of one: "CI/CD tools like Jenkins,
 # GitHub Actions or GitLab CI", "Cypress or Playwright".
 _EXAMPLES = re.compile(r"\b(?:like|such\s+as|including|e\.g\.)\s+", re.IGNORECASE)
@@ -368,8 +381,37 @@ def clean_claims(raw) -> list[str]:
     # Small models keep "X is applying for Y" however they are told; it is
     # the letter describing itself, which no source can support. So is a
     # resume summary's "seeking a Software Engineer role" (2026-10-24).
+    # An overall opinion of fit ("meets the seniority and technical
+    # requirements", "is overqualified") is the verdict's score in words: no
+    # source can support it, so it is not a claim (1 of 10 flags left on
+    # 2026-11-10). One that names something checkable, a number, a skill
+    # after "for", stays.
     return [re.sub(r"\s+", " ", str(c)).strip() for c in claims
-            if str(c).strip() and not _SELF.search(str(c)[:300])][:MAX_CLAIMS]
+            if str(c).strip() and not _SELF.search(str(c)[:300])
+            and not opinion(str(c))][:MAX_CLAIMS]
+
+
+# "Overqualified", "a strong fit", "well suited": a judgement of the person
+# against the role, whatever role it names.
+_FIT_OPINION = re.compile(
+    r"\b(?:over|under)[- ]?qualified\b"
+    r"|\b(?:is|are|seems?|appears?|would be)\s+(?:an?\s+)?(?:very\s+)?(?:strong|good|great|poor|"
+    r"weak|possible|solid|reasonable|excellent|close|partial)\s+(?:fit|match|candidate)\b"
+    r"|\bwell[- ]suited\b", re.IGNORECASE)
+# "Meets the seniority and technical requirements", and nothing after it.
+_MEETS_OPINION = re.compile(
+    r"\b(?:meets?|satisf(?:y|ies)|fulfils?|fulfills?)\s+(?:all\s+|most\s+|many\s+|several\s+|"
+    r"the\s+|its\s+|their\s+)*(?:(?:core|key|main|basic|seniority|technical|minimum|stated|"
+    r"listed|required|essential|and|,)\s*){0,6}(?:requirements|criteria|qualifications)\s*\.?\s*$",
+    re.IGNORECASE)
+
+
+def opinion(claim: str) -> bool:
+    """An overall opinion of fit, with nothing in it a source could check:
+    no number, and for "meets the requirements" no thing named after it."""
+    if re.search(r"\d", claim):
+        return False
+    return bool(_FIT_OPINION.search(claim) or _MEETS_OPINION.search(claim))
 
 
 def extract_claims(settings: Settings, text: str) -> list[str]:
@@ -454,6 +496,17 @@ def settle(claims: list[str], sources: dict[str, str], raw) -> list[ClaimCheck]:
             # gap in the resume would be "filled" by the advert asking for it.
             verdict = (_gap(claim, quote, loose[source]) if source in loose
                        else "unsupported")
+        elif verdict == "unsupported" and _GAP.search(claim) and "resume" in loose:
+            # A gap the checker could not quote ("lacks leadership experience")
+            # is settled by script too, against the resume: a gap is about the
+            # candidate, and the advert asking for a thing must not fill it.
+            # Checkers answer most true gaps so (3 of 10 flags left on
+            # 2026-11-10).
+            # Only a short, named thing: a long one cannot be looked for word
+            # for word, and calling a wrong gap true would hide a mistake.
+            missing = _missing(claim)
+            if missing and len(_loose(missing).split()) <= 5:
+                verdict, source = _gap(claim, quote, loose["resume"]), "resume"
         if verdict == "unsupported" and "resume" in loose:
             named = _named(claim, loose["resume"])
             if named:
@@ -539,7 +592,8 @@ def waiting(text: str, sources: dict[str, str], note: str = "",
                                 "sources": {k: v[:MAX_SOURCE] for k, v in sources.items()}})
 
 
-def check(settings: Settings, text: str, sources: dict[str, str]) -> GuardReport:
+def check(settings: Settings, text: str, sources: dict[str, str],
+          work: str = "") -> GuardReport:
     """Extract and verify. Never raises; a failure is `checked=False`.
 
     A model other than the one that wrote it checks when one is ready
@@ -565,7 +619,10 @@ def check(settings: Settings, text: str, sources: dict[str, str]) -> GuardReport
                            **found)
 
     try:
-        claims = extract_claims(use, text)
+        # The verdict says the total as a total (llm.total_only); a checker
+        # splitting it into claims put it back in a field ("10 years in
+        # DevOps and security"), and then flagged its own words.
+        claims = [total_only(c, work) for c in extract_claims(use, text)]
         if not claims:
             return report(checked=True)
         return report(checked=True, claims=verify(use, claims, sources))
