@@ -136,7 +136,9 @@ def test_the_linux_packages_say_what_they_are_and_what_they_need():
     assert meta.find("releases/release").get("version") == "1.2.3"
     # Ubuntu 24.04's real ALSA first: its "libasound2" is also a stand-in's.
     assert "libasound2t64 | libasound2" in fields["Depends"]
-    pkgs = build.build_packages()
+    # The x86-64 build machine's names (Ubuntu 22.04); named, since the
+    # machine running this test may be 24.04.
+    pkgs = build.build_packages(t64=False)
     assert "libasound2" in pkgs and "libglib2.0-0" in pkgs and not any(p.endswith("t64") for p in pkgs)
 
 
