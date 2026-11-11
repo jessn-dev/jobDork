@@ -32,6 +32,13 @@ on:
     branches:
       - main
 
+# A pull request's newer push replaces its older run, which is cancelled
+# rather than left running to the end; a push to main and a tag are never
+# cancelled, since a release must finish and main's history is kept.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # The token can read the repository and nothing else, unless a job says so.
 permissions:
   contents: read
@@ -46,6 +53,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       matrix:
         # 3.10 is the oldest supported; 3.14 is what the image runs.
@@ -76,6 +84,7 @@ jobs:
 
   security:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository (the whole history, for the secret scan)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -162,6 +171,7 @@ jobs:
   image:
     needs: [test, security]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -218,6 +228,7 @@ jobs:
   packaging:
     name: "Installers: needed for this change?"
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       changed: ${{ steps.diff.outputs.changed }}
       pictures: ${{ steps.diff.outputs.pictures }}
@@ -249,9 +260,12 @@ jobs:
           if printf '%s\n' "$files" | grep -qx 'packaging/jobdork.iss'; then
             echo "pictures=true" >> "$GITHUB_OUTPUT"
           fi
-          # The build's own files, its locked dependencies and the version,
-          # the two workflows, and the code only the installed app runs.
-          if printf '%s\n' "$files" | grep -qE '^(packaging/|scripts/gpg_sign\.sh$|requirements-desktop\.lock$|pyproject\.toml$|\.github/workflows/(desktop|docker)\.yml$|jobdork/web/app\.py$|jobdork/core/(updates|notify|keystore|uninstall)\.py$)'; then
+          # The build's own files and CI scripts, its locked dependencies
+          # and the version, the installers' workflow, and the code only the
+          # installed app runs. Not docker.yml: a change to its image, test
+          # or release steps does not change an installer, and a tag builds
+          # them all anyway.
+          if printf '%s\n' "$files" | grep -qE '^(packaging/|scripts/(gpg_sign|ci_apt_mirror)\.sh$|requirements-desktop\.lock$|pyproject\.toml$|\.github/workflows/desktop\.yml$|jobdork/web/app\.py$|jobdork/core/(updates|notify|keystore|uninstall|store|schedule)\.py$)'; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -283,6 +297,7 @@ jobs:
     # above, but not published.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # Waits for your approval (SECURITY.md). The Docker Hub token lives in
     # this environment, so it is only handed to a run you approved.
     environment: release
@@ -390,6 +405,7 @@ jobs:
     name: "Installers: GPG signing works (a throwaway key)"
     needs: desktop
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -429,6 +445,7 @@ jobs:
     needs: [image, desktop]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: release
     permissions:
       contents: read
@@ -472,6 +489,7 @@ jobs:
     name: "Release: create the GitHub Release page"
     needs: [publish, desktop, sign-linux]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
       discussions: write     # the release's announcement in Discussions
