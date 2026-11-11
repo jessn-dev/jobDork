@@ -287,16 +287,93 @@ def desktop_entry(command: str) -> str:
             f"StartupWMClass=jobdork\n")
 
 
-def _linux_files(root: Path, command: str) -> None:
-    """The menu entry and the icon, where the desktop looks for them."""
+# The AppStream id: what software centres (GNOME Software, KDE Discover)
+# know jobdork by. Without its metainfo file they showed a package opened
+# from a file with a generic gear for its icon and "No Screenshots" (2026-11-11).
+APP_ID = "io.github.jessn_dev.jobdork"
+ICON_SIZES = (64, 128, 256, 512)
+# Guide pictures shown as screenshots, from the release's own tag so they
+# match the version installed: (picture, caption).
+SCREENSHOTS = (("dashboard", "The Dashboard: scans, job posts found and the AI's numbers"),
+               ("job-posts", "Job posts, scored against your resume"),
+               ("job-window", "One job post: its scores, advert and what to do next"),
+               ("resume", "Your resume, the ones tailored from it, and its checks"))
+
+
+def _xml(text: str) -> str:
+    return (text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            .replace('"', "&quot;"))
+
+
+def metainfo(ver: str, date: str = "") -> str:
+    """The AppStream metainfo: name, description, icon, screenshots and the
+    release, for software centres."""
+    date = date or time.strftime("%Y-%m-%d")
+    raw = f"https://raw.githubusercontent.com/jessn-dev/jobDork/v{ver}"
+    default = ' type="default"'
+    shots = "\n".join(
+        f'    <screenshot{default if i == 0 else ""}>\n'
+        f"      <caption>{_xml(caption)}</caption>\n"
+        f'      <image type="source">{raw}/guide/docs/images/{name}.png</image>\n'
+        "    </screenshot>"
+        for i, (name, caption) in enumerate(SCREENSHOTS))
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>{APP_ID}</id>
+  <name>jobdork</name>
+  <summary>{_xml(SUMMARY)}</summary>
+  <developer id="io.github.jessn_dev"><name>jessn-dev</name></developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>jobdork searches job sites and employers' own boards for the jobs you want,
+    scores each post against your resume, and keeps what you applied to.</p>
+    <p>An AI model of your choice, local or with your own key, can judge posts,
+    draft cover letters, tailored resumes and interview prep, and every claim it
+    makes is checked against your resume and the advert. It never applies for you.</p>
+    <p>Your search, resume and job posts stay on this computer.</p>
+  </description>
+  <launchable type="desktop-id">jobdork.desktop</launchable>
+  <icon type="stock">jobdork</icon>
+  <icon type="remote" width="512" height="512">{raw}/packaging/icon.png</icon>
+  <url type="homepage">{HOMEPAGE}</url>
+  <url type="bugtracker">{HOMEPAGE}/issues</url>
+  <url type="help">https://jessn-dev.github.io/jobDork/</url>
+  <categories><category>Office</category></categories>
+  <provides><binary>jobdork</binary></provides>
+  <screenshots>
+{shots}
+  </screenshots>
+  <releases>
+    <release version="{ver}" date="{date}">
+      <url type="details">{HOMEPAGE}/releases/tag/v{ver}</url>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>
+"""
+
+
+def _linux_files(root: Path, command: str, ver: str = "") -> None:
+    """The menu entry, the icon in each size the desktop looks for, and the
+    AppStream metainfo software centres read."""
     from PIL import Image
 
     apps = root / "usr" / "share" / "applications"
-    icons = root / "usr" / "share" / "icons" / "hicolor" / "256x256" / "apps"
     apps.mkdir(parents=True, exist_ok=True)
-    icons.mkdir(parents=True, exist_ok=True)
     (apps / "jobdork.desktop").write_text(desktop_entry(command), encoding="utf-8")
-    Image.open(PACKAGING / "icon.png").resize((256, 256)).save(icons / "jobdork.png")
+    hicolor = root / "usr" / "share" / "icons" / "hicolor"
+    for size in ICON_SIZES:
+        icons = hicolor / f"{size}x{size}" / "apps"
+        icons.mkdir(parents=True, exist_ok=True)
+        Image.open(PACKAGING / "icon.png").resize((size, size)).save(icons / "jobdork.png")
+    scalable = hicolor / "scalable" / "apps"
+    scalable.mkdir(parents=True, exist_ok=True)
+    shutil.copy(PACKAGING / "icon.svg", scalable / "jobdork.svg")
+    if ver:
+        meta = root / "usr" / "share" / "metainfo"
+        meta.mkdir(parents=True, exist_ok=True)
+        (meta / f"{APP_ID}.metainfo.xml").write_text(metainfo(ver), encoding="utf-8")
 
 
 APPRUN = """#!/bin/sh
@@ -316,7 +393,7 @@ def appimage(ver: str) -> Path:
     appdir = WORK / "AppDir"
     shutil.rmtree(appdir, ignore_errors=True)
     shutil.copytree(DIST / "jobdork", appdir / "usr" / "lib" / "jobdork", symlinks=True)
-    _linux_files(appdir, "jobdork")
+    _linux_files(appdir, "jobdork", ver)
     (appdir / "AppRun").write_text(APPRUN, encoding="utf-8")
     (appdir / "AppRun").chmod(0o755)
     # The AppImage's own entry and icon, at its top, as the format asks.
@@ -355,7 +432,7 @@ def deb(ver: str) -> Path:
     shutil.copytree(DIST / "jobdork", root / "opt" / "jobdork", symlinks=True)
     (root / "usr" / "bin").mkdir(parents=True)
     (root / "usr" / "bin" / "jobdork").symlink_to("/opt/jobdork/jobdork")
-    _linux_files(root, "/opt/jobdork/jobdork")
+    _linux_files(root, "/opt/jobdork/jobdork", ver)
     docs = root / "usr" / "share" / "doc" / "jobdork"
     docs.mkdir(parents=True)
     shutil.copy(ROOT / "LICENSE", docs / "copyright")

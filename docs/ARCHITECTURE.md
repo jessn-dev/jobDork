@@ -56,7 +56,7 @@ nothing below imports from `web/`.
 | `db/` | `store` (schema, upsert, status, AI outputs), `migrations` (numbered, forwards-only), `grouping` (copies of one job) |
 | `fetch/` | `http` (pacing, retries, circuit breaker — the only networking), `robots` (robots.txt, RFC 9309), one adapter per source (keyword searches: Workable, Himalayas, Kalibrr, Germany's employment agency, Arbeitnow, and with keys Adzuna and USAJOBS; employer boards on Greenhouse, Ashby, Lever, SmartRecruiters, Breezy, Workday, Oracle, Eightfold and Taleo; and an employer's own careers site, SuccessFactors career sites included), shared board helpers |
 | `search/` | `scan` (orchestration, rescreen), `screen` (every filter and the score), `dealbreakers` (plain words into patterns), `directory` (the built-in employer boards), `freshness` (how old a post is), `enrich` (full adverts), `discover` (an employer's board), `listing` (is it still open), `ownboard` (an Adzuna post the employer's board does not carry), `agency` (employer or recruiter), `credentials` (certifications a post asks for), `geo` (gazetteer, distance), `resume` (skills, fit), `master` (a master resume or the one you send), `readable` (whether a tracking system can read a resume file), `ats` (a job post's ATS match) |
-| `ai/` | `llm` (providers, keys in memory, and a coding agent as the writer: its answers in, its brief out), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, tailored resume, interview prep, recruiter message, resume review), `tools` (the model as an editor for resume and letter), `suggest` (job titles from the resume, in setup) |
+| `ai/` | `llm` (providers, keys in memory, and a coding agent as the writer: its answers in, its brief out), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, tailored resume, interview prep, recruiter message, resume review), `prep` (the eight writing and preparing tools: tailoring report, interview story, thank-you, offer, outreach, LinkedIn, changing field, 30-day plan), `tools` (the model as an editor for resume and letter), `suggest` (job titles from the resume, in setup) |
 | `writing/` | `generate` (`claude -p` drafts), `resume_doc` (the tailored resume's template), `length` (its page budget, after Indeed), `gates` (scripted checks), `style` (how a resume's lines are written), `humanize` (signs of AI writing) |
 | `web/` | `serve` (HTTP), `api` (every command for the page, metrics), `live` (runs and events), `session` (token, port), `app` (the desktop window and its bridge; closing it ends the process, and asks first with a scan scheduled; a second start brings the open window to the front), `agent` (jobdork's tools for a coding agent: briefs, saving its answers through the checks, applications, the record, and when it last used them), `mcp` (those tools as an MCP server on stdio) |
 | `output/` | `render` (static HTML and JSON), `pdf` (a resume as a PDF), `docx` (the same as a Word file), `digest` (email) |
@@ -243,6 +243,18 @@ and given to the model as `<<MEASURED>>`, which the guard can quote. A check tha
 unchecked; it never blocks the output. Page reads are checked by the quote rule
 alone, with no extra call.
 
+**The checker reads the whole resume** (up to `guard.MAX_SOURCE`) and the
+work history; a total of years given to one field is rewritten as years of
+work in all (`llm.total_only`), and an overall opinion of fit ("meets the
+requirements") is not taken as a claim.
+
+**A flagged verdict is mended, not just marked** (`judging.rewrite`,
+`llm.rewrite`, on by default). A script takes out the reasons and concerns a
+flagged claim came from (traced by word overlap); a flagged summary is
+rewritten by the reader (`llm.rewrite_summary`). The result is checked
+again, and the version with fewer unsupported claims is kept; the other is
+recorded as `judge_draft`, outside the rate.
+
 **Another model checks than the one that wrote it** (`guard.checking`). One
 model marking its own work misses what it got wrong the same way twice. The
 order is the chosen checkers (`llm.checkers`), then the other readers, then
@@ -254,8 +266,8 @@ copy, so the guard's calls never change the label the output is recorded
 under.
 
 Each output is an `ai_outputs` row with its guard counts and your rating, which
-is what the Dashboard's hallucination rate, coverage and feedback are counted
-from.
+is what the Dashboard's hallucination rate (also by checker), coverage and
+feedback are counted from.
 
 ---
 

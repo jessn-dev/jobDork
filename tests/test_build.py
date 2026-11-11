@@ -113,6 +113,18 @@ def test_the_linux_packages_say_what_they_are_and_what_they_need():
             assert name and name == name.strip() and " " not in name, dep
     assert "libxcb-cursor0" in fields["Depends"] and "libnss3" in fields["Depends"]
     assert build.APPRUN.startswith("#!/bin/sh") and "usr/lib/jobdork/jobdork" in build.APPRUN
+    # What software centres show: icon and screenshots (2026-11-11: a generic
+    # gear and "No Screenshots" without it).
+    import xml.etree.ElementTree as ET
+    meta = ET.fromstring(build.metainfo("1.2.3", "2026-11-11"))
+    assert meta.get("type") == "desktop-application" and meta.findtext("id") == build.APP_ID
+    assert meta.find("launchable").text == "jobdork.desktop"
+    assert {i.get("type") for i in meta.findall("icon")} == {"stock", "remote"}
+    shots = [s.find("image").text for s in meta.find("screenshots")]
+    assert len(shots) == len(build.SCREENSHOTS) and all("/v1.2.3/guide/docs/images/" in s for s in shots)
+    for name, _ in build.SCREENSHOTS:
+        assert (ROOT / "guide" / "docs" / "images" / f"{name}.png").is_file(), name
+    assert meta.find("releases/release").get("version") == "1.2.3"
     # Ubuntu 24.04's real ALSA first: its "libasound2" is also a stand-in's.
     assert "libasound2t64 | libasound2" in fields["Depends"]
     pkgs = build.build_packages()
