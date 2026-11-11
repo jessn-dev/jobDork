@@ -348,6 +348,11 @@ which is most of them.</p>
     return path
 
 
+# The files write_all makes in output.dir, and all a start-over deletes
+# there (web/api.py): the folder may be the config's own, with .env in it.
+REPORT_FILES = ("index.html", "roles.json", "roles.md", "roles.csv")
+
+
 def write_all(rows: list[sqlite3.Row], cfg, report=None) -> list[Path]:
     """Every format in `output.formats`, to `output.dir`. Returns the paths.
 

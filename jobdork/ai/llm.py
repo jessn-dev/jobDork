@@ -1052,7 +1052,18 @@ _FENCE = re.compile(r"<{2,}/?\s*(ADVERT|RESUME|PAGE|ADDED|FOUND|MEASURED|POSTING
 
 
 def _fenced(tag: str, text: str, limit: int) -> str:
-    text = _FENCE.sub(" ", text or "")
+    # Markers looked for in the text as the model reads it: hidden
+    # characters come out later (_call_one), and "<<\u200b/ADVERT>>" slipped
+    # past and closed the fence once they had (Claude Security F10,
+    # 2026-11-06). Only then is the text taken without them here.
+    text = text or ""
+    seen = textutil.visible(text)
+    if _FENCE.search(seen):
+        if seen != text:
+            log.warning("a block marker hidden among invisible characters, taken out "
+                        "of what the AI reads")
+        text = seen
+    text = _FENCE.sub(" ", text)
     note = ""
     if len(text) > limit:
         if tag == "RESUME":
