@@ -123,7 +123,8 @@ curl -fsSL https://raw.githubusercontent.com/jessn-dev/jobDork/main/packaging/jo
 gpg --verify jobdork_0.16.3_amd64.deb.asc jobdork_0.16.3_amd64.deb
 ```
 
-"Good signature from jobdork" is the answer to look for.
+"Good signature from \"jobdork releases\"" is the answer to look for, from
+the key with fingerprint `FCA7 DA9B 0F3C 02D3 3CCB  60E3 D6B5 1B0A 75A1 ACCF`.
 
 ---
 

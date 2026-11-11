@@ -23,5 +23,7 @@ Linux installer on its page, `<file>.asc`, made with jobdork's GPG key
 
 Checking one: `gpg --import` the public key, then `gpg --verify
 <file>.asc <file>` (docs/run/desktop.md, the release page, SECURITY.md).
-The key itself is made and kept by the maintainer; its public half is
-committed with the first release that is signed.
+The key is "jobdork releases", fingerprint
+`FCA7DA9B0F3C02D33CCB60E3D6B51B0A75A1ACCF` (ed25519, expires 2028-11-10):
+its public half is `packaging/jobdork-signing-key.asc`, its secret half
+only in the `release` environment and the maintainer's own keyring.

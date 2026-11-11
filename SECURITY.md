@@ -105,7 +105,10 @@ only after the owner approves it in the `release` environment. A push to
    key (`<file>.asc`, `scripts/gpg_sign.sh`), by a job in the `release`
    environment that only an approved run reaches, and each signature is
    checked against the public key in the repository
-   (`packaging/jobdork-signing-key.asc`) before it is published.
+   (`packaging/jobdork-signing-key.asc`) before it is published. The key is
+   "jobdork releases", fingerprint
+   `FCA7 DA9B 0F3C 02D3 3CCB  60E3 D6B5 1B0A 75A1 ACCF` (ed25519, made
+   2026-11-11, expires 2028-11-10, renewed before then).
 
 ---
 
