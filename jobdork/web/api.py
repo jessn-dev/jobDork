@@ -2611,16 +2611,28 @@ def llm_models(cfg, provider: str, ollama_url: str = "", ollama_key: bool = Fals
 
     if provider not in llm.PROVIDERS:
         raise ApiError("unknown provider")
-    settings = llm.Settings(provider=provider,
-                            ollama_url=ollama_url or cfg.llm.ollama_url, ollama_key=ollama_key)
-    if not re.match(r"https?://[^\s/]+$", settings.ollama_url.rstrip("/")):
+    url = (ollama_url or cfg.llm.ollama_url).rstrip("/")
+    if not re.match(r"https?://[^\s/]+$", url):
         raise ApiError("the Ollama address must look like http://host:port")
+    # The Ollama key goes only to an address a saved line already sends it
+    # to: the page could name any address, and the key would go there with
+    # the request (code scan #7, 2026-11-06). A new address loads its
+    # models once its line is saved with "send the key" ticked.
+    trusted = {(r.ollama_url or cfg.llm.ollama_url).rstrip("/")
+               for r in (*cfg.llm.readers, *cfg.llm.checkers)
+               if r.provider == "ollama" and r.ollama_key}
+    send = ollama_key and url in trusted
+    settings = llm.Settings(provider=provider, ollama_url=url, ollama_key=send)
     try:
         from ..core.config import MODEL_NAME
         # Names from another computer's Ollama: only ones that are names.
         return {"models": [m for m in llm.list_models(settings)
                            if isinstance(m, str) and MODEL_NAME.match(m)]}
     except llm.LLMError as exc:
+        if ollama_key and not send:
+            raise ApiError(f"{exc}. The Ollama key is sent only to an address saved with "
+                           "\"send the key\" ticked: save this line, then its models load",
+                           502) from exc
         raise ApiError(str(exc), 502) from exc
 
 
@@ -3477,24 +3489,6 @@ def _report(cfg, form: dict):
         return feedback_mod.build(form, cfg, problems)
     except feedback_mod.FeedbackError as exc:
         raise ApiError(str(exc)) from exc
-
-def digest_job(cfg, email: str, new_only: bool = True, attach_csv: bool = False):
-    def work(progress):
-        from ..db.store import Store
-        from ..output import digest as digest_mod
-
-        with Store(cfg.db_path) as store:
-            rows = store.list_roles(new_only=new_only)
-            built = digest_mod.build(rows, cfg, new_only=new_only)
-            if built.empty:
-                return "nothing new; no digest sent"
-            if attach_csv:
-                digest_mod.attach_csv(built, rows)
-            progress(f"sending {len(rows)} role(s) to {email}")
-            message_id = digest_mod.send(built, email)
-        return f"sent {len(rows)} role(s) to {email} (id {message_id})"
-    return work
-
 
 # ── the scan schedule ─────────────────────────────────────────────────────────
 

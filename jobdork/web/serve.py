@@ -38,6 +38,7 @@ Three things it refuses to do, all deliberate:
 from __future__ import annotations
 
 import contextlib
+import hmac
 import json
 import logging
 import os
@@ -380,6 +381,9 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
     extra = allowed_extra_hosts()
     allowed_hosts |= {h for h in extra if ":" in h}
     any_port = {h for h in extra if ":" not in h}
+    # The browser's one-use launch code (Session.launch_code): when it was
+    # made, and whether it has been used.
+    launch = {"made": time.monotonic(), "used": False}
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "jobdork"
@@ -410,12 +414,36 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return session.matches(supplied)
             return False
 
+        def _launched(self) -> bool:
+            """The browser opened with the one-use code: sent on to the page
+            with the token, once, within a minute. True when answered."""
+            parts = urlsplit(self.path)
+            code = parse_qs(parts.query).get("c", [""])[0]
+            if parts.path != "/" or not code or not self._host_ok():
+                return False
+            if launch["used"] or time.monotonic() - launch["made"] > 60 \
+                    or not hmac.compare_digest(code, session.launch_code):
+                return False
+            launch["used"] = True
+            self.send_response(302)
+            self.send_header("Location", f"/?t={session.token}")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return True
+
         def _reject(self, code: int, message: str) -> None:
             payload = message.encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
             self.send_header("X-Frame-Options", "DENY")
+            # A request turned away may still have its body unread on the
+            # connection, and the next request would be read from the middle
+            # of it (code scan #11, 2026-11-06): close the connection instead.
+            if self.command != "GET":
+                self.send_header("Connection", "close")
+                self.close_connection = True
             self.end_headers()
             self.wfile.write(payload)
 
@@ -501,6 +529,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
             if urlsplit(self.path).path == "/favicon.ico" and self._host_ok():
                 self.send_response(204)
                 self.end_headers()
+                return
+            if self._launched():
                 return
             if not self._guarded() or self._removed():
                 return
@@ -1166,14 +1196,10 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                     work = api_mod.tool_job(cfg, str(form.get("uid") or ""), kind,
                                             str(form.get("text") or ""))
                 else:
-                    email = str(form.get("email") or "").strip()
-                    if not email:
-                        return self._reject(400, "give a recipient")
-                    name = "digest"
-                    work = api_mod.digest_job(
-                        cfg, email,
-                        new_only=str(form.get("all") or "") not in ("1", "true"),
-                        attach_csv=str(form.get("csv") or "") in ("1", "true"))
+                    # /api/digest: the page never sent a digest, and this let
+                    # anyone with the token mail the job list to any address
+                    # (code scan #8, 2026-11-06). `jobdork digest` sends it.
+                    return self._reject(404, "no such path")
             except api_mod.ApiError as exc:
                 return self._reject(exc.status, str(exc))
 
@@ -1535,7 +1561,7 @@ def serve(cfg, port: int = DEFAULT_PORT, open_browser: bool = True,
     if open_browser:
         # lambda: Timer runs it later, once the server is listening; calling
         # open() here would race the server.
-        threading.Timer(0.4, lambda: webbrowser.open(session.url)).start()
+        threading.Timer(0.4, lambda: webbrowser.open(session.launch_url)).start()
     if on_ready:
         # lambda: asked when the window is closed, so it is read then, not now.
         on_ready(session.url, server.shutdown,
