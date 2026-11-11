@@ -1121,6 +1121,7 @@ def directory_boards(cfg) -> dict:
     return {"enabled": d.enabled, "industries": d.industries, "skip": d.skip,
             "countries": d.countries or list(cfg.locations.countries),
             "read": sum(not r["why"] for r in rows), "total": len(rows),
+            "none_why": directory.none_read_why(cfg, boards),
             "by_industry": dict(sorted(industries.items())), "boards": rows}
 
 

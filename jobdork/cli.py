@@ -1378,8 +1378,9 @@ def directory_line(cfg) -> str:
     chosen = directory.select(cfg)
     countries = ", ".join(d.countries or cfg.locations.countries) or "every country"
     industries = ", ".join(d.industries) or "every industry"
+    why = "" if chosen else f"\n                 {directory.none_read_why(cfg)}"
     return (f"directory        {len(chosen)} built-in employer boards "
-            f"({countries}; {industries})")
+            f"({countries}; {industries}){why}")
 
 
 def cmd_sources(args) -> int:
