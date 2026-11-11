@@ -120,6 +120,7 @@ def test_with_a_certificate_the_dashboard_answers_only_over_https():
         threading.Thread(target=server.serve_forever, daemon=True).start()
         try:
             client = ssl.create_default_context(cafile=cert)
+            client.minimum_version = ssl.TLSVersion.TLSv1_2
             with socket.create_connection(("127.0.0.1", port), timeout=5) as raw, \
                     client.wrap_socket(raw, server_hostname="localhost") as tls:
                 tls.sendall(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
