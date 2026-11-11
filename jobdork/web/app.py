@@ -437,17 +437,22 @@ def _port_in_use(port: int) -> bool:
         return sock.connect_ex(("127.0.0.1", port)) == 0
 
 
-def show_open_window(home: Path, port: int, wait: float = SHOW_WAIT) -> bool:
+# The pages a start may ask the window to open (a notification's click).
+VIEWS = ("notes",)
+
+
+def show_open_window(home: Path, port: int, wait: float = SHOW_WAIT, view: str = "") -> bool:
     """True when a jobdork already open in `home` was asked to show its
-    window and answered, so this start can end. False when nothing listens
-    on `port`, or what does is not a jobdork that answers."""
+    window (and `view`, one of VIEWS) and answered, so this start can end.
+    False when nothing listens on `port`, or what does is not a jobdork
+    that answers."""
     import time
 
     if not _port_in_use(port):
         return False
     request = home / SHOW_REQUEST
     try:
-        request.write_text(str(os.getpid()), encoding="utf-8")
+        request.write_text(view if view in VIEWS else str(os.getpid()), encoding="utf-8")
     except OSError:
         return False
     end = time.monotonic() + wait
@@ -471,18 +476,67 @@ def raise_window(window) -> None:
         window.on_top = False
 
 
+def open_view(window, view: str) -> None:
+    """Have the page open one of VIEWS (its own openView)."""
+    if view in VIEWS:
+        with contextlib.suppress(Exception):     # the page is gone or broken
+            window.run_js(f"window.openView && window.openView({json.dumps(view)})")
+
+
 def watch_for_show_requests(home: Path, window, stop: threading.Event,
                             every: float = 1.0) -> None:
-    """Answer a second start of jobdork (show_open_window) until `stop`."""
+    """Answer a second start of jobdork (show_open_window), or a click on
+    one of its notifications (mac_click_opens), until `stop`."""
     request = home / SHOW_REQUEST
     while not stop.wait(every):
         if request.exists():
+            try:
+                asked = request.read_text(encoding="utf-8").strip()
+            except OSError:
+                asked = ""
             with contextlib.suppress(OSError):
                 request.unlink()
             raise_window(window)
+            open_view(window, asked)
 
 
-def run(port: int, home: Path | None = None, debug: bool = False) -> int:
+_MAC_DELEGATE = None
+
+
+def mac_click_opens(home: Path) -> bool:
+    """On a Mac, a click on jobdork's notification opens its Notifications
+    page: macOS brings the app forward itself, and this tells the window
+    (through watch_for_show_requests) which page. Set before the app has
+    finished launching, as Apple asks, so a click that started it counts
+    too. False where it cannot (no UserNotifications, not the app)."""
+    global _MAC_DELEGATE
+    if _MAC_DELEGATE is not None:
+        return True
+    try:
+        import objc
+        import UserNotifications as UN
+        from Foundation import NSObject
+    except ImportError:
+        return False
+    request = home / SHOW_REQUEST
+
+    class JobdorkNotificationClicks(NSObject, protocols=[
+            objc.protocolNamed("UNUserNotificationCenterDelegate")]):
+        def userNotificationCenter_didReceiveNotificationResponse_withCompletionHandler_(
+                self, center, response, handler):
+            with contextlib.suppress(OSError):
+                request.write_text("notes", encoding="utf-8")
+            handler()
+
+    center = UN.UNUserNotificationCenter.currentNotificationCenter()
+    if center is None:
+        return False
+    _MAC_DELEGATE = JobdorkNotificationClicks.alloc().init()   # kept: held weakly
+    center.setDelegate_(_MAC_DELEGATE)
+    return True
+
+
+def run(port: int, home: Path | None = None, debug: bool = False, view: str = "") -> int:
     """Open the app window. Returns an exit code once it is closed."""
     try:
         import webview
@@ -502,7 +556,7 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
         logging.getLogger().setLevel(level)
     widen_path()
     os.chdir(home)
-    if show_open_window(home, port):
+    if show_open_window(home, port, view=view):
         print("jobdork is open already: its window was brought to the front")
         return 0
     with contextlib.suppress(OSError):
@@ -538,8 +592,10 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
     # text_select: pywebview makes a page unselectable unless asked, so no
     # log line, error or letter could be copied out of the app. No js_api:
     # the page reaches the Bridge through the server (see Bridge).
+    # Started by a notification's click: the page opens on that view.
+    url = running["url"] + (f"&view={view}" if view in VIEWS else "")
     bridge._window = webview.create_window(
-        "jobdork", running["url"], width=WINDOW_SIZE[0],
+        "jobdork", url, width=WINDOW_SIZE[0],
         height=WINDOW_SIZE[1], min_size=MIN_SIZE, text_select=True)
     def scheduled() -> str:
         # Read again at each close: Settings may have changed it since.
@@ -563,6 +619,10 @@ def run(port: int, home: Path | None = None, debug: bool = False) -> int:
         with contextlib.suppress(Exception):
             notify.ask_permission()
 
+
+    if sys.platform == "darwin" and getattr(sys, "frozen", False):
+        with contextlib.suppress(Exception):     # never worth not opening
+            mac_click_opens(home)
     webview.start(func=started, gui=window_gui(), private_mode=False,
                   storage_path=str(home / "window"), debug=debug)
     watching.set()

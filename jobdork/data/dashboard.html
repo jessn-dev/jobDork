@@ -1955,6 +1955,9 @@ const flagLabel = f => cap(String(f || '').startsWith('fit: ')
     }).join('; ')
   : f);
 const TOKEN = new URLSearchParams(location.search).get('t') || '';
+// The view a notification's click asked for (web/app.py VIEWS), read before
+// the address is cleaned of the token.
+const START_VIEW = new URLSearchParams(location.search).get('view') || '';
 if (TOKEN) history.replaceState(null, '', location.pathname);
 // Problems the page meets go to the server's Warnings and errors (Activity),
 // where the Feedback page picks them up: a script error, a request the server
@@ -2144,6 +2147,13 @@ document.querySelectorAll('nav button[data-view]').forEach(b => {
     if (b.dataset.view === 'notes') drawNotes();
   };
 });
+// Opens a page by its menu item: the desktop app calls it when a click on a
+// notification raises the window (web/app.py open_view).
+window.openView = v => {
+  const b = document.querySelector(`nav button[data-view="${CSS.escape(String(v))}"]`);
+  if (b && !b.hidden) b.click();
+};
+if (START_VIEW) setTimeout(() => window.openView(START_VIEW), 0);
 
 // ── ask (the desktop app's): Claude Code about your job search (ai/ask.py) ───
 // The server answers only in the app, where Claude Code is on the same
