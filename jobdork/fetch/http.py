@@ -215,7 +215,9 @@ def _read_capped(resp, url: str) -> None:
             size += len(chunk)
             if size > MAX_BODY_BYTES:
                 kept.append(chunk[:len(chunk) - (size - MAX_BODY_BYTES)])
-                log.warning("%s is larger than %d MB: read the first %d MB", url,
+                # The host only: a query string can carry a key (Adzuna's).
+                log.warning("an answer from %s is larger than %d MB: read the first %d MB",
+                            urllib.parse.urlsplit(url).hostname or "a site",
                             MAX_BODY_BYTES // 2**20, MAX_BODY_BYTES // 2**20)
                 break
             kept.append(chunk)
