@@ -274,12 +274,21 @@ def test_a_verdict_is_saved_as_the_ai_score():
             assert api.ai_fields(store.get(uid))["ai"]["score"] == 81
 
 
+def _approve_all(cfg) -> None:
+    """The user approves every change waiting in My applications."""
+    with Store(cfg.db_path) as store:
+        waiting = [s["id"] for s in store.application_suggestions()]
+    for sid in waiting:
+        api.decide_suggestion(cfg, {"kind": "application", "key": str(sid), "approve": "1"})
+
+
 def test_update_application_changes_only_what_is_given():
     with _setup() as (cfg, uid, _):
         agent.call(cfg, "update_application", {"uid": uid, "status": "applied",
                                                "next_step": "Call", "next_date": "2026-11-02"})
         agent.call(cfg, "update_application", {"uid": uid, "contact_name": "Dana",
                                                "note": "They called"})
+        _approve_all(cfg)
         with Store(cfg.db_path) as store:
             app = store.application(uid)
             notes = store.application_notes(uid)
@@ -499,6 +508,7 @@ def test_what_an_agent_changes_is_logged_and_marked_as_its():
                                                "note": "Sent it", "_client": "claude-code"})
         with contextlib.suppress(agent.ToolError):
             agent.call(cfg, "update_application", {"uid": uid, "status": "nope"})
+        _approve_all(cfg)
         with Store(cfg.db_path) as store:
             runs = store.conn.execute(
                 "SELECT job, origin, state, summary FROM activity ORDER BY id").fetchall()
@@ -506,7 +516,7 @@ def test_what_an_agent_changes_is_logged_and_marked_as_its():
             (note,) = store.application_notes(uid)
     assert [(r["origin"], r["state"]) for r in runs] == [("coding agent", "done"),
                                                          ("coding agent", "failed")]
-    assert runs[0]["job"] == "coding agent: update application"
+    assert runs[0]["job"] == "coding agent: update application"   # its suggestion
     assert "Claude Code" in runs[0]["summary"] and "status must be one of" in runs[1]["summary"]
     assert step["by"] == note["by"] == "Coding agent · Claude Code"
 

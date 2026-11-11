@@ -772,15 +772,18 @@ def confirm_skill(cfg, form: dict, suggested_by: str = "") -> dict:
         return {"have": have, "changed": changed, "confirmed": store.confirmed_skills()}
 
 
-def suggestions_count(cfg) -> int:
-    """How many of a coding agent's suggestions wait, for the menu's count."""
+def suggestions_count(cfg, applications: bool = False) -> int:
+    """How many of a coding agent's suggestions wait, for the menu's count:
+    for the record (the Resume page), or with `applications` the changes to
+    applications (My applications)."""
     from ..db.store import Store
 
     if not Path(cfg.db_path).is_file():        # before setup: none, and no database made
         return 0
     try:
         with Store(cfg.db_path) as store:
-            return store.suggestions_waiting()
+            apps = store.application_suggestions_waiting()
+            return apps if applications else store.suggestions_waiting() - apps
     except Exception:          # no database yet, or a newer one: no count
         return 0
 
@@ -799,16 +802,39 @@ def list_suggestions(cfg) -> dict:
                 (r["term"], r) for r in store.conn.execute(
                     "SELECT term, suggested_by FROM confirmed_skills WHERE suggested_by <> '' "
                     "ORDER BY term"))],
+            "applications": store.application_suggestions(),
         }
 
 
 def decide_suggestion(cfg, form: dict) -> dict:
-    """Approve or turn down one suggestion: kind project, education or skill."""
+    """Approve or turn down one suggestion: kind project, education, skill,
+    or application (a change to one, made only now, on approval)."""
     from ..db.store import Store
 
     kind = str(form.get("kind") or "")
     key = str(form.get("key") or "")
     approve = str(form.get("approve") or "") in ("1", "true", "yes")
+    if kind == "application":
+        if not key.isdigit():
+            raise ApiError("not a suggestion id")
+        with Store(cfg.db_path) as store:
+            taken = store.take_application_suggestion(int(key))
+        if taken is None:
+            raise ApiError("no such suggestion: approved or turned down already", 404)
+        done = []
+        if approve:
+            from .agent import apply_application_change
+            try:
+                done = apply_application_change(cfg, taken["uid"], taken["changes"],
+                                                taken["suggested_by"])
+            except ApiError:
+                # Not made: kept for another look rather than lost.
+                with Store(cfg.db_path) as store:
+                    store.suggest_application_change(taken["uid"], taken["changes"],
+                                                     taken["suggested_by"])
+                raise
+        return {"approved": approve, "kind": kind, "changed": True, "applied": done,
+                "uid": taken["uid"]}
     if kind in ("project", "education"):
         if not key.isdigit():
             raise ApiError(f"not a {kind} id")
