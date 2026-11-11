@@ -186,15 +186,25 @@ def _core(title: str) -> str:
             "</cp:coreProperties>")
 
 
-def render(markdown: str, title: str = "Resume") -> bytes:
-    """The resume template's Markdown as the bytes of a .docx file."""
+# The face for each choice (config.resume_font): ones every copy of Word,
+# and every applicant tracking system, has.
+FACES = {"sans": "Arial", "serif": "Georgia"}
+
+
+def render(markdown: str, title: str = "Resume", font: str = "sans") -> bytes:
+    """The resume template's Markdown as the bytes of a .docx file, in the
+    face for `font` ("sans" or "serif")."""
+    face = FACES.get(font, "Arial")
+
+    def faced(xml: str) -> str:
+        return xml.replace('"Arial"', f'"{face}"')
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("[Content_Types].xml", _TYPES)
         z.writestr("_rels/.rels", _ROOT_RELS)
         z.writestr("word/_rels/document.xml.rels", _DOC_RELS)
-        z.writestr("word/document.xml", _document(markdown))
-        z.writestr("word/styles.xml", _STYLES)
-        z.writestr("word/numbering.xml", _NUMBERING)
+        z.writestr("word/document.xml", faced(_document(markdown)))
+        z.writestr("word/styles.xml", faced(_STYLES))
+        z.writestr("word/numbering.xml", faced(_NUMBERING))
         z.writestr("docProps/core.xml", _core(title))
     return buffer.getvalue()

@@ -216,6 +216,31 @@ def resume_writing(draft: str) -> Gate:
                        for t, fs in by_rule.items()])
 
 
+# Phrases a hiring manager has read a thousand times: they say nothing, and
+# mark a letter as a template (asked 2026-11-09, from the prompt pack).
+STOCK = ("passionate", "team player", "excited about this opportunity", "excited to apply",
+         "i am writing to apply", "i am writing to express", "perfect fit", "dream job",
+         "go-getter", "results-driven", "think outside the box", "hit the ground running",
+         "pick your brain")
+
+
+def stock_phrases(draft: str) -> Gate:
+    """No stock phrases: each one is a line any applicant could have sent."""
+    low = (draft or "").lower()
+    found = [p for p in STOCK if re.search(rf"(?<!\w){re.escape(p)}(?!\w)", low)]
+    return Gate("stock phrases", not found,
+                f"{len(found)} a reader sees through: say it in your own words" if found
+                else "none", found)
+
+
+def letter_length(draft: str) -> Gate:
+    """250 to 300 words: long enough for one proof and one reason, short
+    enough to be read whole. A little either side passes."""
+    n = len(re.findall(r"\b[\w'’-]+\b", draft or ""))
+    return Gate("length", 220 <= n <= 330,
+                f"{n} words" + ("" if 220 <= n <= 330 else "; aim for 250 to 300"))
+
+
 def run_all(draft: str, kind: str, resume_text: str = "",
             sibling: str = "", sibling_name: str = "the CV") -> list[Gate]:
     """The checks that apply to this kind of document.
@@ -240,6 +265,9 @@ def run_all(draft: str, kind: str, resume_text: str = "",
         gates.append(resume_writing(draft))
     if kind == "cover_letter":
         gates.append(overlap(draft, sibling, sibling_name))
+        gates += [letter_length(draft), stock_phrases(draft)]
+    if kind == "recruiter_message":
+        gates.append(stock_phrases(draft))
     return gates
 
 

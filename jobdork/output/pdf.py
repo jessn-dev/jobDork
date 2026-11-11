@@ -169,8 +169,11 @@ class _Pages:
 _BOLD_MARKS = re.compile(r"\*\*(.+?)\*\*")
 
 
-def render(markdown: str, title: str = "Resume") -> bytes:
-    """The resume template's Markdown as PDF bytes."""
+def render(markdown: str, title: str = "Resume", font: str = "sans") -> bytes:
+    """The resume template's Markdown as PDF bytes, in Helvetica or, for
+    `font="serif"`, Times. Lines are measured with Helvetica's widths either
+    way: Times is narrower, so a serif line wraps a little early and never
+    runs past the margin."""
     pages = _Pages()
     header = False
     for raw in markdown.splitlines():
@@ -201,7 +204,7 @@ def render(markdown: str, title: str = "Resume") -> bytes:
                             indent=18, bullet=True)
         else:
             pages.paragraph(to_winansi(line.strip()), BODY)
-    return _assemble(pages.pages, title)
+    return _assemble(pages.pages, title, font)
 
 
 def page_count(data: bytes) -> int:
@@ -210,7 +213,7 @@ def page_count(data: bytes) -> int:
     return int(found.group(1)) if found else 0
 
 
-def _assemble(pages: list[list[bytes]], title: str) -> bytes:
+def _assemble(pages: list[list[bytes]], title: str, font: str = "sans") -> bytes:
     """The PDF file: catalogue, pages, two standard fonts, compressed content."""
     objects: list[bytes] = []
 
@@ -220,10 +223,12 @@ def _assemble(pages: list[list[bytes]], title: str) -> bytes:
 
     catalog = add(b"")                         # filled in once the pages exist
     pages_id = add(b"")
-    regular = add(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica "
-                  b"/Encoding /WinAnsiEncoding >>")
-    bold = add(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold "
-               b"/Encoding /WinAnsiEncoding >>")
+    face, heavy = (b"Times-Roman", b"Times-Bold") if font == "serif" else \
+        (b"Helvetica", b"Helvetica-Bold")
+    regular = add(b"<< /Type /Font /Subtype /Type1 /BaseFont /%s "
+                  b"/Encoding /WinAnsiEncoding >>" % face)
+    bold = add(b"<< /Type /Font /Subtype /Type1 /BaseFont /%s "
+               b"/Encoding /WinAnsiEncoding >>" % heavy)
     kids = []
     for ops in pages:
         stream = zlib.compress(b"\n".join(ops))

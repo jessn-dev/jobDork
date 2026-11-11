@@ -141,11 +141,12 @@ def test_interview_prep_is_laid_out_checked_and_recorded_and_gaps_are_never_clai
         assert "Skills I confirm I have: terraform" in script.prompts[0], "the whole record"
         text = draft.text
         assert text.startswith("# Interview prep: Platform Engineer at Initech\n")
-        order = [text.index(h) for h in ("## Why you fit", "## Questions about your resume",
+        # An answer that names no kind of question is grouped as about the work.
+        order = [text.index(h) for h in ("## Why you fit", "## About the work itself",
                                          "## Follow-ups on your work", "## Gaps to prepare",
                                          "## Talking points")]
         assert order == sorted(order)
-        assert "### How did you keep 40 services running on one cluster?\nTests: Run Kubernetes" in text
+        assert "### How did you keep 40 services running on one cluster?\nWhat it finds out: Run Kubernetes" in text
         assert draft.path.name == writer.PREP_FILE and artifact["path"] == str(draft.path)
         assert output["kind"] == "interview_prep"
         gaps = next(g for g in draft.gates if g.name == "gaps not claimed")

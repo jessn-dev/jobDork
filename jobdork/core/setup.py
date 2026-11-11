@@ -312,6 +312,15 @@ def rewrite(original: str, payload: dict) -> str:
         else:
             (data.get("resume") or {}).pop("kind", None)
 
+    if "resume_font" in payload:
+        font = str(payload["resume_font"] or "").strip().lower()
+        if font not in ("", "sans", "serif"):
+            raise ValueError("resume_font is sans, serif, or empty for jobdork's choice")
+        if font:
+            data.setdefault("resume", {})["font"] = font
+        else:
+            (data.get("resume") or {}).pop("font", None)
+
     if "llm" in payload:
         given = payload["llm"] or {}
         section = data.setdefault("llm", {})

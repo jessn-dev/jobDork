@@ -102,7 +102,7 @@ Below the score, the advert's skills in three groups:
 | Button | What you get |
 |---|---|
 | **Ask AI** / **Ask AI again** | The AI's verdict on this post: a [score](scores.md#ai-the-models-opinion), a summary, and the reasons for and against |
-| **Write cover letter (AI)** | A cover letter from your resume and this advert. It opens in a new **Cover letter** tab, and is listed on the [Resume](resume.md#cover-letters) page |
+| **Write cover letter (AI)** | A cover letter from your resume and this advert, in four short paragraphs and 250 to 300 words: an opening on something specific in the advert, one achievement of yours that answers its first requirement, why this job, and a line asking for a conversation. It never mentions a requirement you lack. The checks say **Read this** for a letter outside its length or with a stock phrase ("passionate", "team player"). It opens in a new **Cover letter** tab, and is listed on the [Resume](resume.md#cover-letters) page |
 | **Write tailored resume (AI)** | Your resume rewritten for this advert, as a PDF and a Word file named `FirstName_LastName_JobTitle_Resume`, in a plain layout that applicant tracking systems read well ([the layout](#the-tailored-resume)). It opens in a **Tailored resume** tab. Your contact line is copied from your resume, never written by the AI, and any employer, school, skill, certification or award your resume does not name is left out and listed |
 | **Interview prep (AI)** | Ready for the interview: [what it gives](#interview-prep). Opens in an **Interview prep** tab |
 | **Recruiter message (AI)** | A short message to a recruiter or hiring manager: [how it is written](#recruiter-message). Opens in a **Recruiter message** tab |
@@ -114,8 +114,13 @@ From your resume, your Resume page entries and this advert:
 
 - **Why you fit**: three to five points where your resume meets what the
   advert asks for.
-- **Questions about your resume**: five to eight an interviewer is likely to
-  ask, each with what it tests and answer points from your resume.
+- **Fifteen likely questions**, as interviews are run today, in three
+  groups: **Behavioral: about your past**, **About the work itself** and
+  **What would you do**, five each. Each says what it really finds out and
+  gives answer points from your resume; the ones nearly every interview for
+  this kind of job asks are marked **high priority**. At least two ask about
+  a failure or a weakness: the **a failure or weakness** check says **Read
+  this** when fewer do, so you prepare one of your own.
 - **Follow-ups on your work**: three to six deeper ones about a job or
   project you list (what was hard, what you would change, how a result was
   measured).
@@ -124,6 +129,10 @@ From your resume, your Resume page entries and this advert:
   A gap is never written as something you have: the **gaps not claimed**
   check says **Read this** if one reads that way.
 - **Talking points**: five to eight lines to work into your answers.
+- **Answers to build (STAR)**: for the three hardest behavioral questions,
+  an outline from what your resume shows: situation, task, action (what you
+  did) and result, with a number only if your resume has one. For a story
+  of your own, use **Interview story (STAR)** under Prepare.
 
 What it says about you (the fit, the answer points, the talking points) gets
 the hallucination check and the figures check, as a letter does. Saved as

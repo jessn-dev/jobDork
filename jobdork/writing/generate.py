@@ -296,7 +296,11 @@ PROMPTS = {
     "cover_letter": _PREAMBLE + (
         "Read the advert, the reader's resume at `{resume}` in this folder, and `CV.md` in\n"
         "this folder.\n\n"
-        "Write `cover-letter.md`: at most four short paragraphs.\n\n"
+        "Write `cover-letter.md`: four short paragraphs, 250 to 300 words: an opening "
+        "on something specific in the advert (never \"I am excited to apply\"), one "
+        "achievement from the resume that answers its first requirement, why this job, "
+        "and one sentence asking for a conversation. Never mention a requirement the "
+        "resume lacks; no stock phrases (\"passionate\", \"team player\").\n\n"
         "The CV carries the facts. This carries judgement: why this person,\n"
         "this role, this company. It must not repeat the CV: no run of six or\n"
         "more consecutive words may appear in both, and a script checks that.\n"
