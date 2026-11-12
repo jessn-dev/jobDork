@@ -140,14 +140,22 @@ at once, in the same window as below (from the release after 0.16.0; in
     - **Mac:** the new app replaces this one in its folder, jobdork closes,
       and the new version opens a few seconds later. No Finder window, no
       dragging.
-    - **Windows:** the installer runs on its own with a progress bar, closes
-      jobdork, and opens the new version.
+    - **Windows:** jobdork closes, then the installer runs on its own with a
+      progress bar and opens the new version. (Before 0.16.5 it could run
+      while jobdork was still open and leave the old version; from 0.16.5's
+      installer on, it waits for jobdork to close first.)
     - **Linux, the AppImage:** as on a Mac, the new AppImage replaces this
       one where you keep it.
     - **Linux, the .deb:** jobdork closes, your computer asks for your
       password to install it (a .deb is installed for everyone on the
       computer), and jobdork opens again. Without the password, the version
-      you had opens again.
+      you had opens again. (0.16.4 and before only opened the Downloads
+      folder for a .deb: install that one by hand, `sudo apt install
+      ./jobdork_<version>_amd64.deb`, once.)
+
+  The first time the new version opens, **What's new in jobdork** lists
+  what changed, once: **Got it** closes it, and **Everything that changed** opens
+  the release page.
 
   Where jobdork cannot replace itself (on a Mac: run from the disk image or
   from Downloads, or kept in a folder you cannot write; on Linux: an

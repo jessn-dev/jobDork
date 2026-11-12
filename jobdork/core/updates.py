@@ -652,8 +652,38 @@ def _after_quit(script: str, args: list[str], log: Path, spawn=None) -> Path:
     return Path(name)
 
 
-def windows_installer_args(path: Path) -> list[str]:
+def windows_installer_args(path: Path, log: Path | None = None) -> list[str]:
     """The installer, on its own: a progress bar and no questions; it closes
-    jobdork and opens the new version (packaging/jobdork.iss)."""
-    return [str(path), "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
-            "/restart=yes"]
+    jobdork if it is still open and opens the new version
+    (packaging/jobdork.iss). With `log`, Inno Setup writes what it did there."""
+    args = [str(path), "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
+            "/FORCECLOSEAPPLICATIONS", "/restart=yes"]
+    return [*args, f"/LOG={log}"] if log else args
+
+
+# The Windows installer, started once jobdork has quit: started while it ran,
+# its files were in use and the old version stayed (2026-11-12). PowerShell
+# waits for this process, then starts the installer; the installer's
+# arguments come in as JSON in the environment, never inside the script.
+WINDOWS_AFTER_QUIT = (
+    "$a = $env:JOBDORK_UPDATE_ARGS | ConvertFrom-Json; "
+    "Wait-Process -Id ([int]$env:JOBDORK_UPDATE_PID) -Timeout 120 -ErrorAction SilentlyContinue; "
+    "Start-Process -FilePath $a[0] -ArgumentList ($a | Select-Object -Skip 1)")
+
+
+def run_windows_installer_after_quit(path: Path, log: Path, pid: int = 0, spawn=None) -> None:
+    """Start the installer once this process has quit (WINDOWS_AFTER_QUIT),
+    from a hidden PowerShell that outlives jobdork."""
+    import json
+    import subprocess
+
+    spawn = spawn or subprocess.Popen
+    log.parent.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "JOBDORK_UPDATE_PID": str(pid or os.getpid()),
+           "JOBDORK_UPDATE_ARGS": json.dumps(windows_installer_args(path, log))}
+    flags = (getattr(subprocess, "DETACHED_PROCESS", 0)
+             | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+             | getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    spawn(["powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
+           "-Command", WINDOWS_AFTER_QUIT], env=env, close_fds=True, creationflags=flags,
+          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

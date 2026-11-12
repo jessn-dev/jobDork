@@ -120,7 +120,7 @@ key, whose public half is
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jessn-dev/jobDork/main/packaging/jobdork-signing-key.asc | gpg --import
-gpg --verify jobdork_0.16.3_amd64.deb.asc jobdork_0.16.3_amd64.deb
+gpg --verify jobdork_0.16.4_amd64.deb.asc jobdork_0.16.4_amd64.deb
 ```
 
 "Good signature from \"jobdork releases\"" is the answer to look for, from

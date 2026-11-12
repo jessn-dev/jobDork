@@ -3757,6 +3757,58 @@ def newer_version(cfg=None, force: bool = False) -> dict:
     return found
 
 
+# ── what's new, once after an update ─────────────────────────────────────────
+# The release's "For you" list (jobdork/data/whats-new.json, written by
+# scripts/whats_new.py), shown once when jobdork opens on a newer version
+# than it last ran. The version it last showed is kept in the database.
+WHATS_NEW = Path(__file__).resolve().parent.parent / "data" / "whats-new.json"
+SEEN_KEY = "whats_new_seen"
+
+
+def whats_new(cfg) -> dict | None:
+    """{"version", "items"} to show, or None: a fresh copy, one already
+    shown, or a list for another version show nothing."""
+    import json
+
+    from .. import __version__
+    from ..core import updates
+    from ..db.store import Store
+
+    if not Path(cfg.db_path).is_file():
+        return None
+    try:
+        news = json.loads(WHATS_NEW.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    try:
+        with Store(cfg.db_path) as store:
+            seen = store.get_meta(SEEN_KEY, "")
+            if seen == __version__:
+                return None
+            # Never seen: an update from before this existed when there are
+            # job posts already; a new copy otherwise, which has nothing to
+            # be told and starts from here.
+            if not seen and not store.conn.execute("SELECT 1 FROM roles LIMIT 1").fetchone():
+                store.set_meta(SEEN_KEY, __version__)
+                return None
+    except Exception:          # a newer database, or none yet: say nothing
+        return None
+    newer = updates.parse(__version__) and (not seen or (updates.parse(seen) or (0,)) < updates.parse(__version__))
+    if not newer or news.get("version") != __version__ or not news.get("items"):
+        return None
+    return {"version": news["version"], "items": list(news["items"])}
+
+
+def whats_new_seen(cfg) -> dict:
+    from .. import __version__
+    from ..db.store import Store
+
+    if Path(cfg.db_path).is_file():
+        with Store(cfg.db_path) as store:
+            store.set_meta(SEEN_KEY, __version__)
+    return {"seen": __version__}
+
+
 def notifications_unseen(cfg) -> int:
     """How many notifications the Notifications page has not shown yet."""
     from ..db.store import Store
@@ -3962,7 +4014,6 @@ def update_job(cfg):
     AppImage is swapped in and a .deb installed once jobdork has quit
     (_linux_update). Where that cannot be done, the installer opens to finish
     by hand, as before."""
-    import subprocess
 
     from ..core import updates
     from .app import app_home, open_with_system
@@ -3984,7 +4035,10 @@ def update_job(cfg):
         except Exception as exc:
             _update_at("failed", error=f"{type(exc).__name__}: {exc}")
             raise
-        version = (re.search(r"jobdork-(\d+\.\d+\.\d+)-", path.name) or [None, ""])[1]
+        # The version in the file's name: jobdork-0.16.4-..., or the .deb's
+        # jobdork_0.16.4_amd64.deb, which the dash alone never matched, so a
+        # .deb was never installed, only its folder opened (2026-11-12).
+        version = (re.search(r"jobdork[-_](\d+\.\d+\.\d+)[-_]", path.name) or [None, ""])[1]
         bundle = updates.running_bundle() if sys.platform == "darwin" else None
         why = ""
         if bundle and version:
@@ -4003,7 +4057,8 @@ def update_job(cfg):
                    "Downloads, or a folder you cannot write)")
         if sys.platform == "win32" and version:
             try:
-                subprocess.Popen(updates.windows_installer_args(path), close_fds=True)
+                updates.run_windows_installer_after_quit(
+                    path, app_home() / "logs" / "update-install.log")
             except OSError as exc:
                 why = str(exc)
             else:
