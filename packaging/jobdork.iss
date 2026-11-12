@@ -44,7 +44,10 @@ SolidCompression=yes
 WizardStyle=modern windows11
 ; Relative to this script's folder.
 InfoBeforeFile=privacy.txt
-CloseApplications=yes
+; force: a jobdork that does not close when asked is closed anyway. An update
+; that found it open (its close question waiting on a scheduled scan) left
+; the old files in place and opened the old version again (2026-11-12).
+CloseApplications=force
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -86,6 +89,43 @@ var
 function RestartAfter: Boolean;
 begin
   Result := WizardSilent and (ExpandConstant('{param:restart|no}') = 'yes');
+end;
+
+{ A jobdork.exe still running. The copy being updated starts this installer
+  and closes itself a few seconds later (0.16.4 and older), or has closed
+  already (0.16.5 on, core/updates.py). }
+function JobdorkRunning: Boolean;
+var
+  Locator, Service, Found: Variant;
+begin
+  Result := False;
+  try
+    Locator := CreateOleObject('WbemScripting.SWbemLocator');
+    Service := Locator.ConnectServer('.', 'root\CIMV2');
+    Found := Service.ExecQuery('SELECT ProcessId FROM Win32_Process WHERE Name = ''jobdork.exe''');
+    Result := Found.Count > 0;
+  except
+    Result := False;
+  end;
+end;
+
+{ An update from the app waits, up to a minute, for the old jobdork to close
+  before replacing its files: replacing them while it ran left the old
+  version in place (2026-11-12). }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Waited: Integer;
+begin
+  Result := '';
+  if RestartAfter then
+  begin
+    Waited := 0;
+    while JobdorkRunning and (Waited < 120) do
+    begin
+      Sleep(500);
+      Waited := Waited + 1;
+    end;
+  end;
 end;
 
 { What the person ticked, comma separated, for jobdork.exe --uninstall. }

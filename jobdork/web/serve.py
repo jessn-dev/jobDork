@@ -640,6 +640,7 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                         "reminders": cfg_holder["cfg"].notifications.reminders,
                         "native": notify_mod.native(),
                         "unseen": api_mod.notifications_unseen(cfg_holder["cfg"])},
+                    "whats_new": api_mod.whats_new(cfg_holder["cfg"]),
                     "setup": _setup_state(cfg_holder["cfg"]),
                     "keys": api_mod.keys_state(cfg_holder["cfg"]),
                 })
@@ -811,6 +812,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                         "/api/education/save", "/api/education/delete",
                         "/api/skills/confirm"):
                 return self._project(path)
+            if path == "/api/whats-new/seen":
+                return self._wrap(api_mod.whats_new_seen, cfg_holder["cfg"])
             if path in ("/api/notifications/seen", "/api/notifications/clear"):
                 return self._wrap(api_mod.notifications_seen if path.endswith("seen")
                                   else api_mod.notifications_clear, cfg_holder["cfg"])

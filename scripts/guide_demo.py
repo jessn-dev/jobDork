@@ -250,6 +250,9 @@ def build(folder: Path) -> Path:
                       "next_date": time.strftime("%Y-%m-%d", time.localtime(now + 2 * 86400))},
             "Coding agent · claude-code")
         _runs(store, now)
+        # Opened on this version before: no What's new window over the pictures.
+        from jobdork import __version__
+        store.set_meta("whats_new_seen", __version__)
     _checked_for_updates(Path(cfg.db_path).parent, now)
     return config
 

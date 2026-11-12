@@ -1,0 +1,14 @@
+{
+ "version": "0.16.4",
+ "items": [
+  "**Fewer made-up claims.** The AI's checker reads your whole resume, true claims are flagged less, and a flagged verdict is mended (the claim taken out or the summary rewritten, then checked again) before you see it: on a real resume, 11.8% of claims flagged before, 0.6% of what you see now. The Dashboard shows the rate by checker.",
+  "**Eight writing and preparing tools**: a tailoring report, an interview story (STAR), a thank-you email, offer negotiation, an outreach message, a LinkedIn headline and About, changing field, and a 30-day search plan. Cover letters follow a four-part, 250 to 300 word shape; interview prep asks fifteen questions with STAR outlines; resumes come in a sans or serif face.",
+  "**One Add a job post form**, already applied or not, and the resume and letter you sent uploaded for a job, read by its AI tools.",
+  "**A Notifications page** with every notification jobdork sent, opened by a click on one, and desktop notifications that stay until you close them.",
+  "**Employers to skip**: never see posts from a named employer, from any source. **Sources** says why no built-in board is read, when none is.",
+  "**Job posts** mark what the AI judged, in which run; the AI page and the Dashboard show what your coding agent did, and its changes to an application wait for your OK in My applications.",
+  "**Linux on ARM64** (a Raspberry Pi, a Linux VM on an Apple Silicon Mac): an AppImage and a .deb, for systems from 2024 on. The Linux packages show their icon and screenshots in a software centre.",
+  "**Fixed:** clicking a notification opens jobdork (not Script Editor on a Mac or a folder on Windows); a link with no advert asks for it instead of storing an empty post.",
+  "**Security:** the fixes from the code scans of 2026-11-06, every finding among them: a stranger's page cannot freeze jobdork or fill its memory, the feedback relay checks what it is sent, a key stays out of logs, the browser is opened without the token in its command line, and more (each entry below)."
+ ]
+}

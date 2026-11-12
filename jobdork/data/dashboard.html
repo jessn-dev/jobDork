@@ -120,7 +120,10 @@ nav .item:hover .info,nav .item:focus-visible .info{opacity:.9}
 main{padding:1.5rem 1.75rem;min-width:0}
 /* The Dashboard uses the whole width; pages of forms and reading keep a
    measure that is comfortable to read. */
-main > section:not(#view-scan):not(#view-settings):not(#view-setup):not(#view-resume):not(#view-ask):not(.has-split){max-width:1060px}
+main > section:not(#view-scan):not(#view-settings):not(#view-setup):not(#view-resume):not(#view-ask):not(#view-notes):not(.has-split){max-width:1060px}
+/* Notifications: the list keeps the usual width, and "none" sits in the
+   middle of the page, not of a narrower box. */
+#view-notes .noteshead,#view-notes .notelist{max-width:1060px}
 /* The Resume page's preview takes the room a wide window has. */
 #view-resume{max-width:1600px}
 #resumeinfo code{overflow-wrap:anywhere}
@@ -679,6 +682,9 @@ button.danger:hover:not(:disabled){background:var(--bad);color:var(--bg)}
 .atsadvice{margin:.2rem 0;padding-left:1.1rem;font-size:.875rem}
 .act.linkish{border:none;background:none;padding:0;color:var(--accent);text-decoration:underline;font-size:inherit}
 /* A coding agent's suggestions for the record, waiting for your OK. */
+/* What's new: the release's list, once after an update. */
+.newlist{margin:.25rem 0 0;padding-left:1.1rem;max-width:62ch}
+.newlist li{margin:.45rem 0;line-height:1.45}
 /* Notifications: every one jobdork sent, newest first; none, one line in the middle. */
 .noteshead{display:flex;align-items:center;justify-content:space-between;gap:1rem}
 .notelist{list-style:none;margin:0;padding:0}
@@ -1903,6 +1909,14 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
   <div class="dlg-body" id="keys-body"></div>
   <div class="dlg-foot">
     <button data-icon="x" class="act" id="keys-later" type="button">Not now</button>
+  </div>
+</dialog>
+<dialog id="newdlg" aria-labelledby="new-title">
+  <div class="dlg-head"><strong id="new-title">What's new in jobdork</strong></div>
+  <div class="dlg-body"><ul class="newlist" id="new-items"></ul></div>
+  <div class="dlg-foot">
+    <button data-icon="external-link" class="act" id="new-more" type="button">Everything that changed</button>
+    <button data-icon="check" class="act primary" id="new-ok" type="button">Got it</button>
   </div>
 </dialog>
 <dialog id="upddlg" aria-labelledby="upd-title">
@@ -3758,6 +3772,7 @@ async function refreshState() {
   if (s.notifications) noteCfg = s.notifications;
   if (s.keys) { keysInfo = s.keys; askForKeys(s.keys); }
   noteCount((s.notifications || {}).unseen || 0);
+  if (s.whats_new) showWhatsNew(s.whats_new);
   if (s.setup) drawSetup(s.setup);
   // Just finished: open the dashboard. The token lives only in this page's
   // memory, so it goes back in the address for the one load that reads it.
@@ -6747,6 +6762,23 @@ function bindApplication(d) {
     }
     after(await api('/api/application/note', {method: 'POST', body: form({uid: d.uid, delete: b.dataset.note})}), 'Note deleted');
   });
+}
+
+// ── what's new ──────────────────────────────────────────────────────────────
+// After an update, once: the release's list (web/api.py, whats_new). Bold
+// in the list is the changelog's own **…**; nothing else is markup.
+let whatsNewShown = false;
+function showWhatsNew(d) {
+  if (whatsNewShown || !d || !(d.items || []).length) return;
+  whatsNewShown = true;
+  $('new-title').textContent = `What's new in jobdork ${d.version}`;
+  $('new-items').innerHTML = d.items.map(t =>
+    `<li>${esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')}</li>`).join('');
+  $('new-more').onclick = () => openOut(`https://github.com/jessn-dev/jobDork/releases/tag/v${d.version}`);
+  $('new-ok').onclick = () => $('newdlg').close();
+  $('newdlg').onclose = () => api('/api/whats-new/seen', {method: 'POST'});
+  decorate($('newdlg'));
+  $('newdlg').showModal();
 }
 
 // ── notifications ───────────────────────────────────────────────────────────
