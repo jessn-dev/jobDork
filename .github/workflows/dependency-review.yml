@@ -9,6 +9,11 @@ on:
   pull_request:
     branches: [main]
 
+# A newer push to the pull request replaces this run.
+concurrency:
+  group: dependency-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -16,6 +21,7 @@ jobs:
   review:
     name: "New dependencies have no known vulnerabilities"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: write          # the comment, when it fails

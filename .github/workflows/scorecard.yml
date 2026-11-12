@@ -20,6 +20,7 @@ jobs:
   analysis:
     name: "Score the repository; findings to Code scanning"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       security-events: write        # the findings, to Code scanning
       id-token: write               # publishing the score
