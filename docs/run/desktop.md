@@ -6,13 +6,13 @@ Nothing to type, no Python to install. Other ways to run it:
 
 | System | Download |
 |---|---|
-| Mac with Apple Silicon (M1 or later), macOS 12 or newer | `jobdork-0.16.3-macos-arm64.dmg` |
-| Mac with an Intel processor, macOS 12 or newer | `jobdork-0.16.3-macos-x86_64.dmg` (from 0.15.3) |
-| Windows 10 or 11, 64-bit | `jobdork-0.16.3-windows-x64-setup.exe` |
-| Linux, 64-bit (x86-64), any distribution from 2022 on | `jobdork-0.16.3-linux-x86_64.AppImage` (from 0.16.2) |
-| Ubuntu 22.04 or newer, Debian 12 or newer, Linux Mint 21 or newer | `jobdork_0.16.3_amd64.deb` (from 0.16.2) |
-| Linux on ARM64 (a Raspberry Pi 4 or 5, a Linux VM on an Apple Silicon Mac), any distribution from 2024 on | `jobdork-0.16.3-linux-aarch64.AppImage` (from 0.16.4) |
-| Ubuntu 24.04 or newer, Debian 13 or newer, on ARM64 | `jobdork_0.16.3_arm64.deb` (from 0.16.4) |
+| Mac with Apple Silicon (M1 or later), macOS 12 or newer | `jobdork-0.16.4-macos-arm64.dmg` |
+| Mac with an Intel processor, macOS 12 or newer | `jobdork-0.16.4-macos-x86_64.dmg` (from 0.15.3) |
+| Windows 10 or 11, 64-bit | `jobdork-0.16.4-windows-x64-setup.exe` |
+| Linux, 64-bit (x86-64), any distribution from 2022 on | `jobdork-0.16.4-linux-x86_64.AppImage` (from 0.16.2) |
+| Ubuntu 22.04 or newer, Debian 12 or newer, Linux Mint 21 or newer | `jobdork_0.16.4_amd64.deb` (from 0.16.2) |
+| Linux on ARM64 (a Raspberry Pi 4 or 5, a Linux VM on an Apple Silicon Mac), any distribution from 2024 on | `jobdork-0.16.4-linux-aarch64.AppImage` (from 0.16.4) |
+| Ubuntu 24.04 or newer, Debian 13 or newer, on ARM64 | `jobdork_0.16.4_arm64.deb` (from 0.16.4) |
 
 **Which Linux do I have?** `dpkg --print-architecture` in a terminal:
 `amd64` is x86-64, `arm64` is ARM64. ARM64 needs a system from 2024 on
@@ -82,7 +82,7 @@ or AppImageLauncher adds it.
 **Linux, the .deb.** In a terminal, in the folder you downloaded it to:
 
 ```bash
-sudo apt install ./jobdork_0.16.3_amd64.deb     # ARM64: ./jobdork_0.16.3_arm64.deb
+sudo apt install ./jobdork_0.16.4_amd64.deb     # ARM64: ./jobdork_0.16.4_arm64.deb
 ```
 
 It installs to `/opt/jobdork`, with **jobdork** in the menu and the
@@ -108,7 +108,7 @@ above):
 [GitHub CLI](https://cli.github.com/):
 
 ```bash
-gh attestation verify jobdork-0.16.3-macos-arm64.dmg --repo jessn-dev/jobDork
+gh attestation verify jobdork-0.16.4-macos-arm64.dmg --repo jessn-dev/jobDork
 ```
 
 or compare its SHA-256 with `SHA256SUMS.txt` on the same release.
@@ -204,7 +204,7 @@ with `--debug`, which adds the window's developer tools (right-click,
 ```bash
 /Applications/jobdork.app/Contents/MacOS/jobdork --debug     # macOS
 "%LOCALAPPDATA%\Programs\jobdork\jobdork.exe" --debug        # Windows, default install
-./jobdork-0.16.3-linux-x86_64.AppImage --debug                # Linux, the AppImage
+./jobdork-0.16.4-linux-x86_64.AppImage --debug                # Linux, the AppImage
 jobdork --debug                                                # Linux, the .deb
 ```
 
@@ -216,10 +216,10 @@ problem, or through the dashboard's Feedback page otherwise.
 ```bash
 pip install --require-hashes -r requirements-desktop.lock
 pip install --no-deps --no-build-isolation -e .
-python packaging/build.py   # macOS: dist/jobdork-0.16.3-macos-arm64.dmg
-                            # Windows: dist/jobdork-0.16.3-windows-x64-setup.exe
-                            # Linux: dist/jobdork-0.16.3-linux-x86_64.AppImage
-                            #        and dist/jobdork_0.16.3_amd64.deb
+python packaging/build.py   # macOS: dist/jobdork-0.16.4-macos-arm64.dmg
+                            # Windows: dist/jobdork-0.16.4-windows-x64-setup.exe
+                            # Linux: dist/jobdork-0.16.4-linux-x86_64.AppImage
+                            #        and dist/jobdork_0.16.4_amd64.deb
 ```
 
 The lock pins every package by version and hash, as the release builds do;

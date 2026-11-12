@@ -9,6 +9,952 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-11-11 — version 0.16.4
+
+0.16.4 carries the 29 entries below, everything since 0.16.3. For you:
+
+- **Fewer made-up claims.** The AI's checker reads your whole resume, true
+  claims are flagged less, and a flagged verdict is mended (the claim taken
+  out or the summary rewritten, then checked again) before you see it: on
+  a real resume, 11.8% of claims flagged before, 0.6% of what you see now.
+  The Dashboard shows the rate by checker.
+- **Eight writing and preparing tools**: a tailoring report, an interview
+  story (STAR), a thank-you email, offer negotiation, an outreach message,
+  a LinkedIn headline and About, changing field, and a 30-day search plan.
+  Cover letters follow a four-part, 250 to 300 word shape; interview prep
+  asks fifteen questions with STAR outlines; resumes come in a sans or
+  serif face.
+- **One Add a job post form**, already applied or not, and the resume and
+  letter you sent uploaded for a job, read by its AI tools.
+- **A Notifications page** with every notification jobdork sent, opened by
+  a click on one, and desktop notifications that stay until you close them.
+- **Employers to skip**: never see posts from a named employer, from any
+  source. **Sources** says why no built-in board is read, when none is.
+- **Job posts** mark what the AI judged, in which run; the AI page and the
+  Dashboard show what your coding agent did, and its changes to an
+  application wait for your OK in My applications.
+- **Linux on ARM64** (a Raspberry Pi, a Linux VM on an Apple Silicon Mac):
+  an AppImage and a .deb, for systems from 2024 on. The Linux packages show
+  their icon and screenshots in a software centre.
+- **Fixed:** clicking a notification opens jobdork (not Script Editor on a
+  Mac or a folder on Windows); a link with no advert asks for it instead of
+  storing an empty post.
+- **Security:** the fixes from the code scans of 2026-11-06, every finding
+  among them: a stranger's page cannot freeze jobdork or fill its memory,
+  the feedback relay checks what it is sent, a key stays out of logs, the
+  browser is opened without the token in its command line, and more (each
+  entry below).
+
+Updating from 0.16.3: **Update** under Settings, Updates downloads 0.16.4,
+checks it, puts it in place and opens it again. The database gains two
+tables when it opens (`application_suggestions`, `notifications`); nothing
+in it is changed. The config gains settings only when you change them
+(`skip_employers`, `resume.font`, `llm.rewrite`). **If you open jobdork
+from another device** with `JOBDORK_ALLOW_HOSTS` (a NAS): a Tailscale name
+keeps working, but a home-network address now needs HTTPS
+(`JOBDORK_TLS_CERT`, `JOBDORK_TLS_KEY`) or `JOBDORK_ALLOW_HTTP=1`
+([docs/run/nas.md](run/nas.md)). On ARM64 Linux, install 0.16.4 from the
+release page: there was no ARM build before to update from.
+
+---
+
+## Added — 2026-11-11 — The Linux app for ARM64
+
+The `.deb` failed to install on an ARM computer (a Linux VM on an Apple
+Silicon Mac, here) with every dependency, `libc6` included, "not
+installable": jobdork's Linux packages were built for x86-64 alone, and
+apt matches a package to the computer's architecture.
+
+Each release now also has `jobdork-<version>-linux-aarch64.AppImage` and
+`jobdork_<version>_arm64.deb`, built on GitHub's ARM machines
+(`ubuntu-24.04-arm`) by the same `packaging/build.py`, with appimagetool
+and the AppImage runtime for ARM pinned by SHA-256 like the x86-64 ones.
+PyQt6's ARM wheels need glibc 2.39, so the ARM packages run on systems from
+2024 on (Ubuntu 24.04, Debian 13, Raspberry Pi OS from Debian 13); the
+`.deb` asks for `libc6 (>= 2.39)`, and Ubuntu 22.04 or Debian 12 on ARM
+still use Docker or the source. desktop.yml installs the ARM `.deb` in bare
+Ubuntu 24.04 and Debian 13, runs its self-test, opens its window and runs
+the AppImage's self-test, as for x86-64.
+
+The ARM Qt wheels load from the system what the x86-64 ones carry
+inside (the web engine's Opus, Snappy, WebP, minizip and LittleCMS, and
+the window plugin's ICE and SM): the ARM `.deb` depends on them
+(`DEB_DEPENDS_ARM64`), and two plugins only the ARM wheels have and
+jobdork never loads (text-to-speech by flite, GStreamer media) are left
+out of the build.
+
+The in-app update takes the ARM installer on an ARM computer
+(`updates.installer_name`), the release page lists both, and
+`docs/run/desktop.md`, the README and the guide's Getting started say which
+to download (`dpkg --print-architecture`). tests/test_build.py,
+tests/test_notify.py and tests/test_release_notes.py cover the names,
+architecture and glibc. The ARM build has not run yet: its first run is
+this change's CI.
+
+---
+
+## Fixed — 2026-11-11 — The Linux packages show jobdork's icon and screenshots in a software centre
+
+Opened from the file, the `.deb` showed in GNOME Software with a generic
+gear for its icon and "No Screenshots": the packages carried a menu entry
+and one 256-pixel icon, but no AppStream metainfo, which is what software
+centres (GNOME Software, KDE Discover) read for an app's icon, pictures and
+details.
+
+Both the `.deb` and the AppImage now carry
+`/usr/share/metainfo/io.github.jessn_dev.jobdork.metainfo.xml`: name,
+summary, description, licence, links, the release, the icon (installed, and
+as a web address), and four screenshots with captions (the Dashboard, Job
+posts, a job post, the Resume page), taken from the guide's pictures at the
+release's own tag so they match the version installed. The icon is
+installed at 64, 128, 256 and 512 pixels and as an SVG (`packaging/build.py`,
+`metainfo`). desktop.yml's install check looks for the metainfo and the
+large icon on Ubuntu 22.04, 24.04 and Debian 12; tests/test_build.py checks
+the metainfo's shape and that each screenshot is a guide picture.
+
+Not yet checked in GNOME Software itself: the screenshots' addresses exist
+once the release is tagged.
+
+---
+
+## Changed — 2026-11-11 — The writing tools read the resume you sent, one list of stock phrases, and the docs caught up
+
+Follow-ups left until the one Add a job post form, the writing tools and
+the letter rules were all merged, to keep their pull requests apart.
+
+- **A job post's writing tools read the resume you sent** for it, when you
+  uploaded one (the tailoring report, interview story, thank-you email,
+  offer and outreach message), as its interview prep and recruiter message
+  already did; the tools with no job post read the resume set now
+  (`prep.run`, `writer._resume_text(cfg, store, uid)`).
+- **One list of stock phrases** (`gates.STOCK`): the cover letter's and
+  recruiter message's check and the writing tools' were two lists that
+  differed. Each now refuses every phrase either refused.
+- **Docs**: the README names the writing tools, interview prep's STAR
+  outlines, the resume's font, the mended verdicts and the documents you
+  sent; ARCHITECTURE.md the `prep` module, the checker reading the whole
+  resume and the rewrite of a flagged verdict; PRIVACY.md where the
+  documents you sent are kept. The changelog's backlog drops the one form
+  and the writing tools, both done. The Resume page's picture is retaken
+  with the font choice.
+
+---
+
+## Added — 2026-11-11 — Employers to skip
+
+Asked for on 2026-11-11. A list of employers whose job posts are dropped
+wherever they come from (Adzuna, Workable, USAJOBS, the built-in employer
+boards, your own boards): a past employer, one you would never work for, a
+staffing agency that floods your results. Built-in boards could already be
+switched off one by one, and keyword sources as a whole, but nothing took
+an employer out of every source; dealbreakers read the advert, not the
+company.
+
+- **Search → Employers to skip**: add, remove, or remove all, like the other
+  lists (`skip_employers` in the config, one of each however it is cased).
+- **Skip this employer** in the job post window adds its employer in one
+  click and closes the window.
+- Names are compared as advert names are, without case or endings like Inc,
+  LLC and Corp (`agency.core_name`): "Acme" skips "ACME Corp." and "Acme,
+  Inc.", not "Acme Health". A skipped post is dropped first, before its
+  title is read, with the reason "an employer you skip" on Job posts'
+  Dropped list (`screen.skipped_employer`).
+- A change re-screens the stored posts, named on the Dashboard's queue
+  ("Employers to skip: added Initech").
+
+The guide's Search and job window pages and `docs/CONFIG.md` say so, with
+`search.png` and `job-window.png` retaken (the demo skips one agency).
+tests/test_skip_employers.py covers the matching, the save and load, and
+the re-screen.
+
+---
+
+## Security — 2026-11-11 — The dashboard is opened to your network only where its token cannot be read
+
+From the code scan of 2026-11-06 (Claude Security F2). With
+`JOBDORK_ALLOW_HOSTS`, the dashboard listened on every network address over
+plain HTTP, and its access token, the only thing that keeps others out,
+crossed the network readable with every request: anyone on the same
+network could take it and use the dashboard.
+
+Now an address in `JOBDORK_ALLOW_HOSTS` is opened only when the token
+cannot be read on the way:
+
+- **Over HTTPS**: `JOBDORK_TLS_CERT` and `JOBDORK_TLS_KEY` name a
+  certificate and its key (`tailscale cert` makes one for a Tailscale
+  name), and the dashboard is served over HTTPS, TLS 1.2 or newer, with the
+  printed addresses starting `https://` (`serve.wrap_tls`).
+- **By Tailscale**: a Tailscale name (`*.ts.net`) or address
+  (100.64.0.0/10) is opened as before, since Tailscale encrypts its
+  traffic.
+- **Plain HTTP, accepted out loud**: `JOBDORK_ALLOW_HTTP=1`.
+
+Otherwise that address is not opened, and the log says which and what to
+set; the Tailscale names in the same list still are, and with none left
+jobdork stays on this computer. **This changes a NAS set up from the
+guide**: its home-network address stops answering until HTTPS or
+`JOBDORK_ALLOW_HTTP=1` is chosen; its Tailscale name keeps working.
+
+`docs/run/nas.md`, `docs/run/docker.md`, `docs/CONFIG.md`, `compose.yaml`
+and the Dockerfile's comments say so. tests/test_lan_https.py covers plain
+HTTP kept on this computer, Tailscale names kept, the explicit yes, and the
+dashboard's server answering over HTTPS with a certificate made for the
+test (and not over plain HTTP); tests/test_serve.py's network tests accept
+plain HTTP out loud.
+
+---
+
+## Added — 2026-11-11 — A Notifications page, and notifications that stay until closed
+
+Asked for on 2026-11-11.
+
+**Notifications**, a new item in the menu, lists every notification jobdork
+sent, newest first, with when: the ones closed on the desktop and the ones
+the computer could not show (in Docker). A count beside it says how many
+are unseen; opening the page marks them seen. A click opens what it was
+about (new job posts: Job posts; a follow-up: My applications; a failed
+scan: the Dashboard; a newer jobdork: Settings). **Clear all** empties it,
+and with none the page says only "You have no notifications from jobdork",
+in the middle. Each one is kept in a new `notifications` table (created on
+open, so an older database gains it), the newest 500, and the same words
+within a day once: a follow-up reminder the desktop could not show is tried
+again at every check. Nothing is kept before there is a database.
+
+**A click on a notification opens the Notifications page** (asked the
+same day): jobdork starts there, or its open window comes to the front and
+turns to it. Windows' toast opens `jobdork://notifications`, the Linux
+click starts it with `--notifications`, and on a Mac the app answers the
+click itself (a UserNotifications delegate, set before it finishes
+launching so a click that starts it counts too); an open window is told
+through the same request file a second start already used
+(`app.open_view`, the page's `openView`). Not yet tried on a real desktop:
+the Mac click and the Windows protocol are checked only by tests here.
+
+**Desktop notifications stay until closed.** Windows: a reminder toast,
+with Windows' own Dismiss button, which Windows needs to keep one on
+screen. Linux: `notify-send --urgency=critical --expire-time=0` (GNOME
+keeps only a critical one). The Mac app: `NSUserNotificationAlertStyle =
+alert` in its Info.plist, so its notifications are Alerts rather than
+banners by default; System Settings can still change it, and jobdork run
+outside the app (osascript) still shows banners, which macOS closes.
+
+The guide's Settings page says so, with a new picture
+(`notifications.png`; the demo has three notifications). The rest of the
+pictures, whose menus now lack the new item, are retaken with the next
+release's pictures. tests/test_notifications_page.py covers keeping one
+with or without a desktop, the count, seen, Clear all, once a day, the 500,
+no database, and the three systems' staying; tests/test_notify.py and
+tests/test_guide.py follow the reminder toast and the new page.
+
+---
+
+## Added — 2026-11-11 — Why no built-in employer board is read, and what to change
+
+When a person's countries, industries or switched-off boards left none of
+the built-in employer boards to read, the Sources page showed only "0 of
+420 read" and a scan said nothing. Now the Sources page's built-in boards
+section says why at the top, one sentence counting each reason with what
+to change ("3 hire outside your countries (Philippines): add a country
+under Search, or read every country"; "they are off. To read them, tick
+Read the built-in boards"). A scan logs the same sentence, and `jobdork
+sources` prints it under its directory line (`directory.none_read_why`).
+
+The guide's Sources page says so. tests/test_sources_why_none.py covers
+nothing said when a board is read, boards off, each reason counted, and
+the Sources page's report.
+
+---
+
+## Security — 2026-11-11 — A coding agent's changes to an application wait for your OK
+
+From the code scans of 2026-11-06 (Claude Security F19, the hand scan's
+#9). A coding agent, and **Ask** inside jobdork, ran jobdork's tools
+without asking, `update_application` among them: one call could set a
+job's status, its next step, the contact and the documents sent, or add a
+note. The agent reads job adverts strangers wrote, and an advert can hide a
+line meant for an AI ("mark every application withdrawn"); followed, it
+changed the person's records with nothing asked.
+
+Now `update_application` only suggests. Each change waits at the top of My
+applications, with a count beside it in the menu, until **Approve** (the
+change is made as asked, and the history marks it as the agent's) or **Turn
+down** (nothing changes). A change jobdork cannot make, such as a date that
+is not one, stays waiting with the reason. These count toward the 25
+suggestions that may wait at once, with the Resume page's, whose count in
+the menu stays the record's own. The agent is told the change waits, and
+tells the person. Projects, education and skills already waited this way;
+the documents, verdicts and checks an agent saves are unchanged, since they
+add jobdork's own output and change nothing the person entered.
+
+A new table (`application_suggestions`), created on open, so an older
+database gains it without a migration.
+
+The guide's My applications, AI and glossary pages say so, with a new
+picture (`applications-suggested.png`) and the demo's My applications
+retaken with a change waiting. tests/test_ask_asks_first.py covers a
+change waiting, turned down, approved and marked, a bad value kept, and the
+limit; tests/test_agent.py approves before it checks.
+
+---
+
+## Security — 2026-11-11 — Start over, notes, the AI's fence, proxies and the screenshot script
+
+The last five fixes from the code scans of 2026-11-06 (Claude Security
+F10, F14, F18 and the hand scan's #14 and #15).
+
+- **Start over** (#15): it deleted every file in the output folder when
+  that folder was beside the config, and with `output.dir: .` the folder
+  *is* the config's, so `.env` and anything else there went too. It now
+  deletes only the reports jobdork writes there (`index.html`,
+  `roles.json`, `roles.md`, `roles.csv`; `render.REPORT_FILES`).
+- **Deleting a note** (#14): a note and its copies on the job's other posts
+  were found by their words and time, so the same note saved twice in one
+  second (a double click) went entirely on one delete. Now the note clicked
+  goes, and one copy on each other post.
+- **The fence around what the AI reads** (F10): block markers were taken
+  out before hidden characters were, so `<<`, a zero-width space, then
+  `/ADVERT>>` passed, became a real marker once the hidden character was
+  removed, and closed the fence. Markers are now looked for in the text as
+  the model will read it.
+- **Through a proxy** (F14): with `HTTPS_PROXY` or `HTTP_PROXY` set, the
+  proxy looked each site's name up itself, so a name that passed the
+  check for a public address could resolve, inside the proxy's network,
+  to a private one. The proxy is now given the address checked: CONNECT to
+  it for https, with TLS still checking the certificate against the name,
+  and the address in the URL for http, with the name in the Host header.
+  `JOBDORK_PROXY_BY_NAME=1` sends names as before, for a proxy that
+  refuses addresses (docs/CONFIG.md).
+- **The guide's screenshot script** (F18): it started its demo server with
+  a fixed token and the whole environment, keys included. The token is new
+  each run and anything named like a key is left out.
+
+tests/test_scan_data_fixes.py covers each one, the proxy with a local
+socket that records what it was sent. tests/test_cleanup.py now uses the
+report's real name (`index.html`).
+
+---
+
+## Security — 2026-11-11 — Four smaller fixes to the dashboard's server
+
+From the code scans of 2026-11-06 (Claude Security F11 and the hand scan's
+#7, #8 and #11). Each needed the dashboard's token, or a program already on
+the computer, to matter.
+
+- **The Ollama key** (#7): the list of an Ollama's models was fetched from
+  whatever address the page named, with the key if asked. The key now goes
+  only to an address a saved Ollama line already sends it to; a new line's
+  models load once it is saved with **Send the Ollama key** ticked, and the
+  message says so (`api.llm_models`).
+- **The digest** (#8): `/api/digest` mailed the job list to any address
+  the request named. The page never used it; it is gone. `jobdork digest`
+  in the terminal sends the digest as before.
+- **The token in the browser's command line** (F11): jobdork opened the
+  browser with the token in the address, and the address handed to the
+  system's open command sits in its command line, which any program on the
+  computer can read. The browser is now opened with a code that works once,
+  within a minute, and swaps itself for the token by a redirect
+  (`Session.launch_url`). The desktop window was never affected.
+- **A turned-away request** (#11): a request refused before its body was
+  read left the body on the connection, and the next request on it was read
+  from the middle of that. A refused request that is not a GET now closes
+  its connection.
+
+The guide's AI page says when the Ollama key's models load.
+tests/test_web_hardening.py covers each one.
+
+---
+
+## Security — 2026-11-10 — A stranger's page cannot freeze jobdork or fill its memory
+
+From the code scans of 2026-11-06 (Claude Security F1, F3, F12, F13, F15 and
+the hand scan's #6). Each of these read text from someone else's server with
+a pattern that, fed the right input, tried every way through it: one page
+could freeze the whole process, and with it the scan and the dashboard.
+
+- **robots.txt wildcards** (F1): each `*` became `.*` in a regex, and a rule
+  like `/*a*a*a…*b` made it backtrack without end. Now matched by `str.find`,
+  piece by piece (RFC 9309 meaning unchanged), and only the first 500 rules,
+  with at most 20 wildcards each, are read.
+- **The recruiter check** (F3): "our client" followed by a long run of
+  space tried every split of it between two `\s*`; now one run.
+- **Sitemaps and search-engine data** (F12): `<url>(.*?)</url>` and the
+  JSON-LD `<script>` pattern read an unclosed tag to the end of the page
+  once for every tag; now found by `str.find` (`site._url_blocks`,
+  `textutil.ld_json_blocks`, used by the site reader, enrich and the
+  listing check).
+- **The page title** (F13): read in two steps, the title first and its
+  parts in Python, instead of one pattern that stalled on spaces with no
+  `</title>`.
+- **HTML to text** (F15): a tag can no longer span another `<` (a page of
+  `<<<<` with no `>` was read to the end for each), and scripts and styles
+  are cut at their closing tag by `str.find`.
+- **One answer's size** (#6): every answer is read streamed, at most 32 MB
+  of it (room for the largest board answers); past that the rest is not
+  read and a warning says so (without the address: a query string can carry a key).
+
+tests/test_hang_patterns.py feeds each one the input that used to stall it,
+with a two-second limit, and checks the ordinary case still reads the same.
+
+---
+
+## Changed — 2026-11-10 — Cover letter rules, fuller interview prep, and the resume's font
+
+Asked for on 2026-11-09 from the same pack of job-search prompts as the new
+writing tools.
+
+**Cover letters** (by the AI page model and through Claude Code) are written
+to a shape: four short paragraphs, 250 to 300 words: an opening on something
+specific in the advert, never "I am excited to apply"; one achievement from
+the resume that answers the advert's first requirement; why this job and
+not any job; one sentence asking for a conversation. Every sentence says
+something the resume does not already say, and a requirement the person
+lacks is never mentioned. Two new checks say **Read this**: **length**
+(220 to 330 words passes) and **stock phrases** ("passionate", "team
+player", "excited about this opportunity", "perfect fit" and others; the
+recruiter message gets this one too) (`gates.letter_length`,
+`gates.stock_phrases`).
+
+**Interview prep** asks for fifteen likely questions, as interviews are run
+today, in three groups (behavioral, about the work, what would you do), each
+saying what it really finds out, the ones nearly every interview asks marked
+**high priority**, and at least two on a failure or a weakness (a new check,
+**a failure or weakness**, says **Read this** when fewer). It adds **Answers
+to build (STAR)**: outlines from the resume for the three hardest behavioral
+questions, checked by the hallucination check with the rest. An answer from
+an older model with no groups reads as questions about the work.
+
+**The resume's font**: the Resume page's **The resumes jobdork writes are
+set in** chooses a sans serif (Arial; Helvetica in the PDF) or a serif
+(Georgia; Times in the PDF) for every tailored resume, PDF and Word
+(`resume.font`). Left to jobdork, it is a serif when every industry chosen
+under Search is one where serif is usual (law, finance, academia,
+government), else a sans serif (`config.resume_font`). A serif PDF is
+measured with Helvetica's widths, so its lines wrap a little early and never
+run past the margin. The PDF's sizes were already the usual advice (11 point
+body, 18 point name).
+
+The guide's job window and Resume pages, `docs/CONFIG.md` and the interview
+prep picture (with the demo's prep in the new layout) say so.
+tests/test_letter_prep_font.py covers the letter checks and prompt, the
+grouped questions, priority, the failure check and the stories, and the font
+chosen, by industry, saved, and in Word and the PDF. The Resume page's
+picture is retaken once the writing tools' change, which retakes it too, is
+in.
+
+---
+
+## Added — 2026-11-10 — Eight writing and preparing tools
+
+Asked for on 2026-11-09 from a pack of job-search prompts: the ideas and the
+shape of each answer come from there, the prompts are jobdork's own
+(`ai/prep.py`). By the model on the AI page, each from your resume, the job
+post and what you type into its form, and nothing else.
+
+In a job post's **AI tools** tab, under **Prepare**:
+
+- **Tailoring report**: what the advert stresses most; each requirement, ✓
+  with the line of your resume that shows it or ✗; how to handle one you
+  lack; what a recruiter may question and how to prepare; what a summary
+  should lead with.
+- **Interview story (STAR)**: what happened, in your words, as situation,
+  task, action and result, and said aloud in 60 to 90 seconds, with likely
+  follow-up questions and anything that could sound like blame.
+- **Thank-you email**: 150 to 200 words for the day after, about what you
+  actually talked about, answering a concern if one was raised.
+- **Offer negotiation**: what to say to counter, the reasons, replies to the
+  usual pushbacks, what to ask for when the salary cannot move, and your
+  minimum. Never an ultimatum.
+- **Outreach message**: a LinkedIn connection request and InMail to someone
+  at the employer, with a small ask and an easy way to say no, and a
+  follow-up.
+
+On the Resume page, under **For your search**: a **LinkedIn headline and
+About** to copy (jobdork never logs into LinkedIn), **Changing field**
+(what carries over, how to say it, the real gaps), and a **30-day search
+plan** sized to the hours you have.
+
+Every answer is checked by the hallucination check against the resume, the
+advert and your own notes (the plan is advice, not claims, so it is not),
+recorded for the Dashboard, and kept: a post's in its folder, the others
+beside the resume. A script checks what it can and lists it as "Read this":
+a requirement marked as yours with no line of your resume behind it is
+turned to ✗, a skill not on your resume is left out of LinkedIn's list, a
+story whose action says "we" or runs over 90 seconds, a message over
+LinkedIn's limit or mentioning a job in a first message, a plan over your
+hours, and stock phrases ("passionate", "team player", "pick your brain").
+What you type is fenced as the advert is, so a pasted note cannot talk to
+the model. `POST /api/writing` runs one, `GET /api/writing[?uid=]` lists
+them with their forms. With a coding agent as the only reader, they say
+what to ask it, as the other AI buttons do.
+
+The guide's job window and Resume pages describe each one; their pictures
+are retaken. tests/test_prep.py covers every tool with a stand-in model:
+saved, recorded, guarded, each script check, the forms cut to their fields,
+the API's refusals and the fence.
+
+---
+
+## Added — 2026-11-10 — A verdict with flagged claims is written again once
+
+Once the hallucination check itself was right (see the entries of the same
+day), the claims it still flagged were the AI's own mistakes: a skill only
+the advert names written as the candidate's, a gap the resume fills. The
+check found them, but they stayed in the verdict you read.
+
+Now a verdict whose claims the check flagged is put right once, after
+Guardrails AI's "reask", made surgical: asked to write its whole verdict
+again, `gemma4:26b` handed back the same text word for word. So the reasons
+and concerns the flagged claims were split from are taken out by script
+(each claim traced to the sentence sharing most of its words), and when one
+came from the summary, the reader writes that one sentence again without it
+(`llm.rewrite_summary`). The result is checked as the first was, and the
+one with fewer flagged claims is kept and shown (`judging.rewrite`,
+`judging.revise`); the other is recorded as a draft
+(`judge_draft`), left out of the Dashboard's hallucination rate, which
+counts what you are shown, and counted on the **Hallucination** tile as
+"rewritten". A rewrite that fails, is not checked, or flags as many leaves
+the verdict as it was.
+
+On by default (`llm.rewrite`, and a box on the AI page): one more check
+for each flagged verdict, and a reader call when its summary is rewritten;
+nothing for a clean one. The flagged statements and the summary go to the
+model fenced as
+the advert is, and the fence now strips every block name jobdork uses, not
+only the advert's, so text inside one cannot close another.
+`scripts/hallucination_benchmark.py --rewrite` measures it. Tests:
+tests/test_guard_wiring.py (a flagged concern taken out and kept, a
+flagged summary written again, set aside when no better, not run when clean
+or off, drafts out of the rate) and tests/test_guard.py (the prompt's
+fences, a claim traced to its sentence, the summary cleaned as a verdict
+is).
+
+---
+
+## Added — 2026-11-10 — The hallucination rate by checker, and how long the Dashboard keeps things
+
+The Dashboard's hallucination rate mixes every checker used in the period.
+After trying a strict checker for a day (one that flagged three claims in
+four), the rate stayed high for as long as those runs were in the period,
+with no way to see what the checker now set gave: changing to a better
+one seemed to do nothing.
+
+**Hallucination, over time** now splits **By checker** too, beside **By
+kind** and **By model**, so the rate of the checker you use now shows at
+once; and each line's legend gives its rate for the period as well as its
+count. `/api/metrics` adds `checkers` and each day's `claims_by_checker`,
+from the checker named in each output's guard report.
+
+The guide's Dashboard page says how long each thing is kept: the
+hallucination checks always (a fresh scan deletes the job posts, not this
+history), runs and AI calls 120 days, run logs the last 200 runs, other
+warnings and errors the last 500; the numbers count only the period
+picked. tests/test_telemetry.py covers the split.
+
+---
+
+## Fixed — 2026-11-10 — The hallucination check reads the whole resume, and the work history
+
+The checker read each source only up to 16,000 characters, while the model
+that wrote a verdict read up to 20,000 of the resume. jobdork's measured
+work history ("10 years 10 months in all") was added after the resume, so
+on a long resume it was always cut off, with the resume's end. The checker
+then called claims taken from them unsupported, and the Dashboard's
+hallucination rate rose with every long resume. On a real 16,718-character
+resume, four of the nine claims `qwen3.8:27b` flagged in a day were the work
+history.
+
+Now every source the checker reads goes as far as what the writer read,
+plus room for the work history (`guard.MAX_SOURCE`, from `llm.MAX_RESUME`
+and `llm.MAX_ADVERT`), and the work history comes first in the resume source
+(`judging.guard_sources`), so no cut can take it. tests/test_guard.py checks
+both on a resume longer than the old limit.
+
+---
+
+## Fixed — 2026-11-10 — Fewer true claims flagged by the hallucination check
+
+On a real resume, after the checker could read all of it, ten of 169 claims
+were still flagged. Five were real mistakes by the AI (skills only the
+advert names, such as gRPC and NoSQL). The other five were the check's own:
+
+- **The work history given to a field.** jobdork rewrites "10 years 10
+  months of experience in DevOps" to "10 years 10 months of work in all",
+  because the total is every role together. A list was cut at its first
+  comma ("of work in all, DevOps, and security"), and "of software
+  engineering experience" was missed; the checker read the field back in
+  and flagged it. `llm.total_only` now covers the whole clause, and the
+  claims the checker splits out of a verdict get the same rewrite
+  (`guard.check`, `work`).
+- **A true gap the checker could not quote.** "The candidate lacks
+  leadership experience" came back "unsupported", as most gaps do. A gap
+  answered so is now settled by script against the resume, as one answered
+  "absent" already was: true when the resume never names the thing,
+  contradicted when it does. Only a short, named thing: a long one stays
+  with the checker. The thing is read without "experience", "expertise"
+  and "required for a … role" after it, which made "Python experience"
+  impossible to find.
+- **An overall opinion of fit.** "Meets the seniority and technical
+  requirements" and "is overqualified for the role" are the score in words,
+  which no source can back; they are no longer taken as claims. One that
+  names something checkable ("meets the requirement for 10+ years", "the
+  core requirements for Java") still is.
+
+tests/test_guard.py covers each one, with the wordings seen in real
+verdicts.
+
+---
+
+## Changed — 2026-11-10 — One "Add a job post" form, and the documents you sent
+
+**Add a Job Post** (Sources) and **Track an application you sent** (My
+applications) read a link the same way, in two forms. They are one form now,
+on both pages: a link, **I already applied** with its day (ticked on My
+applications), and the board token under **More options**. Behind it is one
+call, `POST /api/post/add` (`api.add_post`); `/api/add`, `/api/add/text` and
+`/api/application/track` still answer. `jobdork add --applied-on DAY` does
+the same from the command line.
+
+**Fixed:** a link to a page that names the job but carries no advert (marked
+up for search engines with no description) was stored with an empty advert:
+tracked, listed, and never scored, with nothing said. Now it is refused as
+"names the job but carries no advert", and the form opens its fields filled
+with what the link gave (title, employer, place), asking for the advert.
+A refusal like that answers JSON with what was found (`found`).
+
+**The resume and cover letter you sent** can be uploaded, in the form when
+you tick **I already applied**, or later in the post's **Application** tab
+under **Documents sent** (PDF, Word, Markdown or text). Each is kept in the
+post's folder as `sent-resume.*` or `sent-cover-letter.*`, read back to be
+sure it reads, and recorded as that post's document (`sent_resume`,
+`sent_letter`; one of each, a new upload replacing the file and keeping the
+record). Documents sent can choose it, the post's window shows its text, and
+the post's interview prep, recruiter message, AI tools and ATS match read
+the resume you sent instead of the one set now.
+
+The guide's My applications and Sources pages say so, with their pictures
+retaken. tests/test_applications.py, test_link.py and test_serve.py cover
+the refused empty advert and what it found, the one form adding and
+tracking, the uploads (format, kind, post id, replacing), the tools reading
+the sent resume, `--applied-on`, and the routes.
+
+---
+
+## Changed — 2026-11-10 — The docs say what changed since 0.16.3
+
+The README, PRIVACY.md, ARCHITECTURE.md and PLATFORMS.md now match what
+merged on 2026-11-10: a click on a notification opens jobdork (and the
+`jobdork://` link the Windows installer registers for it, which carries
+nothing); the feedback relay posts a report as plain text, checks and
+names screenshots itself, and limits each address to two reports a minute
+and five an hour (an IPv6 address by its /64); the AI page and Dashboard
+say what a coding agent did; Job posts marks what the AI judged. PLATFORMS.md
+says jobdork never logs into LinkedIn or the other sites it cannot read,
+and never posts there. The changelog's backlog gains the one Add a job post
+form with the documents you sent, and the writing and preparing tools.
+
+---
+
+## Security — 2026-11-10 — Seven quick fixes from the code scans
+
+From the code scans of 2026-11-06 (one by hand, one by Claude Security):
+
+- **A model's name could carry a script into the page** (F4). The checker's
+  name went into the job card's HTML unescaped, and a name can come from
+  another computer's Ollama or a connection code. It is escaped now; a
+  model name in the settings must be a name (letters, digits and
+  `. _ : / @ + -`), and names from a remote Ollama's list that are not are
+  left out.
+- **The resume path could be pointed anywhere** (#1). Saving the settings
+  took a `resume_path` from the page, and the resume file could then be
+  read back through `/api/resume/file`, and its text went to the AI: any
+  file, for whoever held the page's token. The resume is now set only by
+  uploading it (or in config.yaml by hand); a save that names another path
+  is refused.
+- **A Retry-After of `-1`, `NaN` or `inf`** (#10) made the pause negative or
+  endless, and `time.sleep` raised, stopping a check or a page read. Such a
+  header is now ignored (`Fetcher.retry_seconds`).
+- **A count the page sent that is not a number** (#12), such as
+  `limit=abc` to start AI judging, got no answer and logged a traceback; it
+  is now refused with a reason.
+- **A `%` in a folder or program path** (#13) broke the scheduled scan on
+  Linux and Docker without a word: cron reads a bare `%` as a new line. It
+  is escaped in the cron line, and read back as written.
+- **A formula in a CSV export** (#2): a job title from a board that began
+  `=HYPERLINK(` ran as a formula when `roles.csv` or the digest's CSV was
+  opened in a spreadsheet. Text cells that would start a formula get a
+  leading apostrophe.
+- **A `javascript:` link in the HTML report or the email digest** (#3):
+  only http(s) addresses become links there now, as on the dashboard.
+
+tests/test_quick_security.py covers each one.
+
+---
+
+## Fixed — 2026-11-10 — Clicking a notification opens jobdork
+
+Clicking one of the desktop app's notifications opened the wrong thing:
+Script Editor on a Mac, a folder on Windows. The notifications said nothing
+about what a click should open, so each system did what it does by default.
+
+- **Mac.** When the app could not post through macOS's own notifications
+  (permission never asked, or asked by a scheduled scan with no window), it
+  fell back to `osascript`, whose notifications macOS files under Script
+  Editor. The app now asks for permission when its window opens, while you
+  are there to answer, and never falls back to `osascript`: a notification
+  macOS refuses is logged ("allow it in System Settings, Notifications,
+  jobdork") instead. A click on the app's own notification opens jobdork.
+  Run any other way (pip, source), it is `osascript` as before.
+- **Windows.** The installer registers `jobdork://`, and the app's toasts
+  open it when clicked (`launch`, protocol activation), which starts
+  jobdork.exe. It reads nothing from the link. Run any other way, the toast
+  has no link, as only the app has it registered.
+- **Linux.** The app's notification has an **Open jobdork** action where
+  `notify-send` has `--action` (libnotify 0.7.9 and later), and is grouped
+  under jobdork's desktop entry. A shell of its own waits for the click,
+  so it still works after a scheduled scan has ended; the title and text
+  go to it as arguments, never into its script.
+- **jobdork open already.** A click starts jobdork, and a second one could
+  not listen on its port, so nothing showed. Now a second start leaves a
+  request in the app's folder; the open one sees it, brings its window to
+  the front, and the second one ends (`web/app.py`, `show_open_window`).
+  Nothing listening, or something else on the port that does not answer:
+  it starts as before.
+
+tests/test_notify.py covers the Mac app without `osascript`, the Windows
+app's toast link (and none outside the app), the Linux action with the
+title kept out of the script and the plain notification on an older
+`notify-send`; tests/test_app.py a second start raising the open window,
+and starting as usual with nothing open or nothing answering. Not yet
+clicked on a real Windows PC or Linux desktop.
+
+---
+
+## Added — 2026-11-10 — Job posts mark what the AI judged, and in which run
+
+**AI: judge top job posts** ran and finished, but nothing showed which job
+posts it had judged. It reads your best posts it has not judged yet, so
+they are often well down the list, and their AI badges looked the same as
+the ones from earlier runs. The run's summary gave only a count.
+
+Now:
+
+- Each judged post shows **Judged** and the day beside its AI badge, and
+  **Judged in the last run** when the most recent judging run (the button,
+  or the judging after a scan) read it.
+- Job posts sorts by **AI score** too, and filters **AI-judged**, **Judged
+  in the last run** or **Not judged yet**.
+- When a judging run ends, a message says how many posts it judged, with
+  **Show them**: Job posts, *Judged in the last run*, best AI score first.
+- The run's summary names the first five posts it judged ("Title, Company")
+  and counts the rest.
+
+`/api/roles` gives each post `ai_score` and `ai_at` (when its verdict was
+made), and `last_judging`: the run that made the newest verdict, by its
+start and end in the run history, with how many posts it judged
+(`api.last_judging`). The guide's Job posts and Scores pages say what the
+marks, the sort and the filter mean; their pictures are retaken.
+tests/test_serve.py covers the marks and the last run's window, and
+tests/test_ai.py the summary's names.
+
+---
+
+## Added — 2026-11-10 — What your coding agent has done, on the AI page and the Dashboard
+
+jobdork never calls a coding agent: it answers what you ask it in its own
+chat, through jobdork's tools. So an agent listed as a reader or checker but
+never connected, or connected and never asked, did nothing and showed
+nothing anywhere, which looked the same as an agent that worked. Listed as
+Reader 2 after a model, it was never reached at all, and nothing said so.
+
+Now the AI page's coding-agent box and the Dashboard, above AI usage, say:
+
+- when your agent last used jobdork's tools, which agent and which tool,
+  or that it has not yet (so it is not connected);
+- how many answers and changes it has saved, and the last of each;
+- who answers what jobdork asks for itself (judging after a scan, the AI
+  buttons) instead of the agent;
+- how many checks wait for it, when it is a checker, with what to ask it.
+
+A run whose model calls passed over a listed agent (a scan's judging, say)
+says so once in its log: "Coding agent is listed as a reader, but jobdork
+never calls it: judge and the rest of this run went to …".
+
+The agent's tools run in a process of their own, so the last time it used
+them is kept in the database (`meta`, `coding_agent_seen`, written by
+`web/agent.py` on every tool call); `api.agent_activity` reads it with the
+agent's answers (`llm_calls`) and changes (`activity`) for `/api/llm` and
+`/api/metrics`. The guide's AI and Dashboard pages say what the note means,
+and the AI page's coding-agent picture shows it. tests/test_agent.py covers
+an agent never seen, then seen, its answers and changes counted on both
+pages, nothing shown with no agent listed, and the run's note said once.
+
+---
+
+## Security — 2026-11-09 — The feedback relay checks what it is sent for itself
+
+The relay that turns a problem report into a GitHub issue and an email is
+a public address, and anyone can post to it, not only the app. It trusted
+what the app checks (Claude Security, 2026-11-09):
+
+- **Attachments.** It checked only the declared type, so anyone could mail
+  the maintainers any file under any name (`crash-log.html`, an `.exe`)
+  from the trusted feedback sender. Now each screenshot must decode from
+  base64 to at most 2 MB and start the way a PNG, JPEG or WebP does, and
+  the email names it `screenshot-1.png` and so on from that type; the name
+  sent is never used, and the type is given to Resend.
+- **The public issue.** The title and text were posted as they came, under
+  the maintainer's token, so a sender could @mention people, reference
+  other repositories' issues and post phishing links as the maintainer.
+  Now the text sits in a code fence longer than any run of backticks in
+  it, so nothing renders, and the title gets a zero-width joiner after
+  each `@` and `#`.
+- **The rate limit.** Five reports an hour per address were counted in KV,
+  read and written in two steps, so requests sent all at once all passed.
+  Now a rate-limit binding (`FEEDBACK_LIMITER`, two a minute per address)
+  counts atomically first; an IPv6 sender counts by its /64; and the KV
+  counts add forty an hour across all addresses.
+- **Anything but JSON** is refused (415), so a web page cannot make its
+  visitors' browsers post reports here; a `kind` like `toString` and a
+  screenshot that is not an object are refused too.
+
+The app sends exactly what it did; nothing changes for a real report but
+how its issue shows (the text in a fence) and the attachments' names.
+`node relay/feedback/test.mjs` covers each of these with stand-ins for
+GitHub, Resend, KV and the limiter. The relay takes effect once deployed
+(`npx wrangler@4.150.0 deploy` from relay/feedback; a dry run reads the new
+binding).
+
+---
+
+## Security — 2026-11-09 — The Adzuna key stays out of logs and the Activity page
+
+Adzuna takes its key only in the address's query string. When a request
+could not connect (offline, DNS down, a timeout), the error repeated the
+whole address, key included, and the scan logged it: the key landed in
+plain text in `logs/scheduled-scan.log` or `logs/app.log`, and in the
+database the Activity page reads, though jobdork keeps keys only in the
+keychain or in memory (Claude Security, 2026-11-09). A problem report never
+carried it: its scrubbing already took `app_key=` out.
+
+Now a connection error's text has every query string cut to `?…` before it
+is kept (`fetch/http.py`, `quiet`). Under that, every log line has the value
+of any `…key=`, `…token=`, `…secret=`, `…password=` or `app_id=` removed
+before a handler sees it, tracebacks included (`core/telemetry.py`,
+`without_keys`), so the log files, the terminal and the Activity page all
+get the cleaned line. tests/test_fetch_guard.py and tests/test_telemetry.py
+cover an Adzuna-shaped error and a logged line with a key, in a log file
+and on the Activity page.
+
+---
+
+## Changed — 2026-11-09 — One copy of each small helper
+
+The code scan of 2026-11-06 found small helpers kept in two or three places,
+some of which had drifted apart. Each now has one copy, and the
+behaviour is the same apart from the two fixes noted below:
+
+- Comparing a quote with its source (lower case, single spaces):
+  `core/textutil.folded`, used by the AI writer, the guard and the
+  listing check, which each had a `_norm`.
+- Reading an environment switch as off (`JOBDORK_NOTIFY`,
+  `JOBDORK_UPDATE_CHECK`): `core/config.env_off`.
+- Escaping text for XML (a Windows notification, a Task Scheduler task):
+  `core/textutil.xml_text`. The scheduler's copy did not escape `"`; it
+  does now, which reads back the same.
+- A board's number and a Unix timestamp's day: `fetch.number` and
+  `fetch.day_from_epoch`, for Ashby, Lever, USAJOBS, Greenhouse, Adzuna,
+  Arbeitnow and Himalayas. **Fixed with it:** `"nan"` and `"inf"` parse as
+  numbers, so a board that sent one gave a salary that failed every
+  comparison with your pay floor and printed as "nan". They are now read
+  as no salary.
+- The email digest's flags and its company · place · pay line come from
+  the report's (`output/render`, `flags_of`, `salary_text`,
+  `meta_parts`), and the dork generator's email reads its Resend settings
+  from the digest's.
+- Sitemaps: discover reads them with the site reader's parser
+  (`fetch/site.sitemap_urls`) instead of its own, which ignored `lastmod`.
+  **Fixed with it:** the `<loc>` pattern no longer stalls on a sitemap
+  with a long run of spaces and no closing tag.
+- Same name, different job: `storage.documents_root` (only a container's
+  folder) is now `container_documents_root`; listing's `_visible` (a page's
+  text) is `_page_text` and readable's (a count of printed characters)
+  `_ink_count`. The two `_resume_text` functions stay separate, on purpose,
+  and each now says why it differs from the other.
+
+tests/test_shared_helpers.py pins each shared helper, including the NaN
+salary and the stalled sitemap.
+
+---
+
+## Security — 2026-11-09 — A name that cannot be looked up is not fetched
+
+The check that keeps jobdork to public addresses let a name through when
+its own lookup failed, "to fail as the request would". But then nothing was
+pinned, so the connection looked the name up again, unchecked. A server
+built for it could fail the first lookup on purpose and answer the second
+with your router's or this machine's address, and a sitemap, a robots.txt
+or a job post's link could send jobdork there (Claude Security, 2026-11-09).
+
+Now a name that does not resolve, or resolves to no usable address, is
+refused at the check and never connected to (`fetch/http.py`, `checked`).
+It is reported as a connection error (`Unresolved`), not as a private
+address, so a passing DNS hiccup is still asked again as before, and each
+try is checked again. Through a proxy the proxy still looks the name up
+itself, as before. tests/test_fetch_guard.py: a name that fails to resolve
+is refused, an empty answer too, and the fetcher retries without ever
+connecting.
+
+---
+
+## Changed — 2026-11-07 — Ask is off until Claude Code is a reader
+
+Ask, in the desktop app, ran whenever Claude Code was installed, even for
+someone whose AI page had only Ollama or a keyed model: it spent their
+Claude plan without their having chosen Claude Code anywhere in jobdork.
+
+Now Ask is on only when Claude Code is installed **and** is a reader on the
+AI page (a Coding agent line naming Claude Code, or any coding agent).
+Until then the Ask menu item is dimmed, the box is disabled, and the page
+says what is missing, with a button to the AI page. Claude Code as the
+checker keeps Ask off, since a checker does not write. The server refuses
+a question while Ask is off, whatever the page sends.
+
+---
+
+## Added — 2026-11-07 — Your coding agent as a checker
+
+A coding agent could only write: it was never offered as a checker, and a
+config that listed it under `llm.checkers` was refused. Someone with no
+second model had no way to have their readers' work checked by anything
+but another of their readers.
+
+Now **Coding agent** can be chosen as a checker on the AI page, and
+`{provider: agent}` is accepted in `llm.checkers`. A Coding agent line also
+says **which agent** (Claude Code, Codex, Cursor, GitHub Copilot, Claude
+Desktop, Antigravity CLI, or any; `model` in the config). One agent is a
+reader or a checker, never both, since it would mark its own writing:
+Claude Code can write while Codex checks, but with Claude Code as a reader
+it is not offered as the checker, and the other way round. A config naming
+the same agent on both sides, or "any" on one side and an agent on the
+other, is refused. The tools hold each connected agent to its role by the
+name it connects with: the checker agent cannot write in a reader's place,
+a reader agent cannot check, and no agent can check what it wrote itself.
+
+jobdork never calls an agent, so a check that reaches it waits: the
+output says **waiting for your coding agent**, and a document's checks list
+it as one to read. When you ask your agent to check jobdork's AI writing,
+it uses three new tools: `list_checks` (what waits), `get_check_brief` (the
+claims to find, then the sources to check them against, as a checker model
+is asked) and `save_check`. jobdork holds every quote it gives to its
+source, as it does a model's, and the check then replaces the waiting one
+on the output, on the document's checks, and in a verdict. A checker listed
+before the agent checks first; the agent checks what it could not. The
+agent gives no second score (**models disagree**). What a waiting check is
+to check is kept in the database (`ai_outputs.check_input`, schema 17) and
+cleared once checked.
+
+---
+
 ## Changed — 2026-11-05 — version 0.16.3
 
 0.16.3 carries the 11 entries below, everything since 0.16.2. For you:
@@ -8287,11 +9233,6 @@ open; a digest arrives, and what arrived with it is what was not there before.
   kept in the keychain like a key; PRIVACY.md to say what leaves the
   computer (job titles, employers). Scheduled scans already run with the
   app closed, so they can send too.
-- **Sources: say why no employer boards are read.** With `sources.keyless`
-  narrowed to sources that are not employer-board platforms (no workday,
-  greenhouse…), `jobdork sources` says "0 built-in employer boards" without
-  saying that the platforms left out are the reason (seen 2026-10-26).
-
 ### Waiting on a decision
 
 - **A key proxy, deferred** until the Discover test list shows whether
