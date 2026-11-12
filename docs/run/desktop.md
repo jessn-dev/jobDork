@@ -113,6 +113,19 @@ gh attestation verify jobdork-0.16.4-macos-arm64.dmg --repo jessn-dev/jobDork
 
 or compare its SHA-256 with `SHA256SUMS.txt` on the same release.
 
+**On Linux, with GPG** (from 0.16.4): each AppImage and `.deb` has a
+signature beside it on the release page, `<file>.asc`, made with jobdork's
+key, whose public half is
+[packaging/jobdork-signing-key.asc](../../packaging/jobdork-signing-key.asc):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jessn-dev/jobDork/main/packaging/jobdork-signing-key.asc | gpg --import
+gpg --verify jobdork_0.16.3_amd64.deb.asc jobdork_0.16.3_amd64.deb
+```
+
+"Good signature from \"jobdork releases\"" is the answer to look for, from
+the key with fingerprint `FCA7 DA9B 0F3C 02D3 3CCB  60E3 D6B5 1B0A 75A1 ACCF`.
+
 ---
 
 ## Using it

@@ -81,6 +81,19 @@ def test_the_link_is_the_one_github_makes_for_the_heading():
             == "changed--2026-09-30--version-0143-v0142-was-never-released")
 
 
+def test_the_gpg_paragraph_waits_for_the_public_key():
+    import tempfile
+    release_notes = _script()
+    with tempfile.TemporaryDirectory() as tmp:
+        release_notes.SIGNING_KEY = Path(tmp) / "none.asc"
+        assert release_notes.gpg_lines("v2.0.0", "x.AppImage") == []
+        release_notes.SIGNING_KEY = Path(tmp) / "key.asc"
+        release_notes.SIGNING_KEY.write_text("key")
+        lines = "\n".join(release_notes.gpg_lines("v2.0.0", "x.AppImage"))
+        assert "gpg --verify x.AppImage.asc x.AppImage" in lines
+        assert "/v2.0.0/packaging/jobdork-signing-key.asc" in lines
+
+
 if __name__ == "__main__":
     import traceback
     failed = 0

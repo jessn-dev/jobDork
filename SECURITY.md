@@ -100,7 +100,15 @@ only after the owner approves it in the `release` environment. A push to
    jessn-dev/jobDork` shows this repository's workflow built it from the
    tagged commit. From 0.15.4 the attestation's signed Sigstore bundle is on
    the release page beside each installer, as `<file>.sigstore.json`, so
-   `--bundle <file>.sigstore.json` checks it without asking GitHub.
+   `--bundle <file>.sigstore.json` checks it without asking GitHub. From
+   0.16.4 the Linux AppImage and `.deb` are also signed with jobdork's GPG
+   key (`<file>.asc`, `scripts/gpg_sign.sh`), by a job in the `release`
+   environment that only an approved run reaches, and each signature is
+   checked against the public key in the repository
+   (`packaging/jobdork-signing-key.asc`) before it is published. The key is
+   "jobdork releases", fingerprint
+   `FCA7 DA9B 0F3C 02D3 3CCB  60E3 D6B5 1B0A 75A1 ACCF` (ed25519, made
+   2026-11-11, expires 2028-11-10, renewed before then).
 
 ---
 
