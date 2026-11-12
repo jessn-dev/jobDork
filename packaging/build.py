@@ -193,6 +193,121 @@ def windows_installer(ver: str) -> Path:
     return DIST / f"jobdork-{ver}-windows-x64-setup.exe"
 
 
+# ── Microsoft Store ───────────────────────────────────────────────────────────
+# The same build as an MSIX package for the Store, which signs it when it
+# publishes it: no code-signing certificate of jobdork's own is needed, as
+# one is for the installer above (docs/DECISIONS.md). The identity comes
+# from Partner Center (packaging/store.toml); without one, a stand-in that
+# only CI installs. core/store.py is what the app does differently in it.
+
+APPX_APP_ID = "jobdork"                 # core/store.py, APP_ENTRY
+TEST_IDENTITY = {"name": "jobdork.test", "publisher": "CN=jobdork test",
+                 "publisher_display_name": "jobdork"}
+# Logos the manifest names, by their pixel size.
+APPX_LOGOS = {"StoreLogo.png": 50, "Square44x44Logo.png": 44, "Square150x150Logo.png": 150,
+              "Square44x44Logo.targetsize-256_altform-unplated.png": 256}
+
+
+def store_identity() -> tuple[dict, bool]:
+    """(identity, real): packaging/store.toml's, or TEST_IDENTITY when it
+    is not filled in."""
+    with open(PACKAGING / "store.toml", "rb") as fh:
+        given = tomllib.load(fh)
+    real = all(str(given.get(k) or "").strip() for k in TEST_IDENTITY)
+    return ({k: str(given[k]).strip() for k in TEST_IDENTITY} if real else dict(TEST_IDENTITY),
+            real)
+
+
+def appx_version(ver: str) -> str:
+    """The Store's four-part version; its last part must be 0."""
+    parts = [*ver.split("+")[0].split("-")[0].split("."), "0", "0", "0"][:3]
+    return ".".join(str(int(p)) for p in parts) + ".0"
+
+
+def appx_manifest(ver: str, identity: dict) -> str:
+    def esc(text: str) -> str:
+        return (text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace('"', "&quot;"))
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap3 uap5 rescap">
+  <Identity Name="{esc(identity['name'])}" Publisher="{esc(identity['publisher'])}"
+    Version="{appx_version(ver)}" ProcessorArchitecture="x64"/>
+  <Properties>
+    <DisplayName>jobdork</DisplayName>
+    <PublisherDisplayName>{esc(identity['publisher_display_name'])}</PublisherDisplayName>
+    <Logo>Assets\\StoreLogo.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0"/>
+  </Dependencies>
+  <Resources><Resource Language="en-us"/></Resources>
+  <Applications>
+    <Application Id="{APPX_APP_ID}" Executable="jobdork\\jobdork.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="jobdork" Description="{esc(SUMMARY)}"
+        BackgroundColor="transparent" Square150x150Logo="Assets\\Square150x150Logo.png"
+        Square44x44Logo="Assets\\Square44x44Logo.png"/>
+      <Extensions>
+        <!-- uap3: only its Protocol takes Parameters, which hand the link
+             (jobdork://notifications) to the program; makeappx refused it
+             on uap:Protocol (2026-11-11). -->
+        <uap3:Extension Category="windows.protocol">
+          <uap3:Protocol Name="jobdork" Parameters="&quot;%1&quot;">
+            <uap:DisplayName>jobdork</uap:DisplayName>
+          </uap3:Protocol>
+        </uap3:Extension>
+        <uap5:Extension Category="windows.appExecutionAlias" Executable="jobdork\\jobdork.exe"
+          EntryPoint="Windows.FullTrustApplication">
+          <uap5:AppExecutionAlias><uap5:ExecutionAlias Alias="jobdork.exe"/></uap5:AppExecutionAlias>
+        </uap5:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <Capability Name="internetClient"/>
+    <rescap:Capability Name="runFullTrust"/>
+  </Capabilities>
+</Package>
+"""
+
+
+def _makeappx() -> str:
+    """The Windows SDK's makeappx.exe, newest first."""
+    found = shutil.which("makeappx")
+    if found:
+        return found
+    kits = Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")) / "Windows Kits" / "10" / "bin"
+    tools = sorted(kits.glob("10.*/x64/makeappx.exe"), reverse=True)
+    if not tools:
+        raise SystemExit("the Windows SDK's makeappx.exe was not found")
+    return str(tools[0])
+
+
+def msix(ver: str) -> Path:
+    """The build as an MSIX package, unsigned: the Store signs what it publishes."""
+    from PIL import Image
+
+    identity, real = store_identity()
+    root = WORK / "msix"
+    shutil.rmtree(root, ignore_errors=True)
+    shutil.copytree(DIST / "jobdork", root / "jobdork")
+    (root / "Assets").mkdir(parents=True)
+    for name, size in APPX_LOGOS.items():
+        Image.open(PACKAGING / "icon.png").resize((size, size)).save(root / "Assets" / name)
+    (root / "AppxManifest.xml").write_text(appx_manifest(ver, identity), encoding="utf-8")
+    out = DIST / f"jobdork-{ver}-windows-x64.msix"
+    out.unlink(missing_ok=True)
+    run(_makeappx(), "pack", "/o", "/d", root, "/p", out)
+    if not real:
+        print("packaging/store.toml has no identity: this MSIX is for testing, "
+              "and the Store refuses it", flush=True)
+    return out
+
+
 # ── Linux ─────────────────────────────────────────────────────────────────────
 
 SUMMARY = "Find job posts that fit your resume"
@@ -514,6 +629,8 @@ def main() -> int:
     else:
         print(f"Linux on {platform.machine()} is not packaged; the build is in dist/jobdork/.")
         return 0
+    if sys.platform == "win32":
+        built.append(msix(ver))                 # the Microsoft Store's package
     for out in built:
         print(f"built {out} ({out.stat().st_size // (1024 * 1024)} MB)")
     return 0

@@ -131,9 +131,15 @@ def program() -> str:
     closes: the .AppImage file when run from one, whose sys.executable is
     inside a folder the AppImage mounts for this run only and that is gone
     once it quits; sys.executable otherwise."""
+    from . import store
+
     appimage = os.environ.get(APPIMAGE_ENV, "").strip()
     if frozen() and sys.platform.startswith("linux") and appimage:
         return appimage
+    # The Store's package: its folder is renamed by every update, its
+    # `jobdork` command is not (core/store.py).
+    if frozen() and store.packaged():
+        return store.alias()
     return sys.executable
 
 

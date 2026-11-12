@@ -7791,6 +7791,7 @@ async function showVersion(path, method = 'GET') {
   $('upd-state').textContent = d.newer ? `jobdork ${d.latest} is out; you have ${d.current}.`
     : d.failed ? `You have jobdork ${d.current}.${method === 'POST'
       ? ` Could not check for a newer one: ${d.failed}.` : ''}`
+    : d.store ? `You have jobdork ${d.current}. The Microsoft Store keeps it up to date.`
     : `You have jobdork ${d.current}${d.enabled === false && method === 'GET' ? '' : ', the newest'}.`;
   $('upd-install').hidden = !d.newer || !d.can_install;
   $('upd-install').textContent = d.newer ? `Update to ${d.latest}` : '';
