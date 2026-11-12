@@ -230,9 +230,10 @@ def appx_manifest(ver: str, identity: dict) -> str:
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
   xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap uap5 rescap">
+  IgnorableNamespaces="uap uap3 uap5 rescap">
   <Identity Name="{esc(identity['name'])}" Publisher="{esc(identity['publisher'])}"
     Version="{appx_version(ver)}" ProcessorArchitecture="x64"/>
   <Properties>
@@ -250,11 +251,14 @@ def appx_manifest(ver: str, identity: dict) -> str:
         BackgroundColor="transparent" Square150x150Logo="Assets\\Square150x150Logo.png"
         Square44x44Logo="Assets\\Square44x44Logo.png"/>
       <Extensions>
-        <uap:Extension Category="windows.protocol">
-          <uap:Protocol Name="jobdork" Parameters="&quot;%1&quot;">
+        <!-- uap3: only its Protocol takes Parameters, which hand the link
+             (jobdork://notifications) to the program; makeappx refused it
+             on uap:Protocol (2026-11-11). -->
+        <uap3:Extension Category="windows.protocol">
+          <uap3:Protocol Name="jobdork" Parameters="&quot;%1&quot;">
             <uap:DisplayName>jobdork</uap:DisplayName>
-          </uap:Protocol>
-        </uap:Extension>
+          </uap3:Protocol>
+        </uap3:Extension>
         <uap5:Extension Category="windows.appExecutionAlias" Executable="jobdork\\jobdork.exe"
           EntryPoint="Windows.FullTrustApplication">
           <uap5:AppExecutionAlias><uap5:ExecutionAlias Alias="jobdork.exe"/></uap5:AppExecutionAlias>

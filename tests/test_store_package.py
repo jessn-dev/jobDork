@@ -21,6 +21,7 @@ from jobdork.core import schedule, store, updates  # noqa: E402
 BUILDS_HERE = sys.version_info >= (3, 11)          # build.py reads TOML with tomllib
 NS = {"m": "http://schemas.microsoft.com/appx/manifest/foundation/windows10",
       "uap": "http://schemas.microsoft.com/appx/manifest/uap/windows10",
+      "uap3": "http://schemas.microsoft.com/appx/manifest/uap/windows10/3",
       "uap5": "http://schemas.microsoft.com/appx/manifest/uap/windows10/5",
       "rescap": "http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"}
 
@@ -38,7 +39,9 @@ def test_the_manifest_declares_what_the_app_needs():
     app = m.find("m:Applications/m:Application", NS)
     assert app.get("Id") == store.APP_ENTRY == build.APPX_APP_ID
     assert app.get("EntryPoint") == "Windows.FullTrustApplication"
-    assert app.find(".//uap:Protocol", NS).get("Name") == "jobdork"       # notification clicks
+    protocol = app.find(".//uap3:Protocol", NS)                           # notification clicks
+    assert protocol.get("Name") == "jobdork" and protocol.get("Parameters") == '"%1"'
+    assert app.find(".//uap:Protocol", NS) is None, "makeappx refuses Parameters on uap:Protocol"
     assert app.find(".//uap5:ExecutionAlias", NS).get("Alias") == "jobdork.exe"
     assert m.find("m:Capabilities/rescap:Capability", NS).get("Name") == "runFullTrust"
     for logo in build.APPX_LOGOS:
