@@ -2137,7 +2137,7 @@ const cap = s => { s = String(s ?? ''); return s ? s[0].toUpperCase() + s.slice(
 const capHtml = h => String(h ?? '').replace(/^((?:\s|<[^>]+>)*)([a-z])/, (_, a, b) => a + b.toUpperCase());
 // Platforms by their own spelling.
 const PLATFORMS = {greenhouse: 'Greenhouse', ashby: 'Ashby', lever: 'Lever', breezy: 'Breezy',
-  smartrecruiters: 'SmartRecruiters', workable: 'Workable', kalibrr: 'Kalibrr', himalayas: 'Himalayas', workday: 'Workday', adzuna: 'Adzuna', usajobs: 'USAJOBS',
+  smartrecruiters: 'SmartRecruiters', workable: 'Workable', kalibrr: 'Kalibrr', himalayas: 'Himalayas', weworkremotely: 'We Work Remotely', jobicy: 'Jobicy', remoteok: 'Remote OK', remotive: 'Remotive', workingnomads: 'Working Nomads', dynamitejobs: 'Dynamite Jobs', workday: 'Workday', adzuna: 'Adzuna', usajobs: 'USAJOBS',
   arbeitsagentur: 'Bundesagentur für Arbeit', arbeitnow: 'Arbeitnow'};
 const platformName = p => PLATFORMS[p] || cap(p);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
@@ -2482,6 +2482,32 @@ async function offerAged(id) {
 }
 
 let rolesMeta = null;
+// Best first, but never one source after another: among posts within
+// MIX_BAND points of each other, the sources take turns, each keeping its own
+// order. One busy board filled the first screens while others' posts as good
+// sat below them (2026-11-13). In place; the bands keep their order.
+const MIX_BAND = 5;
+function mixSources(list, field) {
+  let start = 0;
+  while (start < list.length) {
+    const top = list[start][field];
+    let end = start + 1;
+    while (end < list.length && top != null && list[end][field] != null
+           && top - list[end][field] < MIX_BAND) end++;
+    const queues = new Map();
+    for (const r of list.slice(start, end)) {
+      if (!queues.has(r.platform)) queues.set(r.platform, []);
+      queues.get(r.platform).push(r);
+    }
+    const mixed = [];
+    while (mixed.length < end - start)
+      for (const q of queues.values()) if (q.length) mixed.push(q.shift());
+    list.splice(start, end - start, ...mixed);
+    start = end;
+  }
+  return list;
+}
+
 function drawRoles(d = rolesMeta) {
   $('f-clear').hidden = !filtersOn();
   if ($('scope').value === 'dropped') return drawDropped();
@@ -2503,6 +2529,7 @@ function drawRoles(d = rolesMeta) {
     const sign = dir === 'asc' ? 1 : -1;
     shown.sort((a, b) => (a[field] == null) - (b[field] == null)
       || sign * ((a[field] ?? 0) - (b[field] ?? 0)));
+    if (dir === 'desc') mixSources(shown, field);
   }
   // Copies of one job are one post (grouping.py); say how many were folded in.
   const grouped = roles.reduce((t, r) => t + Math.max(0, (r.copies || 1) - 1), 0);

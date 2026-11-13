@@ -392,7 +392,8 @@ def _days_since(stamp: str) -> float | None:
 
 
 # Sources whose posting pages refuse anything but a browser, by display name.
-UNREADABLE = {"adzuna": "Adzuna", "kalibrr": "Kalibrr", "himalayas": "Himalayas"}
+UNREADABLE = {"adzuna": "Adzuna", "kalibrr": "Kalibrr", "himalayas": "Himalayas",
+              "weworkremotely": "We Work Remotely"}
 _CLOSES = re.compile(r"^applications close (\d{4}-\d{2}-\d{2})$")
 
 

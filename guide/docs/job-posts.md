@@ -35,7 +35,7 @@ it, the source it came from, and when jobdork first saw it.
 
 **Tags to know**, each with an amber dot, are things worth knowing before you apply: *Arrangement not
 stated*, *Unconfirmed salary* (no pay given), a dealbreaker that cost points,
-an older post, a post from Adzuna, Himalayas, Arbeitnow or Kalibrr missing from the employer's own board, and the **Fit** line (which of the advert's skills you have,
+an older post, a post from Adzuna, Himalayas, We Work Remotely, Jobicy, Remote OK, Remotive, Working Nomads, Dynamite Jobs, Arbeitnow or Kalibrr missing from the employer's own board, and the **Fit** line (which of the advert's skills you have,
 and which you do not). See [tags](statuses.md#tags-to-know).
 
 **May be a job you have already applied to** appears when a post looks like
@@ -75,6 +75,9 @@ buttons. On a narrower window a post opens in a
 - **Posted within** 2 days, a week or 3 weeks.
 - **Sort:** by Match, Fit or AI score, high to low or low to high; or
   *Unscored only*. Sorted by AI score, the posts the AI judged come first.
+  High to low, posts within 5 points of each other take turns by source, so
+  one busy job board never fills the first screens: the best post still
+  comes first.
 - **Search**: by title or employer.
 
 **Second row**, to narrow the list without changing your settings:
