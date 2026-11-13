@@ -41,10 +41,14 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --require-hashes -r requirements-desktop.lock
 
-# jobdork itself, from this checkout: rebuild to try a change.
+# jobdork itself, from this checkout: rebuild to try a change. Built into a
+# wheel, then that file installed: OpenSSF Scorecard counts `pip install .` as
+# an unpinned download (code scan #36), as in the main Dockerfile (#26).
 COPY jobdork/ ./jobdork/
 COPY packaging/jobdork_app.py ./packaging/
-RUN pip install --no-deps --no-build-isolation .
+RUN pip wheel --no-deps --no-build-isolation --wheel-dir /tmp/wheel . \
+    && pip install --no-deps /tmp/wheel/*.whl \
+    && rm -rf /tmp/wheel
 
 # A user of its own: the web engine refuses to run its sandbox as root.
 # The X server's socket folder, made here: as that user it cannot make it.
