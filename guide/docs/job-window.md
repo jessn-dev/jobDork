@@ -34,7 +34,8 @@ The whole job advert, with:
 
 - **Tags to know**: what to know before you apply
   ([tags](statuses.md#tags-to-know)).
-- **On the employer's own board?** For a post from Adzuna, Himalayas,
+- **On the employer's own board?** For a post from Adzuna, Himalayas, We
+  Work Remotely, Jobicy, Remote OK, Remotive, Working Nomads, Dynamite Jobs,
   Arbeitnow or Kalibrr: what the last scan found on the employer's own board
   (on it, not on it, read only partly, or not read). **Check the employer's
   own board** asks that board now, for this job's title, and says whether it

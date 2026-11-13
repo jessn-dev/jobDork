@@ -63,7 +63,8 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
   them US employers, across 27 industries) on Workday, Oracle Recruiting
   Cloud, Eightfold, Taleo Business Edition, Greenhouse, Lever, Ashby,
   SmartRecruiters, Breezy and employers' own careers sites. Keyword sources
-  need no account: Workable's search, Himalayas (remote work), Kalibrr
+  need no account: Workable's search; Himalayas, We Work Remotely, Jobicy,
+  Remote OK, Remotive, Working Nomads and Dynamite Jobs (remote work); Kalibrr
   (Philippines, Indonesia), Germany's employment agency and Arbeitnow.
   Adzuna and USAJOBS work with a free key of your own, and
   `jobdork discover` adds any other employer by reading the board off their

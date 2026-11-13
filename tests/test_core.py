@@ -498,6 +498,40 @@ def test_markdown_alias_normalises_to_md():
         os.unlink(path)
 
 
+def test_every_board_runs_unless_switched_off_by_name():
+    """A config listing its own sources missed every board added after it
+    (2026-11-13): now leaving one out of `keyless` does not turn it off;
+    `sources.disabled` does."""
+    import os
+    import tempfile
+
+    from jobdork.core import config
+    from jobdork.core.config import KEYLESS_SOURCES, ConfigError
+
+    def load(sources: str):
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
+            fh.write("titles: {include: [nurse]}\n"
+                     "locations: {anchor: 'Chicago, IL', radius: exact}\n" + sources)
+            path = fh.name
+        try:
+            return config.load(path)
+        finally:
+            os.unlink(path)
+
+    old = load("sources: {keyless: [workable, greenhouse]}\n")
+    assert set(old.sources.keyless) == set(KEYLESS_SOURCES)
+    assert {"weworkremotely", "jobicy", "remotive"} <= set(old.active_sources())
+    off = load("sources: {disabled: [remotive, dynamitejobs]}\n")
+    assert "remotive" not in off.active_sources() and "dynamitejobs" not in off.sources.keyless
+    assert "jobicy" in off.active_sources()
+    try:
+        load("sources: {disabled: [monster]}\n")
+    except ConfigError as exc:
+        assert "sources.disabled has 'monster'" in str(exc)
+    else:
+        raise AssertionError("an unknown source in sources.disabled must be refused")
+
+
 def test_unknown_format_is_refused():
     import os
     import tempfile

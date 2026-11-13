@@ -60,7 +60,7 @@ described below, which you can turn off.
 ### When you scan for jobs
 
 - **Job boards and employers' careers sites** (Workable, Himalayas, Kalibrr,
-  the Bundesagentur für Arbeit, Arbeitnow, and employers' own boards on
+  the Bundesagentur für Arbeit, Arbeitnow, We Work Remotely, Jobicy, Remote OK, Remotive, Working Nomads, Dynamite Jobs, and employers' own boards on
   Greenhouse, Lever, Workday, Oracle, SuccessFactors and others). They receive
   your **job titles**, and the **place and country** you search in, as search
   terms, the way a search on their own site would. Requests name jobdork and

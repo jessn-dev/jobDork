@@ -88,6 +88,12 @@ KEYLESS_SOURCES = (
     "breezy",
     "kalibrr",          # Kalibrr's own search; Philippine and Indonesian jobs
     "himalayas",        # remote jobs worldwide, filtered to your countries and hours
+    "weworkremotely",   # We Work Remotely's RSS: remote jobs in every field, kept to your countries
+    "jobicy",           # Jobicy's API: remote jobs of the last 7 days, kept to your countries
+    "remoteok",         # Remote OK's API: the newest remote jobs, kept to your countries
+    "remotive",         # Remotive's API: remote jobs, read four times a day at most
+    "workingnomads",    # Working Nomads' JSON feed: the newest remote jobs it collects
+    "dynamitejobs",     # Dynamite Jobs' job pages, through its sitemap; ops, support, sales
     "workday",          # per-employer board; token tenant/dc/site, from discover
     "oracle",           # per-employer board on Oracle Recruiting Cloud; token host/site
     "eightfold",        # per-employer board on Eightfold; token host/domain
@@ -406,6 +412,13 @@ class Sources:
     # lambda: default_factory needs a callable that makes a fresh list per
     # instance.
     keyless: list[str] = field(default_factory=lambda: list(KEYLESS_SOURCES))
+    # Sources switched off by name (`sources.disabled`; not "off", which
+    # YAML reads as false). Every other no-credential source runs:
+    # a config that listed its own `keyless` missed every board added after
+    # it was written, and Job posts showed fewer sources than it could
+    # (2026-11-13). The list is still read and checked, but leaving a name
+    # out no longer turns it off.
+    disabled: list[str] = field(default_factory=list)
     companies: list[Company] = field(default_factory=list)
     directory: Directory = field(default_factory=Directory)
     usajobs_key: str = ""
@@ -873,9 +886,13 @@ def _build(raw: dict[str, Any]) -> Config:
                 token=str(entry.get("token") or "").strip(),
             )
         )
+    listed = [s.lower() for s in _str_list(src.get("keyless"), "sources.keyless")]
+    off = [s.lower() for s in _str_list(src.get("disabled"), "sources.disabled")]
     cfg.sources = Sources(
-        keyless=[s.lower() for s in _str_list(src.get("keyless"), "sources.keyless")]
-        or list(KEYLESS_SOURCES),
+        # Every source jobdork knows, then any other name listed (checked
+        # below), less the ones switched off.
+        keyless=[s for s in dict.fromkeys([*KEYLESS_SOURCES, *listed]) if s not in off],
+        disabled=off,
         companies=companies,
         usajobs_key=str(src.get("usajobs_key") or ""),
         usajobs_email=str(src.get("usajobs_email") or ""),
@@ -1162,12 +1179,13 @@ def _validate(cfg: Config) -> None:
         else:
             cfg.resume_path = str(p)
 
-    for name in cfg.sources.keyless:
-        if name not in ALL_SOURCES:
-            raise ConfigError(
-                f"sources.keyless has {name!r}. Known sources: "
-                f"{', '.join(ALL_SOURCES)}."
-            )
+    for key, names in (("keyless", cfg.sources.keyless), ("disabled", cfg.sources.disabled)):
+        for name in names:
+            if name not in ALL_SOURCES:
+                raise ConfigError(
+                    f"sources.{key} has {name!r}. Known sources: "
+                    f"{', '.join(ALL_SOURCES)}."
+                )
 
     for i, company in enumerate(cfg.sources.companies):
         if not company.name or not company.platform or not company.token:
