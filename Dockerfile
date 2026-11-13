@@ -24,8 +24,13 @@ COPY jobdork/ ./jobdork/
 
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+# jobdork itself is built into a wheel from the copied source, then that file
+# is installed: pip cannot check a hash on a source folder, and OpenSSF
+# Scorecard counts `pip install .` as an unpinned download (code scan #26).
+# --no-deps: everything it needs came from the lock above.
 RUN pip install --require-hashes -r requirements.lock \
-    && pip install --no-deps --no-build-isolation . \
+    && pip wheel --no-deps --no-build-isolation --wheel-dir /tmp/wheel . \
+    && pip install --no-deps /tmp/wheel/*.whl \
     # The running app never installs anything: no pip in the final image.
     && pip uninstall -y pip
 
