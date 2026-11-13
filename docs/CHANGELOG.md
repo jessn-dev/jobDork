@@ -9,6 +9,205 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-11-13 — version 0.17.1
+
+0.17.1 carries the 8 entries below, everything since 0.17.0. For you:
+
+- **How your applications are going**, on the Dashboard: applications,
+  interviews, offers, rejected or closed, no reply yet and no reply after 30
+  days, and the replies you record on an application (a viewed notice, a
+  recruiter's call, a questionnaire).
+- **Review your rejections**, on My applications: what your newest
+  rejections have in common, as a checklist (a resume a tracking system
+  cannot read, skills asked for again and again, job titles never named),
+  and their scores beside the applications that reached an interview.
+- **Edit what the AI wrote**: a tailored resume, a CV or a cover letter, in
+  your own words; and **Your own words into resume edits** turns what you
+  write about your work, with your figures, into edits to a tailored resume.
+- **Six more job boards**, remote jobs in every field: We Work Remotely,
+  Jobicy, Remote OK, Remotive, Working Nomads and Dynamite Jobs. Every board
+  is on unless you switch it off, and Job posts mixes posts from different
+  boards.
+- **A fresh scan keeps the jobs you applied to**: **Run fresh scan** and
+  **Delete all scanned posts** deleted them too. A tailored resume or cover
+  letter now deletes in one click.
+- **Security**: the Docker image installs jobdork from a built wheel, and
+  opentelemetry-api, used by the installer builds, is updated for a known
+  vulnerability. The Linux desktop app can run in Docker for testing.
+
+Updating from 0.17.0: **Update** under Settings, Updates downloads 0.17.1,
+checks it, puts it in place and opens it again. The database gains one table
+(replies) when it first opens; nothing in it is changed or removed. A config
+that lists `sources.keyless` now reads every board, the new ones included;
+switch one off with `sources.disabled`.
+
+---
+
+## Security — 2026-11-13 — opentelemetry-api updated to 1.45.2
+
+CVE-2026-126360 in opentelemetry-api 1.45.1, a package the desktop
+installers and CI pull in through other tools, is fixed in 1.45.2. The
+desktop and CI lock files now pin 1.45.2; nothing else changed in them. The
+dashboard, the CLI and the Docker image never installed it
+(`requirements.lock` does not list it).
+
+---
+
+## Changed — 2026-11-13 — A tailored resume or cover letter is deleted in one click
+
+Asked for on 2026-11-13: deleting a tailored resume or a cover letter asked
+for a second click to confirm, a step too many for documents the AI writes
+again on request. **Delete this tailored resume**, **Delete this cover
+letter**, and **Delete** in the Resume page's list of cover letters and in a
+letter's window now delete at once. Your own uploaded resume, notes and
+everything else that cannot be written again still ask first.
+
+---
+
+## Fixed — 2026-11-13 — A fresh scan keeps the jobs you applied to
+
+**Run fresh scan** and **Delete all scanned posts** deleted every job post a
+scan had found, the ones you applied to included, and with them their stages,
+notes, contact and the documents you sent: My applications emptied. Both now
+keep every job you applied to, as My applications counts one (applied,
+submitted, interviewing or offer; turned down or withdrawn from; or applied to
+before it was closed or skipped), with everything it holds. The confirmation
+says how many are kept, and the count it asks you to confirm is the posts that
+go. `jobdork scan --fresh` does the same.
+
+---
+
+## Added — 2026-11-13 — The Linux desktop app in Docker, for testing
+
+Asked for: a way to try the desktop app locally, not only the browser
+version, the terminal and the server image. `docker/desktop/` runs the Linux
+desktop app, its own window with the Qt web engine the AppImage and the .deb
+carry, in a container, and shows it in your browser through noVNC at
+http://localhost:6080, built from the checkout so a change shows in the real
+window. `docker compose -f docker/desktop/compose.yaml up --build` starts it,
+and `... run --rm desktop self-test` runs the app's own check without a window
+(it printed `ok` on an Apple Silicon Mac, in the ARM64 build). The screen is
+published on this computer only, as it has no password. The Windows and Mac
+apps cannot run this way on a Mac (macOS only on Apple's hardware; a Windows
+virtual machine needs virtualisation Docker on a Mac does not offer):
+docs/run/desktop-in-docker.md says what to use instead.
+
+---
+
+## Added — 2026-11-13 — Edit what the AI wrote, and turn your own words into resume edits
+
+Asked for on 2026-11-13: employers filter out resumes that read as generic AI
+writing, and the cure is your own words and your own figures.
+
+**Edit.** A tailored resume, a CV and a cover letter now have **Edit**: their
+text, to change and save. A tailored resume's PDF and Word file are made again
+from what you save, and it says it was edited by you, since its checks were
+of the AI's version. On the Resume page, a tailored resume's preview has
+**Edit** beside PDF and Word.
+
+**Your own words into resume edits**, in a job post's AI tools tab: write what
+you did the way you would say it, with your numbers, and **Turn into resume
+edits (AI)** suggests up to six specific edits to that post's tailored resume,
+each a line of it reworded or a new bullet under one of its jobs, from your
+words and the resume only. An edit quoting a line or a job not on the resume is
+dropped; one naming a tool or a figure you did not write is marked in red; the
+hallucination check reads your words as a source. **Apply to the tailored
+resume** writes one into it.
+
+---
+
+## Added — 2026-11-13 — How your applications are going, and what your rejections have in common
+
+Asked for on 2026-11-13. **The Dashboard counts your applications**: how
+many you sent and how many had any reply; how many reached an interview, an
+offer, or a rejection or close; how many have had nothing back, and how many
+of those for 30 days or more (in amber: worth a follow-up, or letting go);
+and the replies short of a stage you recorded, by kind.
+
+**Replies on an application.** Its Application tab has **Replies**: a notice
+that it was viewed, a recruiter's call, a questionnaire or another reply,
+with the day it came and a note, added with **Add reply**. They are kept in a
+new table (`application_replies`), counted on the Dashboard, and count as a
+reply, so an application with one is not one "with no reply".
+
+**Review your rejections**, on My applications: what up to ten of your newest
+rejections have in common, as a checklist to work through rather than text to
+paste. Whether the resume each went with can be read the way a tracking system
+reads it (columns, tables, text boxes, pictures and garbled text: rebuild it as
+one plain column); the skills asked for in more than one rejection and missing
+from it, with how many; skills on your Resume page left off it; and the job
+titles it never names. Beside it, the rejections' Match, Fit and AI scores
+against those of the applications that reached an interview, and a table of
+each rejection with its ATS match, the skills it missed and the AI's concerns.
+It is read from what jobdork already has: no AI is asked.
+
+---
+
+## Added — 2026-11-13 — Six remote job boards for every field, every board always on, and Job posts that mix sources
+
+Asked for: more job boards for US users in every industry, each checked
+against its robots.txt and its terms before it was written (2026-11-13).
+Six new sources need no key, carry jobs in sales, customer support, finance,
+healthcare, operations, admin and design as well as software, and keep only
+the jobs open to your countries:
+
+- **We Work Remotely** (`weworkremotely`): its public RSS, one feed per
+  category, about 600 jobs, ten requests a scan.
+- **Jobicy** (`jobicy`): its public Jobs API, the last seven days; pay on
+  about six jobs in ten. One pass an hour at most, as it asks.
+- **Remote OK** (`remoteok`): its public API, the newest hundred or so. Some of
+  its text arrives double-encoded ("â€”" for an em dash); it is mended.
+- **Remotive** (`remotive`): its public API, which its documentation offers to
+  applications, read four times a day at most. Its robots.txt closes `/api/`;
+  for this endpoint the documentation was taken over that line, and the
+  decision is written down in docs/PLATFORMS.md. Its free-text pay ("$14 -
+  $20/hour", "$25k - $35k") is read when it is plain.
+- **Working Nomads** (`workingnomads`): the public JSON feed its site links as
+  "API", once an hour at most.
+- **Dynamite Jobs** (`dynamitejobs`): no API, so its sitemap and job pages,
+  read like an employer's careers site: only pages whose addresses carry one
+  of your titles, 40 a scan at most, each checked against robots.txt. Its
+  pages list the countries that may apply.
+
+None of them searches by many titles, so jobs are kept by your titles. Each
+job links to its page on the board that listed it and shows that board as its
+source. A job limited to a region none of your countries is in ("Asia Only",
+"EMEA") is left out, and a working-hours time zone counts as a region when
+nothing else names one ("Time zone: CET" is Europe's hours). Checked live for a
+US search: We Work Remotely kept 136 jobs, Jobicy 300 (198 with pay), Remote OK
+32, Remotive 11, Working Nomads 18, Dynamite Jobs 16.
+
+**Every board always on.** A config that listed its own `sources.keyless`
+missed every board added after it was written. Now every no-credential source
+runs whatever that list says; one is switched off only by naming it in the new
+`sources.disabled`.
+
+**Job posts mix sources.** Sorted high to low, posts within 5 points of each
+other take turns by source, so one busy board no longer fills the first
+screens; the best post still comes first.
+
+Checked and left out, with the reasons in docs/PLATFORMS.md: **Idealist**,
+**Snagajob**, **Handshake**, **GovernmentJobs.com** and **Jooble** (their terms
+forbid automated reading), **The Muse** (its API refuses jobdork), the
+**National Labor Exchange's** research data (research use only) and
+**Careerjet** (a publisher API for websites that show its listings for
+clicks). **CareerOneStop**, the US Department of Labor's job search, has an API
+with a free token, but its developer pages refuse scripts: it waits on its
+terms being read.
+
+---
+
+## Security — 2026-11-12 — The Docker image installs jobdork from a built wheel
+
+The Docker image installed jobdork's own code with `pip install .`, straight
+from the source folder. Every dependency was already checked against the
+hashes in requirements.lock, but OpenSSF Scorecard counted that last install
+as unpinned (code scan #26), because pip cannot check a hash on a folder. The
+build now makes a wheel from the same source and installs that file, still
+without fetching anything. The image holds the same code as before.
+
+---
+
 ## Changed — 2026-11-12 — version 0.17.0
 
 0.17.0 carries the 9 entries below, everything since 0.16.4. For you:
