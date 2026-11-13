@@ -1125,8 +1125,9 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
               Deletes all job posts</b>
             Every job post found by scans is deleted, with its status, notes, AI
             verdict and document records, then a new scan starts from nothing.
-            Posts you applied to or are interviewing for go too. The database is
-            backed up first, and you confirm the number before anything is deleted.
+            Jobs you applied to are kept, and My applications with them. The
+            database is backed up first, and you confirm the number before
+            anything is deleted.
           </span>
         </span>
         <span class="warnwrap end">
@@ -1136,7 +1137,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
               Deletes all job posts</b>
             Every job post found by scans is deleted, with its status, notes, AI
             verdict and document records, and no scan follows: run one when you
-            are ready. Posts you applied to or are interviewing for go too. The
+            are ready. Jobs you applied to are kept, and My applications with them. The
             database is backed up first, and you confirm the number before
             anything is deleted.
           </span>
@@ -3056,16 +3057,12 @@ function docHtml(doc, kind) {
 }
 
 function bindDoc(box, doc) {
-  // Delete, asked twice: then the Resume page's cards and letters, or the
-  // job post's window, are drawn again without it.
+  // Delete at once (asked for on 2026-11-13: a second click to confirm was
+  // one too many for documents the AI writes again on request); then the
+  // Resume page's cards and letters, or the job post's window, are drawn
+  // again without it.
   const del = box.querySelector('.doc-del');
   if (del) del.onclick = async () => {
-    const label = `Delete this ${tabLabel(doc.kind)}`;
-    if (!del.classList.contains('armed')) {
-      del.classList.add('armed', 'del'); del.textContent = `${label}?`;
-      setTimeout(() => { del.classList.remove('armed', 'del'); del.textContent = label; }, 3000);
-      return;
-    }
     del.disabled = true;
     if (!await deleteDocument(doc.id, tabLabel(doc.kind))) { del.disabled = false; return; }
     if (box.id === 'rp-other') { await drawResumeCards(); syncResumeDel(); drawPreview(); drawLetters(); }
@@ -3210,8 +3207,9 @@ async function confirmDelete(btn, scanAfter) {
   box.innerHTML = `<b>This deletes all ${n} scanned job posts</b>, with their
       statuses, notes, AI verdicts and document records${scanAfter
         ? ', then scans from scratch' : '. No scan follows; run one when you are ready'}.
-      ${d.pursuing ? `<div class="err" style="margin-top:.3rem">${d.pursuing.toLocaleString()} of them are
-        ones you are pursuing (applied, submitted, interviewing, offer).</div>` : ''}
+      ${d.kept_applied ? `<div class="hint" style="margin-top:.3rem"><b>${d.kept_applied.toLocaleString()}
+        you applied to are kept</b>, with their stages, notes and documents: My applications
+        stays as it is.</div>` : ''}
       <div class="hint">The database is backed up to data/backups first. Posts you deleted
         before stay deleted${d.kept_by_hand ? `; ${d.kept_by_hand} added by hand are kept` : ''}.</div>
     <div class="bar">
@@ -7190,10 +7188,12 @@ function syncResumeDel() {
   b.hidden = rsel === 'master' ? !(cfg && cfg.resume_path) : false;
 }
 
-// Delete asks twice, like Remove: the first click arms it for three seconds.
+// Your own resume is asked twice, like Remove: the first click arms it for
+// three seconds. A tailored one goes at once: the AI writes it again on
+// request (2026-11-13).
 $('btn-resume-del').onclick = async () => {
   const b = $('btn-resume-del');
-  if (!b.classList.contains('armed')) {
+  if (rsel === 'master' && !b.classList.contains('armed')) {
     b.classList.add('armed', 'del'); b.textContent = `${resumeDelLabel()}?`;
     setTimeout(() => { b.classList.remove('armed', 'del'); b.textContent = resumeDelLabel(); }, 3000);
     return;
@@ -7433,13 +7433,9 @@ document.addEventListener('click', async ev => {
   if (v) return openLetter(+v.dataset.viewLetter);
   const pg = ev.target.closest('[data-letters-to]');
   if (pg && !pg.disabled) { pages.letters = +pg.dataset.lettersTo; return drawLetters(); }
+  // A cover letter goes at once, here and in its window (2026-11-13).
   const del = ev.target.closest('[data-del-letter]');
   if (del) {
-    if (!del.classList.contains('armed')) {
-      del.classList.add('armed', 'del'); del.textContent = 'Delete?';
-      setTimeout(() => { del.classList.remove('armed', 'del'); del.textContent = 'Delete'; }, 3000);
-      return;
-    }
     del.disabled = true;
     if (!await deleteLetter(+del.dataset.delLetter)) del.disabled = false;
   }
@@ -7450,12 +7446,6 @@ $('letter-dl').onclick = () => {
   saveFile(new Blob([letterOpen.text], {type: 'text/markdown'}), letterOpen.name);
 };
 $('letter-del').onclick = async () => {
-  const b = $('letter-del');
-  if (!b.classList.contains('armed')) {
-    b.classList.add('armed', 'del'); b.textContent = 'Delete?';
-    setTimeout(() => { b.classList.remove('armed', 'del'); b.textContent = 'Delete'; }, 3000);
-    return;
-  }
   if (letterOpen && await deleteLetter(letterOpen.id)) $('letterdlg').close();
 };
 

@@ -783,21 +783,52 @@ class Store:
                                   [(u,) for u in uids])
         return len(uids)
 
+    # A job you applied to, as My applications counts one (applications()):
+    # its status says so, or it was applied to before it settled. A fresh
+    # scan and "Delete all scanned posts" keep these: they deleted your
+    # applications with everything else (2026-11-13).
+    _APPLIED = (
+        "({col} IN (SELECT uid FROM role_state WHERE status IN ({now})) "
+        "OR {col} IN (SELECT uid FROM status_history WHERE status IN ({ever})))")
+
+    def _applied_sql(self, col: str = "uid") -> tuple[str, list[str]]:
+        """The condition "a job you applied to" on `col`, and its parameters."""
+        now = [*PURSUING_STATUSES, "rejected", "withdrawn"]
+        ever = list(PURSUING_STATUSES)
+        sql = self._APPLIED.format(col=col, now=",".join("?" * len(now)),
+                                   ever=",".join("?" * len(ever)))
+        return sql, now + ever
+
     def scanned_count(self) -> int:
-        """Job posts a fresh scan would delete: every one a scan found."""
+        """Job posts a fresh scan would delete: every one a scan found but
+        those you applied to."""
+        applied, params = self._applied_sql()
         return self.conn.execute(
-            "SELECT COUNT(*) FROM roles WHERE origin = 'scan'").fetchone()[0]
+            f"SELECT COUNT(*) FROM roles WHERE origin = 'scan' AND NOT {applied}",  # nosec B608
+            params).fetchone()[0]
+
+    def applied_scanned_count(self) -> int:
+        """Scanned job posts a fresh scan keeps: the ones you applied to."""
+        applied, params = self._applied_sql()
+        return self.conn.execute(
+            f"SELECT COUNT(*) FROM roles WHERE origin = 'scan' AND {applied}",  # nosec B608
+            params).fetchone()[0]
 
     def clear_scanned(self) -> int:
-        """Delete every job post a scan found, for a scan from scratch.
+        """Delete every job post a scan found, for a scan from scratch, but
+        the ones you applied to.
 
         Their statuses, notes, AI verdicts and document records go with them
         (foreign keys cascade). Unlike `delete_many`, nothing is remembered:
         the next scan is meant to find them again. Posts you deleted before
-        stay deleted, and posts added by hand (`jobdork add`) are kept.
+        stay deleted, and posts added by hand (`jobdork add`) and posts you
+        applied to are kept, with all they hold.
         """
+        applied, params = self._applied_sql()
         with self.conn:
-            cur = self.conn.execute("DELETE FROM roles WHERE origin = 'scan'")
+            cur = self.conn.execute(
+                f"DELETE FROM roles WHERE origin = 'scan' AND NOT {applied}",  # nosec B608
+                params)
         return cur.rowcount
 
     # ── dropped by your filters ───────────────────────────────────────────────

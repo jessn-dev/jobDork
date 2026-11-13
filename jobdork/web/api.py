@@ -2339,20 +2339,23 @@ def start_over(cfg, words: str, backup: bool = True) -> dict:
 
 
 def fresh_preview(cfg) -> dict:
-    """What a fresh scan would delete. Deletes nothing."""
-    from ..core.config import PURSUING_STATUSES
+    """What a fresh scan would delete, and what it keeps: posts added by hand
+    and the jobs you applied to. Deletes nothing."""
     from ..db.store import Store
 
     with Store(cfg.db_path) as store:
         count = store.scanned_count()
+        applied, params = store._applied_sql("r.uid")
+        # Safe: _applied_sql's text is fixed; its statuses are parameters.
         by_status = dict(store.conn.execute(
-            "SELECT COALESCE(s.status, 'new'), COUNT(*) FROM roles r "
+            "SELECT COALESCE(s.status, 'new'), COUNT(*) FROM roles r "  # nosec B608
             "LEFT JOIN role_state s ON s.uid = r.uid WHERE r.origin = 'scan' "
-            "GROUP BY 1").fetchall())
+            f"AND NOT {applied} GROUP BY 1", params).fetchall())
         by_hand = store.conn.execute(
             "SELECT COUNT(*) FROM roles WHERE origin <> 'scan'").fetchone()[0]
+        kept_applied = store.applied_scanned_count()
     return {"count": count, "by_status": by_status, "kept_by_hand": by_hand,
-            "pursuing": sum(n for s, n in by_status.items() if s in PURSUING_STATUSES)}
+            "kept_applied": kept_applied}
 
 
 def delete_scanned_job(cfg, expect):
