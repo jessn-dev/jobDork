@@ -41,7 +41,7 @@ THIN = 400
 # Platforms whose adverts already arrive whole. Fetching them again would cost
 # a request per role to learn nothing.
 ALREADY_FULL = ("workable", "greenhouse", "ashby", "lever", "usajobs", "arbeitnow",
-                "jobicy", "remoteok")
+                "jobicy", "remoteok", "remotive", "workingnomads", "dynamitejobs")
 
 # Platforms that cannot be read, and why. Named rather than silently skipped.
 UNREACHABLE = {

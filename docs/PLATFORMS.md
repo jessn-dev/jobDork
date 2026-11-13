@@ -26,6 +26,9 @@ the documentation is not.
 | [We Work Remotely](#we-work-remotely) | `weworkremotely.com/categories/{category}.rss` | none | full, inline | **none — no field** | **always remote** | verified (2026-11-13) |
 | [Jobicy](#jobicy) | `jobicy.com/api/jobs` | none | full, inline | with a currency, about 6 in 10 | **always remote** | verified (2026-11-13) |
 | [Remote OK](#remote-ok) | `remoteok.com/api` | none | full, inline | US dollars a year, about 1 in 3 | **always remote** | verified (2026-11-13) |
+| [Remotive](#remotive) | `remotive.com/api/remote-jobs` | none | full, inline | free text, read when plain | **always remote** | verified (2026-11-13) |
+| [Working Nomads](#working-nomads) | `www.workingnomads.com/api/exposed_jobs/` | none | full, inline | **none — no field** | **always remote** | verified (2026-11-13) |
+| [Dynamite Jobs](#dynamite-jobs) | its sitemap, then each job page | none | full, on the page | when stated | **always remote** | verified (2026-11-13) |
 | [Oracle Recruiting Cloud](#oracle-recruiting-cloud) | `{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions` | none | detail endpoint | — | rarely | verified |
 | [Eightfold](#eightfold) | `{host}/api/pcsx/search` | none | detail endpoint | — | stated | verified |
 | [Taleo Business Edition](#taleo-business-edition) | `{host}/{path}/ats/careers/v2/searchResults` | none | on the job's page | when stated | when stated | verified |
@@ -556,6 +559,74 @@ signal reserves AI training, which jobdork never does.
 
 ---
 
+## Remotive
+
+    GET https://remotive.com/api/remote-jobs
+
+Remote jobs: software, customer service, sales, writing and more. No key.
+Its documentation (github.com/remotive-com/remote-jobs-api) invites
+applications to use this endpoint: link back to the Remotive page, name
+Remotive as the source, read about four times a day and never more than twice
+a minute, and pass no jobs on to other sites.
+
+**Its robots.txt says `Disallow: /api/*`.** jobdork follows robots.txt
+everywhere else; for this one endpoint, which the API's own documentation
+names for third parties, its owner decided the documentation wins over a line
+aimed at crawlers (2026-11-13). Every other path of the site is left alone.
+
+- Short: 14 jobs on 2026-11-13, a day behind the site.
+- One request a pass, a pass every six hours at most in one running jobdork;
+  its host is paced at one request every 30 seconds.
+- `candidate_required_location` ("Worldwide", "USA", "LATAM, Europe, USA,
+  Canada, APAC") is read as for We Work Remotely.
+- `salary` is free text: read when it is in dollars and its period is stated
+  or plain ("$14 - $20/hour", "$25k - $35k", "$35,3k" with a decimal comma);
+  "70K-80K" and "$1000 per task" are not read.
+
+---
+
+## Working Nomads
+
+    GET https://www.workingnomads.com/api/exposed_jobs/
+
+The newest remote jobs it collects, 36 on 2026-11-13, most in development.
+No key. Every page links this feed as "API"; robots.txt allows everything;
+its terms (11 March 2025) say nothing against reading it and forbid using
+the service to build a competing one, which a tool for one person is not.
+Each job's link is its Working Nomads address.
+
+- One request a pass, a pass an hour at most.
+- `location` is free text ("Global", "Canada", "Europe, LATAM, APAC",
+  "Time zone: CET (+/- 3 hours)"). A time zone counts as a region when
+  nothing else names one: CET's hours are Europe's.
+- No pay figures.
+
+---
+
+## Dynamite Jobs
+
+    GET https://dynamitejobs.com/sitemap/jobs-of-company.xml
+    GET https://dynamitejobs.com/company/{company}/remote-job/{title}
+
+Remote jobs in operations, admin and virtual assistance, support, marketing,
+sales and finance. No API: read the way an employer's careers site is, its
+sitemap then each job page's schema.org `JobPosting`. robots.txt closes
+`/api/` and the account pages and allows the job pages; its terms (16
+December 2020) say nothing about automated reading either way. So only the
+sitemap and job pages are read, each checked against robots.txt, at one a
+second, and each job links to its page.
+
+- About 500 jobs in the sitemap. Its addresses are titles in words, so only
+  pages whose words match one of your titles are read, newest first, 40 a
+  scan at most. The site reader cannot find them: it looks for an id.
+- `applicantLocationRequirements` lists the countries that may apply; none
+  listed is worldwide.
+- Titles end ", Remote Job" on the page; that is taken off.
+- `validThrough` is the closing date; the pages answer scripts, so "still
+  open" reads them.
+
+---
+
 ## Oracle Recruiting Cloud
 
     GET https://{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions
@@ -704,7 +775,8 @@ pool on a single host.
 | `boards-api.greenhouse.io`, `api.ashbyhq.com` | 5.0 |
 | `api.lever.co`, `data.usajobs.gov`, default | 3.0 |
 | `api.adzuna.com` | 1.0 (quota, not politeness) |
-| `www.kalibrr.com`, `himalayas.app`, `weworkremotely.com`, `jobicy.com`, `remoteok.com`, `*.myworkdayjobs.com` | 1.0 (no published limit) |
+| `www.kalibrr.com`, `himalayas.app`, `weworkremotely.com`, `jobicy.com`, `remoteok.com`, `www.workingnomads.com`, `dynamitejobs.com`, `*.myworkdayjobs.com` | 1.0 (no published limit) |
+| `remotive.com` | one every 30 seconds (its documentation: never more than twice a minute) |
 | `apply.workable.com` | 0.7 |
 | `jobs.workable.com` | 0.4 |
 
@@ -741,9 +813,7 @@ volunteer roles) · **Snagajob** (its terms forbid spiders, scrapers and
 crawlers, 2.3(e); robots.txt closes its API and every search) · **Handshake**
 (its terms forbid collecting job descriptions by script; jobs need a student
 login, and robots.txt closes them). All three checked 2026-11-13.
-Also checked then: **Remotive** (its API documentation invites apps, but its
-robots.txt says `Disallow: /api/*`, and robots.txt decides) ·
-**GovernmentJobs.com** (NEOGOV; robots.txt closes it to every reader but
+Also checked then: **GovernmentJobs.com** (NEOGOV; robots.txt closes it to every reader but
 named search engines, and its terms forbid robots and commercial use) ·
 **Jooble** (its terms forbid bots; the API needs their permission) ·
 **The Muse** (its public API answers 403 to jobdork) · **The National Labor

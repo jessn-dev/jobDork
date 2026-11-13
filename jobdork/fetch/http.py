@@ -86,6 +86,10 @@ HOST_RATES: dict[str, float] = {
     # second between requests.
     "jobicy.com": 1.0,
     "remoteok.com": 1.0,
+    # Remotive: never more than twice a minute, its documentation says.
+    "remotive.com": 1 / 30,
+    "www.workingnomads.com": 1.0,
+    "dynamitejobs.com": 1.0,
     # The Bundesagentur publishes no limit for its search; two a second.
     "rest.arbeitsagentur.de": 2.0,
     # Arbeitnow asks not to be abused, and answered 429 at a page a second.

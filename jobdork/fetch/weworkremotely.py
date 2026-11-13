@@ -34,6 +34,7 @@ We Work Remotely.
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timezone
 from email.utils import parsedate_to_datetime
 
@@ -82,6 +83,15 @@ REGIONS = {
     "asia pacific": _ASIA | _OCEANIA, "oceania": _OCEANIA, "australia": frozenset({"AU"}),
 }
 _WORLDWIDE = ("anywhere", "worldwide", "global")
+# A job limited to working hours, by its time zone's name, when nothing else
+# names a region: "Time zone: CET (+/- 3 hours)" is Europe's hours. Only
+# names with one reading: GMT and "West" also appear in US listings.
+_ZONES = (
+    (re.compile(r"\b(?:cet|cest|eet|eest)\b"), EUROPE | _AFRICA | _MIDDLE_EAST),
+    (re.compile(r"\b(?:est|edt|cst|cdt|mst|mdt|pst|pdt)\b|eastern time|pacific time"),
+     _NORTH_AMERICA | _LATIN_AMERICA),
+    (re.compile(r"\b(?:ist|sgt|pht|aest|aedt)\b"), _ASIA | _OCEANIA),
+)
 
 
 def _items(xml: str) -> list[str]:
@@ -122,6 +132,8 @@ def region_allows(region: str, countries: set[str]) -> bool:
             known.append(REGIONS[part])
         elif part and (code := geo.country_code(part)) and len(part) > 2:
             known.append(frozenset({code}))
+    if not known:
+        known = [zone for pattern, zone in _ZONES if pattern.search(words)]
     if not known:
         return True
     return any(countries & allowed for allowed in known)

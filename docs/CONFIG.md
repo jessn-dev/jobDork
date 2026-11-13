@@ -447,7 +447,8 @@ screening:
 
 ```yaml
 sources:
-  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, weworkremotely, jobicy, remoteok, workday, oracle, eightfold, taleo, site, arbeitsagentur, arbeitnow]
+  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, weworkremotely, jobicy, remoteok, remotive, workingnomads, dynamitejobs, workday, oracle, eightfold, taleo, site, arbeitsagentur, arbeitnow]
+  # disabled: [remotive]   # a source switched off by name
   companies:
     - name: Stripe
       platform: greenhouse
@@ -462,7 +463,8 @@ sources:
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `sources.keyless` | list | all eighteen | Which no-credential sources to run. A config that lists them keeps its own list: add `kalibrr`, `himalayas`, `weworkremotely`, `jobicy`, `remoteok`, `workday`, `oracle`, `eightfold`, `taleo`, `site`, `arbeitsagentur` and `arbeitnow` to it by hand |
+| `sources.keyless` | list | all twenty-one | The no-credential sources. Every one runs whatever this list says: leaving a name out does not turn it off, so a board added in a later version is never missed. Names here are checked |
+| `sources.disabled` | list | none | No-credential sources switched off by name, as `[remotive, dynamitejobs]`. (Not `off`: YAML reads that word as false) |
 | `sources.companies` | list of objects | `[]` | Employer boards to read |
 | `sources.directory.enabled` | bool | `true` | Read the employer boards jobdork ships with. `directory: false` also switches them off |
 | `sources.directory.countries` | list | `[]` | Only boards hiring in these countries; empty follows `locations.countries` |

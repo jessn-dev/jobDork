@@ -2975,7 +2975,8 @@ def setup_sources(cfg) -> dict:
     countries = list(cfg.locations.countries)
     searched = [{"name": "Workable", "what": "its job search, by your job titles"},
                 {"name": "Himalayas", "what": "remote jobs worldwide, kept to your countries"},
-                {"name": "We Work Remotely, Jobicy and Remote OK",
+                {"name": "We Work Remotely, Jobicy, Remote OK, Remotive, Working Nomads "
+                         "and Dynamite Jobs",
                  "what": "remote jobs in every field, kept to your countries"}]
     if {"PH", "ID"} & set(countries) or not countries:
         searched.append({"name": "Kalibrr",

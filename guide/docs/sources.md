@@ -5,8 +5,9 @@
 jobdork reads two kinds of places:
 
 - **Job boards searched by keyword**: they take your job titles and answer
-  for many employers at once (Workable; Himalayas, We Work Remotely, Jobicy
-  and Remote OK for remote work in every field; Kalibrr in
+  for many employers at once (Workable; Himalayas, We Work Remotely, Jobicy,
+  Remote OK, Remotive, Working Nomads and Dynamite Jobs for remote work in
+  every field; Kalibrr in
   the Philippines and Indonesia, Germany's employment agency, Arbeitnow, and
   with a free key Adzuna and USAJOBS).
 - **Employers' own boards**: the career sites employers run on systems such

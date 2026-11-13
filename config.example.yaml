@@ -129,6 +129,10 @@ sources:
   #                    field, only those open to your countries
   #   remoteok         Remote OK's API: the newest remote jobs, only those open
   #                    to your countries
+  #   remotive         Remotive's API: remote jobs, read four times a day at most
+  #   workingnomads    Working Nomads' JSON feed: the newest remote jobs it collects
+  #   dynamitejobs     Dynamite Jobs' job pages, through its sitemap: operations,
+  #                    support, sales, marketing, finance
   #   workday          one employer each, like greenhouse; its token is three
   #                    parts (nvidia/wd5/NVIDIAExternalCareerSite), from discover
   #   oracle           one employer each on Oracle Recruiting Cloud; its token is
@@ -146,7 +150,10 @@ sources:
   #   arbeitnow        jobs in Germany and the rest of Europe, newest first,
   #                    filtered by your titles. Skipped unless a European
   #                    country is in countries, or none is
-  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, weworkremotely, jobicy, remoteok, workday, oracle, eightfold, taleo, site, arbeitsagentur, arbeitnow]
+  # Every one of these runs, even when a config lists only some of them
+  # here: a board added later is never missed. Switch one off by name:
+  #   disabled: [remotive, dynamitejobs]
+  keyless: [workable, greenhouse, ashby, lever, smartrecruiters, breezy, kalibrr, himalayas, weworkremotely, jobicy, remoteok, remotive, workingnomads, dynamitejobs, workday, oracle, eightfold, taleo, site, arbeitsagentur, arbeitnow]
 
   # Employer boards to watch. The token is the board id, not the company name
   # — `mymoose` is Rapid7 — so read it off the employer's own posting URL

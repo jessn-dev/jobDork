@@ -122,6 +122,7 @@ from . import (  # noqa: E402,F401
     arbeitsagentur,
     ashby,
     breezy,
+    dynamitejobs,
     eightfold,
     greenhouse,
     himalayas,
@@ -130,6 +131,7 @@ from . import (  # noqa: E402,F401
     lever,
     oracle,
     remoteok,
+    remotive,
     site,
     smartrecruiters,
     taleo,
@@ -137,6 +139,7 @@ from . import (  # noqa: E402,F401
     weworkremotely,
     workable,
     workday,
+    workingnomads,
 )
 
 __all__ = ["REGISTRY", "Role", "SourceResult", "get", "register"]

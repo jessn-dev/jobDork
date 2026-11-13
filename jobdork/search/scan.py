@@ -127,7 +127,8 @@ def _jobs_for(cfg: Config, part: str = "all") -> list[tuple[str, dict]]:
     """
     jobs: list[tuple[str, dict]] = []
     keyword_sources = ("workable", "kalibrr", "himalayas", "weworkremotely", "jobicy",
-                       "remoteok", "arbeitsagentur", "arbeitnow", "usajobs", "adzuna")
+                       "remoteok", "remotive", "workingnomads", "dynamitejobs",
+                       "arbeitsagentur", "arbeitnow", "usajobs", "adzuna")
 
     if part != "rest":
         for name in cfg.active_sources():
