@@ -30,7 +30,7 @@ Every region goes through the same steps, in this order:
 
 | Region | What reaches it | Measured |
 |---|---|---|
-| **United States** | 338 built-in employer boards based there across 27 industries, Workable, Himalayas (remote); with keys, Adzuna and USAJOBS | Discover's test list: 30 of 46 employers readable (US 26 of 37) |
+| **United States** | 338 built-in employer boards based there across 27 industries, Workable, Himalayas, We Work Remotely, Jobicy, Remote OK, Remotive, Working Nomads and Dynamite Jobs (remote, every field); with keys, Adzuna and USAJOBS | Discover's test list: 30 of 46 employers readable (US 26 of 37) |
 | **Canada** | 22 Canadian employers' boards (RBC, BMO, CIBC, Loblaw, Air Canada…) and multinationals hiring there; Workable; with a key, Adzuna | Not yet |
 | **Mexico** | Mercado Libre and multinationals hiring there; Workable; with a key, Adzuna | Not yet. Most large Mexican employers refuse scripts or name no board |
 | **Asia** | 30 Asian employers' boards (DBS, UOB, AIA, Samsung, TSMC, Coupang…) and multinationals; Kalibrr (Philippines, Indonesia); Workable; Himalayas; with a key, Adzuna (India) | 11 cities, 2026-10-02 (below) |
