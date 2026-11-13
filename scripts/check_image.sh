@@ -43,11 +43,15 @@ trap 'docker rm -f "$name" >/dev/null 2>&1; rm -rf "$work"' EXIT
 
 # Up to 90 seconds: a busy CI runner once took past 30 to print it, and the
 # check failed with the address right there in the log (2026-10-30).
+# The log is read into a variable, not piped to `grep -q`: grep stops at the
+# first match, `docker logs` then dies of SIGPIPE, and with pipefail the
+# pipeline fails with the address found (2026-11-13).
+started() { local log; log=$(docker logs "$name" 2>&1); [[ $log == *"jobdork dashboard: http"* ]]; }
 for _ in $(seq 1 90); do
-  docker logs "$name" 2>&1 | grep -q "jobdork dashboard: http" && break
+  started && break
   sleep 1
 done
-docker logs "$name" 2>&1 | grep -q "jobdork dashboard: http" \
+started \
   && pass "the log shows the dashboard's address" || { fail "no address in the log"; docker logs "$name"; }
 
 code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
