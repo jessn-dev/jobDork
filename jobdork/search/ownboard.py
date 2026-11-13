@@ -36,7 +36,8 @@ import re
 # there: their posts are the ones checked against the employer's own board.
 # Not USAJOBS (federal agencies' own listings) nor Workable's search (each
 # post is from the employer's own Workable board).
-AGGREGATORS = frozenset({"adzuna", "himalayas", "arbeitnow", "kalibrr"})
+AGGREGATORS = frozenset({"adzuna", "himalayas", "weworkremotely", "jobicy", "remoteok",
+                         "arbeitnow", "kalibrr"})
 
 # An employer's own board, read through its own system (discover.BOARD_PATTERNS)
 # or its careers site. Not Adzuna, USAJOBS, Workable's search, Himalayas,

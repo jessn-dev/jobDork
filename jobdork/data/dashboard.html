@@ -2137,7 +2137,7 @@ const cap = s => { s = String(s ?? ''); return s ? s[0].toUpperCase() + s.slice(
 const capHtml = h => String(h ?? '').replace(/^((?:\s|<[^>]+>)*)([a-z])/, (_, a, b) => a + b.toUpperCase());
 // Platforms by their own spelling.
 const PLATFORMS = {greenhouse: 'Greenhouse', ashby: 'Ashby', lever: 'Lever', breezy: 'Breezy',
-  smartrecruiters: 'SmartRecruiters', workable: 'Workable', kalibrr: 'Kalibrr', himalayas: 'Himalayas', workday: 'Workday', adzuna: 'Adzuna', usajobs: 'USAJOBS',
+  smartrecruiters: 'SmartRecruiters', workable: 'Workable', kalibrr: 'Kalibrr', himalayas: 'Himalayas', weworkremotely: 'We Work Remotely', jobicy: 'Jobicy', remoteok: 'Remote OK', workday: 'Workday', adzuna: 'Adzuna', usajobs: 'USAJOBS',
   arbeitsagentur: 'Bundesagentur für Arbeit', arbeitnow: 'Arbeitnow'};
 const platformName = p => PLATFORMS[p] || cap(p);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,

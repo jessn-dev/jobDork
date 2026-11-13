@@ -88,6 +88,9 @@ KEYLESS_SOURCES = (
     "breezy",
     "kalibrr",          # Kalibrr's own search; Philippine and Indonesian jobs
     "himalayas",        # remote jobs worldwide, filtered to your countries and hours
+    "weworkremotely",   # We Work Remotely's RSS: remote jobs in every field, kept to your countries
+    "jobicy",           # Jobicy's API: remote jobs of the last 7 days, kept to your countries
+    "remoteok",         # Remote OK's API: the newest remote jobs, kept to your countries
     "workday",          # per-employer board; token tenant/dc/site, from discover
     "oracle",           # per-employer board on Oracle Recruiting Cloud; token host/site
     "eightfold",        # per-employer board on Eightfold; token host/domain

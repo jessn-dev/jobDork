@@ -10,8 +10,10 @@ This tool finds work two ways, and they fail in opposite directions.
 
 **Keyword search.** One query, every employer on a platform. Workable's search,
 Kalibrr, Himalayas, the Bundesagentur für Arbeit, Adzuna and USAJOBS all work
-this way; Arbeitnow, which has no search, is read newest first and filtered
-by your titles. No list to maintain, no tokens, no
+this way; Arbeitnow, We Work Remotely, Jobicy and Remote OK, which have no
+search by many titles, are read whole (Arbeitnow newest first, We Work
+Remotely's RSS by category, Jobicy's last seven days, Remote OK's newest)
+and filtered by your titles. No list to maintain, no tokens, no
 per-employer setup — you name a job title and the platform answers for its
 whole market. This is where nearly all the volume comes from.
 

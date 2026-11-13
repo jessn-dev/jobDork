@@ -23,6 +23,9 @@ the documentation is not.
 | [Kalibrr](#kalibrr) | `www.kalibrr.com/kjs/job_board/search` | none | full, inline | when shown | stated | verified |
 | [Workday](#workday) | `{tenant}.{dc}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs` | none | detail endpoint | — | rarely | verified |
 | [Himalayas](#himalayas) | `himalayas.app/jobs/api/search` | none | full, inline | with a currency | **always remote** | verified |
+| [We Work Remotely](#we-work-remotely) | `weworkremotely.com/categories/{category}.rss` | none | full, inline | **none — no field** | **always remote** | verified (2026-11-13) |
+| [Jobicy](#jobicy) | `jobicy.com/api/jobs` | none | full, inline | with a currency, about 6 in 10 | **always remote** | verified (2026-11-13) |
+| [Remote OK](#remote-ok) | `remoteok.com/api` | none | full, inline | US dollars a year, about 1 in 3 | **always remote** | verified (2026-11-13) |
 | [Oracle Recruiting Cloud](#oracle-recruiting-cloud) | `{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions` | none | detail endpoint | — | rarely | verified |
 | [Eightfold](#eightfold) | `{host}/api/pcsx/search` | none | detail endpoint | — | stated | verified |
 | [Taleo Business Edition](#taleo-business-edition) | `{host}/{path}/ats/careers/v2/searchResults` | none | on the job's page | when stated | when stated | verified |
@@ -467,6 +470,92 @@ stored link is the Himalayas page, and the source shows as Himalayas.
 
 ---
 
+## We Work Remotely
+
+    GET https://weworkremotely.com/categories/remote-customer-support-jobs.rss
+
+Remote jobs in every kind of work, about 600 at a time: support, sales and
+marketing, management and finance, product, design and programming. No key.
+Checked 2026-11-13: robots.txt allows everything but account pages, and every
+page of the site links its RSS. Its terms say nothing about feeds or
+automated reading; only the Internet Archive's copy (2026-10-26) could be
+read, as the live page is behind a browser check that jobdork does not get
+around. The stored link is the job's We Work Remotely page, and the source
+shows as We Work Remotely.
+
+- **The category feeds, not the main one.** `/remote-jobs.rss` holds only the
+  10 newest of each category; the 10 category feeds hold them all (10 to 145
+  each). One request per category, at one a second; the feed's `<ttl>` asks
+  for no more than hourly, and a scan reads it once.
+- **No search.** Jobs are kept by your titles here, as for Arbeitnow.
+- **`region`** says who may apply: "Anywhere in the World", "USA Only",
+  "North America Only", "Europe Only", "EMEA Only", "Asia Only" and the like.
+  A job limited to a region none of your countries is in is left out; one
+  the table does not know is kept with its words shown; with no countries,
+  all are kept. Of 100 jobs on 2026-11-13: 45 worldwide, 29 US only, 18 Asia
+  only.
+- Each title is "Company: Job title"; `pubDate` and `expires_at` are RFC 822.
+  A post past its expiry is left out, and its closing date kept for the
+  still-open check. `type` "Contract" is tagged.
+- No pay figures. The advert is whole, as HTML.
+- **Job pages answer 403 to scripts** (the same browser check). "Still open"
+  goes by the expiry, then by the latest feed; `enrich` skips it.
+- Read with str.find and patterns, not an XML parser: an XML parser is the
+  usual way in for entity expansion from someone else's server.
+- Skipped when `locations.work_modes` leaves out remote.
+
+---
+
+## Jobicy
+
+    GET https://jobicy.com/api/jobs?count=100&geo=usa&cursor=...
+
+Remote jobs in sales, software, operations, healthcare, finance and
+marketing. No key. Checked 2026-11-13 against its documentation
+(jobi.cy/apidocs) and terms: any application may use the public API without
+an agreement, commercial ones included, crediting Jobicy and linking to the
+Jobicy listing; storing the jobs is allowed. The stored link is the listing,
+and the source shows as Jobicy. robots.txt allows the API.
+
+- **The last 7 days only**, each job 3 hours after it is posted. 100 a page,
+  the next by `cursor`; a pass reads up to 10 pages. For a US search on
+  2026-11-13: 9 pages, 300 jobs kept of 900 for eight titles, 198 with pay.
+- **One pass an hour at most**, as the documentation asks: a scan within the
+  hour of the last, in the same running jobdork, skips it and says so.
+- `geo=usa` when the US is your only country; otherwise every job, kept by
+  `jobGeo` ("USA", "Anywhere", "Canada, USA", "EMEA, LATAM, Canada, USA") as
+  for We Work Remotely, a country's name included.
+- Pay is `salaryMin` / `salaryMax` with `salaryCurrency` and `salaryPeriod`.
+- Its job pages carry their job data: "still open" reads them like any
+  careers page. A status endpoint (`/api/jobs/status?ids=`) exists and is not
+  used yet.
+- No search by many titles: jobs are kept by your titles here.
+
+---
+
+## Remote OK
+
+    GET https://remoteok.com/api
+
+The newest remote jobs, about a hundred, in support, operations, healthcare,
+marketing and finance as well as software. No key. The answer's first
+element is its terms: link back to the job's Remote OK page and name Remote
+OK as the source, and do not use its logo. The stored link is the Remote OK
+page, the source shows as Remote OK, and no logo is kept. robots.txt allows
+every reader but named AI crawlers, with a one-second delay; its content
+signal reserves AI training, which jobdork never does.
+
+- One request a pass, a pass an hour at most, as for Jobicy.
+- `location` is free text and mostly empty; kept by it as for We Work
+  Remotely, an empty or unknown one kept.
+- `salary_min` / `salary_max` are US dollars a year; 0 means not given.
+- Some text arrives double-encoded (UTF-8 read as Latin-1 and encoded
+  again: "\u00e2\u0080\u0094" for an em dash); it is mended when that is the
+  only reading that makes sense.
+- Its job pages answer scripts: "still open" reads them.
+
+---
+
 ## Oracle Recruiting Cloud
 
     GET https://{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions
@@ -615,7 +704,7 @@ pool on a single host.
 | `boards-api.greenhouse.io`, `api.ashbyhq.com` | 5.0 |
 | `api.lever.co`, `data.usajobs.gov`, default | 3.0 |
 | `api.adzuna.com` | 1.0 (quota, not politeness) |
-| `www.kalibrr.com`, `himalayas.app`, `*.myworkdayjobs.com` | 1.0 (no published limit) |
+| `www.kalibrr.com`, `himalayas.app`, `weworkremotely.com`, `jobicy.com`, `remoteok.com`, `*.myworkdayjobs.com` | 1.0 (no published limit) |
 | `apply.workable.com` | 0.7 |
 | `jobs.workable.com` | 0.4 |
 
@@ -645,7 +734,25 @@ and is disallowed by its robots.txt) · **Dice** · **BuiltIn** ·
 **ZipRecruiter** · **Monster** · **CareerBuilder** · **SimplyHired** ·
 **FlexJobs** · **Wellfound** · **Y Combinator** · **JobStreet** and
 **JobsDB** (SEEK; answer 403 to scripts, robots.txt closes the search API, the
-API is partner-only) · **OnlineJobs.ph**
+API is partner-only) · **OnlineJobs.ph** · **Idealist** (its terms forbid
+bots, scraping and copying listings, 3(d)(j)–(k) and 7(a); its feeds and API
+need a separate agreement, and its one API is a paid partner product for
+volunteer roles) · **Snagajob** (its terms forbid spiders, scrapers and
+crawlers, 2.3(e); robots.txt closes its API and every search) · **Handshake**
+(its terms forbid collecting job descriptions by script; jobs need a student
+login, and robots.txt closes them). All three checked 2026-11-13.
+Also checked then: **Remotive** (its API documentation invites apps, but its
+robots.txt says `Disallow: /api/*`, and robots.txt decides) ·
+**GovernmentJobs.com** (NEOGOV; robots.txt closes it to every reader but
+named search engines, and its terms forbid robots and commercial use) ·
+**Jooble** (its terms forbid bots; the API needs their permission) ·
+**The Muse** (its public API answers 403 to jobdork) · **The National Labor
+Exchange's data** (for state labour-market research only, under a signed
+agreement) · **Careerjet** (a publisher API for websites that show its
+listings for clicks, through tracking links; no terms for an app like this).
+**CareerOneStop** (the US Department of Labor's job search, from the
+National Labor Exchange) has an API with a free token, but its developer
+pages refuse scripts; it waits on its terms being read.
 
 jobdork never logs into any of these, LinkedIn included, and never posts to
 them or reads a profile there: what it writes for one (a message, a
