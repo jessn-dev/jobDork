@@ -359,9 +359,9 @@ def _fresh_start(cfg, yes: bool) -> bool:
     n = preview["count"]
     print(f"A fresh scan deletes all {n} job posts found by scans, with their "
           "statuses, notes, AI verdicts and document records, then scans again.")
-    if preview["pursuing"]:
-        print(f"That includes {preview['pursuing']} you are pursuing "
-              "(applied, submitted, interviewing, offer).")
+    if preview["kept_applied"]:
+        print(f"{preview['kept_applied']} you applied to are kept, with their stages, "
+              "notes and documents.")
     if preview["kept_by_hand"]:
         print(f"{preview['kept_by_hand']} added by hand are kept.")
     if not yes:

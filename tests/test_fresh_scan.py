@@ -39,10 +39,11 @@ def test_the_preview_counts_what_would_go_and_deletes_nothing():
     with tempfile.TemporaryDirectory() as tmp:
         cfg = _seed(tmp)
         preview = api.fresh_preview(cfg)
-        assert preview["count"] == 3 and preview["kept_by_hand"] == 1
-        assert preview["pursuing"] == 1
+        assert preview["count"] == 2 and preview["kept_by_hand"] == 1
+        assert preview["kept_applied"] == 1, "the job you applied to is kept, and said so"
+        assert "applied" not in preview["by_status"]
         with Store(cfg.db_path) as store:
-            assert store.scanned_count() == 3
+            assert store.scanned_count() == 2
 
 
 def test_a_fresh_scan_backs_up_deletes_scanned_posts_then_scans():
@@ -52,17 +53,20 @@ def test_a_fresh_scan_backs_up_deletes_scanned_posts_then_scans():
         saved = api.scan_job
         api.scan_job = lambda cfg: (lambda progress: scanned.append(True) or "scanned")
         try:
-            summary = api.fresh_scan_job(cfg, 3)(lines.append)
+            summary = api.fresh_scan_job(cfg, 2)(lines.append)
         finally:
             api.scan_job = saved
-        assert scanned and summary == "fresh scan: deleted 3 · scanned"
+        assert scanned and summary == "fresh scan: deleted 2 · scanned"
         with Store(cfg.db_path) as store:
-            left = store.conn.execute("SELECT origin FROM roles").fetchall()
+            left = store.conn.execute(
+                "SELECT r.origin, COALESCE(s.status, 'new') FROM roles r "
+                "LEFT JOIN role_state s USING(uid) ORDER BY r.origin").fetchall()
             states = store.conn.execute(      # state rows whose post is gone
                 "SELECT COUNT(*) FROM role_state WHERE uid NOT IN "
                 "(SELECT uid FROM roles)").fetchone()[0]
             tombstones = store.conn.execute("SELECT COUNT(*) FROM deleted").fetchone()[0]
-        assert [r[0] for r in left] == ["manual"]        # added by hand: kept
+        # Added by hand, and the scanned job you applied to: kept.
+        assert [tuple(r) for r in left] == [("manual", "new"), ("scan", "applied")]
         assert states == 0                                # statuses went with them
         assert tombstones == 1                            # nothing new remembered
         backups = list((Path(tmp) / "data" / "backups").glob("*-before-fresh-scan.db"))
@@ -72,14 +76,14 @@ def test_a_fresh_scan_backs_up_deletes_scanned_posts_then_scans():
 def test_a_count_that_moved_since_the_preview_deletes_nothing():
     with tempfile.TemporaryDirectory() as tmp:
         cfg = _seed(tmp)
-        for expect in (2, "", None):
+        for expect in (3, "", None):
             try:
                 api.fresh_scan_job(cfg, expect)
             except api.ApiError:
                 continue
             raise AssertionError(f"expect={expect!r} must be refused")
         with Store(cfg.db_path) as store:
-            assert store.scanned_count() == 3
+            assert store.scanned_count() == 2
 
 
 def test_delete_all_scanned_backs_up_deletes_and_does_not_scan():
@@ -89,16 +93,16 @@ def test_delete_all_scanned_backs_up_deletes_and_does_not_scan():
         saved = api.scan_job
         api.scan_job = lambda cfg: (lambda progress: scanned.append(True) or "scanned")
         try:
-            summary = api.delete_scanned_job(cfg, 3)(lines.append)
+            summary = api.delete_scanned_job(cfg, 2)(lines.append)
         finally:
             api.scan_job = saved
-        assert not scanned and summary.startswith("deleted 3 scanned job posts")
+        assert not scanned and summary.startswith("deleted 2 scanned job posts")
         with Store(cfg.db_path) as store:
-            left = [r[0] for r in store.conn.execute("SELECT origin FROM roles")]
-        assert left == ["manual"]                        # added by hand: kept
+            left = sorted(r[0] for r in store.conn.execute("SELECT origin FROM roles"))
+        assert left == ["manual", "scan"]                # by hand, and the one applied to
         backups = list((Path(tmp) / "data" / "backups").glob("*-before-delete-scanned.db"))
         assert len(backups) == 1 and any("backed up" in x for x in lines)
-        for expect in (3, "", None):                     # now 0: any old count is refused
+        for expect in (2, "", None):                     # now 0: any old count is refused
             try:
                 api.delete_scanned_job(cfg, expect)
             except api.ApiError:
@@ -106,12 +110,33 @@ def test_delete_all_scanned_backs_up_deletes_and_does_not_scan():
             raise AssertionError(f"expect={expect!r} must be refused")
 
 
+def test_a_job_applied_to_is_kept_whatever_happened_to_it_after():
+    """Applied then rejected, and applied before it was closed, are on My
+    applications too: a fresh scan keeps both; a post only looked at goes."""
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = Config(titles_include=["x"], db_path=str(Path(tmp) / "data" / "t.db"))
+        with Store(cfg.db_path) as store:
+            roles = [Role(platform="lever", company=f"Co {i}", title=f"Engineer {i}",
+                          url=f"https://jobs.lever.co/co/{i}") for i in range(3)]
+            for r in roles:
+                store.upsert(r)
+            store.conn.commit()
+            store.set_status(roles[0].uid, "applied")
+            store.set_status(roles[0].uid, "rejected")
+            store.set_status(roles[1].uid, "applied")
+            store.set_status(roles[1].uid, "closed")
+            store.set_status(roles[2].uid, "skipped")
+            assert store.scanned_count() == 1 and store.applied_scanned_count() == 2
+            assert store.clear_scanned() == 1
+            assert {a["row"]["uid"] for a in store.applications()} == {roles[0].uid, roles[1].uid}
+
+
 def test_the_terminal_previews_unless_told_yes():
     with tempfile.TemporaryDirectory() as tmp:
         cfg = _seed(tmp)
         assert cli._fresh_start(cfg, yes=False) is False
         with Store(cfg.db_path) as store:
-            assert store.scanned_count() == 3
+            assert store.scanned_count() == 2
         assert cli._fresh_start(cfg, yes=True) is True
         with Store(cfg.db_path) as store:
             assert store.scanned_count() == 0

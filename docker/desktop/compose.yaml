@@ -1,0 +1,24 @@
+# The Linux desktop app in a container, its window shown in your browser.
+#
+#   docker compose -f docker/desktop/compose.yaml up --build
+#   then open http://localhost:6080/vnc.html and press Connect
+#
+#   docker compose -f docker/desktop/compose.yaml run --rm desktop self-test
+#
+# docs/run/desktop-in-docker.md has the rest.
+services:
+  desktop:
+    build:
+      context: ../..
+      dockerfile: docker/desktop/Dockerfile
+    image: jobdork-desktop:local
+    # noVNC has no password: published on this computer only.
+    ports:
+      - "127.0.0.1:6080:6080"
+    # The web engine needs more shared memory than Docker's 64 MB default.
+    shm_size: "1gb"
+    volumes:
+      - jobdork-desktop-data:/data
+
+volumes:
+  jobdork-desktop-data:
