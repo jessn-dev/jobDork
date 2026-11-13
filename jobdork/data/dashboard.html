@@ -1093,6 +1093,12 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <summary>Add a job post you applied to</summary>
       <div class="addpost" data-prefix="apa" data-applied="1"></div>
     </details>
+    <details class="paste" id="rej-review">
+      <summary>Review your rejections</summary>
+      <p class="hint">What your newest rejections have in common, as a checklist to work
+        through: something to fix in your resume, in your own words, not text to paste.</p>
+      <div id="rej-out"><p class="hint">Loading…</p></div>
+    </details>
     <div class="appchips" id="app-chips"></div>
     <div class="split">
       <div id="apps"><p class="empty">Loading…</p></div>
@@ -1110,6 +1116,11 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       terminal, shows below. Scans are paced per host on
       purpose: running several in a day is how you earn a rate limit.</p>
     <div class="cleanup" id="apps-due" role="status" hidden></div>
+    <div id="app-funnel" hidden>
+      <h3 style="margin-bottom:0">Your applications</h3>
+      <div class="tiles" id="funnel-tiles"></div>
+      <div class="tiles" id="reply-tiles"></div>
+    </div>
     <div class="bar">
       <button data-icon="play" class="act main" id="run">Run a scan</button>
       <button data-icon="download" class="act" id="btn-enrich">Fetch missing adverts</button>
@@ -3044,6 +3055,10 @@ function docHtml(doc, kind) {
         <button data-icon="download" class="act primary" onclick="artifactPdf(${doc.id}, true)">Download PDF</button>
         <button data-icon="download" class="act" onclick="artifactWord(${doc.id})" title="The same resume as a Word file, to edit before you send it">Download Word</button>
         <span class="hint">Read it through before you send it.</span></div>` : '') +
+    (doc.edited ? `<p class="hint">Edited by you, ${esc(day(doc.edited))}: the checks above were of
+        the AI's version.</p>` : '') +
+    (doc.editable ? `<div class="bar"><button type="button" class="act doc-edit" data-icon="pen-line">Edit</button>
+        <span class="hint">In your own words, with your own figures: employers filter out generic AI writing.</span></div>` : '') +
     (DOC_DELETABLE.includes(kind) ? `<div class="bar">
         <button type="button" class="act doc-del" data-icon="trash-2">Delete this ${esc(tabLabel(kind))}</button>
         <span class="hint">Removes the file and its text at once.</span></div>` : '') +
@@ -3055,7 +3070,35 @@ function docHtml(doc, kind) {
       : `<div class="advert">${esc(doc.text)}</div>`);
 }
 
+// A document's text in a box to edit, with Save and Cancel (api.save_document).
+// `after` redraws whatever showed it.
+async function editDocument(id, box, after) {
+  const r = await api('/api/artifact?id=' + id);
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  const d = await r.json();
+  box.innerHTML = `<p class="hint">Change anything: put it in your own words and add the figures
+      that prove your impact. Lines starting <code>#</code> are your name, <code>##</code> a section,
+      <code>###</code> a job, <code>-</code> a bullet. Its PDF and Word file follow what you save.</p>
+    <textarea class="docedit" rows="26" style="width:100%;font:inherit;font-size:.875rem"></textarea>
+    <div class="bar"><button type="button" class="act primary" data-icon="save" data-save>Save</button>
+      <button type="button" class="act" data-icon="x" data-cancel>Cancel</button></div>`;
+  const area = box.querySelector('.docedit');
+  area.value = d.text;
+  area.focus();
+  box.querySelector('[data-cancel]').onclick = () => after();
+  box.querySelector('[data-save]').onclick = async () => {
+    const s = await api('/api/documents/save', {method: 'POST', body: form({id, text: area.value})});
+    if (!s.ok) { toast(cap(await s.text()), 'err'); return; }
+    toast('Saved');
+    after();
+  };
+  decorate(box);
+}
+
 function bindDoc(box, doc) {
+  const edit = box.querySelector('.doc-edit');
+  if (edit) edit.onclick = () => editDocument(doc.id, box, () =>
+    box.id === 'rp-other' ? drawRDoc(doc.kind) : openRole(doc.uid, doc.kind));
   // Delete, asked twice: then the Resume page's cards and letters, or the
   // job post's window, are drawn again without it.
   const del = box.querySelector('.doc-del');
@@ -3379,6 +3422,16 @@ function toolsIntro(uid) {
     <button data-icon="messages-square" class="act spend" onclick="toolJob('${uid}','feedback')">Recruiter feedback</button>
     <span id="tooljob" class="hint"></span>
   </div>
+  <details class="paste" id="ownwords-wrap">
+    <summary>Your own words into resume edits</summary>
+    <p class="hint">Write what you did, the way you would say it, with the numbers: "cut month-end
+      close from 10 days to 6 by moving the team to one shared template". The AI turns it into
+      specific edits to this post's tailored resume, using only what you wrote and what is on it.</p>
+    <textarea id="ownwords" placeholder="What you did, and what came of it, with figures"></textarea>
+    <div class="bar" style="margin:.4rem 0 0">
+      <button data-icon="pen-line" class="act spend" onclick="toolJob('${uid}','own_words')">Turn into resume edits (AI)</button>
+    </div>
+  </details>
   <details class="paste" id="tooltext-wrap">
     <summary>Revise a bullet or paragraph, or get feedback on a cover letter</summary>
     <textarea id="tooltext" placeholder="Paste one resume bullet or cover letter paragraph to revise, or a whole cover letter for feedback"></textarea>
@@ -3393,7 +3446,7 @@ function toolsIntro(uid) {
 // (web/agent.py EDITING): it answers in its own chat; nothing is saved here.
 const TOOL_ASKS = {resume_edits: 'suggested edits to my resume for', keywords: 'keyword ideas for',
   highlight: 'the skills to highlight for', feedback: 'recruiter feedback on my resume for',
-  revise: 'five versions of this text for'};
+  revise: 'five versions of this text for', own_words: 'resume edits from these words of mine, for'};
 
 function toolAsk(uid, kind, text) {
   const d = detail && detail.uid === uid ? detail : {};
@@ -3409,7 +3462,9 @@ function toolAsk(uid, kind, text) {
 }
 
 async function toolJob(uid, kind, withText) {
-  const text = (kind === 'revise' || withText) ? ($('tooltext') || {}).value || '' : '';
+  const text = kind === 'own_words' ? ($('ownwords') || {}).value || ''
+    : (kind === 'revise' || withText) ? ($('tooltext') || {}).value || '' : '';
+  if (kind === 'own_words' && !text.trim()) { toast('Write what you did, in your own words', 'err'); return; }
   if (agentOn && !agentFallback) {
     if (kind === 'revise' && !text.trim()) { toast('Paste a bullet or a paragraph to revise', 'err'); return; }
     toolAsk(uid, kind, text.trim());
@@ -3419,6 +3474,32 @@ async function toolJob(uid, kind, withText) {
   detailTab = 'tools';
   const r = await api('/api/tool', {method: 'POST', body: form({uid, kind, text})});
   if (!r.ok) { const why = cap(await r.text()); $('tooljob').textContent = ''; toast(why, 'err'); }
+}
+
+// One of "your own words" edits, written into this post's newest tailored
+// resume: its line replaced, or a new bullet after the named job's last one.
+async function applyOwnEdit(i, btn) {
+  const e = (((toolData.own_words || {}).data || {}).edits || [])[i];
+  const doc = ((detail || {}).artifacts || []).find(a => a.kind === 'tailored_resume');
+  if (!e || !doc) { toast('Write a tailored resume for this post first, from Write tailored resume (AI)', 'err'); return; }
+  const r = await api('/api/artifact?id=' + doc.id);
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
+  const lines = (await r.json()).text.split('\n');
+  if (e.quote) {
+    const at = lines.findIndex(l => l.includes(e.quote));
+    if (at < 0) { toast('That line is no longer in the tailored resume', 'err'); return; }
+    lines[at] = lines[at].replace(e.quote, e.suggestion);
+  } else {
+    const job = lines.findIndex(l => l.startsWith('### ') && l.includes(e.where));
+    if (job < 0) { toast(`${e.where} is not a job in the tailored resume`, 'err'); return; }
+    let end = job + 1;
+    while (end < lines.length && !lines[end].startsWith('#') && lines[end].trim() !== '') end++;
+    lines.splice(end, 0, `- ${e.suggestion}`);
+  }
+  const s = await api('/api/documents/save', {method: 'POST', body: form({id: doc.id, text: lines.join('\n')})});
+  if (!s.ok) { toast(cap(await s.text()), 'err'); return; }
+  btn.disabled = true; btn.textContent = 'Applied';
+  toast('Applied to the tailored resume');
 }
 
 function checks(t) {
@@ -3446,7 +3527,7 @@ async function drawTools(uid) {
   if (!r.ok) { $('tools-out').innerHTML = `<p class="err">${esc(await r.text())}</p>`; return; }
   const d = await r.json();
   toolData = d.tools;
-  const order = ['resume_edits', 'keywords', 'highlight', 'feedback', 'revise'];
+  const order = ['own_words', 'resume_edits', 'keywords', 'highlight', 'feedback', 'revise'];
   const cards = order.filter(k => d.tools[k]).map(k => {
     const t = d.tools[k], x = t.data || {};
     let inner = '';
@@ -3465,6 +3546,15 @@ async function drawTools(uid) {
           <span><b>Skills:</b> ${esc(x.skills.join(', '))}<span class="hint">Skills of yours the ad asks for, listed plainly for an applicant tracking system.</span></span></label>` : ''}
         ${(x.missing || []).length ? `<p class="hint">The ad also asks for ${esc(x.missing.join(', '))}. They are not on your resume; add one only if it is true.</p>` : ''}
         <button data-icon="download" class="act primary" onclick="downloadTailored()">Download tailored resume</button>`;
+    } else if (k === 'own_words') {
+      inner = `<p class="hint">From your words:</p><p class="was">${esc(x.words || '')}</p>
+        ${(x.edits || []).map((e, i) => `<div class="ver"><span>${e.quote
+            ? `<span class="was">${esc(e.quote)}</span>` : `<span class="hint">A new bullet under ${esc(e.where)}:</span>`}
+          <span class="now">${esc(e.suggestion)}</span><span class="hint">${esc(e.why)}</span></span>
+          <button type="button" class="act" data-icon="check" onclick="applyOwnEdit(${i}, this)">Apply to the tailored resume</button>
+          ${figs(e.new_figures)}${(e.problems || []).map(pb => `<div class="chk bad">${esc(pb)}</div>`).join('')}</div>`).join('')
+          || '<p class="hint">No edits: nothing in your words fits a line of the resume.</p>'}
+        <p class="hint">Apply one, then read it in place; change anything on the Resume page with Edit.</p>`;
     } else if (k === 'keywords') {
       const rows = x.keywords || [];
       inner = `<div class="kw">${rows.map(r => `<span class="kwi ${r.in_resume ? 'yes' : 'no'}">${esc(r.keyword)}
@@ -6529,6 +6619,57 @@ let apps = null, appStage = '';
 const shortDay = iso => iso ? new Date(iso.slice(0, 10) + 'T12:00').toLocaleDateString(undefined,
   {month: 'short', day: 'numeric'}) : '';
 
+// "Review your rejections" on My applications (api.rejection_review): read
+// when it is opened, from the newest rejections.
+$('rej-review').addEventListener('toggle', async () => {
+  if (!$('rej-review').open) return;
+  const box = $('rej-out');
+  const r = await api('/api/applications/rejections');
+  if (!r.ok) { box.innerHTML = `<p class="err">${esc(cap(await r.text()))}</p>`; return; }
+  const d = await r.json();
+  if (!d.count) { box.innerHTML = '<p class="hint">No rejections yet: when an employer turns one down, set its status to rejected and it is read here.</p>'; return; }
+  const sc = d.scores, v = x => x == null ? '-' : x;
+  box.innerHTML = `<p class="hint">Read from your newest ${d.count} rejection${d.count === 1 ? '' : 's'}${
+      d.enough ? '' : `: ${d.wanted} to ${d.max} show a pattern better than ${d.count}`}.</p>
+    ${d.checklist.map(c => `<div class="gate ${c.ok ? 'pass' : 'fail'}"><b>${c.ok ? 'Fine' : 'Check'}:</b>
+      ${esc(c.title)}. <span class="hint">${esc(c.detail)}</span>${c.items.length
+        ? `<ul>${c.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}</div>`).join('')}
+    <h4>How they scored</h4>
+    <p class="hint">Rejected: Match ${v(sc.rejected.match)}, Fit ${v(sc.rejected.fit)}, AI ${v(sc.rejected.ai)}${
+      sc.interview_count ? `. Reached an interview (${sc.interview_count}): Match ${v(sc.interviews.match)},
+      Fit ${v(sc.interviews.fit)}, AI ${v(sc.interviews.ai)}` : ''}. Far lower scores say the jobs were a
+      stretch; similar ones point at the resume or the timing.</p>
+    <div class="tbl-wrap"><table class="data"><tr><th>Job</th><th>Applied</th><th>Match</th><th>Fit</th>
+      <th>AI</th><th>ATS</th><th>Missing</th><th>The AI's concerns</th></tr>
+      ${d.rejections.map(x => `<tr><td><a onclick="openRole('${x.uid}', 'application')">${esc(x.title)}</a>
+        <span class="hint">${esc(x.company)}</span></td><td>${esc(shortDay(x.applied_at))}</td>
+        <td>${v(x.match)}</td><td>${v(x.fit)}</td><td>${v(x.ai)}</td><td>${v(x.ats)}</td>
+        <td>${esc(x.missing.join(', '))}</td><td>${esc(x.concerns.join(' · '))}</td></tr>`).join('')}</table></div>`;
+});
+
+// The Dashboard's "Your applications": how they went (api.application_funnel).
+function drawFunnel(f) {
+  $('app-funnel').hidden = !f || !f.applications;
+  if (!f || !f.applications) return;
+  const n = x => x.toLocaleString();
+  const share = x => f.applications ? `${Math.round(x / f.applications * 100)}% of them` : '';
+  const tile = (k, v, s) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div>
+    <div class="s">${s || '&nbsp;'}</div></div>`;
+  $('funnel-tiles').innerHTML =
+    tile('Applications', n(f.applications), `${n(f.replied)} with a reply`) +
+    tile('Interviews', n(f.interviews), share(f.interviews)) +
+    tile('Offers', n(f.offers), share(f.offers)) +
+    tile('Rejected or closed', n(f.rejected_or_closed), share(f.rejected_or_closed)) +
+    tile('No reply yet', n(f.no_reply), share(f.no_reply)) +
+    tile(`No reply after ${f.no_reply_days} days`,
+         f.no_reply_30 ? `<span class="warnc">${n(f.no_reply_30)}</span>` : '0',
+         f.no_reply_30 ? 'worth a follow-up, or letting go' : '');
+  const plural = {viewed: 'Viewed notices', recruiter_call: 'Recruiter calls',
+                  questionnaire: 'Questionnaires', other: 'Other replies'};
+  $('reply-tiles').innerHTML = Object.keys(f.reply_labels).map(k =>
+    tile(plural[k] || f.reply_labels[k], n(f.replies[k] || 0), 'applications with one')).join('');
+}
+
 async function loadApps() {
   let d;
   try {
@@ -6537,6 +6678,7 @@ async function loadApps() {
     d = await r.json();
   } catch (e) { return; }
   apps = d;
+  drawFunnel(d.funnel);
   drawSuggested();
   $('nav-apps').hidden = !d.overdue;
   $('nav-apps').textContent = d.overdue;
@@ -6751,6 +6893,19 @@ function applicationHtml(d) {
     <span class="hint" id="ap-up-msg"></span>
     <div class="bar"><button type="button" class="act primary" data-icon="save" id="ap-save">Save application</button>
       <span class="hint" id="ap-msg">Saves the next step, the contact and the documents chosen above.</span></div>
+    <h4>Replies</h4>
+    <p class="hint">What came back short of a stage: a notice it was viewed, a recruiter's
+      call, a questionnaire. Counted on the Dashboard.</p>
+    <div class="appform">
+      <label>Reply <select id="ap-reply-kind">${Object.entries(a.reply_labels || {}).map(([k, v]) =>
+        `<option value="${k}">${esc(v)}</option>`).join('')}</select></label>
+      <label>On <input id="ap-reply-day" type="date"></label>
+      <label>Note <input id="ap-reply-note" maxlength="500" placeholder="Optional"></label>
+    </div>
+    <div class="bar"><button type="button" class="act" data-icon="plus" id="ap-reply-add">Add reply</button></div>
+    ${(a.replies || []).length ? `<ul class="appnotes">${a.replies.map(r => `<li><span class="hint">${esc(shortDay(r.on_day))} ·
+      ${esc(r.label)}</span><span class="txt">${esc(r.note)}</span>
+      <button type="button" class="act linkish" data-reply="${r.id}">Delete</button></li>`).join('')}</ul>` : ''}
     <h4>Notes</h4>
     <div class="appnote"><textarea id="ap-note" maxlength="2000" placeholder="e.g. Interview went well; they asked about telemetry"></textarea>
       <button type="button" class="act" data-icon="plus" id="ap-add">Add note</button></div>
@@ -6788,6 +6943,14 @@ function bindApplication(d) {
       letter_id: letter ? up.id : $('ap-letter').value})}),
       `The ${letter ? 'letter' : 'resume'} you sent is kept`);
   };
+  $('ap-reply-day').value = new Date().toLocaleDateString('en-CA');
+  $('ap-reply-day').max = $('ap-reply-day').value;
+  $('ap-reply-add').onclick = async () => after(await api('/api/application/reply', {method: 'POST',
+    body: form({uid: d.uid, kind: $('ap-reply-kind').value, on_day: $('ap-reply-day').value,
+                note: $('ap-reply-note').value})}), 'Reply added');
+  document.querySelectorAll('.appnotes [data-reply]').forEach(b => b.onclick = async () =>
+    after(await api('/api/application/reply', {method: 'POST', body: form({uid: d.uid, delete: b.dataset.reply})}),
+          'Reply deleted'));
   $('ap-add').onclick = async () => {
     if (!$('ap-note').value.trim()) { $('ap-note').focus(); return; }
     after(await api('/api/application/note', {method: 'POST', body: form({uid: d.uid, note: $('ap-note').value})}), 'Note added');
@@ -7113,8 +7276,10 @@ async function drawPreview() {
   $('rp-title').textContent = `${doc.title || 'A job post no longer listed'}${doc.company ? ' @ ' + doc.company : ''}`;
   $('rp-sub').textContent = `${doc.kind === 'cv' ? 'CV' : 'Tailored resume'} · ${day(doc.created_at)}`;
   $('rp-acts').innerHTML = (doc.uid ? `<button type="button" class="act" data-icon="external-link" id="rp-job">Job post</button>` : '') +
-    (doc.exists ? `<button type="button" class="act primary" data-icon="download" id="rp-pdf">PDF</button>
+    (doc.exists ? `<button type="button" class="act" data-icon="pen-line" id="rp-edit">Edit</button>
+      <button type="button" class="act primary" data-icon="download" id="rp-pdf">PDF</button>
       <button type="button" class="act" data-icon="download" id="rp-word">Word</button>` : '');
+  if ($('rp-edit')) $('rp-edit').onclick = () => editDocument(doc.id, $('rp-doc'), drawPreview);
   if ($('rp-job')) $('rp-job').onclick = () => openRole(doc.uid, doc.kind);
   if ($('rp-pdf')) { $('rp-pdf').onclick = () => artifactPdf(doc.id, true); $('rp-word').onclick = () => artifactWord(doc.id); }
   if (!doc.exists) { $('rp-doc').innerHTML = '<p class="hint">The file was recorded but is gone.</p>'; return; }

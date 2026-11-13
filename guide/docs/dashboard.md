@@ -9,6 +9,19 @@ here, from a schedule or from a terminal.
 When a follow-up on one of [your applications](applications.md) is past its
 date, a note above the buttons says which, with **Open My applications**.
 
+## Your applications
+
+Once you have applied to one job, two rows of figures show how your
+applications are going:
+
+- **Applications**, and how many had any reply; **Interviews** and **Offers**
+  (each counted once it reached that stage); **Rejected or closed**; **No reply
+  yet**: still applied, with nothing back and no reply recorded; and **No reply
+  after 30 days**, in amber, worth a follow-up or letting go.
+- The [replies you recorded](applications.md#the-application-tab) short of a
+  stage: **Viewed notices**, **Recruiter calls**, **Questionnaires** and
+  **Other replies**, each the number of applications with one.
+
 ## The buttons
 
 ![The Dashboard's buttons](images/dashboard-buttons.png)

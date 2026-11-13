@@ -163,6 +163,21 @@ prep and outreach message, rewritten with jobdork's rules.
 | **Skills to highlight** | The advert's three most important skills, the three things you did that best show them, and strong verbs for the role |
 | **Recruiter feedback** | The AI reads your resume as this post's recruiter would: strengths and gaps |
 
+Under **Your own words into resume edits**, write what you did the way you
+would say it, with your figures, and press **Turn into resume edits (AI)**.
+Employers filter out resumes that read as generic AI writing; this keeps your
+words and your numbers. The AI turns them into specific edits to this post's
+tailored resume, each a line of it reworded or a new bullet under one of its
+jobs, using only what you wrote and what is on the resume. An edit that names
+a tool or a figure you did not write is marked in red. **Apply to the tailored
+resume** writes one into it; read it in place, and change anything with
+**Edit**.
+
+A tailored resume, a CV or a cover letter has **Edit** under it: its text, to
+change in your own words and save. Its PDF and Word file follow what you
+save, and it says it was edited by you, since its checks were of the AI's
+version.
+
 Under **Revise a bullet or paragraph, or get feedback on a cover letter**,
 paste text of your own:
 
