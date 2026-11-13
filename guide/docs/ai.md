@@ -116,7 +116,8 @@ With the agent as the only reader, jobdork asks no model at all: the
 buttons only say what to ask your agent, and scans do not score job posts
 by AI afterwards (ask your agent to). The AI tools tab's editing help
 (**Tailor my resume**, **Keyword ideas (AI)**, **Skills to highlight**,
-**Recruiter feedback**, **Revise: 5 versions**) says what to ask your agent
+**Recruiter feedback**, **Revise: 5 versions**, **Turn into resume edits
+(AI)**) says what to ask your agent
 too, with **Copy**: it reads the same instructions a model would get, and
 answers you in its own chat, so nothing is saved under the tab.
 

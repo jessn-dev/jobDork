@@ -99,7 +99,10 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
   likely questions, with STAR outlines) and a recruiter message. Eight more
   tools help you prepare: a tailoring report, an interview story, a thank-you
   email, offer negotiation, an outreach message, a LinkedIn headline and
-  About, changing field, and a 30-day search plan. A second model checks
+  About, changing field, and a 30-day search plan. Whatever it writes you
+  can edit in your own words, and **Your own words into resume edits** turns
+  what you write about your work, with your figures, into edits to a
+  tailored resume. A second model checks
   each output, claim by claim, against your whole resume and the advert, and
   anything unsupported is flagged: 2.9% of claims with the recommended local
   model, measured on seven resumes in six fields
@@ -111,8 +114,13 @@ still outstanding, is in the [changelog](docs/CHANGELOG.md).
   jobdork), and an email digest.
   **My applications** keeps every job you applied to, by stage, with each
   status dated, the next step and its date, the contact, the resume and
-  letter you sent (uploaded, and read by that job's AI tools), and notes. One
-  **Add a job post** form adds a post from its link, already applied or not.
+  letter you sent (uploaded, and read by that job's AI tools), notes, and
+  replies short of a stage (a viewed notice, a recruiter's call, a
+  questionnaire). One **Add a job post** form adds a post from its link,
+  already applied or not. The Dashboard counts how your applications went
+  (interviews, offers, rejections, no reply after 30 days), and **Review
+  your rejections** finds what your newest rejections have in common, as a
+  checklist, offline.
   [My applications](https://jessn-dev.github.io/jobDork/applications/)
 - **Reaches past what it can read.** A **Search Google Jobs** link opens your
   search in Google's job results, and `jobdork dork` builds Google searches
