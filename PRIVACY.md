@@ -83,9 +83,12 @@ at the times you choose under **Settings → Schedule a run**.
 
 ### When you turn on an AI reader
 
-If you choose an AI provider on the AI page, the job adverts it reads and
-your resume (with the projects and education you added) are sent to that
-provider to be judged, reviewed or written from:
+If you choose an AI provider on the AI page, the job adverts it reads,
+your resume (with the projects and education you added) and any text you
+give an AI tool (a bullet to revise, a cover letter for feedback, your own
+words about your work) are sent to that provider to be judged, reviewed or
+written from. The replies you record on an application, and your edits to
+what the AI wrote, stay on your computer:
 
 - **Ollama** runs on a computer you choose, usually your own; nothing leaves
   your network unless you point it elsewhere.

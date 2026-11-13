@@ -70,14 +70,28 @@ nothing below imports from `web/`.
 ```sql
 roles            -- what was found, with its score, AI verdict and listing state
 role_state       -- where it sits in your pipeline (shared by copies of one job)
-artifacts        -- documents produced for it, with their gate results
+status_history   -- each status a job had, dated
+artifacts        -- documents produced for it, with their gate results (and
+                 -- `_edited` when you changed one by hand)
 runs             -- what each scan did, per source
 deleted          -- posts you deleted, so a scan does not bring them back
+dropped          -- posts a scan's filters left out, so Job posts can show them
+board_reads      -- the employer boards each scan read, and whether to the end
 activity         -- every run, from any process: progress, hosts, AI, heartbeat
 activity_events  -- each run's log lines (the last 200 runs)
 ai_outputs       -- every text a model wrote, its guard result and your rating
 llm_calls        -- every model call inside a run: purpose, seconds, ok
+notifications    -- every notification sent, for the Notifications page
+app_events       -- warnings and errors from outside any run
 meta             -- schema version
+
+-- your record and your applications
+projects, education, confirmed_skills   -- what you added on the Resume page
+applications             -- next step, contact, documents sent
+application_notes        -- dated notes, filed under the status at the time
+application_replies      -- replies short of a stage: viewed, recruiter call,
+                         -- questionnaire, other (counted on the Dashboard)
+application_suggestions  -- a coding agent's changes, waiting for your OK
 ```
 
 A new table is created by `CREATE TABLE IF NOT EXISTS` on open; a change to an
