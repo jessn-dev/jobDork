@@ -1,12 +1,11 @@
 {
- "version": "0.17.0",
+ "version": "0.17.1",
  "items": [
-  "**A tailored resume that keeps your whole career.** Every job and career break your resume dates stays on it: older jobs, or ones with less for the post, go one line each under **Earlier experience** with what carries over, and a new **every job kept** check names any still missing. A career break is no longer counted as years worked.",
-  "**A new look for it**: a headline under your name, your LinkedIn and GitHub on the contact line, skills grouped by kind right after a summary of your whole career, and the PDF set in Source Sans 3, 10 point, with dark-blue headings, so a long career fits in two pages.",
-  "**Applications you made elsewhere**: a USAJOBS link now comes in with its whole advert (one already tracked gets it from **Fetch missing adverts**, and stays applied); a resume you sent no longer reads as cut off; one upload box, and the contact saved when you add the job.",
-  "**Delete what the AI wrote**: a tailored resume or cover letter, where it is shown. **Delete** on the Resume page deleted your uploaded resume even with a tailored one chosen; it now deletes the one chosen, and says which.",
-  "**Check still open** starts at 0% and says how many postings it checks, for how many job posts.",
-  "**Updates finish on Windows and Linux**, with a What's new list after one.",
-  "**A Microsoft Store package** (waiting on its Store listing), the Linux installers signed with GPG, and each release announced in Discussions."
+  "**How your applications are going**, on the Dashboard: applications, interviews, offers, rejected or closed, no reply yet and no reply after 30 days, and the replies you record on an application (a viewed notice, a recruiter's call, a questionnaire).",
+  "**Review your rejections**, on My applications: what your newest rejections have in common, as a checklist (a resume a tracking system cannot read, skills asked for again and again, job titles never named), and their scores beside the applications that reached an interview.",
+  "**Edit what the AI wrote**: a tailored resume, a CV or a cover letter, in your own words; and **Your own words into resume edits** turns what you write about your work, with your figures, into edits to a tailored resume.",
+  "**Six more job boards**, remote jobs in every field: We Work Remotely, Jobicy, Remote OK, Remotive, Working Nomads and Dynamite Jobs. Every board is on unless you switch it off, and Job posts mixes posts from different boards.",
+  "**A fresh scan keeps the jobs you applied to**: **Run fresh scan** and **Delete all scanned posts** deleted them too. A tailored resume or cover letter now deletes in one click.",
+  "**Security**: the Docker image installs jobdork from a built wheel, and opentelemetry-api, used by the installer builds, is updated for a known vulnerability. The Linux desktop app can run in Docker for testing."
  ]
 }
