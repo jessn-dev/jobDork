@@ -94,7 +94,35 @@ def test_word_and_pdf_are_set_in_the_face_chosen():
     with zipfile.ZipFile(io.BytesIO(docx.render(md, "Resume"))) as z:
         assert '"Arial"' in z.read("word/styles.xml").decode()
     assert b"/BaseFont /Times-Roman" in pdf.render(md, font="serif")
-    assert b"/BaseFont /Helvetica " in pdf.render(md)
+    # Sans is Source Sans 3, embedded as a subset (output/ttf.py).
+    assert b"/BaseFont /JDKSAA+SourceSans3-Regular" in pdf.render(md)
+
+
+def test_the_resume_font_is_embedded_small_and_read_as_text():
+    """Source Sans 3 is embedded with only the glyphs a resume can use, and
+    its own widths: the layout measures with the font it draws in. Bold and
+    plain words share a line and are read in order."""
+    from jobdork.output import ttf
+
+    md = ("# Jane Doe\n## SKILLS\n**Cloud & Infrastructure:** Azure, GCP\n"
+          "## EARLIER EXPERIENCE\n- **Developer**, Acme (2016): Built apps\n")
+    data = pdf.render(md)
+    assert b"/Subtype /TrueType" in data and b"/FontFile2" in data
+    assert len(data) < 200_000, "the font is cut down, not embedded whole (860 KB)"
+    font = ttf.load(pdf.SANS_FILES[0])
+    assert pdf.sans().widths[False][ord("M")] == font.advance("M") != 833
+    small = font.subset("AB")
+    assert len(small) < len(font.data) / 4
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        return
+    text = PdfReader(io.BytesIO(data)).pages[0].extract_text()
+    assert "Cloud & Infrastructure: Azure, GCP" in text
+    assert "Developer, Acme (2016): Built apps" in text
+    with zipfile.ZipFile(io.BytesIO(docx.render(md, "Resume"))) as z:
+        body = z.read("word/document.xml").decode()
+    assert "<w:b/>" in body.split("Cloud &amp; Infrastructure:")[0][-300:]
 
 
 def test_the_font_is_saved_and_read_back():

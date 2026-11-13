@@ -39,7 +39,10 @@ def test_the_contact_line_comes_from_the_resume():
     info = resume_doc.contact(HEAD)
     assert info == {"name": "Jesse Ngolab", "location": "Chicago, IL",
                     "phone": "(312) 555-0199", "email": "jesse@example.com",
-                    "profile": "linkedin.com/in/jesse"}
+                    "profile": "linkedin.com/in/jesse", "profiles": ["linkedin.com/in/jesse"]}
+    # A GitHub beside LinkedIn is kept, LinkedIn first: it was dropped.
+    both = resume_doc.contact("Jo Bloggs\njo@example.com | github.com/jo | linkedin.com/in/jo")
+    assert both["profiles"] == ["linkedin.com/in/jo", "github.com/jo"]
     # "2019-2023" and "1,200" are not phone numbers.
     assert resume_doc.contact("Jo Bloggs\nWorked 2019-2023 on 1,200 things")["phone"] == ""
 
@@ -60,13 +63,14 @@ def test_the_template_is_laid_out_in_order():
            "education": [{"credential": "B.S.", "school": "UT", "location": "",
                           "start": "", "end": "2017"}],
            "certifications": [], "projects": []}
-    md = resume_doc.to_markdown(resume_doc.contact(HEAD), doc)
-    # The template's header: name, "Phone | Email | Location", then the website.
+    md = resume_doc.to_markdown(resume_doc.contact(HEAD), {**doc, "headline": "Data Analyst"})
+    # The header: name, the headline in bold, then everything to reach them on one line.
     assert md.splitlines()[:3] == [
-        "# Jesse Ngolab",
-        "(312) 555-0199 | jesse@example.com | Chicago, IL", "linkedin.com/in/jesse"]
-    order = [md.index(h) for h in ("## PROFESSIONAL SUMMARY", "## EXPERIENCE",
-                                   "## SKILLS", "## EDUCATION")]
+        "# Jesse Ngolab", "**Data Analyst**",
+        "(312) 555-0199 | jesse@example.com | Chicago, IL | linkedin.com/in/jesse"]
+    # Skills right under the summary.
+    order = [md.index(h) for h in ("## PROFESSIONAL SUMMARY", "## SKILLS",
+                                   "## EXPERIENCE", "## EDUCATION")]
     assert order == sorted(order)
     # The dates after a tab (set at the right margin), the place under the title.
     assert "### Analyst\tMarch 2022 - Present\nAcme, Austin, TX\n- Did it." in md
@@ -74,6 +78,32 @@ def test_the_template_is_laid_out_in_order():
     assert "## SKILLS\nSQL | Python" in md
     assert "## CERTIFICATIONS" not in md, "an empty section is left out"
     assert resume_doc.name_of(md) == "Jesse Ngolab"
+
+
+def test_skills_in_groups_and_earlier_jobs_in_one_line_each():
+    """Skills grouped by kind, and older jobs one line each under Earlier
+    experience, after a resume the person preferred (2026-11-12). A brief job
+    newer than one in full stays among the jobs, so the dates read in order."""
+    def job(t, s, e, brief, b=("Did it.",)):
+        return {"title": t, "company": "Acme", "location": "", "start": s, "end": e,
+                "brief": brief, "bullets": list(b)}
+
+    doc = {"summary": "S.", "skills": ["SQL", "Python", "AWS"],
+           "skill_groups": [{"name": "Languages", "skills": ["SQL", "Python"]},
+                            {"name": "Cloud", "skills": ["AWS"]}],
+           "experience": [job("Engineer", "2022", "Present", False),
+                          job("Support", "2020", "2021", True),
+                          job("Analyst", "2018", "2019", False),
+                          job("Developer", "Jan 2016", "Jun 2017", True,
+                              ("Built Symfony apps.",)),
+                          job("Agent", "Sep 2015", "Dec 2015", True, ())],
+           "education": [], "certifications": [], "projects": []}
+    md = resume_doc.to_markdown({"name": "Jo Bloggs"}, doc)
+    assert "## SKILLS\n**Languages:** SQL, Python\n**Cloud:** AWS\n" in md
+    assert "### Support\t2020 - 2021" in md, "brief, but newer than a job in full"
+    assert ("## EARLIER EXPERIENCE\n- **Developer**, Acme (January 2016 - June 2017): "
+            "Built Symfony apps\n- **Agent**, Acme (September 2015 - December 2015)\n") in md
+    assert md.index("### Analyst") < md.index("## EARLIER EXPERIENCE")
 
 
 def test_the_pdf_is_real_text_in_reading_order():
@@ -151,20 +181,20 @@ def _headings(md):
 def test_projects_are_placed_and_named_by_career_stage_and_industry():
     info = {"name": "Jo Bloggs"}
     assert _headings(resume_doc.to_markdown(info, _doc("student", "tech"))) == [
-        "PROFESSIONAL SUMMARY", "EDUCATION", "TECHNICAL PROJECTS", "EXPERIENCE",
-        "SKILLS"]
+        "PROFESSIONAL SUMMARY", "SKILLS", "EDUCATION", "TECHNICAL PROJECTS",
+        "EXPERIENCE"]
     assert _headings(resume_doc.to_markdown(info, _doc("career_changer", "creative"))) == [
-        "PROFESSIONAL SUMMARY", "PORTFOLIO HIGHLIGHTS", "EXPERIENCE", "SKILLS",
+        "PROFESSIONAL SUMMARY", "SKILLS", "PORTFOLIO HIGHLIGHTS", "EXPERIENCE",
         "EDUCATION"]
     assert _headings(resume_doc.to_markdown(info, _doc("freelancer", "tech"))) == [
-        "PROFESSIONAL SUMMARY", "EXPERIENCE", "SELECTED CLIENT PROJECTS", "SKILLS",
+        "PROFESSIONAL SUMMARY", "SKILLS", "EXPERIENCE", "SELECTED CLIENT PROJECTS",
         "EDUCATION"]
     assert "CONSULTING HIGHLIGHTS" in _headings(
         resume_doc.to_markdown(info, _doc("freelancer", "business")))
     assert "KEY INITIATIVES" in _headings(
         resume_doc.to_markdown(info, _doc("student", "business")))
     assert _headings(resume_doc.to_markdown(info, _doc("experienced", "tech"))) == [
-        "PROFESSIONAL SUMMARY", "EXPERIENCE", "SKILLS", "EDUCATION"]
+        "PROFESSIONAL SUMMARY", "SKILLS", "EXPERIENCE", "EDUCATION"]
     # A stage the model made up is treated as experienced: nothing added.
     assert "PROJECTS" not in resume_doc.to_markdown(info, _doc("guru", "tech"))
 

@@ -41,7 +41,7 @@ def test_the_page_budget_follows_the_years_and_the_kind_of_work():
     assert length.budget(3, title="Accounts Payable Clerk")[0] == 1
 
 
-def test_jobs_older_than_fifteen_years_are_left_out_unless_they_are_all_there_is():
+def test_jobs_older_than_fifteen_years_are_told_apart_unless_they_are_all_there_is():
     jobs = [_job("New", "2020", "Present"), _job("Mid", "2012", "2019"),
             _job("Old", "2001", "2008")]
     kept, old = length.recent(jobs, this_year=2026)
@@ -51,6 +51,27 @@ def test_jobs_older_than_fifteen_years_are_left_out_unless_they_are_all_there_is
     assert [j["title"] for j in kept] == ["Old"] and not old
     # A job with no end year is current.
     assert length.recent([_job("Undated", "", "")], this_year=2026)[0]
+
+
+def test_an_old_job_stays_in_one_line_and_none_is_left_out_for_space():
+    """Earlier jobs were left out, where the person wanted them compressed
+    (2026-11-12): an old one goes to one line under Earlier experience with
+    what carries over, and fitting the page does the same to the oldest
+    jobs rather than lose one."""
+    doc = {"summary": "S.", "skills": ["SQL"],
+           "experience": [_job("New", "2020", "Present"), _job("Old", "2001", "2008")],
+           "education": [], "certifications": [], "projects": []}
+    fitted = length.fit(doc, _render, years=20, this_year=2026)
+    assert [j["title"] for j in doc["experience"]] == ["New", "Old"]
+    old = doc["experience"][1]
+    assert old["brief"] and len(old["bullets"]) == 1
+    assert any("kept in one line: Old" in x for x in fitted.left_out)
+
+    many = {"summary": "S.", "skills": [], "education": [], "certifications": [], "projects": [],
+            "experience": [_job(f"J{i}", f"{2025 - i}", f"{2026 - i}", 7) for i in range(14)]}
+    length.fit(many, _render, years=6, this_year=2026)
+    assert len(many["experience"]) == 14, "a job is never left out"
+    assert not many["experience"][0].get("brief"), "the newest stays in full"
 
 
 def test_bullets_are_capped_by_how_recent_the_job_is():
@@ -93,7 +114,7 @@ def test_the_dates_sit_at_the_right_margin_in_the_pdf():
     # lambda: record where each piece of text starts on the page.
     reader.pages[0].extract_text(visitor_text=lambda t, cm, tm, f, s: places.setdefault(
         t.strip(), tm[4]) if t.strip() else None)
-    width = pdf.text_width(b"March 2022 - Present", pdf.BODY, bold=True)
+    width = pdf.text_width(b"March 2022 - Present", pdf.BODY, bold=True, face=pdf.sans())
     assert abs(places["March 2022 - Present"] + width - (pdf.PAGE_W - pdf.MARGIN)) < 1
     assert abs(places["Analyst"] - pdf.MARGIN) < 1
 
@@ -119,12 +140,12 @@ def test_the_word_file_is_the_template_in_real_paragraphs():
     import xml.dom.minidom
     xml.dom.minidom.parseString(body)                 # well-formed, escapes and all
     assert "<w:tbl" not in body and "<w:txbx" not in body and "header" not in "".join(names)
-    assert 'w:ascii="Arial"' in styles and 'w:val="22"' in styles
-    assert 'w:top="1008"' in body and 'w:w="12240"' in body
+    assert 'w:ascii="Arial"' in styles and 'w:val="20"' in styles
+    assert 'w:top="720"' in body and 'w:w="12240"' in body
     text = [html.unescape(t) for t in re.findall(r"<w:t[^>]*>([^<]*)</w:t>", body)]
-    assert text[:3] == ["Jo Bloggs", "(312) 555-0199 | jo@example.com | Chicago, IL",
-                        "linkedin.com/in/jo"]
-    order = [text.index(h) for h in ("PROFESSIONAL SUMMARY", "EXPERIENCE", "SKILLS",
+    assert text[:2] == ["Jo Bloggs",
+                        "(312) 555-0199 | jo@example.com | Chicago, IL | linkedin.com/in/jo"]
+    order = [text.index(h) for h in ("PROFESSIONAL SUMMARY", "SKILLS", "EXPERIENCE",
                                      "EDUCATION", "CERTIFICATIONS", "AWARDS & VOLUNTEER WORK")]
     assert order == sorted(order)
     assert "Analyst &amp; &lt;lead&gt;." in body

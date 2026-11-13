@@ -292,10 +292,16 @@ pictures taken.
   code is copied. The Resume page's layout follows its dashboard.
 - Place names from [GeoNames](https://www.geonames.org/) (CC BY 4.0); icons
   from [Lucide](https://lucide.dev/) (ISC).
+- **[Source Sans 3](https://github.com/adobe-fonts/source-sans)** by Adobe
+  (SIL Open Font License 1.1): the font a tailored resume's PDF is set in,
+  shipped unchanged in [`jobdork/data/fonts/`](jobdork/data/fonts/) with its
+  licence; each PDF embeds only the glyphs it can use.
 
 ## License
 
 [GNU General Public License v3.0 or later](LICENSE): you may use, change and
 share jobdork, and anything you distribute that is built from it must be
 shared under the same licence, with its source. The humanizer rules keep
-their MIT licence ([jobdork/data/humanizer/LICENSE](jobdork/data/humanizer/LICENSE)).
+their MIT licence ([jobdork/data/humanizer/LICENSE](jobdork/data/humanizer/LICENSE)),
+and Source Sans 3 the SIL Open Font License
+([jobdork/data/fonts/OFL-SourceSans3.md](jobdork/data/fonts/OFL-SourceSans3.md)).

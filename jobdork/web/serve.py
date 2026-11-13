@@ -863,6 +863,13 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 if not raw.isdigit():
                     return self._reject(400, "not a cover letter id")
                 return self._wrap(api_mod.delete_letter, cfg_holder["cfg"], int(raw))
+            if path == "/api/documents/delete":
+                # A cover letter, tailored resume or CV the AI wrote, by its id.
+                form = self._body()
+                raw = str((form or {}).get("id") or "")
+                if not raw.isdigit():
+                    return self._reject(400, "not a document id")
+                return self._wrap(api_mod.delete_document, cfg_holder["cfg"], int(raw))
             if path == "/api/own-board":
                 form = self._body()
                 if form is None:

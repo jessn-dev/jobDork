@@ -12,8 +12,9 @@ package to lock and scan in the installers.
 
 **What an applicant tracking system needs, it gets:** real paragraphs in
 reading order, no tables, no text boxes, no headers or footers, the contact
-lines in the body. Arial 11 point, the name at 18, 0.7 inch margins, US
-Letter, the dates at the right margin. Unlike the PDF, any script is kept as
+lines in the body. Arial 10 point, the name at 20, 0.5 inch margins, US
+Letter, the dates at the right margin, the headline and headings in dark
+blue with a thin rule under each heading, as the PDF. Unlike the PDF, any script is kept as
 it is: Word draws it with the fonts the reader's computer has.
 
 Input is the same small Markdown (see output/pdf.py).
@@ -27,11 +28,12 @@ import time
 import zipfile
 from xml.sax.saxutils import escape
 
-# Twentieths of a point: US Letter, 0.7 inch margins (1008), the text width
+# Twentieths of a point: US Letter, 0.5 inch margins (720), the text width
 # between them, where the dates' right-aligned tab stop goes.
-PAGE_W, PAGE_H, MARGIN = 12240, 15840, 1008
+PAGE_W, PAGE_H, MARGIN = 12240, 15840, 720
 TEXT_W = PAGE_W - 2 * MARGIN
-BODY, NAME = 22, 36                       # half-points: 11 and 18
+BODY, NAME, HEAD = 20, 40, 21             # half-points: 10, 20 and 10.5
+ACCENT = "1F4E79"                         # pdf.ACCENT
 
 _BOLD_MARKS = re.compile(r"\*\*(.+?)\*\*")
 # Characters XML 1.0 cannot carry at all; a resume never needs them.
@@ -49,10 +51,18 @@ def _text(value: str) -> str:
 _FONT = '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial" w:cs="Arial"/>'
 
 
-def _run(text: str, bold: bool = False, size: int = 0) -> str:
+def _run(text: str, bold: bool = False, size: int = 0, accent: bool = False) -> str:
     size = size or BODY
-    props = f'{_FONT}{"<w:b/>" if bold else ""}<w:sz w:val="{size}"/><w:szCs w:val="{size}"/>'
+    colour = f'<w:color w:val="{ACCENT}"/>' if accent else ""
+    props = (f'{_FONT}{"<w:b/>" if bold else ""}{colour}'
+             f'<w:sz w:val="{size}"/><w:szCs w:val="{size}"/>')
     return f'<w:r><w:rPr>{props}</w:rPr><w:t xml:space="preserve">{_text(text)}</w:t></w:r>'
+
+
+def _rich(text: str) -> str:
+    """"**Cloud:** Azure" as a bold run and a plain one."""
+    parts = re.split(r"\*\*(.+?)\*\*", text)
+    return "".join(_run(p, bold=n % 2 == 1) for n, p in enumerate(parts) if p)
 
 
 def _tab() -> str:
@@ -60,8 +70,12 @@ def _tab() -> str:
 
 
 def _para(runs: str, *, centre: bool = False, before: int = 0, after: int = 0,
-          tab: bool = False, bullet: bool = False, keep: bool = False) -> str:
+          tab: bool = False, bullet: bool = False, keep: bool = False,
+          rule: bool = False) -> str:
     props = []
+    if rule:
+        props.append(f'<w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" '
+                     f'w:color="{ACCENT}"/></w:pBdr>')
     if bullet:
         props.append('<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>')
     if keep:
@@ -87,12 +101,15 @@ def _body(markdown: str) -> str:
             header = True
             continue
         if header and not line.startswith("#"):
-            out.append(_para(_run(line.strip()), centre=True))
+            # The headline (bold in the Markdown), then the contact line.
+            headline = raw.strip().startswith("**") and raw.strip().endswith("**")
+            out.append(_para(_run(line.strip(), bold=headline, accent=headline,
+                                  size=HEAD if headline else 0), centre=True))
             continue
         header = False
         if line.startswith("## "):
-            out.append(_para(_run(line[3:].strip().upper(), bold=True),
-                             before=180, after=80, keep=True))
+            out.append(_para(_run(line[3:].strip().upper(), bold=True, size=HEAD, accent=True),
+                             before=160, after=80, keep=True, rule=True))
         elif line.startswith("### "):
             left, _, right = line[4:].strip().partition("\t")
             runs = _run(left.strip(), bold=True)
@@ -100,9 +117,9 @@ def _body(markdown: str) -> str:
                 runs += _tab() + _run(right.strip(), bold=True)
             out.append(_para(runs, before=80, tab=True, keep=True))
         elif re.match(r"^\s*[-*] ", line):
-            out.append(_para(_run(re.sub(r"^\s*[-*] ", "", line)), bullet=True))
+            out.append(_para(_rich(re.sub(r"^\s*[-*] ", "", raw.rstrip())), bullet=True))
         else:
-            out.append(_para(_run(line.strip())))
+            out.append(_para(_rich(raw.strip())))
     return "".join(out)
 
 

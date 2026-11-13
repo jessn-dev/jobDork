@@ -69,7 +69,9 @@ def ld_json_blocks(page: str) -> list[str]:
         close = low.find("</script", tag_end)
         if close < 0:
             return out
-        if "application/ld+json" in tag:
+        # Unescaped first: USAJOBS writes the type as "application/ld&#x2B;json",
+        # and every one of its job posts was read as having none (2026-11-12).
+        if "application/ld+json" in html.unescape(tag):
             out.append(page[tag_end + 1:close])
         at = close + 8
 

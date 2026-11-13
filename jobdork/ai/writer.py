@@ -55,6 +55,7 @@ TUTORIAL_GATE = "tutorial projects"
 LENGTH_GATE = "page count"
 READABLE_GATE = "readable by tracking systems"
 GUARD_GATE = "hallucination check"
+JOBS_GATE = "every job kept"
 OFF = "turned off in the AI settings"
 
 # ── prompts ───────────────────────────────────────────────────────────────────
@@ -172,13 +173,20 @@ TAILOR_SCHEMA = {
                                              "freelancer", "experienced"]},
         "industry": {"type": "string", "enum": ["tech", "creative", "business", "other"]},
         "stage_reason": {"type": "string"},
+        "headline": {"type": "string"},
         "summary": {"type": "string"},
         "skills": {"type": "array", "items": {"type": "string"}},
+        "skill_groups": {"type": "array", "items": {
+            "type": "object",
+            "properties": {"name": _ENTRY, "skills": {"type": "array", "items": _ENTRY}},
+            "required": ["name", "skills"], "additionalProperties": False}},
         "experience": {"type": "array", "items": {
             "type": "object",
             "properties": {"title": _ENTRY, "company": _ENTRY, "location": _ENTRY,
-                           "start": _ENTRY, "end": _ENTRY, "bullets": _BULLETS},
-            "required": ["title", "company", "location", "start", "end", "bullets"],
+                           "start": _ENTRY, "end": _ENTRY, "bullets": _BULLETS,
+                           "brief": {"type": "boolean"}},
+            "required": ["title", "company", "location", "start", "end", "bullets",
+                         "brief"],
             "additionalProperties": False}},
         "education": {"type": "array", "items": {
             "type": "object",
@@ -193,8 +201,9 @@ TAILOR_SCHEMA = {
             "properties": {"name": _ENTRY, "bullets": _BULLETS},
             "required": ["name", "bullets"], "additionalProperties": False}},
     },
-    "required": ["stage", "industry", "stage_reason", "summary", "skills",
-                 "experience", "education", "certifications", "awards", "projects"],
+    "required": ["stage", "industry", "stage_reason", "headline", "summary", "skills",
+                 "skill_groups", "experience", "education", "certifications", "awards",
+                 "projects"],
     "additionalProperties": False,
 }
 
@@ -217,26 +226,46 @@ bullets only where the resume says it was done in that job. Each project's \
 "bullets" follow STAR: the situation, what was done, and the result, in one \
 to three bullets, from the resume or the PROJECTS notes only.
 
-"summary": two or three plain sentences: their role, years of experience as \
-the length in <<MEASURED>> gives them, written out (none when it is not \
-given; never add up dates \
-yourself), one or two strengths the resume shows, and the kind of role they \
+"headline": one line for under the name: this job's title as the resume \
+can claim it, then "|" and the area of work the resume shows most for it \
+("DevOps Engineer | Cloud Infrastructure & Automation"), at most 70 \
+characters, words from the resume or the advert only. \
+"summary": three or four plain sentences about the whole career: the years \
+of experience in all as the length in <<MEASURED>> gives them, written out \
+("over 14 years"; none when it is not given; never add up dates yourself), \
+then the work done across it, the resume's tools this advert asks for (three \
+to six, named), what the person is strongest at, and the kind of role they \
 want (this one). "skills": the resume's skills as short plain terms, the \
-ones this advert asks for first, no ratings. "experience": the resume's jobs \
-from the last 15 years, newest first, with "title" and "company" exactly as \
-the resume writes them, "location" and "start"/"end" as the resume gives them \
-("" when it does not; "Present" for a current job). Its "bullets": three to \
-seven, more for the newest job and fewer for older ones, each an action verb, \
-what was done, and the result the resume states, at most two lines, the ones \
-this advert cares about first; a job the advert has no use for gets three. \
+ones this advert asks for first, no ratings. "skill_groups": the same skills \
+in three to six groups by kind, each a short "name" ("Cloud & \
+Infrastructure", "CI/CD", "Languages") and its "skills", the groups this \
+advert cares about first; empty when the resume has fewer than eight \
+skills. "experience": every job and \
+every career break the resume dates, newest first, none left out: a missing \
+job is a gap in the dates an employer asks about. "title" and "company" \
+exactly as the resume writes them, "location" and "start"/"end" as the \
+resume gives them ("" when it does not; "Present" for a current job). Its \
+"bullets": three to seven for a job this advert cares about, more for the \
+newest and fewer for older ones, each an action verb, what was done, and the \
+result the resume states, at most two lines, the ones this advert cares \
+about first; "brief" false. An older job with less for this advert, or one \
+that ended more than 15 years ago, is "brief" true: one line under Earlier \
+experience, with one bullet naming what in it carries over to this job (a \
+skill, a tool, a kind of work); none when nothing does. Transferable work \
+counts: support, documentation, troubleshooting and client work carry over \
+to most jobs. A career break (caregiving, parental leave, study, health, a \
+layoff) stays in its place among the jobs as the resume writes it, "brief" \
+false, with its dates and one bullet of what was done in it when the resume \
+names any (courses, certifications): never cut it, rename it or hide it. \
 No bullet starts "Responsible for", "Helped", "Assisted", "Worked on" or \
 "Involved in": start with what was done. No "I" or "my". Vary the opening \
 verbs within a job. \
 "education", "certifications", "projects": as the resume gives them, empty \
 when it has none. "awards": awards, recognition and volunteer work the \
 resume names, empty when none. The resume is to fill one page for up to ten \
-years of experience and two after that: choose what this job needs, and cut \
-the rest. Text between <<PROJECTS>> and \
+years of experience and two after that: make room by giving older and \
+unrelated jobs fewer bullets or none, never by leaving a job out. Text \
+between <<PROJECTS>> and \
 <</PROJECTS>>, when given, is the person describing their own projects and \
 education: it counts as part of the resume. Each line there starting \
 "Education:" is schooling the resume may not show yet; list it in \
@@ -766,6 +795,29 @@ MASTER_NOTE = ("The resume between <<RESUME>> and <</RESUME>> is the person's "
                "this job needs, from anywhere in it, and leave the rest out.\n\n")
 
 
+def _jobs_left_out(resume_text: str, experience: list[dict]) -> list[str]:
+    """The resume's dated jobs and career breaks the tailored one does not
+    show, each as the resume names it. Matched by when it started: a model
+    may shorten a title, but it keeps the dates (2026-11-12: a career break
+    and four earlier jobs were left out, though told to keep them)."""
+    from ..search import resume as resume_mod
+
+    def started(text: str) -> tuple[int, int]:
+        m = re.search(r"([A-Za-z]{3,})\.?\s+((?:19|20)\d\d)", text or "")
+        if m and m.group(1)[:3].lower() in resume_mod._MONTHS:
+            return int(m.group(2)), resume_mod._MONTHS[m.group(1)[:3].lower()]
+        year = re.search(r"(?:19|20)\d\d", text or "")
+        return (int(year.group(0)), 0) if year else (0, 0)
+
+    shown = {started(j.get("start", "")) for j in experience}
+    out = []
+    for start, _end, m in resume_mod.work_ranges(resume_text):
+        if start in shown or (start[0], 0) in shown:
+            continue
+        out.append(f"{resume_mod._entry_line(resume_text, m)} ({m.group(0)})")
+    return out
+
+
 def tailored_resume(settings: Settings, row, resume_text: str,
                     check: bool = True, notes: str = "", projects=(),
                     education=(), master: bool = False) -> Tailored:
@@ -800,8 +852,16 @@ def tailored_resume(settings: Settings, row, resume_text: str,
 
     dropped, unmatched = [], []
     doc = {"summary": unblock(_plain(raw.get("summary"), 1200), work),
-           "skills": [], "experience": [], "education": [],
+           "skills": [], "skill_groups": [], "experience": [], "education": [],
            "certifications": [], "projects": []}
+    # The headline's words must be the resume's or the advert's: it is a
+    # claim about the person, set in bold under their name.
+    headline = _plain(raw.get("headline"), 90)
+    if headline and all(_found(w, record + "\n" + advert)
+                        for w in re.findall(r"[^\W_]+", headline)):
+        doc["headline"] = headline
+    elif headline:
+        dropped.append(f"headline: {headline}")
     seen = set()
     for skill in raw.get("skills") or []:
         skill = _plain(skill, 60)
@@ -816,6 +876,16 @@ def tailored_resume(settings: Settings, row, resume_text: str,
             doc["skills"].append(skill)
         else:
             dropped.append(f"skill: {skill}")
+    kept = {x.lower() for x in doc["skills"]}
+    for group in (raw.get("skill_groups") or [])[:6]:
+        if not isinstance(group, dict):
+            continue
+        # Only skills already kept above: a group cannot bring one back in.
+        names = [x for x in (_plain(v, 60) for v in (group.get("skills") or [])[:12])
+                 if x and x.lower() in kept]
+        if names:
+            doc["skill_groups"].append({"name": _plain(group.get("name"), 40),
+                                        "skills": names})
     for job in (raw.get("experience") or [])[:15]:
         if not isinstance(job, dict):
             continue
@@ -829,8 +899,9 @@ def tailored_resume(settings: Settings, row, resume_text: str,
             "title": title, "company": company,
             "location": _plain(job.get("location"), 80),
             "start": _plain(job.get("start"), 30), "end": _plain(job.get("end"), 30),
-            "bullets": [b for b in (_plain(x, 400) for x in (job.get("bullets") or [])[:6])
-                        if b]})
+            "brief": bool(job.get("brief")),
+            "bullets": [b for b in (_plain(x, 400) for x in (job.get("bullets") or [])[:7])
+                        if b][:1 if job.get("brief") else 7]})
     for ed in (raw.get("education") or [])[:6]:
         if not isinstance(ed, dict):
             continue
@@ -899,7 +970,8 @@ def tailored_resume(settings: Settings, row, resume_text: str,
     # a self-test of output/pdf.py, and the contact details the resume gives.
     readback = readable.check_pdf(pdf.render(markdown))
     # Checked without the name and the lines under it: the resume's own, copied by script.
-    body = "\n".join(markdown.splitlines()[1 + len(resume_doc.header_lines(info)):])
+    body = "\n".join(markdown.splitlines()[
+        1 + len(resume_doc.header_lines(info, doc.get("headline", ""))):])
     report = (guard.check(settings, body, {"resume": record,
                                            "advert": guard.advert_source(row)})
               if check else guard.GuardReport(error=OFF))
@@ -949,8 +1021,16 @@ def tailored_resume(settings: Settings, row, resume_text: str,
         + (f"; {', '.join(c.title.lower() for c in readback.failed + readback.warned)}"
            if readback.failed or readback.warned else ""),
         items=[f"{c.title}: {c.detail}. {c.advice}" for c in readback.failed + readback.warned])
+    missing = _jobs_left_out(resume_text, doc["experience"])
+    jobs_gate = gates_mod.Gate(
+        JOBS_GATE, passed=not missing,
+        detail=(f"{len(missing)} of your resume's jobs or breaks left out; an employer "
+                "sees a gap in the dates. Write it again, or add them by hand in the "
+                "Word file" if missing
+                else "every dated job and career break in your resume is on it"),
+        items=missing)
     checks = gates_mod.run_all(body, "cv", resume_text=record)
-    result = Tailored(text=markdown, gates=[*checks, facts, placed, tutorial_gate,
+    result = Tailored(text=markdown, gates=[*checks, facts, jobs_gate, placed, tutorial_gate,
                                             length_gate, readable_gate, guard_gate(report)],
                       guard=report, markdown=markdown)
     result.dropped, result.unmatched = dropped, unmatched

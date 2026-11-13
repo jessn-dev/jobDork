@@ -20,9 +20,9 @@ button that confirms a delete is red throughout.
 | Button | What it does |
 |---|---|
 | **Run a scan** | Reads every source for new job posts and checks them against your rules. Posts you have seen before are updated, not repeated. Once a day is plenty: boards are read slowly on purpose, and scanning more often gets you blocked for a while |
-| **Fetch missing adverts** | Some sources send only a short summary. This fetches the full advert from the posting page, so the rules and the scores can read it |
+| **Fetch missing adverts** | Some sources send only a short summary. This fetches the full advert from the posting page, so the rules and the scores can read it. A post you already acted on (applied, say) keeps its status even when the fuller advert misses a rule |
 | **Re-apply filters** | Checks every stored post against your current [Search](search.md) settings again. Changing a setting does this by itself; this is for when you want to be sure |
-| **Check still open** | Asks each posting whether the job is still up, and closes the ones that are gone (see [listing tags](statuses.md#is-it-still-open)) |
+| **Check still open** | Asks each posting whether the job is still up, and closes the ones that are gone (see [listing tags](statuses.md#is-it-still-open)). A job found on several sites is checked at each, so it counts more postings than Job posts shows jobs; one checked in the last 12 hours is left as it is, and the run's first line says how many of each |
 | **AI: judge top job posts** | The AI reads your best-scored posts against your resume and gives each an [AI score](scores.md#ai-the-models-opinion). Needs an AI on the [AI page](ai.md). Buttons with an amber icon use the AI, which may cost money with a paid provider |
 | **Run fresh scan** | *Deletes.* Deletes every job post scans found (with its status, notes and AI verdict, including posts you applied to), then scans from nothing. The database is backed up first, and you confirm the number before anything goes |
 | **Delete all scanned posts** | *Deletes.* The same delete, without a scan after it |

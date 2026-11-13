@@ -42,7 +42,8 @@ and listed on [My applications](applications.md#add-a-job-post-you-applied-to),
 where the same form starts ticked, with the files you sent.
 
 - A post on Greenhouse, Lever, Ashby, Breezy, SmartRecruiters, Workday,
-  Oracle, Eightfold or Taleo Enterprise comes in whole.
+  Oracle, Eightfold or Taleo Enterprise comes in whole, and so does one on
+  USAJOBS, duties and qualifications included.
 - Any other page is read from what it publishes for search engines, which
   most careers sites do.
 - When a page cannot be read (it is drawn by script, it keeps the post

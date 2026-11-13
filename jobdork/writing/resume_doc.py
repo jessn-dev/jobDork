@@ -4,13 +4,18 @@ jobdork.writing.resume_doc
 The tailored resume's shape: the AI-friendly template, its file name, and
 the contact line.
 
-The layout follows Indeed's free resume template, rebuilt here (nothing of its
-file is copied): one column, the name, then "Phone | Email | Location" and a
-website line, centred; then PROFESSIONAL SUMMARY, EXPERIENCE, SKILLS,
-EDUCATION, CERTIFICATIONS and AWARDS & VOLUNTEER WORK in that order (projects
+The layout is one column: the name, a headline under it ("DevOps Engineer |
+Cloud Infrastructure"), then "Phone | Email | Location | profiles" on one
+line, centred; then PROFESSIONAL SUMMARY, SKILLS (grouped by kind when the
+model groups them: "Cloud & Infrastructure: Azure, GCP"), EXPERIENCE, EARLIER
+EXPERIENCE, EDUCATION, CERTIFICATIONS and AWARDS & VOLUNTEER WORK (projects
 placed by career stage, below); each job as its title with the dates at the
-right margin, then "Company, Location", then bullets; skills separated by
-" | ". Its length follows Indeed's guidance (writing/length.py).
+right margin, then "Company, Location", then bullets. An older job, or one
+this post has no use for, is one line under EARLIER EXPERIENCE, never left
+out. Skills near the top, the headline and EARLIER EXPERIENCE follow a resume
+the person preferred (2026-11-12); the rest is Indeed's free template,
+rebuilt here (nothing of its file is copied). Its length follows Indeed's
+guidance (writing/length.py).
 
 In the Markdown every output is made from, a heading's dates follow a tab:
 "### Software Engineer<TAB>March 2022 - Present". The PDF (output/pdf.py) and
@@ -32,8 +37,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
-SECTIONS = ("PROFESSIONAL SUMMARY", "EXPERIENCE", "SKILLS", "EDUCATION",
-            "CERTIFICATIONS", "AWARDS & VOLUNTEER WORK", "PROJECTS")
+SECTIONS = ("PROFESSIONAL SUMMARY", "EXPERIENCE", "EARLIER EXPERIENCE", "SKILLS",
+            "EDUCATION", "CERTIFICATIONS", "AWARDS & VOLUNTEER WORK", "PROJECTS")
 
 # ── the projects section: where, what it is called, whether at all ────────────
 #
@@ -52,21 +57,23 @@ SECTIONS = ("PROFESSIONAL SUMMARY", "EXPERIENCE", "SKILLS", "EDUCATION",
 STAGES = ("student", "career_changer", "freelancer", "experienced")
 INDUSTRIES = ("tech", "creative", "business", "other")
 
-# Section order by stage: the template's (summary, experience, skills,
-# education, certifications, awards), with "PROJECTS" where the projects
-# section goes.
-_AFTER = ("SKILLS", "EDUCATION", "CERTIFICATIONS", "AWARDS & VOLUNTEER WORK")
+# Section order by stage: summary, skills, experience, earlier experience,
+# education, certifications, awards, with "PROJECTS" where the projects
+# section goes. Skills right under the summary: a reader and a tracking
+# system both look for them first.
+_JOBS = ("EXPERIENCE", "EARLIER EXPERIENCE")
+_AFTER = ("EDUCATION", "CERTIFICATIONS", "AWARDS & VOLUNTEER WORK")
 ORDER = {
     # Education leads, its projects right below: it is most of the record.
-    "student": ("PROFESSIONAL SUMMARY", "EDUCATION", "PROJECTS", "EXPERIENCE",
-                "SKILLS", "CERTIFICATIONS", "AWARDS & VOLUNTEER WORK"),
+    "student": ("PROFESSIONAL SUMMARY", "SKILLS", "EDUCATION", "PROJECTS", *_JOBS,
+                "CERTIFICATIONS", "AWARDS & VOLUNTEER WORK"),
     # Above the past jobs: proof of doing the new work today.
-    "career_changer": ("PROFESSIONAL SUMMARY", "PROJECTS", "EXPERIENCE", *_AFTER),
+    "career_changer": ("PROFESSIONAL SUMMARY", "SKILLS", "PROJECTS", *_JOBS, *_AFTER),
     # Beside the experience: a track record of delivery.
-    "freelancer": ("PROFESSIONAL SUMMARY", "EXPERIENCE", "PROJECTS", *_AFTER),
+    "freelancer": ("PROFESSIONAL SUMMARY", "SKILLS", *_JOBS, "PROJECTS", *_AFTER),
     # After the jobs, and only for projects the person added themselves;
     # the resume's own projects live in the jobs' bullets.
-    "experienced": ("PROFESSIONAL SUMMARY", "EXPERIENCE", "PROJECTS", *_AFTER),
+    "experienced": ("PROFESSIONAL SUMMARY", "SKILLS", *_JOBS, "PROJECTS", *_AFTER),
 }
 MAX_PROJECTS = {"student": 3, "career_changer": 3, "freelancer": 4, "experienced": 3}
 _HEADINGS = {"tech": "TECHNICAL PROJECTS", "creative": "PORTFOLIO HIGHLIGHTS",
@@ -211,17 +218,20 @@ TEMPLATE_GUIDE = (
     "Lay `CV.md` out exactly like this, one column, nothing else (<TAB> is a\n"
     "tab character: the dates go at the right margin):\n\n"
     "    # Full Name\n"
-    "    Phone | Email | City, State\n"
-    "    Website or LinkedIn URL (only if the resume gives one)\n"
+    "    **Job Title | Area of work the resume shows most**\n"
+    "    Phone | Email | City, State | LinkedIn | GitHub (each the resume gives)\n"
     "    ## PROFESSIONAL SUMMARY\n"
-    "    Two or three plain sentences: role, years of experience, one or two\n"
-    "    strengths, the kind of role targeted.\n"
+    "    Three or four plain sentences about the whole career: years of\n"
+    "    experience, the work done, the tools this advert asks for, what the\n"
+    "    person is strongest at, the kind of role targeted.\n"
+    "    ## SKILLS\n"
+    "    Group: skill, skill, skill (three to six groups by kind, no ratings)\n"
     "    ## EXPERIENCE\n"
     "    ### Job Title<TAB>Month YYYY - Month YYYY\n"
     "    Company, City, State\n"
     "    - action verb + what was done + result, as the resume states it\n"
-    "    ## SKILLS\n"
-    "    Skill | Skill | Skill, on one line, no ratings.\n"
+    "    ## EARLIER EXPERIENCE\n"
+    "    - Job Title, Company (Month YYYY - Month YYYY): what carries over\n"
     "    ## EDUCATION\n"
     "    ### Degree, Major<TAB>Month YYYY\n"
     "    School, City, State\n"
@@ -231,9 +241,14 @@ TEMPLATE_GUIDE = (
     "    - one per line, only if the resume has any\n\n"
     "Length, as Indeed advises: one page for up to ten years of experience,\n"
     "two after that, three only past 25 years or for academic and medical\n"
-    "roles. Only the last 15 years of jobs. Three to seven bullets a job,\n"
-    "more for the newest and fewer for older ones, each at most two lines,\n"
-    "with a result the resume states where it gives one.\n\n"
+    "roles. Every job and career break the resume dates stays on it: never\n"
+    "leave one out, a missing job is a gap in the dates. Three to seven\n"
+    "bullets for each job this advert cares about, more for the newest and\n"
+    "fewer for older ones, each at most two lines, with a result the resume\n"
+    "states where it gives one. Older jobs with less for this advert, and\n"
+    "any that ended more than 15 years ago, go one line each under EARLIER\n"
+    "EXPERIENCE, saying what in them carries over. A career break stays in\n"
+    "its place among the jobs, as the resume names it, with its dates.\n\n"
     "Projects depend on the person's career stage, judged from the resume and\n"
     "the advert:\n"
     "- Student or entry level: EDUCATION right after the summary, a projects\n"
@@ -327,16 +342,21 @@ def contact(resume_text: str) -> dict:
         if place:
             break
     email = _EMAIL.search(resume_text or "")
-    profile = next((m.group(0) for m in _PROFILE.finditer(resume_text or "")
-                    if "linkedin" in m.group(0).lower()), "")
-    if not profile:
-        found = _PROFILE.search(resume_text or "")
-        profile = found.group(0) if found else ""
+    # LinkedIn first, then one more (GitHub, a portfolio): the second was
+    # dropped, though a developer's GitHub is what is asked for.
+    links = []
+    for m in _PROFILE.finditer(resume_text or ""):
+        link = re.sub(r"^https?://(www\.)?", "", m.group(0)).rstrip("/")
+        if link.lower() not in (x.lower() for x in links):
+            links.append(link)
+    # lambda: LinkedIn sorts first, the rest keep their order.
+    links.sort(key=lambda x: "linkedin" not in x.lower())
+    profile = links[0] if links else ""
     phone = next((m.group(0).strip() for m in _PHONE_RUN.finditer(resume_text or "")
                   if _phone(m) != m.group(0)), "")
     return {"name": name, "location": place, "phone": phone,
             "email": email.group(0) if email else "",
-            "profile": re.sub(r"^https?://(www\.)?", "", profile)}
+            "profile": profile, "profiles": links[:2]}
 
 
 def name_of(markdown: str) -> str:
@@ -350,14 +370,16 @@ def name_of(markdown: str) -> str:
 
 
 def contact_line(info: dict) -> str:
-    """The line under the name: "Phone | Email | Location", as the template."""
+    """The line under the headline: "Phone | Email | Location | profiles"."""
+    links = info.get("profiles") or ([info["profile"]] if info.get("profile") else [])
     return " | ".join(v for v in (info.get("phone"), info.get("email"),
-                                   info.get("location")) if v)
+                                   info.get("location"), *links) if v)
 
 
-def header_lines(info: dict) -> list[str]:
-    """Under the name: the contact line, then the website, each when given."""
-    return [x for x in (contact_line(info), info.get("profile") or "") if x]
+def header_lines(info: dict, headline: str = "") -> list[str]:
+    """Under the name: the headline in bold (its Markdown "**...**" is how the
+    PDF and Word file tell it apart), then the contact line, each when given."""
+    return [x for x in ((f"**{headline}**" if headline else ""), contact_line(info)) if x]
 
 
 # ── the file name ─────────────────────────────────────────────────────────────
@@ -395,6 +417,25 @@ def _place(name: str, entry: dict):
     return ", ".join(x for x in (name, entry.get("location")) if x) or None
 
 
+def split_earlier(jobs: list[dict]) -> tuple[list[dict], list[dict]]:
+    """(in full, earlier): the jobs marked "brief" after the last job in full
+    go one line each under EARLIER EXPERIENCE. A brief job newer than one in
+    full stays in its place among them: dates read out of order otherwise."""
+    last_full = max((n for n, j in enumerate(jobs) if not j.get("brief")), default=-1)
+    return jobs[:last_full + 1], jobs[last_full + 1:]
+
+
+def earlier_line(job: dict) -> str:
+    """"Title, Company (dates): what was done", from the first bullet."""
+    who = ", ".join(x for x in ((f"**{job['title']}**" if job.get("title") else ""),
+                                job.get("company")) if x)
+    dates = date_range(job.get("start"), job.get("end"))
+    first = (job.get("bullets") or [""])[0].rstrip(".")
+    line = who + (f" ({dates})" if dates else "")
+    # Kept as written: lowering "Developed" would lower "Angular" too.
+    return line + (f": {first}" if first else "")
+
+
 def to_markdown(info: dict, doc: dict) -> str:
     """The template, filled: `info` from contact(), `doc` from the model.
 
@@ -405,14 +446,21 @@ def to_markdown(info: dict, doc: dict) -> str:
     blocks: dict[str, list[str]] = {}
     if doc.get("summary"):
         blocks["PROFESSIONAL SUMMARY"] = [doc["summary"]]
-    if doc.get("skills"):
+    groups = [g for g in doc.get("skill_groups") or [] if g.get("skills")]
+    if groups:
+        blocks["SKILLS"] = [f"**{g['name']}:** {', '.join(g['skills'])}" if g.get("name")
+                            else ", ".join(g["skills"]) for g in groups]
+    elif doc.get("skills"):
         blocks["SKILLS"] = [" | ".join(doc["skills"])]
-    if doc.get("experience"):
+    full, earlier = split_earlier(doc.get("experience") or [])
+    if full:
         lines = []
-        for job in doc["experience"]:
+        for job in full:
             lines += ["", _dated(job["title"], job), _place(job.get("company"), job)]
             lines += [f"- {b}" for b in job.get("bullets") or []]
         blocks["EXPERIENCE"] = [x for x in lines[1:] if x is not None]
+    if earlier:
+        blocks["EARLIER EXPERIENCE"] = [f"- {earlier_line(job)}" for job in earlier]
     if doc.get("education"):
         lines = []
         for ed in doc["education"]:
@@ -431,7 +479,7 @@ def to_markdown(info: dict, doc: dict) -> str:
                 + [f"- {b}" for b in p.get("bullets") or []]
         blocks["PROJECTS"] = lines[1:]
 
-    out = [f"# {info.get('name') or 'Resume'}", *header_lines(info)]
+    out = [f"# {info.get('name') or 'Resume'}", *header_lines(info, doc.get("headline", ""))]
     for section in ORDER[stage]:
         if section in blocks:
             heading = (projects_heading(stage, doc.get("industry", ""))

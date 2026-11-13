@@ -7,16 +7,21 @@ read 2026-10-28):
 
 - one page up to ten years of experience, two after that, and three only
   past 25 years or for academic and medical work;
-- only the last 15 years of jobs;
+- the last 15 years of jobs in full;
 - three to seven bullets a job, more for the newest, fewer for older ones,
   each at most about two lines.
 
 The model is told all of it (ai/writer.py), and this module holds it to it:
-`fit` drops the jobs older than 15 years, caps each job's bullets by how
-recent it is, then renders the PDF and, while it runs over its pages, takes
-the least of what is left (an older job's last bullets first, then extra
-projects, awards and the end of the skills list) until it fits. What it took
-is said in a gate, so the person sees what is not on the page.
+`fit` moves a job older than 15 years to one line under Earlier experience
+(resume_doc.split_earlier: its title, employer, dates and what carries
+over), caps each job's bullets by how recent it is, then renders the PDF
+and, while it runs over its pages, takes the least of what is left (an
+older job's last bullets first, then extra projects, awards and the end of
+the skills list, then the oldest jobs into one line each) until it fits.
+A job is never left out: a gap in the dates reads worse than an old job in
+one line, and a person asked for theirs compressed, not dropped
+(2026-11-12). What it took is said in a gate, so the person sees what is not
+on the page.
 """
 
 from __future__ import annotations
@@ -71,13 +76,14 @@ def _ended(job: dict) -> int:
 
 
 def recent(jobs: list[dict], this_year: int | None = None) -> tuple[list[dict], list[dict]]:
-    """(kept, left out): jobs that ended in the last 15 years. When none did
-    (someone returning to work), the newest stays: a resume needs a job."""
+    """(in full, in one line): jobs that ended in the last 15 years, and the
+    older ones, kept with no bullets. When none is recent (someone returning
+    to work), the newest stays in full."""
     year = this_year or time.localtime().tm_year
-    kept = [j for j in jobs if _ended(j) >= year - RECENT_YEARS]
-    if not kept and jobs:
-        kept = jobs[:1]
-    return kept, [j for j in jobs if j not in kept]
+    full = [j for j in jobs if _ended(j) >= year - RECENT_YEARS]
+    if not full and jobs:
+        full = jobs[:1]
+    return full, [j for j in jobs if j not in full]
 
 
 def cap_bullets(jobs: list[dict]) -> int:
@@ -108,6 +114,13 @@ def _trim_once(doc: dict) -> str:
         return f"award: {doc['awards'].pop()}"
     if len(doc.get("skills") or []) > 8:
         return f"skill: {doc['skills'].pop()}"
+    # Last, the oldest job in full down to one line under Earlier
+    # experience: its first bullet says what carries over; the job stays.
+    for job in reversed(jobs[1:]):
+        if not job.get("brief"):
+            job["brief"] = True
+            job["bullets"] = (job.get("bullets") or [])[:1]
+            return f"{job['title']} in one line"
     return ""
 
 
@@ -122,11 +135,14 @@ def fit(doc: dict, render, years: float, title: str = "", advert: str = "",
 
     pages, why = budget(years, title, advert)
     out = Fitted(budget=pages, reason=why)
-    kept, old = recent(doc.get("experience") or [], this_year)
-    doc["experience"] = kept
-    out.left_out += [f"job before the last {RECENT_YEARS} years: {j['title']} at "
-                     f"{j.get('company') or '?'}" for j in old]
-    capped = cap_bullets(doc["experience"])
+    _full, old = recent(doc.get("experience") or [], this_year)
+    for job in old:
+        if not job.get("brief") and len(job.get("bullets") or []) > 1:
+            out.left_out.append(f"a job before the last {RECENT_YEARS} years, kept in "
+                                f"one line: {job['title']}")
+        job["brief"] = True
+        job["bullets"] = (job.get("bullets") or [])[:1]
+    capped = cap_bullets([j for j in doc.get("experience") or [] if not j.get("brief")])
     if capped:
         out.left_out.append(f"{capped} bullet(s) over the {BULLETS_BY_RECENCY[0]} a job "
                             "Indeed suggests, older jobs fewer")
