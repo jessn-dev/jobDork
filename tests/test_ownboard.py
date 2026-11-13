@@ -96,7 +96,8 @@ def test_each_post_says_what_the_employers_board_says_of_it():
 
 
 def test_every_aggregator_is_checked_not_only_adzuna():
-    assert {"adzuna", "himalayas", "arbeitnow", "kalibrr"} == ownboard.AGGREGATORS
+    assert {"adzuna", "himalayas", "weworkremotely", "jobicy", "remoteok", "remotive",
+            "workingnomads", "dynamitejobs", "arbeitnow", "kalibrr"} == ownboard.AGGREGATORS
     assert not ownboard.AGGREGATORS & ownboard.OWN_BOARDS
     assert "usajobs" not in ownboard.AGGREGATORS and "workable" not in ownboard.AGGREGATORS
     with tempfile.TemporaryDirectory() as tmp:

@@ -40,7 +40,8 @@ THIN = 400
 
 # Platforms whose adverts already arrive whole. Fetching them again would cost
 # a request per role to learn nothing.
-ALREADY_FULL = ("workable", "greenhouse", "ashby", "lever", "usajobs", "arbeitnow")
+ALREADY_FULL = ("workable", "greenhouse", "ashby", "lever", "usajobs", "arbeitnow",
+                "jobicy", "remoteok", "remotive", "workingnomads", "dynamitejobs")
 
 # Platforms that cannot be read, and why. Named rather than silently skipped.
 UNREACHABLE = {
@@ -48,6 +49,7 @@ UNREACHABLE = {
     # Its search already carries the whole advert; the page would only refuse.
     "kalibrr": "pages answer 403 to scripts, and the search sends the full advert",
     "himalayas": "pages answer 403 to scripts, and the search sends the full advert",
+    "weworkremotely": "pages answer 403 to scripts, and the feed sends the full advert",
 }
 
 

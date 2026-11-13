@@ -126,8 +126,9 @@ def _jobs_for(cfg: Config, part: str = "all") -> list[tuple[str, dict]]:
     directory's (see search/directory.py).
     """
     jobs: list[tuple[str, dict]] = []
-    keyword_sources = ("workable", "kalibrr", "himalayas", "arbeitsagentur",
-                       "arbeitnow", "usajobs", "adzuna")
+    keyword_sources = ("workable", "kalibrr", "himalayas", "weworkremotely", "jobicy",
+                       "remoteok", "remotive", "workingnomads", "dynamitejobs",
+                       "arbeitsagentur", "arbeitnow", "usajobs", "adzuna")
 
     if part != "rest":
         for name in cfg.active_sources():

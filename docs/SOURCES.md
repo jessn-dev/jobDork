@@ -10,8 +10,12 @@ This tool finds work two ways, and they fail in opposite directions.
 
 **Keyword search.** One query, every employer on a platform. Workable's search,
 Kalibrr, Himalayas, the Bundesagentur für Arbeit, Adzuna and USAJOBS all work
-this way; Arbeitnow, which has no search, is read newest first and filtered
-by your titles. No list to maintain, no tokens, no
+this way; Arbeitnow, We Work Remotely, Jobicy, Remote OK, Remotive, Working
+Nomads and Dynamite Jobs, which have no search by many titles, are read
+whole (or, for Dynamite Jobs, its job pages whose addresses carry your
+titles) and filtered by your titles. Every one of these runs for everyone:
+a config can switch one off by name (`sources.disabled`), but never misses
+one by leaving it out. No list to maintain, no tokens, no
 per-employer setup — you name a job title and the platform answers for its
 whole market. This is where nearly all the volume comes from.
 
