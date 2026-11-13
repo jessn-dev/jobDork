@@ -11,6 +11,7 @@ folder (see [Moving between them](#moving-between-them)).
 | **From source, in the terminal** | Every command (`scan`, `list`, `applied`, `judge`…) with no dashboard at all; good for cron and scripts | The same install as above | [cli.md](cli.md) |
 | **Docker, on your computer** | The dashboard from the published image, nothing installed but Docker | Docker | [docker.md](docker.md) |
 | **Docker, on a NAS or home server** | jobdork always on, opened from your laptop or phone anywhere, the AI on another computer | A NAS with Docker; Tailscale | [nas.md](nas.md) |
+| **The Linux desktop app in Docker** | For testing a change: the real Linux window, in a container, shown in your browser | Docker, and this repository | [desktop-in-docker.md](desktop-in-docker.md) |
 
 **The AI on another computer.** Whichever way you run it, the AI models can
 run on another computer of yours, one model on each when one computer cannot
