@@ -192,7 +192,15 @@ try {
   await sleep(1500);
   await shoot('applications');
   await shoot('applications-suggested', {clip: '#suggested-apps'});
+  // Opened again at its full length, as the job post's tabs are above: the
+  // taller picture narrowed the window for a moment and the pane gave its
+  // post back, so the tab's picture showed only "Choose an application".
+  await run(`const t = [...document.querySelectorAll('#apps tr[data-uid]')].find(t => t.textContent.includes('Remote Care'));
+    await openRole(t.dataset.uid, 'application');
+    const p = document.getElementById('apps-pane'); p.style.maxHeight = 'none'; p.style.position = 'static';`);
+  await sleep(1500);
   await shoot('application-tab', {clip: '#apps-pane', tall: 2000});
+  await run(`document.getElementById('apps-pane').removeAttribute('style');`);
   await run(`closeDetail();`);
 
   await run(view('settings'));

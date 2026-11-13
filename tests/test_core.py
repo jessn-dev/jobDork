@@ -838,6 +838,26 @@ def test_nested_json_ld_shapes_are_found():
         assert enrich.extract_description(html)
 
 
+USAJOBS_PAGE = """<script type="application/ld&#x2B;json" nonce="x">
+{"@type":"JobPosting","title":"IT Specialist","description":"Corrections professionals.",
+ "responsibilities":"Install and secure the prison's networks.",
+ "qualifications":"One year of specialized experience at GS-9.",
+ "educationRequirements":"There is no substitution of education for experience."}
+</script>"""
+
+
+def test_a_job_post_whose_script_type_is_escaped_is_read_whole():
+    """USAJOBS writes the type as application/ld&#x2B;json and puts its duties
+    and requirements outside `description`: every one of its job posts read
+    as having no advert."""
+    from jobdork.search import enrich
+    text = enrich.extract_description(USAJOBS_PAGE)
+    assert text.startswith("Corrections professionals.")
+    for part in ("Responsibilities\nInstall and secure", "Qualifications\nOne year",
+                 "Education\nThere is no substitution"):
+        assert part in text, part
+
+
 def test_a_page_with_no_jobposting_yields_nothing():
     from jobdork.search import enrich
     assert enrich.extract_description("<html>no structured data</html>") == ""

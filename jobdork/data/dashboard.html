@@ -1723,7 +1723,7 @@ main > #view-setup.welcome{max-width:46rem;margin-top:3.5rem}
       <input type="file" id="resume-file" accept=".pdf,.docx,.md,.txt">
       <button data-icon="upload" class="act primary" id="btn-upload">Upload</button>
       <button data-icon="eye" class="act" id="btn-resume-view" hidden>View resume</button>
-      <button data-icon="trash-2" class="act" id="btn-resume-del" hidden>Delete resume</button>
+      <button data-icon="trash-2" class="act" id="btn-resume-del" hidden>Delete your resume</button>
       <span id="resumemsg"></span>
     </div>
     <div class="upbar" id="resume-bar"></div>
@@ -2881,6 +2881,8 @@ const TAB_LABEL = {tools: 'AI tools', ats: 'ATS match', application: 'applicatio
                    sent_letter: 'letter you sent'};
 // Documents that are resumes: shown formatted, with their PDF to open or save.
 const PDF_KINDS = ['tailored_resume', 'cv'];
+// Documents the AI wrote that can be deleted where they are shown (api.DELETABLE).
+const DOC_DELETABLE = ['cover_letter', 'tailored_resume', 'cv'];
 const tabLabel = t => TAB_LABEL[t] || t.replace('_', ' ');
 
 // Adds the employer to Search's Employers to skip; the re-screen that a save
@@ -3042,6 +3044,9 @@ function docHtml(doc, kind) {
         <button data-icon="download" class="act primary" onclick="artifactPdf(${doc.id}, true)">Download PDF</button>
         <button data-icon="download" class="act" onclick="artifactWord(${doc.id})" title="The same resume as a Word file, to edit before you send it">Download Word</button>
         <span class="hint">Read it through before you send it.</span></div>` : '') +
+    (DOC_DELETABLE.includes(kind) ? `<div class="bar">
+        <button type="button" class="act doc-del" data-icon="trash-2">Delete this ${esc(tabLabel(kind))}</button>
+        <span class="hint">Removes the file and its text at once.</span></div>` : '') +
     (kind === 'recruiter_message' ? `<div class="bar">
         <button type="button" class="act primary copy-msg">Copy message</button>
         <span class="hint">jobdork never sends it: paste it into LinkedIn or an email yourself.</span></div>` : '') +
@@ -3051,6 +3056,21 @@ function docHtml(doc, kind) {
 }
 
 function bindDoc(box, doc) {
+  // Delete, asked twice: then the Resume page's cards and letters, or the
+  // job post's window, are drawn again without it.
+  const del = box.querySelector('.doc-del');
+  if (del) del.onclick = async () => {
+    const label = `Delete this ${tabLabel(doc.kind)}`;
+    if (!del.classList.contains('armed')) {
+      del.classList.add('armed', 'del'); del.textContent = `${label}?`;
+      setTimeout(() => { del.classList.remove('armed', 'del'); del.textContent = label; }, 3000);
+      return;
+    }
+    del.disabled = true;
+    if (!await deleteDocument(doc.id, tabLabel(doc.kind))) { del.disabled = false; return; }
+    if (box.id === 'rp-other') { await drawResumeCards(); syncResumeDel(); drawPreview(); drawLetters(); }
+    else openRole(doc.uid);
+  };
   const copy = box.querySelector('.copy-msg');
   if (copy) copy.onclick = () => navigator.clipboard.writeText(doc.text.trim())
     .then(() => toast('Copied'), () => toast('Copying was refused by the browser', 'err'));
@@ -6538,6 +6558,23 @@ async function loadApps() {
 // found. Applied: the day, and the resume and letter you sent, uploaded for
 // the post's "Documents sent". Add and Track were two forms reading links
 // the same way (2026-11-09; api.add_post).
+// One box for a file you sent with an application, and which document it
+// is: the Application tab and Add a job post each had two, one per document.
+function sentUploadHtml(p) {
+  return `<div class="bar">
+    <label class="fnum">Upload what you sent <select id="${p}-kind" aria-label="Which document the file is">
+      <option value="sent_resume">Resume</option><option value="sent_letter">Cover letter</option></select></label>
+    <input type="file" id="${p}-file" accept=".pdf,.docx,.md,.markdown,.txt" aria-label="The file you sent">
+  </div>`;
+}
+
+// A file you sent, kept with its job post (api.save_sent_document).
+function sendDocument(uid, kind, file) {
+  return api('/api/application/document', {method: 'POST', body: file, headers: {
+    'X-Filename': encodeURIComponent(file.name), 'X-Uid': uid, 'X-Kind': kind,
+    'Content-Type': 'application/octet-stream'}});
+}
+
 function addPostForm(box) {
   const p = box.dataset.prefix, applied = box.dataset.applied === '1';
   const id = k => `${p}-${k}`;
@@ -6556,12 +6593,15 @@ function addPostForm(box) {
           aria-label="The day you applied"></label>
       </div>
       <div id="${id('sent')}"${applied ? '' : ' hidden'}>
-        <p class="hint" style="margin:.4rem 0 .2rem">What you sent, if you have the files (PDF, Word, text):
+        <p class="hint" style="margin:.4rem 0 .2rem">What you sent, if you have the file (PDF, Word, text):
           kept with the post as its documents sent, and read by its interview prep, recruiter message
-          and AI tools.</p>
-        <div class="bar">
-          <label class="fnum">Resume <input type="file" id="${id('resume')}" accept=".pdf,.docx,.md,.markdown,.txt"></label>
-          <label class="fnum">Cover letter <input type="file" id="${id('letter')}" accept=".pdf,.docx,.md,.markdown,.txt"></label>
+          and AI tools. Sent both? Upload the other on the post's Application tab.</p>
+        ${sentUploadHtml(id('up'))}
+        <p class="hint" style="margin:.6rem 0 .2rem">Who you are in touch with, if anyone. Saved with the post when you click Add.</p>
+        <div class="appform">
+          <label>Name <input id="${id('cname')}" maxlength="120" placeholder="Recruiter or hiring manager"></label>
+          <label>Email <input id="${id('cemail')}" type="email" maxlength="200"></label>
+          <label>Link <input id="${id('clink')}" type="url" maxlength="500" placeholder="https://www.linkedin.com/in/..."></label>
         </div>
       </div>
       <details class="more"><summary class="hint">More options</summary>
@@ -6624,16 +6664,21 @@ function addPostForm(box) {
       return;
     }
     const d = await r.json();
-    // The files you sent, once the post exists to keep them with.
+    // The file you sent and the contact, once the post exists to keep them
+    // with. The contact alone: the rest of an application already saved is
+    // kept (api.save_application).
     const sent = [];
-    for (const [key, kind] of [['resume', 'sent_resume'], ['letter', 'sent_letter']]) {
-      const file = on && $(id(key)).files[0];
-      if (!file || !d.uid) continue;
-      const up = await api('/api/application/document', {method: 'POST', body: file, headers: {
-        'X-Filename': encodeURIComponent(file.name), 'X-Uid': d.uid, 'X-Kind': kind,
-        'Content-Type': 'application/octet-stream'}});
-      sent.push(up.ok ? `${key === 'resume' ? 'resume' : 'cover letter'} kept`
-                      : `${key === 'resume' ? 'resume' : 'cover letter'} not kept: ${esc(cap(await up.text()))}`);
+    const file = on && d.uid && $(id('up-file')).files[0];
+    if (file) {
+      const what = $(id('up-kind')).value === 'sent_letter' ? 'cover letter' : 'resume';
+      const up = await sendDocument(d.uid, $(id('up-kind')).value, file);
+      sent.push(up.ok ? `${what} kept` : `${what} not kept: ${esc(cap(await up.text()))}`);
+    }
+    const contact = {contact_name: $(id('cname')).value.trim(), contact_email: $(id('cemail')).value.trim(),
+                     contact_link: $(id('clink')).value.trim()};
+    if (on && d.uid && Object.values(contact).some(Boolean)) {
+      const saved = await api('/api/application', {method: 'POST', body: form({uid: d.uid, ...contact})});
+      sent.push(saved.ok ? 'contact kept' : `contact not kept: ${esc(cap(await saved.text()))}`);
     }
     reset();
     const what = d.tracked === false
@@ -6702,13 +6747,10 @@ function applicationHtml(d) {
       <label>Resume <select id="ap-resume">${docOpt(a.resumes, k.resume_id, a.resumes.length ? 'Not chosen' : 'None yet: write one, or upload yours')}</select></label>
       <label>Cover letter <select id="ap-letter">${docOpt(a.letters, k.letter_id, a.letters.length ? 'Not chosen' : 'None yet: write one, or upload yours')}</select></label>
     </div>
-    <div class="bar">
-      <label class="fnum">Upload the resume you sent <input type="file" id="ap-up-resume" accept=".pdf,.docx,.md,.markdown,.txt"></label>
-      <label class="fnum">the letter you sent <input type="file" id="ap-up-letter" accept=".pdf,.docx,.md,.markdown,.txt"></label>
-      <span class="hint" id="ap-up-msg"></span>
-    </div>
+    ${sentUploadHtml('ap-up')}
+    <span class="hint" id="ap-up-msg"></span>
     <div class="bar"><button type="button" class="act primary" data-icon="save" id="ap-save">Save application</button>
-      <span class="hint" id="ap-msg"></span></div>
+      <span class="hint" id="ap-msg">Saves the next step, the contact and the documents chosen above.</span></div>
     <h4>Notes</h4>
     <div class="appnote"><textarea id="ap-note" maxlength="2000" placeholder="e.g. Interview went well; they asked about telemetry"></textarea>
       <button type="button" class="act" data-icon="plus" id="ap-add">Add note</button></div>
@@ -6731,24 +6773,21 @@ function bindApplication(d) {
     resume_id: $('ap-resume').value, letter_id: $('ap-letter').value})}), 'Application saved');
   // The resume or letter you sent, uploaded: kept with the post, chosen as
   // its document sent, and read by its prep and AI tools (api.save_sent_document).
-  for (const [key, kind, pick] of [['resume', 'sent_resume', 'resume_id'], ['letter', 'sent_letter', 'letter_id']]) {
-    $(`ap-up-${key}`).onchange = async ev => {
-      const file = ev.target.files[0];
-      if (!file) return;
-      $('ap-up-msg').textContent = 'Uploading…';
-      const r = await api('/api/application/document', {method: 'POST', body: file, headers: {
-        'X-Filename': encodeURIComponent(file.name), 'X-Uid': d.uid, 'X-Kind': kind,
-        'Content-Type': 'application/octet-stream'}});
-      if (!r.ok) { $('ap-up-msg').textContent = cap(await r.text()); return; }
-      const up = await r.json();
-      after(await api('/api/application', {method: 'POST', body: form({
-        uid: d.uid, next_step: $('ap-step').value, next_date: $('ap-date').value,
-        contact_name: $('ap-name').value, contact_email: $('ap-email').value, contact_link: $('ap-link').value,
-        resume_id: pick === 'resume_id' ? up.id : $('ap-resume').value,
-        letter_id: pick === 'letter_id' ? up.id : $('ap-letter').value})}),
-        `The ${key === 'resume' ? 'resume' : 'letter'} you sent is kept`);
-    };
-  }
+  $('ap-up-file').onchange = async ev => {
+    const file = ev.target.files[0];
+    if (!file) return;
+    const kind = $('ap-up-kind').value, letter = kind === 'sent_letter';
+    $('ap-up-msg').textContent = 'Uploading…';
+    const r = await sendDocument(d.uid, kind, file);
+    if (!r.ok) { $('ap-up-msg').textContent = cap(await r.text()); return; }
+    const up = await r.json();
+    after(await api('/api/application', {method: 'POST', body: form({
+      uid: d.uid, next_step: $('ap-step').value, next_date: $('ap-date').value,
+      contact_name: $('ap-name').value, contact_email: $('ap-email').value, contact_link: $('ap-link').value,
+      resume_id: letter ? $('ap-resume').value : up.id,
+      letter_id: letter ? up.id : $('ap-letter').value})}),
+      `The ${letter ? 'letter' : 'resume'} you sent is kept`);
+  };
   $('ap-add').onclick = async () => {
     if (!$('ap-note').value.trim()) { $('ap-note').focus(); return; }
     after(await api('/api/application/note', {method: 'POST', body: form({uid: d.uid, note: $('ap-note').value})}), 'Note added');
@@ -6908,12 +6947,12 @@ function drawAppSuggestions(list) {
 async function drawResume() {
   drawSuggested();
   if (!cfg) cfg = await (await api('/api/config')).json();
-  $('btn-resume-del').hidden = !cfg.resume_path;
+  syncResumeDel();
   $('btn-resume-view').hidden = !cfg.resume_path;
   if (cfg.resume_path) api('/api/resume/check').then(r => r.ok ? r.json() : null)
     .then(showReadable).catch(() => showReadable(null));
   else showReadable(null);
-  drawResumeCards().then(drawPreview);
+  drawResumeCards().then(() => { syncResumeDel(); drawPreview(); });
   $('resumeinfo').innerHTML = cfg.resume_path
     ? `<p class="hint">Stored at <code>${esc(cfg.resume_file || cfg.resume_path)}</code></p>
        <div id="resume-kind"></div>`
@@ -6970,6 +7009,7 @@ function renderResumeCards() {
     if (b.dataset.card === 'add') { document.querySelector('nav button[data-view="roles"]').click(); return; }
     rsel = b.dataset.card === 'master' ? 'master' : Number(b.dataset.card);
     renderResumeCards();
+    syncResumeDel();
     drawPreview();
   });
 }
@@ -7140,23 +7180,48 @@ function writingHtml(w) {
       figure only where your resume gives one.</p>`;
 }
 
+// What Delete removes: the card chosen above it. It always deleted your own
+// resume, even with a tailored one chosen (2026-11-12), so it names which.
+const resumeDelLabel = () => rsel === 'master' ? 'Delete your resume' : 'Delete this tailored resume';
+function syncResumeDel() {
+  const b = $('btn-resume-del');
+  b.classList.remove('armed', 'del');
+  b.textContent = resumeDelLabel();
+  b.hidden = rsel === 'master' ? !(cfg && cfg.resume_path) : false;
+}
+
 // Delete asks twice, like Remove: the first click arms it for three seconds.
 $('btn-resume-del').onclick = async () => {
   const b = $('btn-resume-del');
   if (!b.classList.contains('armed')) {
-    b.classList.add('armed', 'del'); b.textContent = 'Delete resume?';
-    setTimeout(() => { b.classList.remove('armed', 'del'); b.textContent = 'Delete resume'; }, 3000);
+    b.classList.add('armed', 'del'); b.textContent = `${resumeDelLabel()}?`;
+    setTimeout(() => { b.classList.remove('armed', 'del'); b.textContent = resumeDelLabel(); }, 3000);
     return;
   }
   b.disabled = true;
+  if (rsel !== 'master') {
+    const ok = await deleteDocument(rsel, 'tailored resume');
+    b.disabled = false;
+    if (ok) { rsel = 'master'; await drawResumeCards(); drawPreview(); syncResumeDel(); }
+    return;
+  }
   const r = await api('/api/resume/delete', {method: 'POST'});
-  b.disabled = false; b.classList.remove('armed', 'del'); b.textContent = 'Delete resume';
+  b.disabled = false; b.classList.remove('armed', 'del'); b.textContent = resumeDelLabel();
   if (!r.ok) { toast(cap(await r.text()), 'err'); return; }
   const d = await r.json();
   toast(d.deleted ? 'Resume deleted' : 'Resume no longer used; your own file was left where it is');
   cfg = null; $('resume-file').value = ''; $('resumemsg').textContent = '';
   drawResume();
 };
+
+// A document the AI wrote, deleted by its id (api.delete_document): true
+// when it is gone.
+async function deleteDocument(id, what) {
+  const r = await api('/api/documents/delete', {method: 'POST', body: form({id})});
+  if (!r.ok) { toast(cap(await r.text()), 'err'); return false; }
+  toast(`Deleted the ${what}`);
+  return true;
+}
 
 // View resume: the file as it is (a PDF in the browser's own viewer, a Word
 // file or Markdown with its headings and bullets), and underneath, the text
@@ -7405,7 +7470,7 @@ $('btn-upload').onclick = async () => {
   const d = await r.json();
   cfg = null;
   msg.textContent = ''; toast(`Resume uploaded: ${file.name}`);
-  $('btn-resume-del').hidden = false; $('btn-resume-view').hidden = false;
+  $('btn-resume-view').hidden = false;
   $('resumeinfo').innerHTML =
     `<p class="hint">${esc(file.name)}, stored at <code>${esc(d.file || d.path)}</code></p>
      <p class="hint">${d.chars.toLocaleString()} characters read, ${d.years} years claimed,

@@ -37,7 +37,8 @@ letter**, **Recruiter message** (with **Copy message**), **Interview prep**,
 as on [its window](job-window.md#ats-match), **I have this** included). One
 not written yet says so, with **Open AI tools**: the job post's window, where
 it is written. Choosing another tailored card keeps the tab, so you can
-compare, say, two cover letters.
+compare, say, two cover letters. A cover letter's tab has **Delete this cover
+letter**, as the post's window does: the file and its text go at once.
 
 ![A tailored resume chosen](images/resume-tailored.png)
 
@@ -168,7 +169,10 @@ from your resume.
   If something is missing there, the file's layout hid it (usually a table,
   columns or a text box): applicant tracking systems will miss it too.
   **Download original** gives you your file back.
-- **Delete resume** removes it from jobdork.
+- **Delete your resume** removes it from jobdork. With a tailored card chosen
+  instead, the same button is **Delete this tailored resume**: it deletes that
+  one, with its PDF and Word copies, and leaves your own resume alone. It asks
+  first (**Delete this tailored resume?**).
 
 ## Projects
 

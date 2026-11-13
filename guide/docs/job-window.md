@@ -104,7 +104,7 @@ Below the score, the advert's skills in three groups:
 | Button | What you get |
 |---|---|
 | **Ask AI** / **Ask AI again** | The AI's verdict on this post: a [score](scores.md#ai-the-models-opinion), a summary, and the reasons for and against |
-| **Write cover letter (AI)** | A cover letter from your resume and this advert, in four short paragraphs and 250 to 300 words: an opening on something specific in the advert, one achievement of yours that answers its first requirement, why this job, and a line asking for a conversation. It never mentions a requirement you lack. The checks say **Read this** for a letter outside its length or with a stock phrase ("passionate", "team player"). It opens in a new **Cover letter** tab, and is listed on the [Resume](resume.md#cover-letters) page |
+| **Write cover letter (AI)** | A cover letter from your resume and this advert, in four short paragraphs and 250 to 300 words: an opening on something specific in the advert, one achievement of yours that answers its first requirement, why this job, and a line asking for a conversation. It never mentions a requirement you lack. The checks say **Read this** for a letter outside its length or with a stock phrase ("passionate", "team player"). It opens in a new **Cover letter** tab, with **Delete this cover letter** under it, and is listed on the [Resume](resume.md#cover-letters) page |
 | **Write tailored resume (AI)** | Your resume rewritten for this advert, as a PDF and a Word file named `FirstName_LastName_JobTitle_Resume`, in a plain layout that applicant tracking systems read well ([the layout](#the-tailored-resume)). It opens in a **Tailored resume** tab. Your contact line is copied from your resume, never written by the AI, and any employer, school, skill, certification or award your resume does not name is left out and listed |
 | **Interview prep (AI)** | Ready for the interview: [what it gives](#interview-prep). Opens in an **Interview prep** tab |
 | **Recruiter message (AI)** | A short message to a recruiter or hiring manager: [how it is written](#recruiter-message). Opens in a **Recruiter message** tab |
@@ -239,24 +239,35 @@ Docs before you send it.
 
 From a [master resume](resume.md#master-resume) it chooses what this job
 post needs, from anywhere in it, and leaves the rest out; from the resume
-you send, it rewrites that one. Laid out like Indeed's free resume
-template, one column:
+you send, it rewrites that one. One column, in 10 point type with half-inch
+margins, the headings in dark blue over a thin rule:
 
-- your name, then *Phone | Email | City, State*, then your website or
-  LinkedIn, centred;
-- **Professional summary**, **Experience**, **Skills**, **Education**,
-  **Certifications**, then **Awards & volunteer work**, each left out when
-  your resume has nothing for it. A student's Education comes right after
-  the summary, and projects go where your career stage puts them;
+- your name, a headline under it in dark blue (the job's title and the area
+  of work your resume shows most, such as *DevOps Engineer | Cloud
+  Infrastructure & Automation*), then *Phone | Email | City, State* and your
+  LinkedIn and GitHub on one line, centred;
+- **Professional summary** (your whole career: years of experience, the
+  work, the tools this job asks for, what you are strongest at), **Skills**
+  in groups by kind (*Cloud & Infrastructure: Azure, GCP, Terraform*),
+  **Experience**, **Earlier experience**, **Education**, **Certifications**,
+  then **Awards & volunteer work**, each left out when your resume has
+  nothing for it. A student's Education comes right after the skills, and
+  projects go where your career stage puts them;
 - each job as its title with the dates at the right margin, then
-  *Company, City*, then its bullets; skills separated by `|`.
+  *Company, City*, then its bullets. An older job, or one with less for this
+  job post, is one line under **Earlier experience**: its title, employer,
+  dates and what in it carries over.
 
 Its length follows [Indeed's advice](https://www.indeed.com/career-advice/resumes-cover-letters/how-long-should-a-resume-be):
 one page for up to ten years of experience, two after that, and three only
-past 25 years or for academic and medical jobs. Jobs that ended more than
-15 years ago are left out (unless it is the only one), the newest job keeps
-up to seven bullets and older ones fewer, and when it still runs over, an
-older job's last bullets go first. The **page count** check says how many
-pages it fills and lists everything left out to fit, so you can put back
-what matters by hand in the Word file. Arial at 11 points, 0.7 inch margins,
-US Letter.
+past 25 years or for academic and medical jobs. Every job and career break
+your resume dates stays on it: a job the advert has no use for, or one that
+ended more than 15 years ago, is kept as one line (its title, employer and
+dates, no bullets), and a career break keeps its name and dates. The newest
+job keeps up to seven bullets and older ones fewer, and when it still runs
+over, an older job's last bullets go first; a job is never taken off to make
+room. The **page count** check says how many pages it fills and lists
+everything left out to fit, so you can put back what matters by hand in the
+Word file. The **every job kept** check says **Read this**, naming each one,
+when a job or break of yours is missing. The PDF is set in Source Sans 3 (the
+Word file in Arial) at 10 points, 0.5 inch margins, US Letter.

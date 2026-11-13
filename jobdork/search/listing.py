@@ -449,17 +449,27 @@ def run(cfg, store, fetcher, limit: int = 0, uid: str = "", force: bool = False,
         rows = [r for r in rows if r["platform"] == platform]
     cutoff = time.strftime(
         "%Y-%m-%dT%H:%M:%S", time.localtime(time.time() - RECHECK_HOURS * 3600))
-    telemetry.tick(total=min(len(rows), limit) if limit else len(rows))
+    # Set aside before counting: counted, they made a run open at 54%, the
+    # share checked in the last hours, and its total the copies of every job
+    # rather than the posts to check now (2026-11-12).
+    if not uid and not force:
+        fresh = [r for r in rows if (r["listing_checked_at"] or "") > cutoff
+                 and r["listing_state"] in ("closed", "open")]
+        report.skipped_fresh = len(fresh)
+        rows = [r for r in rows if r not in fresh]
+    if limit:
+        rows = rows[:limit]
+    telemetry.tick(total=len(rows))
+    if progress and not uid:
+        from types import SimpleNamespace
+        # key_of reads a Role's fields; a stored row has the same names.
+        jobs = len({grouping.key_of(SimpleNamespace(**dict(r))) for r in rows})
+        progress(f"Checking {len(rows)} postings of {jobs} job posts (a job found on "
+                 f"several sites is checked at each)"
+                 + (f"; {report.skipped_fresh} checked in the last {RECHECK_HOURS} hours "
+                    "are left as they are" if report.skipped_fresh else ""))
 
     for position, row in enumerate(rows, 1):
-        if limit and report.checked >= limit:
-            break
-        if not uid and not force and (row["listing_checked_at"] or "") > cutoff \
-                and row["listing_state"] in ("closed", "open"):
-            report.skipped_fresh += 1
-            telemetry.tick(done=position, count="checked recently")
-            continue
-
         found = checker.check(row, scans)
         report.checked += 1
         report.states[found.state] = report.states.get(found.state, 0) + 1

@@ -108,8 +108,11 @@ def extract_description(html: str) -> str:
     """The longest JobPosting description on the page, as plain text.
 
     Longest rather than first: a page may carry a short summary block and a
-    full one, and the summary is the thing already stored.
+    full one, and the summary is the thing already stored. Each is read whole
+    (site.posting_advert): duties and requirements, not only `description`.
     """
+    from ..fetch.site import posting_advert
+
     best = ""
     for block in ld_json_blocks(html):
         try:
@@ -117,10 +120,10 @@ def extract_description(html: str) -> str:
         except (json.JSONDecodeError, TypeError):
             continue
         for posting in _walk(data):
-            description = posting.get("description")
-            if isinstance(description, str) and len(description) > len(best):
-                best = description
-    return to_text(best)
+            advert = posting_advert(posting)
+            if len(advert) > len(best):
+                best = advert
+    return best
 
 
 def extract_posted(html: str) -> str:
@@ -248,6 +251,8 @@ def enrich(cfg, store: Store, fetcher, limit: int = 0, platform: str = "",
         report.considered += 1
         telemetry.tick(done=report.considered)
         source = row["platform"] or ""
+        # Read now: `row` is re-read below from roles, which has no status.
+        status = row["status"] or "new"
 
         if source in UNREACHABLE or source in ALREADY_FULL:
             report.skipped[source] = report.skipped.get(source, 0) + 1
@@ -316,7 +321,10 @@ def enrich(cfg, store: Store, fetcher, limit: int = 0, platform: str = "",
                                 first_seen=grouping.earliest_seen(store.conn, uid=row["uid"]))
         store.upsert(role, seen=False)
         store.conn.commit()                  # each fetch is slow; do not hold a write
-        if not verdict.keep:
+        # Only a post nobody has acted on: an application tracked without its
+        # advert, given it here, was marked skipped when the advert missed a
+        # filter, and left My applications.
+        if not verdict.keep and status == "new":
             report.rescreened_out.append(row["uid"])
             store.set_status(row["uid"], "skipped",
                              f"enrich: {verdict.reasons[0]}")

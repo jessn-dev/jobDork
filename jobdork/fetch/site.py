@@ -397,6 +397,31 @@ def _salary(posting: dict) -> tuple[float | None, float | None, str, str, bool]:
     return annualise(lo, period), annualise(hi, period), currency, period, True
 
 
+# The parts of a schema.org JobPosting that are advert besides `description`,
+# with the heading each is shown under. USAJOBS puts 167 characters in
+# description and the duties and requirements here (8,900 characters on one
+# post, 2026-11-12), so the advert read as missing.
+ADVERT_PARTS = (("responsibilities", "Responsibilities"), ("qualifications", "Qualifications"),
+                ("experienceRequirements", "Experience"),
+                ("educationRequirements", "Education"), ("skills", "Skills"))
+
+
+def posting_advert(posting: dict) -> str:
+    """A JobPosting's whole advert as plain text: its description, then each
+    of ADVERT_PARTS the description does not already hold."""
+    def text(value) -> str:
+        if isinstance(value, list):
+            return "\n".join(text(v) for v in value if v)
+        return to_text(value) if isinstance(value, str) else ""
+
+    advert = text(posting.get("description"))
+    for key, heading in ADVERT_PARTS:
+        part = text(posting.get(key)).strip()
+        if part and part not in advert:
+            advert = f"{advert}\n\n{heading}\n{part}".strip()
+    return advert
+
+
 def to_role(posting: dict, url: str, company: str) -> Role | None:
     title = clean(_text(posting.get("title")))
     if not title:
@@ -410,7 +435,7 @@ def to_role(posting: dict, url: str, company: str) -> Role | None:
         title=title,
         url=_text(posting.get("url")) or url,
         location_raw=location,
-        description=to_text(posting.get("description") or ""),
+        description=posting_advert(posting),
         posted_at=date_of(posting.get("datePosted")),
         work_mode="remote" if remote else "",
         salary_min=lo, salary_max=hi, salary_currency=currency,

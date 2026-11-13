@@ -59,9 +59,9 @@ nothing below imports from `web/`.
 | `ai/` | `llm` (providers, keys in memory, and a coding agent as the writer: its answers in, its brief out), `judging`, `guard` (hallucination checks), `writer` (AI cover letter, tailored resume, interview prep, recruiter message, resume review), `prep` (the eight writing and preparing tools: tailoring report, interview story, thank-you, offer, outreach, LinkedIn, changing field, 30-day plan), `tools` (the model as an editor for resume and letter), `suggest` (job titles from the resume, in setup) |
 | `writing/` | `generate` (`claude -p` drafts), `resume_doc` (the tailored resume's template), `length` (its page budget, after Indeed), `gates` (scripted checks), `style` (how a resume's lines are written), `humanize` (signs of AI writing) |
 | `web/` | `serve` (HTTP), `api` (every command for the page, metrics), `live` (runs and events), `session` (token, port), `app` (the desktop window and its bridge; closing it ends the process, and asks first with a scan scheduled; a second start brings the open window to the front), `agent` (jobdork's tools for a coding agent: briefs, saving its answers through the checks, applications, the record, and when it last used them), `mcp` (those tools as an MCP server on stdio) |
-| `output/` | `render` (static HTML and JSON), `pdf` (a resume as a PDF), `docx` (the same as a Word file), `digest` (email) |
+| `output/` | `render` (static HTML and JSON), `pdf` (a resume as a PDF), `ttf` (the PDF's font, read and cut to the glyphs it uses), `docx` (the same as a Word file), `digest` (email) |
 | `dork/` | The original Google query generator, moved not rewritten |
-| `data/` | `boards.csv` (the built-in employer boards), `cities.csv` (places, with each one's region), `regions.csv` (region and country names), `dashboard.html`, the humanizer rules, `attestation-check.json` (a real build attestation, for the desktop app's self-test) |
+| `data/` | `boards.csv` (the built-in employer boards), `cities.csv` (places, with each one's region), `regions.csv` (region and country names), `dashboard.html`, the humanizer rules, `fonts/` (Source Sans 3, the resume PDF's font, with its licence), `attestation-check.json` (a real build attestation, for the desktop app's self-test) |
 
 ---
 

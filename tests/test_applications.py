@@ -130,6 +130,12 @@ def test_saving_checks_what_it_is_given():
             detail = api.application_detail(store, a, [{"id": mine, "kind": "tailored_resume"}])
         assert detail["is_application"] and detail["details"]["next_step"] == "Phone screen"
         assert detail["details"]["resume_id"] == mine and detail["resumes"][0]["id"] == mine
+        # Only the contact, as Add a job post sends it: the rest is kept.
+        api.save_application(cfg, {"uid": a, "contact_name": "Dana Lee"})
+        with Store(cfg.db_path) as store:
+            kept = store.application(a)
+        assert (kept["contact_name"], kept["next_step"], kept["contact_email"], kept["resume_id"]) \
+            == ("Dana Lee", "Phone screen", "dana@example.com", mine)
 
 
 def test_notes_through_the_api():
@@ -369,6 +375,41 @@ def test_jobdork_add_applied_on_marks_each_post_applied():
     finally:
         api.add_post = real
     assert code == 0 and [c["applied_on"] for c in calls] == ["2026-11-01", "2026-11-01"]
+
+
+def test_an_advert_fetched_for_an_application_leaves_it_applied():
+    """Fetch missing adverts on a job tracked without its advert: the advert
+    is kept, and an advert that misses a filter does not mark it skipped and
+    take it off My applications."""
+    from jobdork.core.config import Config, Locations
+    from jobdork.fetch.http import Response
+    from jobdork.search import enrich
+
+    page = ('<script type="application/ld&#x2B;json">{"@type":"JobPosting","title":"Welder",'
+            '"description":"' + "Weld steel frames on the night shift. " * 20 + '"}</script>')
+
+    class _Fetcher:
+        def get(self, url, **_):
+            return Response(url=url, status=200, body=page)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = Config(titles_include=["nurse"], db_path=str(Path(tmp) / "t.db"),
+                     locations=Locations(cities=[], radius="any", countries=[]))
+        with Store(cfg.db_path) as store:
+            mine = Role(platform="site", company="Acme", title="Welder", url="https://x.test/mine")
+            # Another employer: the same title at Acme would be a copy of the
+            # same job, and applied with it.
+            other = Role(platform="site", company="Bolt", title="Welder", url="https://x.test/other")
+            store.upsert(mine)
+            store.upsert(other)
+            store.set_status(mine.uid, "applied")
+            store.conn.commit()
+            report = enrich.enrich(cfg, store, _Fetcher())
+            assert report.improved == 2
+            assert len(store.get(mine.uid)["description"]) > 400
+            assert store.conn.execute("SELECT status FROM role_state WHERE uid = ?",
+                                      (mine.uid,)).fetchone()[0] == "applied"
+            assert report.rescreened_out == [other.uid], "a post nobody acted on is still screened out"
 
 if __name__ == "__main__":
     failures = 0

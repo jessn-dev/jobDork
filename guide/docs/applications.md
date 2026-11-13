@@ -38,17 +38,26 @@ unless you change it; not a day still to come) and press **Add**. jobdork
 reads the post into [Job posts](job-posts.md), marks it *applied*, dated the
 day you gave, and lists it here.
 
-Have the files you sent? Choose the **Resume** and **Cover letter** before
-**Add** (PDF, Word or text): they are kept with the post as its documents
-sent, and its interview prep, recruiter message, AI tools and ATS match read
-the resume you sent rather than the one set now.
+Have the file you sent? Under **Upload what you sent**, pick **Resume** or
+**Cover letter** and choose the file before **Add** (PDF, Word or text): it
+is kept with the post as a document sent, and its interview prep, recruiter
+message, AI tools and ATS match read the resume you sent rather than the one
+set now. Sent both? Upload the other on the post's
+[Application tab](#the-application-tab).
+
+The **Name**, **Email** and **Link** below it are who you are in touch with,
+if anyone: saved with the post when you press **Add**, and shown on its
+Application tab.
 
 When the page cannot be read (a sign-in page, one that publishes nothing for
 search engines, or one that names the job but carries no advert), more
 fields open, filled with whatever the link gave: check the **Job title**,
 **Employer** and **Place**, then **Add** again. Paste the advert too and the
 post is scored like any other; without it, it is tracked all the same, with
-nothing to score against.
+nothing to score against. A USAJOBS link is read whole, duties and
+qualifications included. A post tracked before its advert could be read can
+get it from **Fetch missing adverts** on the [Dashboard](dashboard.md): the
+post stays *applied* whatever the advert says.
 
 A job you already moved on to *interviewing* or *offer* is left there; a
 post jobdork already had is not added twice.
@@ -84,11 +93,13 @@ wherever it is opened:
   a link (a LinkedIn profile, say).
 - **Documents sent**: which resume and cover letter you sent: one jobdork
   wrote for this post (from its **AI tools** tab), or a file of yours.
-  **Upload the resume you sent** or **the letter you sent** keeps the file
-  with the post and chooses it; uploading again replaces it. The post's
-  window shows its text, and its prep and tools read it.
+  Under **Upload what you sent**, pick **Resume** or **Cover letter** and
+  choose the file: it is kept with the post and chosen at once; uploading
+  again replaces it. The post's window shows its text, and its prep and
+  tools read it.
 
-**Save application** keeps all three. Everything stays on this computer.
+**Save application** keeps the next step, the contact and the documents
+chosen. Everything stays on this computer.
 
 **Notes**: write one and press **Add note**. Each is dated and filed under
 the job's status at the time, newest first, so the log reads as the

@@ -841,6 +841,49 @@ def test_a_cover_letter_is_listed_viewed_and_deleted_at_once():
     _with_server(check)
 
 
+def test_a_tailored_resume_is_deleted_and_your_own_resume_is_not():
+    """With a tailored resume chosen, Delete deleted your own resume instead
+    (2026-11-12). It goes by its id: its file, PDF and Word copy, and record;
+    your resume, a file another record shares, and what you sent stay."""
+    def check(run):
+        folder = Path(run.tmp.name) / "docs" / "job"
+        folder.mkdir(parents=True)
+        mine = Path(run.tmp.name) / "my-own-cv.md"
+        mine.write_text("# Me\n\nPython\n", encoding="utf-8")
+        from jobdork.core import setup
+        run.holder["cfg"] = setup.write(run.config_path, {"resume_path": str(mine)})
+        made = folder / "Dana_Lee_Nurse_Resume.md"
+        for suffix in (".md", ".pdf", ".docx"):
+            made.with_suffix(suffix).write_text("x", encoding="utf-8")
+        older = folder / "Dana_Lee_Older_Resume.md"
+        older.write_text("x", encoding="utf-8")
+        sent = folder / "sent-resume.md"
+        sent.write_text("x", encoding="utf-8")
+        with Store(run.cfg.db_path) as store:
+            out = store.add_ai_output("tailored_resume", "# Dana Lee", uid=run.uid, model="test")
+            doc = store.add_artifact(run.uid, "tailored_resume", str(made),
+                                     gates={"guard": {"output_id": out}})
+            first = store.add_artifact(run.uid, "tailored_resume", str(older))
+            again = store.add_artifact(run.uid, "tailored_resume", str(older))
+            kept = store.add_artifact(run.uid, "sent_resume", str(sent))
+            store.conn.commit()
+
+        code, body = run.post("/api/documents/delete", {"id": doc})
+        assert code == 200 and json.loads(body)["kind"] == "tailored_resume", body
+        assert not any(made.with_suffix(s).exists() for s in (".md", ".pdf", ".docx"))
+        assert mine.is_file() and run.cfg_now.resume_path == str(mine)
+        code, _ = run.post("/api/documents/delete", {"id": first})
+        assert code == 200 and older.is_file(), "another record still names it"
+        code, _ = run.post("/api/documents/delete", {"id": kept})
+        assert code == 404 and sent.is_file(), "what you sent is not the AI's to delete"
+        with Store(run.cfg.db_path) as store:
+            left = {r[0] for r in store.conn.execute("SELECT id FROM artifacts")}
+            assert left == {again, kept}
+            assert store.conn.execute("SELECT text FROM ai_outputs WHERE id = ?",
+                                      (out,)).fetchone()[0] == ""
+    _with_server(check)
+
+
 def test_an_uploaded_resume_is_deleted_but_your_own_file_is_only_unset():
     def check(run):
         request = urllib.request.Request(

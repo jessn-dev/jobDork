@@ -110,6 +110,37 @@ def test_one_live_copy_keeps_the_job_open():
             assert grouping.all_closed(store.conn, [a.uid, b.uid])
 
 
+def test_a_check_counts_only_what_it_checks_and_says_so():
+    """A run opened at 54%: posts checked in the last hours were counted done
+    at once, and its total was every copy, not the posts it would check."""
+    from jobdork.core import telemetry
+
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = Config(titles_include=["x"], db_path=str(Path(tmp) / "t.db"))
+        with Store(cfg.db_path) as store:
+            roles = [_role(f"https://jobs.workable.com/view/{n}", platform="workable")
+                     for n in ("a", "b", "c")]
+            for r in roles:
+                store.upsert(r)
+            store.set_listing(roles[0].uid, "open", "checked just now")
+            store.conn.commit()
+            totals, said = [], []
+            real = telemetry.tick
+
+            def tick(**kw):
+                if "total" in kw:
+                    totals.append(kw["total"])
+                return real(**kw)
+            telemetry.tick = tick
+            try:
+                report = listing.run(cfg, store, _Fetcher("none"), progress=said.append)
+            finally:
+                telemetry.tick = real
+            assert totals == [2] and report.skipped_fresh == 1 and report.checked == 2
+            assert said[0].startswith("Checking 2 postings of 1 job posts")
+            assert "1 checked in the last 12 hours" in said[0]
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]

@@ -466,6 +466,17 @@ def _word_per_line(text: str) -> bool:
     return len(counts) >= 40 and counts[len(counts) // 2] <= 1
 
 
+# A line that is only a bullet. Some PDFs draw their bullets apart from the
+# text: read in order, every bullet's words came out with no bullet, and the
+# bullets piled up as empty lines at the end of the page. A resume sent with
+# an application read as cut off (2026-11-12: 18 such lines in two pages).
+_BARE_BULLET = re.compile(r"^\s*[•▪●‣⁃◦-]\s*$")
+
+
+def _bullets_apart(text: str) -> bool:
+    return sum(1 for line in text.splitlines() if _BARE_BULLET.match(line)) >= 3
+
+
 def _read_pdf(path: Path) -> str:
     """Read a PDF via pypdf, which is optional and says so when absent.
 
@@ -488,9 +499,10 @@ def _read_pdf(path: Path) -> str:
         text = "\n\n".join((page.extract_text() or "") for page in pages)
         # Some PDFs place every word apart, and come out one word per line
         # ("April / 2025 / - / present"): every word read, every line lost.
-        # Read by layout instead. Not always: layout puts two columns side
+        # Read by layout instead, as for bullets drawn apart from their
+        # text (_bullets_apart). Not always: layout puts two columns side
         # by side, line by line, where the default reads one, then the other.
-        if _word_per_line(text):
+        if _word_per_line(text) or _bullets_apart(text):
             laid = "\n\n".join(
                 (page.extract_text(extraction_mode="layout") or "") for page in pages)
             text = "\n".join(re.sub(r"[ \t]{2,}", " ", line).strip()
@@ -663,15 +675,28 @@ class WorkSpan:
                 "(study not counted).")
 
 
-def work_span(text: str, today: tuple[int, int] | None = None) -> WorkSpan | None:
-    """How long the resume's dated roles cover, counted here rather than by a
-    model: "over 5 years" was the claim a model made most often and the one
-    it could least back, since a resume gives dates, not totals.
+# A dated entry that is time away from work, not work: kept on a resume as
+# written, but not counted as years of experience (2026-11-12: a caregiving
+# break was counted as nine months worked).
+_BREAK = re.compile(r"career break|caregiv|sabbatical|parental leave|maternity|"
+                    r"paternity|employment gap|time off|medical leave", re.IGNORECASE)
 
-    Only "Month YYYY - Month YYYY" (or "- Present") ranges count, and one
-    with a university, school or degree beside it is study. Overlapping roles
-    are merged. None when no work range is found.
-    """
+
+def _entry_line(text: str, m: re.Match) -> str:
+    """The words a date range belongs to: its own line, or the line above it
+    when the dates stand alone (a PDF often wraps "Title, Company, \n
+    Place  Jun 2024 - Present")."""
+    line = text[max(0, m.start() - 160):m.start()].rsplit("\n", 1)[-1].strip(" \t|,")
+    above = text[:m.start()].rsplit("\n", 2)
+    if len(line.split()) < 3 and len(above) >= 2:
+        line = f"{above[-2].strip()} {line}".strip(" \t|,")
+    return line
+
+
+def work_ranges(text: str, today: tuple[int, int] | None = None
+                ) -> list[tuple[tuple[int, int], tuple[int, int], re.Match]]:
+    """(start, end, match) for each dated work entry, as work_span reads
+    them: a career break among them (_BREAK) included."""
     import time
 
     now = today or time.localtime()[:2]
@@ -711,6 +736,24 @@ def work_span(text: str, today: tuple[int, int] | None = None) -> WorkSpan | Non
         end = min(end, now)
         if start <= end:
             spans.append((start, end, m))
+    return spans
+
+
+def work_span(text: str, today: tuple[int, int] | None = None) -> WorkSpan | None:
+    """How long the resume's dated roles cover, counted here rather than by a
+    model: "over 5 years" was the claim a model made most often and the one
+    it could least back, since a resume gives dates, not totals.
+
+    Only "Month YYYY - Month YYYY" (or "- Present") ranges count, and one
+    with a university, school or degree beside it is study, and a career
+    break is not work. Overlapping roles are merged. None when no work range
+    is found.
+    """
+    import time
+
+    now = today or time.localtime()[:2]
+    spans = [s for s in work_ranges(text, today)
+             if not _BREAK.search(_entry_line(text or "", s[2]))]
     if not spans:
         return None
     # lambda: ranges in order of their start.

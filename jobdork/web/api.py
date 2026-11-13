@@ -372,10 +372,6 @@ def _gates(raw: str) -> tuple[dict, int | None]:
     return {k: v for k, v in gates.items() if not k.startswith("_")}, output_id
 
 
-# The files a cover letter is written as: the AI page's, and claude -p's.
-LETTER_FILES = ("cover-letter-ai.md", "cover-letter.md")
-
-
 def list_resumes(cfg) -> dict:
     """Every tailored resume and CV recorded, newest first, with its job post
     and how its checks went: the cards at the top of the Resume page."""
@@ -432,32 +428,53 @@ def list_letters(cfg) -> dict:
                         for r in rows]}
 
 
-def delete_letter(cfg, artifact_id: int) -> dict:
-    """Delete a cover letter now: its file, its record, and its text.
+# Documents the AI wrote that can be deleted, each with the file name it is
+# written under (ai/writer.py, writing/generate.py). Only a file with its
+# kind's own name is removed. A tailored resume could not be deleted at all,
+# and a cover letter only from the bottom of the Resume page (2026-11-12).
+DELETABLE = {"cover_letter": re.compile(r"^cover-letter(?:-ai)?\.md$"),
+             "tailored_resume": re.compile(r"_Resume\.md$"),
+             "cv": re.compile(r"^CV\.md$")}
 
-    Only a file this tool recorded writing, under a cover letter's own name,
-    is removed; the page passes an id, never a path. The AI's copy of the text
-    is blanked too, so nothing of the letter is left, but its claim counts
-    stay, because the hallucination chart is built from them.
+
+def delete_document(cfg, artifact_id: int, kinds: tuple = tuple(DELETABLE)) -> dict:
+    """Delete a document the AI wrote now: its file, its record, and its text.
+
+    The page passes an id, never a path. A tailored resume's PDF and Word
+    copies beside it go too. A file another record still names (a second
+    resume for the same job post, written under the same name) is kept. The
+    AI's copy of the text is blanked, so nothing of it is left, but its claim
+    counts stay, because the hallucination chart is built from them. An
+    application that named it as sent now names none (applications'
+    ON DELETE SET NULL).
     """
     from ..db.store import Store
 
     with Store(cfg.db_path) as store:
         row = store.conn.execute(
-            "SELECT id, path, gates_json FROM artifacts "
-            "WHERE id = ? AND kind = 'cover_letter'", (int(artifact_id),)).fetchone()
-        if row is None:
-            raise ApiError("no such cover letter", 404)
+            "SELECT id, kind, path, gates_json FROM artifacts WHERE id = ?",
+            (int(artifact_id),)).fetchone()
+        if row is None or row["kind"] not in kinds:
+            raise ApiError("no such document", 404)
         path = Path(row["path"] or "")
-        if path.name in LETTER_FILES and path.is_file():
-            path.unlink()
+        shared = store.conn.execute(
+            "SELECT 1 FROM artifacts WHERE path = ? AND id != ?",
+            (row["path"], row["id"])).fetchone()
+        if DELETABLE[row["kind"]].search(path.name) and not shared:
+            for file in (path, path.with_suffix(".pdf"), path.with_suffix(".docx")):
+                file.unlink(missing_ok=True)
         _, output_id = _gates(row["gates_json"])
         if output_id:
             store.conn.execute("UPDATE ai_outputs SET text = '' WHERE id = ?",
                                (int(output_id),))
         store.conn.execute("DELETE FROM artifacts WHERE id = ?", (row["id"],))
         store.conn.commit()
-    return {"deleted": True, "id": int(artifact_id)}
+    return {"deleted": True, "id": int(artifact_id), "kind": row["kind"]}
+
+
+def delete_letter(cfg, artifact_id: int) -> dict:
+    """A cover letter deleted (delete_document), from the Resume page's list."""
+    return delete_document(cfg, artifact_id, ("cover_letter",))
 
 
 def forget_temporary(cfg) -> int:
@@ -703,12 +720,18 @@ def application_detail(store, uid: str, artifacts: list[dict]) -> dict:
 
 
 def save_application(cfg, form: dict) -> dict:
-    """An application's next step, contact and documents sent."""
+    """An application's next step, contact and documents sent. A field the
+    form leaves out keeps what was saved: Add a job post saves only the
+    contact, and must not wipe a next step set on a post tracked before."""
     from ..db.store import Store
 
     uid = str(form.get("uid") or "")
     if not UID.match(uid):
         raise ApiError("not a job post id")
+    with Store(cfg.db_path) as store:
+        saved = store.application(uid)
+    if saved is not None:
+        form = {**{k: v or "" for k, v in dict(saved).items() if k != "uid"}, **form}
     fields: dict = {}
     for key, most in APP_TEXT.items():
         value = " ".join(str(form.get(key) or "").split())

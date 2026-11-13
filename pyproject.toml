@@ -86,7 +86,7 @@ packages = ["jobdork", "jobdork.ai", "jobdork.core", "jobdork.db", "jobdork.dork
             "jobdork.writing"]
 
 [tool.setuptools.package-data]
-jobdork = ["data/*.csv", "data/*.html", "data/*.json", "data/humanizer/*"]
+jobdork = ["data/*.csv", "data/*.html", "data/*.json", "data/humanizer/*", "data/fonts/*"]
 
 # ── tests ─────────────────────────────────────────────────────────────────────
 # The suite is plain functions with asserts, so it runs under pytest without

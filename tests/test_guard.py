@@ -383,6 +383,35 @@ def test_a_pdf_read_one_word_per_line_is_read_by_layout():
     assert not _word_per_line("\n".join(["Built CI with Jenkins at Acme."] * 50))
 
 
+def test_a_career_break_is_not_counted_as_work_and_a_left_out_job_is_named():
+    """A caregiving break was counted as months worked, and a tailored resume
+    left it and four earlier jobs out with nothing said (2026-11-12)."""
+    from jobdork.ai.writer import _jobs_left_out
+    from jobdork.search.resume import work_span
+
+    text = ("Experience\n"
+            "Engineer, Acme, Austin, TX Jun 2024 - Present\n- Built pipelines.\n"
+            "Career Break, Caregiving Sep 2023 - May 2024\n- Took a security course.\n"
+            "Developer, Bolt, Remote Jan 2020 - Aug 2023\n- Wrote APIs.\n")
+    span = work_span(text, today=(2026, 5))
+    assert span.months == 24 + 44, span
+    missing = _jobs_left_out(text, [{"start": "June 2024"}])
+    assert [m.split(" (")[0] for m in missing] == ["Career Break, Caregiving", "Developer, Bolt, Remote"]
+    assert not _jobs_left_out(text, [{"start": "Jun 2024"}, {"start": "September 2023"},
+                                     {"start": "2020"}])
+
+
+def test_a_pdf_whose_bullets_came_out_apart_is_read_by_layout():
+    """Bullets drawn apart from their text came out as empty lines at the end
+    of the page, and the resume read as cut off."""
+    from jobdork.search.resume import _bullets_apart
+
+    read = "Built CI with Jenkins.\nCut costs by 30%.\nRan on-call.\n• \n•\n • \n"
+    assert _bullets_apart(read)
+    assert not _bullets_apart("• Built CI with Jenkins.\n• Cut costs by 30%.\n• Ran on-call.\n")
+    assert not _bullets_apart("Skills\n-\nPython\n")
+
+
 def test_a_certificates_term_and_months_to_come_are_not_work():
     """ "(cycle Feb 2024 to Jan 2027)" under a certification was counted as
     work, to a month that had not come yet."""
