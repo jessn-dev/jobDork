@@ -169,10 +169,11 @@ from your resume.
   If something is missing there, the file's layout hid it (usually a table,
   columns or a text box): applicant tracking systems will miss it too.
   **Download original** gives you your file back.
-- **Delete your resume** removes it from jobdork. With a tailored card chosen
-  instead, the same button is **Delete this tailored resume**: it deletes that
-  one, with its PDF and Word copies, and leaves your own resume alone. It asks
-  first (**Delete this tailored resume?**).
+- **Delete your resume** removes it from jobdork; it asks first (**Delete your
+  resume?**). With a tailored card chosen instead, the same button is **Delete
+  this tailored resume**: it deletes that one at once, with its PDF and Word
+  copies, and leaves your own resume alone. A cover letter's **Delete** works
+  at once too: the AI writes either again on request.
 
 ## Projects
 
