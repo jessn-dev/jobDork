@@ -57,8 +57,9 @@ EDITING = {
     "highlight": "the skills to highlight for",
     "feedback": "recruiter feedback on my resume for",
     "revise": "five versions of this text for",
+    "own_words": "resume edits from these words of mine, for",
 }
-WITH_TEXT = ("revise", "feedback")     # take text of the user's: required, or a letter
+WITH_TEXT = ("revise", "feedback", "own_words")     # take text of the user's: required, or a letter
 KINDS = (*DOCUMENTS, VERDICT, *EDITING)
 
 # What the agent is told when it connects (MCP `instructions`), and by

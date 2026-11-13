@@ -381,6 +381,18 @@ CREATE TABLE IF NOT EXISTS application_notes (
     by      TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_notes_uid ON application_notes(uid);
+-- What an employer sent back short of a stage: a notice the application was
+-- viewed, a recruiter's call, a questionnaire, anything else. Dated by the day
+-- it came. The dashboard's funnel counts them (2026-11-13).
+CREATE TABLE IF NOT EXISTS application_replies (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    uid     TEXT NOT NULL REFERENCES roles(uid) ON DELETE CASCADE,
+    kind    TEXT NOT NULL,
+    on_day  TEXT NOT NULL,
+    note    TEXT NOT NULL DEFAULT '',
+    at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_replies_uid ON application_replies(uid);
 """
 
 

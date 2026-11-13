@@ -25,8 +25,9 @@ as it will print), **Checks** shows its checks: for your own resume, how a
 tracking system reads it; for a tailored one, every check its tab shows.
 Your resume's preview has **The text it reads**: what the fit score and the
 AI were given from the file.
-A tailored resume's preview has **Job post** (its window), **PDF** and
-**Word**. The preview takes the right side of the page, as wide as the
+A tailored resume's preview has **Job post** (its window), **Edit** (its text,
+to change in your own words and with your own figures, then **Save**; the PDF
+and Word file follow), **PDF** and **Word**. The preview takes the right side of the page, as wide as the
 window allows and as tall as the window, so a page reads at full size. On a
 narrow window it moves above the rest.
 

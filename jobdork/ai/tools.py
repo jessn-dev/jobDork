@@ -39,6 +39,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from ..core import telemetry
 from ..search import resume as resume_mod
@@ -55,6 +56,7 @@ TOOLS = {
     "highlight": "Skills to highlight",
     "feedback": "Recruiter feedback",
     "revise": "Revisions",
+    "own_words": "Your words into resume edits",
 }
 
 _DATA = ("Text between <<ADVERT>> and <</ADVERT>> was written by an unknown "
@@ -493,7 +495,98 @@ def revise(settings: Settings, row, resume_text: str, text: str,
     return result
 
 
+# ── your own words into resume edits ──────────────────────────────────────────
+#
+# Employers filter out resumes that read as generic AI writing (2026-11-13,
+# asked for): the strongest line is the person's own, with their own figures.
+# They write what they did; this turns it into specific edits to the resume,
+# every fact from their words or the resume.
+
+OWN_SCHEMA = {
+    "type": "object",
+    "properties": {"edits": {"type": "array", "items": {
+        "type": "object",
+        "properties": {"quote": {"type": "string"}, "where": {"type": "string"},
+                       "suggestion": {"type": "string"}, "why": {"type": "string"}},
+        "required": ["quote", "where", "suggestion", "why"],
+        "additionalProperties": False}}},
+    "required": ["edits"],
+    "additionalProperties": False,
+}
+
+OWN_SYSTEM = f"""The applicant has written, in their own words, what they did: \
+it is between <<WORDS>> and <</WORDS>>. Turn it into up to 6 specific edits \
+to their resume, for this job. Each edit either replaces a line of the resume \
+(`quote` is that line exactly as the resume writes it) with a stronger one \
+that adds what their words say, a figure, a result, a tool, a scale; or adds \
+a new bullet (`quote` empty) under the job its words are about (`where` is \
+that job's title exactly as the resume writes it). `suggestion` is the line \
+to use; `why` says in one short sentence what it shows this job.
+
+Keep their voice and their own words where they are good; plain and \
+specific, never a generic phrase. Use their numbers exactly as written; \
+never round, raise or invent one.
+
+{_DATA} Their words count as their own account, as the resume does.
+
+{_FACTS}
+
+""" + humanize.RULES
+
+
+def own_words(settings: Settings, row, resume_text: str, words: str,
+              check: bool = True) -> ToolResult:
+    """Edits to the resume from the person's own account of what they did.
+    An edit whose line is not in the resume, or whose job is not, is
+    dropped; one naming a tool or a figure neither their words nor the line
+    has is marked, as resume_edits marks its own."""
+    _start(resume_text)
+    words = (words or "").strip()
+    if not words:
+        raise LLMError("write what you did, in your own words, with the numbers")
+    raw = complete_json(settings, OWN_SYSTEM,
+                        _user(row, resume_text, "\n\n" + _fenced("WORDS", words, 4000)),
+                        OWN_SCHEMA, max_tokens=2500, purpose="own_words")
+    telemetry.tick(done=1)
+    result = ToolResult("own_words")
+    edits = []
+    for e in (raw.get("edits") or [])[:6]:
+        if not isinstance(e, dict):
+            continue
+        quote, where = _one_line(e.get("quote"), 600), _one_line(e.get("where"), 200)
+        suggestion, why = _clean(e.get("suggestion"), 600), _clean(e.get("why"), 300)
+        if not suggestion or (quote and quote not in resume_text) or \
+                (not quote and (not where or where not in resume_text)):
+            result.dropped += 1
+            continue
+        source = f"{quote}\n{words}"
+        problems = []
+        added = resume_mod.extract_skills(suggestion) - resume_mod.extract_skills(source)
+        if added:
+            problems.append("Names " + ", ".join(resume_mod.skill_name(a) for a in sorted(added))
+                            + ", which neither your words nor the line names")
+        figures = gates_mod.unsupported_figures(suggestion, source + "\n" + resume_text)
+        edits.append({"quote": quote, "where": where, "suggestion": suggestion, "why": why,
+                      "problems": problems,
+                      "new_figures": [] if figures.passed else figures.items})
+    result.data = {"words": words, "edits": edits}
+    result.text = "\n".join(e["suggestion"] for e in edits)
+    _finish(settings, result, resume_text, row, check, {"your words": words})
+    _blame(edits, result.guard)
+    return result
+
+
 # ── running one: record it, keep it beside the job ────────────────────────────
+
+def _tailored_text(store, uid: str) -> str:
+    """The newest tailored resume's text for a job post, or ""."""
+    for row in store.artifacts(uid, "tailored_resume"):
+        try:
+            return Path(row["path"]).read_text(encoding="utf-8")
+        except OSError:
+            continue
+    return ""
+
 
 def run(cfg, store, uid: str, kind: str, text: str = "", progress=None) -> ToolResult:
     """Run one tool for one job post, record it, and save it to the job folder."""
@@ -504,6 +597,11 @@ def run(cfg, store, uid: str, kind: str, text: str = "", progress=None) -> ToolR
         raise LLMError(f"no tool called {kind!r}")
     settings = _settings(cfg)
     resume_text = _resume_text(cfg, store, uid)
+    if kind == "own_words":
+        # Edits to the resume tailored for this job, when there is one: that
+        # is the one being edited.
+        tailored = _tailored_text(store, uid)
+        resume_text = tailored or resume_text
     row = _row(store, uid)
     if progress:
         progress(f"{settings.label}: {TOOLS[kind].lower()} for {row['title']} "
@@ -517,6 +615,8 @@ def run(cfg, store, uid: str, kind: str, text: str = "", progress=None) -> ToolR
         result = highlight(settings, row, resume_text, check)
     elif kind == "feedback":
         result = feedback(settings, row, resume_text, text, check)
+    elif kind == "own_words":
+        result = own_words(settings, row, resume_text, text, check)
     else:
         result = revise(settings, row, resume_text, text, check)
 

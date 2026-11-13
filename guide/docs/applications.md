@@ -101,12 +101,46 @@ wherever it is opened:
 **Save application** keeps the next step, the contact and the documents
 chosen. Everything stays on this computer.
 
+**Replies**: what came back short of a stage. Choose **Viewed notice**, **Recruiter
+call**, **Questionnaire** or **Other reply**, the day it came (today, unless
+you change it) and a note if you like, then **Add reply**. **Delete** removes
+one. Replies are counted on the [Dashboard](dashboard.md#your-applications);
+an interview, an offer or a rejection is a status, not a reply.
+
 **Notes**: write one and press **Add note**. Each is dated and filed under
 the job's status at the time, newest first, so the log reads as the
 application went. **Delete** removes one; it asks first (**Delete note?**).
 
 A status, a next step, a contact and notes belong to the job, not the link:
 when one job is posted in several places, every copy shares them.
+
+## Review your rejections
+
+Open **Review your rejections** for what your newest rejections have in
+common: up to ten of them, and five or more give a clearer picture. It is a
+checklist to work through, each line **Fine** or **Check**, not text to paste
+into your resume:
+
+- **The resume can be read the way a tracking system reads it**: the resume
+  each application went with (the one you chose under Documents sent, one
+  you uploaded as sent, or your own) checked for columns, tables, text boxes,
+  pictures and garbled text. A system that reads it in the wrong order, or not
+  at all, rejects it before anyone sees it: rebuild it as one plain column.
+- **The skills these adverts asked for are on the resume**: the skills asked
+  for in more than one rejection and missing from the resume, with how many.
+  Where you have one, say so in a bullet about the job you used it in, in
+  your own words.
+- **What you have is on the resume you send**: skills on your Resume page
+  (projects, education, skills you confirmed) left off the resume you sent.
+- **The job's title is in the resume**: jobs whose title the resume never
+  names; where it is honestly what you do, name it in your summary.
+
+Under **How they scored**, the rejections' Match, Fit and AI scores beside
+those of the applications that reached an interview: far lower scores say
+the jobs were a stretch, similar ones point at the resume or the timing. The
+table lists each rejection with its scores, its ATS match, the skills it
+missed and the AI's concerns; click one to open it. Nothing is sent to an
+AI to make this.
 
 ## Follow-ups past their date
 

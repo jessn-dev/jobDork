@@ -683,6 +683,8 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 return self._wrap(api_mod.list_suggestions, cfg_holder["cfg"])
             if path == "/api/applications":
                 return self._wrap(api_mod.list_applications, cfg_holder["cfg"])
+            if path == "/api/applications/rejections":
+                return self._wrap(api_mod.rejection_review, cfg_holder["cfg"])
             if path == "/api/resumes":
                 return self._wrap(api_mod.list_resumes, cfg_holder["cfg"])
             if path == "/api/ats":
@@ -851,6 +853,11 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 if form is None:
                     return self._reject(400, "bad request body")
                 return self._wrap(api_mod.track_application, cfg_holder["cfg"], form)
+            if path == "/api/application/reply":
+                form = self._body()
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.application_reply, cfg_holder["cfg"], form)
             if path in ("/api/application", "/api/application/note"):
                 form = self._body()
                 if form is None:
@@ -863,6 +870,12 @@ def make_handler(cfg_holder: dict, session: Session, runner: Runner, desk=None):
                 if not raw.isdigit():
                     return self._reject(400, "not a cover letter id")
                 return self._wrap(api_mod.delete_letter, cfg_holder["cfg"], int(raw))
+            if path == "/api/documents/save":
+                # Sized for a resume's or letter's text.
+                form = self._body(limit=api_mod.MAX_DOCUMENT_CHARS * 4)
+                if form is None:
+                    return self._reject(400, "bad request body")
+                return self._wrap(api_mod.save_document, cfg_holder["cfg"], form)
             if path == "/api/documents/delete":
                 # A cover letter, tailored resume or CV the AI wrote, by its id.
                 form = self._body()

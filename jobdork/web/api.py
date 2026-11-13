@@ -361,6 +361,14 @@ def _credentials(cfg, advert: str) -> list[dict]:
     return credentials.find(advert, resume_text, cfg.credentials)
 
 
+def _edited(raw: str) -> str:
+    """When you last edited a document by hand (save_document), or ""."""
+    try:
+        return str(json.loads(raw or "{}").get("_edited") or "")
+    except (json.JSONDecodeError, AttributeError):
+        return ""
+
+
 def _gates(raw: str) -> tuple[dict, int | None]:
     """Stored gate results, and the ai_outputs row the document is, if any."""
     try:
@@ -470,6 +478,57 @@ def delete_document(cfg, artifact_id: int, kinds: tuple = tuple(DELETABLE)) -> d
         store.conn.execute("DELETE FROM artifacts WHERE id = ?", (row["id"],))
         store.conn.commit()
     return {"deleted": True, "id": int(artifact_id), "kind": row["kind"]}
+
+
+# Documents you can edit by hand, and the most text one may hold.
+EDITABLE = ("tailored_resume", "cv", "cover_letter")
+MAX_DOCUMENT_CHARS = 60_000
+
+
+def save_document(cfg, form: dict) -> dict:
+    """Your own edit of a document the AI wrote: its text saved in place,
+    and a tailored resume's PDF and Word copies made again from it. Asked
+    for on 2026-11-13: employers filter out generic AI writing, and the fix
+    is your own words and your own figures, typed where they belong. The
+    record says it was edited by you, and when: its checks were of the AI's
+    version."""
+    from ..db.store import Store
+
+    raw = str(form.get("id") or "")
+    if not raw.isdigit():
+        raise ApiError("not a document id")
+    text = str(form.get("text") or "").replace("\r\n", "\n")
+    if not text.strip():
+        raise ApiError("the document is empty: delete it instead")
+    if len(text) > MAX_DOCUMENT_CHARS:
+        raise ApiError(f"over {MAX_DOCUMENT_CHARS:,} characters")
+    with Store(cfg.db_path) as store:
+        row = store.conn.execute(
+            "SELECT a.id, a.kind, a.path, a.gates_json, r.title FROM artifacts a "
+            "LEFT JOIN roles r ON r.uid = a.uid WHERE a.id = ?", (int(raw),)).fetchone()
+        if row is None or row["kind"] not in EDITABLE:
+            raise ApiError("no such document", 404)
+        path = Path(row["path"] or "")
+        if not DELETABLE[row["kind"]].search(path.name) or not path.is_file():
+            raise ApiError(f"{row['kind'].replace('_', ' ')} was recorded but its file is gone", 410)
+        path.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
+        if row["kind"] == "tailored_resume":
+            from ..core.config import resume_font
+            from ..output import docx, pdf
+            from ..writing import resume_doc
+            title = f"{resume_doc.name_of(text) or 'Resume'}, {row['title'] or ''}"
+            face = resume_font(cfg)
+            path.with_suffix(".pdf").write_bytes(pdf.render(text, title, font=face))
+            path.with_suffix(".docx").write_bytes(docx.render(text, title, font=face))
+        try:
+            gates = json.loads(row["gates_json"] or "{}")
+        except (TypeError, ValueError):
+            gates = {}
+        gates["_edited"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        store.conn.execute("UPDATE artifacts SET gates_json = ? WHERE id = ?",
+                           (json.dumps(gates), row["id"]))
+        store.conn.commit()
+    return {"saved": True, "id": int(raw), "edited": gates["_edited"]}
 
 
 def delete_letter(cfg, artifact_id: int) -> dict:
@@ -682,8 +741,53 @@ def list_applications(cfg) -> dict:
             "contact": (d["contact_name"] if d else "") or "",
             "notes": a["notes"]})
     counts = {k: sum(1 for a in out if a["stage"] == k) for k in APP_STAGES}
-    return {"applications": out, "counts": counts,
+    with Store(cfg.db_path) as store:
+        funnel = application_funnel(store, apps)
+    return {"applications": out, "counts": counts, "funnel": funnel,
             "overdue": sum(1 for a in out if a["overdue"])}
+
+
+# Days after applying with nothing back that count as no reply at all.
+NO_REPLY_DAYS = 30
+REPLY_LABELS = {"viewed": "Viewed notice", "recruiter_call": "Recruiter call",
+                "questionnaire": "Questionnaire", "other": "Other reply"}
+
+
+def application_funnel(store, apps: list[dict], today=None) -> dict:
+    """How your applications went, counted: how many you sent; how many
+    reached an interview, an offer, or a rejection or close; how many have
+    had nothing back at all, and of those how many for NO_REPLY_DAYS or
+    more; and the replies short of a stage you recorded, by kind (each
+    application counted once per kind). A rejection is a reply: an
+    application turned down is not one "with no reply"."""
+    import datetime
+
+    today = today or datetime.date.today()
+    reached = {"interviews": ("interviewing", "offer"), "offers": ("offer",)}
+    out = {"applications": len(apps), "interviews": 0, "offers": 0,
+           "rejected_or_closed": 0, "no_reply": 0, "no_reply_30": 0,
+           "replied": 0, "replies": dict.fromkeys(REPLY_LABELS, 0),
+           "reply_labels": REPLY_LABELS, "no_reply_days": NO_REPLY_DAYS}
+    for a in apps:
+        status = a["row"]["status"]
+        seen = {status, *(s for s, _ in a["history"])}
+        kinds = {r["kind"] for r in store.replies(a["row"]["uid"])}
+        for key, statuses in reached.items():
+            out[key] += bool(seen & set(statuses))
+        out["rejected_or_closed"] += status in reminders.ENDED
+        for kind in kinds & set(REPLY_LABELS):
+            out["replies"][kind] += 1
+        moved = bool(seen - {"applied", "submitted", "new", "viewed", "interested"})
+        if kinds or moved:
+            out["replied"] += 1
+            continue
+        out["no_reply"] += 1
+        try:
+            sent = datetime.date.fromisoformat(a["applied_at"][:10])
+        except ValueError:
+            continue
+        out["no_reply_30"] += (today - sent).days >= NO_REPLY_DAYS
+    return out
 
 
 # What an application's "Documents sent" can name: drafts jobdork wrote for
@@ -713,6 +817,9 @@ def application_detail(store, uid: str, artifacts: list[dict]) -> dict:
         "overdue": _overdue(d, status, datetime.date.today().isoformat()),
         "notes": [{"id": n["id"], "stage": n["stage"], "note": n["note"], "at": n["at"], "by": n["by"]}
                   for n in store.application_notes(uid)],
+        "replies": [{"id": r["id"], "kind": r["kind"], "label": REPLY_LABELS.get(r["kind"], r["kind"]),
+                     "on_day": r["on_day"], "note": r["note"]} for r in store.replies(uid)],
+        "reply_labels": REPLY_LABELS,
         # What could have been sent: this post's resumes and cover letters.
         "resumes": [a for a in artifacts if a["kind"] in APP_RESUME_KINDS],
         "letters": [a for a in artifacts if a["kind"] in APP_LETTER_KINDS],
@@ -779,6 +886,166 @@ def application_note(cfg, form: dict, by: str = "") -> dict:
         except ValueError as exc:
             raise ApiError(str(exc)) from None
     return {"added": True}
+
+
+# How many recent rejections the review reads: enough to see a pattern, few
+# enough that one bad month is not buried under a year of others.
+REVIEW_MAX = 10
+REVIEW_ENOUGH = 5
+
+
+def _sent_document(cfg, store, uid: str, details) -> tuple[str, str, str]:
+    """(what it is, its file, its text) for the resume an application went
+    with: the one chosen as sent, an uploaded file of yours, else the resume
+    set now."""
+    from ..search import resume as resume_mod
+
+    chosen = details["resume_id"] if details else None
+    rows = store.artifacts(uid)
+    pick = next((a for a in rows if a["id"] == chosen), None) or \
+        next((a for a in rows if a["kind"] == "sent_resume"), None)
+    if pick and Path(pick["path"] or "").is_file():
+        try:
+            return pick["kind"], pick["path"], _document_text(pick["kind"], Path(pick["path"]))
+        except ApiError:
+            pass
+    if cfg.resume_path:
+        try:
+            return "your resume", cfg.resume_path, resume_mod.load(cfg.resume_path).text
+        except resume_mod.ResumeError:
+            return "your resume", cfg.resume_path, ""
+    return "", "", ""
+
+
+def rejection_review(cfg) -> dict:
+    """What your recent rejections have in common, as a checklist to work
+    through, not text to paste: whether the resume each went with could be
+    read (columns, tables, text boxes, garbled text), the skills and job
+    titles the adverts asked for that it did not show, how they scored
+    against the applications that reached an interview, and what the AI
+    held against them. Read from up to REVIEW_MAX of the newest rejections;
+    nothing is written, and no AI is asked."""
+    import collections
+    import json as json_mod
+
+    from ..db.store import Store
+    from ..search import ats, readable
+    from ..search.resume import skill_name
+    from ..writing import resume_doc
+
+    with Store(cfg.db_path) as store:
+        apps = store.applications()
+        rejected = [a for a in apps if a["row"]["status"] == "rejected"][:REVIEW_MAX]
+        interviewed = [a for a in apps if {a["row"]["status"], *(s for s, _ in a["history"])}
+                       & {"interviewing", "offer"}]
+        notes = resume_doc.store_notes(store)
+        rows, formats, checked = [], {}, set()
+        missing, can_add = collections.Counter(), collections.Counter()
+        no_title = []
+        for a in rejected:
+            r = a["row"]
+            kind, path, text = _sent_document(cfg, store, r["uid"], a["details"])
+            if path and path not in checked and kind in ("sent_resume", "your resume"):
+                checked.add(path)
+                report = readable.check_file(path)
+                # Reading and layout only: what stops a system reading it.
+                # Content (contact, headings, dates) is the other checks' job.
+                problems = [c.title for c in report.failed + report.warned
+                            if c.category in ("extraction", "layout")]
+                formats[path] = {"what": "the resume you uploaded" if kind == "your resume"
+                                 else "a resume you sent", "file": Path(path).name,
+                                 "score": report.score, "problems": problems}
+            m = ats.match(text, text + "\n\n" + notes, r["description"] or "", r["title"] or "")
+            missing.update(skill_name(x) for x in m.missing)
+            can_add.update(skill_name(x) for x in m.can_add)
+            title_part = (m.parts or {}).get("title")
+            if title_part is not None and title_part < ats.TITLE_WORDS:
+                no_title.append(r["title"] or "")
+            try:
+                verdict = json_mod.loads(r["llm_judgement"] or "{}")
+            except (TypeError, ValueError):
+                verdict = {}
+            rows.append({
+                "uid": r["uid"], "title": r["title"] or "", "company": r["company"] or "",
+                "applied_at": a["applied_at"][:10],
+                "match": r["score"], "fit": r["fit"], "ai": r["llm_score"],
+                "ats": m.score, "missing": [skill_name(x) for x in m.missing][:6],
+                "concerns": [str(c) for c in (verdict.get("concerns") or [])][:3]})
+
+    def mean(items, key):
+        vals = [x[key] for x in items if x.get(key) is not None]
+        return round(sum(vals) / len(vals)) if vals else None
+
+    others = [{"match": a["row"]["score"], "fit": a["row"]["fit"], "ai": a["row"]["llm_score"]}
+              for a in interviewed]
+    n = len(rows)
+    blockers = {k: v for k, v in formats.items() if v["problems"]}
+    recurring = [(k, c) for k, c in missing.most_common(8) if c >= 2 or n <= 2]
+    checklist = [
+        {"id": "format", "title": "The resume can be read the way a tracking system reads it",
+         "ok": not blockers,
+         "detail": ("Fix these first: a system that reads a resume in the wrong order, or "
+                    "not at all, rejects it before anyone sees it. Rebuild it as one column "
+                    "of plain text: no columns, tables, text boxes or graphics.")
+         if blockers else "Every resume these applications went with reads cleanly.",
+         "items": [f"{v['what']} ({v['file']}, {v['score']}/100): {', '.join(v['problems'])}"
+                   for v in blockers.values()]},
+        {"id": "keywords", "title": "The skills these adverts asked for are on the resume",
+         "ok": not recurring,
+         "detail": ("Asked for again and again and not on the resume. Where you have one, "
+                    "say so in a bullet about the job you used it in, in your own words; "
+                    "where you do not, it is a gap to know about, not to paper over.")
+         if recurring else "No skill was missing from more than one of these.",
+         "items": [f"{k}: missing in {c} of {n}" for k, c in recurring]},
+        {"id": "record", "title": "What you have is on the resume you send",
+         "ok": not can_add,
+         "detail": ("On your Resume page (projects, education, skills you confirmed) but "
+                    "not in the resume these went with: worth a line in it.")
+         if can_add else "Nothing on your record was left off.",
+         "items": [f"{k}: {c} of {n}" for k, c in can_add.most_common(6)]},
+        {"id": "titles", "title": "The job's title is in the resume",
+         "ok": not no_title,
+         "detail": ("Systems search a resume for the job's title. Where it is honestly "
+                    "what you do, name it in your summary or headline.")
+         if no_title else "Every job's title, or its words, is on the resume.",
+         "items": sorted(set(no_title))[:8]},
+    ]
+    return {"count": n, "enough": n >= REVIEW_ENOUGH, "wanted": REVIEW_ENOUGH,
+            "max": REVIEW_MAX, "checklist": checklist, "rejections": rows,
+            "scores": {"rejected": {k: mean(rows, k) for k in ("match", "fit", "ai")},
+                       "interviews": {k: mean(others, k) for k in ("match", "fit", "ai")},
+                       "interview_count": len(others)}}
+
+
+def application_reply(cfg, form: dict) -> dict:
+    """A reply short of a stage, recorded for an application (a viewed
+    notice, a recruiter's call, a questionnaire, another), or deleted by id."""
+    import datetime
+
+    from ..db.store import Store
+
+    uid = str(form.get("uid") or "")
+    if not UID.match(uid):
+        raise ApiError("not a job post id")
+    with Store(cfg.db_path) as store:
+        if store.get(uid) is None:
+            raise ApiError("no such job post", 404)
+        gone = str(form.get("delete") or "")
+        if gone:
+            if not gone.isdigit() or not store.delete_reply(uid, int(gone)):
+                raise ApiError("no such reply", 404)
+            return {"deleted": True}
+        day = str(form.get("on_day") or "").strip() or datetime.date.today().isoformat()
+        if not DATE.match(day):
+            raise ApiError("the day is written as YYYY-MM-DD")
+        if day > datetime.date.today().isoformat():
+            raise ApiError("that day is still to come")
+        try:
+            reply = store.add_reply(uid, str(form.get("kind") or ""), day,
+                                    str(form.get("note") or ""))
+        except ValueError as exc:
+            raise ApiError(str(exc)) from None
+    return {"added": True, "id": reply}
 
 
 def confirm_skill(cfg, form: dict, suggested_by: str = "") -> dict:
@@ -1011,6 +1278,8 @@ def artifact_text(cfg, artifact_id: int) -> dict:
         "path": str(path),
         "text": _document_text(row["kind"], path),
         "gates": gates,
+        "edited": _edited(row["gates_json"]),
+        "editable": row["kind"] in EDITABLE,
         "output": {"id": output["id"], "feedback": output["feedback"]}
         if output else None,
     }
@@ -3437,6 +3706,8 @@ def tool_job(cfg, uid: str, kind: str, text: str = ""):
         raise ApiError("unknown tool")
     if kind == "revise" and not (text or "").strip():
         raise ApiError("paste a bullet or a paragraph to revise")
+    if kind == "own_words" and not (text or "").strip():
+        raise ApiError("write what you did, in your own words, with the numbers")
     if len(text or "") > MAX_TOOL_TEXT:
         raise ApiError(f"over {MAX_TOOL_TEXT:,} characters; paste less")
     from .agent import EDITING

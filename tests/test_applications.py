@@ -411,6 +411,99 @@ def test_an_advert_fetched_for_an_application_leaves_it_applied():
                                       (mine.uid,)).fetchone()[0] == "applied"
             assert report.rescreened_out == [other.uid], "a post nobody acted on is still screened out"
 
+def test_the_funnel_counts_how_applications_went():
+    """Applications, interviews, offers, rejections, no reply (and for 30
+    days), and replies short of a stage by kind, on the Dashboard."""
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _Cfg(Path(tmp) / "x.db")
+        with Store(cfg.db_path) as store:
+            roles = []
+            for i in range(6):
+                role = Role(platform="ashby", company=f"Co {i}", title=f"Nurse {i}",
+                            url=f"https://x.test/{i}", location_raw="Chicago, IL")
+                store.upsert(role)
+                roles.append(role.uid)
+            store.conn.commit()
+            a, b, c, d, e, f = roles
+            store.set_status(a, "applied", when="2026-09-01T12:00:00")
+            for uid, after in ((b, "interviewing"), (c, "offer"), (d, "rejected")):
+                store.set_status(uid, "applied", when="2026-10-20T12:00:00")
+                store.set_status(uid, after)
+            store.set_status(e, "applied", when="2026-11-08T12:00:00")
+            store.set_status(f, "applied", when="2026-11-11T12:00:00")
+            store.add_reply(e, "viewed", "2026-11-10")
+            funnel = api.application_funnel(store, store.applications(),
+                                            today=datetime.date(2026, 11, 13))
+        assert (funnel["applications"], funnel["interviews"], funnel["offers"],
+                funnel["rejected_or_closed"]) == (6, 2, 1, 1)
+        assert funnel["replied"] == 4, "an interview, an offer, a rejection and a viewed notice"
+        assert (funnel["no_reply"], funnel["no_reply_30"]) == (2, 1)
+        assert funnel["replies"] == {"viewed": 1, "recruiter_call": 0, "questionnaire": 0, "other": 0}
+
+
+def test_a_reply_is_added_checked_and_deleted():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _Cfg(Path(tmp) / "x.db")
+        with Store(cfg.db_path) as store:
+            uid = _roles(store, 1)[0]
+            store.set_status(uid, "applied")
+        added = api.application_reply(cfg, {"uid": uid, "kind": "recruiter_call",
+                                            "on_day": "2026-11-12", "note": "Dana, 15 min"})
+        for bad in ({"kind": "ghosted"}, {"kind": "viewed", "on_day": "2999-01-01"},
+                    {"kind": "viewed", "on_day": "12/11/2026"}):
+            try:
+                api.application_reply(cfg, {"uid": uid, **bad})
+            except api.ApiError:
+                continue
+            raise AssertionError(f"accepted {bad}")
+        with Store(cfg.db_path) as store:
+            detail = api.application_detail(store, uid, [])
+        assert [(r["label"], r["note"]) for r in detail["replies"]] == [("Recruiter call", "Dana, 15 min")]
+        assert api.application_reply(cfg, {"uid": uid, "delete": str(added["id"])}) == {"deleted": True}
+        with Store(cfg.db_path) as store:
+            assert store.replies(uid) == []
+
+
+def test_the_rejection_review_finds_what_rejections_have_in_common():
+    """A skill asked for in every rejection and not on the resume, a job
+    title the resume never names, and how they scored against the one that
+    reached an interview: a checklist, read from the data, no AI."""
+    from types import SimpleNamespace
+
+    with tempfile.TemporaryDirectory() as tmp:
+        resume = Path(tmp) / "me.md"
+        resume.write_text("# Jo Bloggs\n\nSUMMARY\nNurse with Python and SQL.\n\n"
+                          "EXPERIENCE\nNurse, Mercy, 2020 - 2024\n- Ran SQL reports.\n",
+                          encoding="utf-8")
+        cfg = SimpleNamespace(db_path=Path(tmp) / "x.db", resume_path=str(resume))
+        advert = ("Requirements: Kubernetes, Terraform and Python. " * 3)
+        with Store(cfg.db_path) as store:
+            uids = []
+            for i, (title, score) in enumerate((("Platform Engineer", 40), ("Platform Engineer II", 45),
+                                                ("Data Analyst", 85))):
+                role = Role(platform="ashby", company=f"Co {i}", title=title,
+                            url=f"https://x.test/{i}", location_raw="Remote",
+                            description=advert)
+                role.score = score
+                store.upsert(role)
+                uids.append(role.uid)
+            store.conn.commit()
+            for uid in uids:
+                store.set_status(uid, "applied")
+            store.set_status(uids[0], "rejected")
+            store.set_status(uids[1], "rejected")
+            store.set_status(uids[2], "interviewing")
+        review = api.rejection_review(cfg)
+    assert review["count"] == 2 and not review["enough"]
+    checks = {c["id"]: c for c in review["checklist"]}
+    assert not checks["keywords"]["ok"]
+    assert any(i.startswith("Kubernetes: missing in 2 of 2") for i in checks["keywords"]["items"])
+    assert not checks["titles"]["ok"] and "Platform Engineer" in checks["titles"]["items"]
+    assert checks["format"]["ok"], "a Markdown resume has no layout to trip on"
+    assert review["scores"]["rejected"]["match"] < review["scores"]["interviews"]["match"]
+    assert {r["company"] for r in review["rejections"]} == {"Co 0", "Co 1"}
+
+
 if __name__ == "__main__":
     failures = 0
     tests = [(name, fn) for name, fn in sorted(globals().items())

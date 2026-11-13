@@ -1262,6 +1262,40 @@ class Store:
         self.conn.commit()
         return True
 
+    # ── replies short of a stage (application_replies) ─────────────────────────
+
+    REPLY_KINDS = ("viewed", "recruiter_call", "questionnaire", "other")
+
+    def replies(self, uid: str) -> list[sqlite3.Row]:
+        """The replies recorded for a job, on any of its copies, newest first."""
+        members = grouping.uids(self.conn, uid)
+        marks = ",".join("?" * len(members))
+        return self.conn.execute(
+            f"SELECT id, uid, kind, on_day, note, at FROM application_replies "  # nosec B608
+            f"WHERE uid IN ({marks}) ORDER BY on_day DESC, id DESC", members).fetchall()
+
+    def add_reply(self, uid: str, kind: str, on_day: str, note: str = "") -> int:
+        """One reply, on the copy it was recorded on (replies() reads every copy)."""
+        if kind not in self.REPLY_KINDS:
+            raise ValueError(f"a reply is one of {', '.join(self.REPLY_KINDS)}")
+        note = str(note or "").strip()
+        if len(note) > 500:
+            raise ValueError("a reply's note is at most 500 characters")
+        cur = self.conn.execute(
+            "INSERT INTO application_replies(uid, kind, on_day, note, at) VALUES(?,?,?,?,?)",
+            (uid, kind, on_day, note, _now()))
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def delete_reply(self, uid: str, reply_id: int) -> bool:
+        members = grouping.uids(self.conn, uid)
+        marks = ",".join("?" * len(members))
+        cur = self.conn.execute(
+            f"DELETE FROM application_replies WHERE id = ? AND uid IN ({marks})",  # nosec B608
+            (int(reply_id), *members))
+        self.conn.commit()
+        return cur.rowcount > 0
+
     # ── notifications (core/notify.py, the Notifications page) ─────────────────
 
     NOTIFICATIONS_KEPT = 500

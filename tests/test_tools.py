@@ -247,6 +247,61 @@ def test_the_privacy_rule_applies_to_hosted_providers_only():
     assert "jane@example.com" not in seen["anthropic"]
 
 
+def test_your_own_words_become_edits_only_where_they_fit_and_hold():
+    """Edits from the person's own account: a real line replaced, a bullet
+    added under a real job; one quoting a line or a job not on the resume is
+    dropped; a tool or a figure neither the words nor the line has is
+    marked; the guard reads the words as a source."""
+    words = "I cut deploy time from 40 to 12 minutes by caching the Docker layers in CI."
+    with _Script({"edits": [
+            {"quote": "Built CI pipelines in GitHub Actions.", "where": "",
+             "suggestion": "Built CI pipelines in GitHub Actions; cut deploys from 40 to 12 minutes "
+                           "by caching Docker layers.", "why": "The ad wants a fast path to production."},
+            {"quote": "", "where": "Platform engineer",
+             "suggestion": "Cut deploy time 70% with Terraform.", "why": "Speed."},
+            {"quote": "Led a team of 12 SREs.", "where": "", "suggestion": "Led 12 SREs.", "why": "x"},
+            {"quote": "", "where": "Globex", "suggestion": "Did things.", "why": "x"}]},
+            *GUARD_OK):
+        result = tools.own_words(SETTINGS, _row(), RESUME, words)
+    edits = result.data["edits"]
+    assert len(edits) == 2 and result.dropped == 2, "a line and a job not on the resume"
+    assert edits[0]["problems"] == [] and edits[0]["new_figures"] == []
+    assert any("Terraform" in p for p in edits[1]["problems"]), "neither the words nor the line"
+    assert edits[1]["new_figures"], "70% is in neither"
+    assert result.data["words"] == words and result.guard.checked
+
+
+def test_your_own_edit_of_a_tailored_resume_is_saved_with_its_pdf_and_word():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = Config(titles_include=["x"], db_path=str(Path(tmp) / "t.db"))
+        folder = Path(tmp) / "job"
+        folder.mkdir()
+        made = folder / "Jane_Doe_Platform_Engineer_Resume.md"
+        made.write_text("# Jane Doe\n## EXPERIENCE\n- Helped with CI.\n", encoding="utf-8")
+        with Store(cfg.db_path) as store:
+            role = Role(platform="lever", company="Initech", title="Platform Engineer",
+                        url="https://x.test/1", description=ADVERT)
+            store.upsert(role)
+            doc = store.add_artifact(role.uid, "tailored_resume", str(made), gates={"page count": {}})
+            other = store.add_artifact(role.uid, "screen", str(folder / "screen.md"))
+            store.conn.commit()
+        mine = "# Jane Doe\n## EXPERIENCE\n- Cut deploys from 40 to 12 minutes.\n"
+        saved = api.save_document(cfg, {"id": str(doc), "text": mine})
+        assert saved["saved"] and made.read_text(encoding="utf-8") == mine
+        assert made.with_suffix(".pdf").read_bytes().startswith(b"%PDF")
+        assert made.with_suffix(".docx").is_file()
+        shown = api.artifact_text(cfg, doc)
+        assert shown["edited"] == saved["edited"] and shown["editable"]
+        assert "page count" in shown["gates"], "the AI's checks are kept, marked as its version's"
+        for bad in ({"id": str(other), "text": "x"}, {"id": str(doc), "text": "  "},
+                    {"id": "x", "text": "y"}):
+            try:
+                api.save_document(cfg, bad)
+            except api.ApiError:
+                continue
+            raise AssertionError(f"accepted {bad}")
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items())
              if n.startswith("test_") and callable(f)]
