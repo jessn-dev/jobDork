@@ -9,6 +9,265 @@ it and into an entry when the work is done.
 
 ---
 
+## Changed — 2026-11-12 — version 0.17.0
+
+0.17.0 carries the 9 entries below, everything since 0.16.4. For you:
+
+- **A tailored resume that keeps your whole career.** Every job and career
+  break your resume dates stays on it: older jobs, or ones with less for
+  the post, go one line each under **Earlier experience** with what carries
+  over, and a new **every job kept** check names any still missing. A
+  career break is no longer counted as years worked.
+- **A new look for it**: a headline under your name, your LinkedIn and
+  GitHub on the contact line, skills grouped by kind right after a summary
+  of your whole career, and the PDF set in Source Sans 3, 10 point, with
+  dark-blue headings, so a long career fits in two pages.
+- **Applications you made elsewhere**: a USAJOBS link now comes in with its
+  whole advert (one already tracked gets it from **Fetch missing adverts**,
+  and stays applied); a resume you sent no longer reads as cut off; one
+  upload box, and the contact saved when you add the job.
+- **Delete what the AI wrote**: a tailored resume or cover letter, where it
+  is shown. **Delete** on the Resume page deleted your uploaded resume even
+  with a tailored one chosen; it now deletes the one chosen, and says which.
+- **Check still open** starts at 0% and says how many postings it checks,
+  for how many job posts.
+- **Updates finish on Windows and Linux**, with a What's new list after one.
+- **A Microsoft Store package** (waiting on its Store listing), the Linux
+  installers signed with GPG, and each release announced in Discussions.
+
+Updating from 0.16.4: **Update** under Settings, Updates downloads 0.17.0,
+checks it, puts it in place and opens it again. Nothing in the database or
+the config changes. Tailored resumes already written keep their old look;
+write one again for the new one.
+
+---
+
+## Fixed — 2026-11-12 — A tailored resume keeps every job and career break
+
+A tailored resume left out a career break and four earlier jobs: the AI was
+told to keep only the last 15 years and to "cut the rest" to fit a page, and
+nothing said what to do with a career break. A gap in the dates is what an
+employer asks about, and a job worth having does not mind a career break.
+
+Now every job and career break your resume dates stays on it. A job the
+advert has less use for, or one that ended more than 15 years ago, is kept
+as one line under Earlier experience, its title, employer and dates with
+what in it carries over; a career break keeps its name and dates, with what
+you did in it. Fitting the page takes
+bullets, never a whole job. A new check, **every job kept**, names any job
+or break still missing, so it never goes unsaid.
+
+A career break was also counted as time worked when jobdork measured your
+years of experience. It is not now.
+
+---
+
+## Changed — 2026-11-12 — A tailored resume with a headline, grouped skills and Earlier experience
+
+A tailored resume now looks closer to one a person preferred: their name
+with a headline under it ("DevOps Engineer | Cloud Infrastructure &
+Automation"), their phone, email, place, LinkedIn and GitHub on one line
+(GitHub was left off), 10 point text with half-inch margins, and headings
+in dark blue over a thin rule. The PDF is set in Source Sans 3, a free font
+much like the Aptos the person liked (which Microsoft does not let anyone
+ship), embedded with only the letters it uses, so the file stays small; the
+Word file stays in Arial, which every computer has. Skill group names and
+each earlier job's title are in bold. More fits on each page, so a long career
+reads in full within the two pages Indeed suggests.
+
+The skills come right after the summary, in groups by kind ("Cloud &
+Infrastructure: Azure, GCP, Terraform"). The summary covers the whole
+career: the years of experience as jobdork measures them, the work, the
+tools the job asks for and what the person is strongest at. An older job,
+or one with less for this post, is one line under **Earlier experience**,
+with what in it carries over (support, documentation and client work carry
+over to most jobs), instead of a full entry or being left out. The Word
+file has the same look.
+
+---
+
+## Fixed — 2026-11-12 — Check still open counts what it checks
+
+**Check still open** opened at 54% and counted 729 postings when Job posts
+showed 566. Postings checked in the last 12 hours, which it leaves alone,
+were counted as done the moment it started; and it counts each copy of a
+job found on several sites, since a job closes only when every copy has.
+Now the recently checked ones are set aside before it counts, so it starts
+at 0%, and its first line says how many postings it checks, for how many
+job posts, and how many it left alone.
+
+---
+
+## Fixed — 2026-11-12 — Applications keep their advert and what you sent, and Delete deletes the resume chosen
+
+**A USAJOBS link came in with no advert.** Adding a job you applied to from
+its USAJOBS link tracked it "without its advert": USAJOBS writes its job
+data's type as `application/ld&#x2B;json`, which jobdork did not recognise,
+and puts the duties and qualifications outside the short description. Both
+are read now, on any site: one USAJOBS post went from nothing to 8,200
+characters. A post already tracked without its advert gets it from **Fetch
+missing adverts**, which no longer marks a job you applied to *skipped*
+when its fuller advert misses one of your rules.
+
+**A resume you sent read as cut off.** Some PDFs draw their bullets apart
+from the text: every bullet's words came out without its bullet, and the
+bullets piled up as empty lines at the end of each page. Such a PDF is now
+read by its layout, so each bullet stays with its line. This also applies to
+the resume you upload as your own.
+
+**One upload box, and the contact on Add.** The Application tab and **Add a
+job post you applied to** each had two upload boxes. Now there is one,
+**Upload what you sent**, with a choice of **Resume** or **Cover letter**.
+Add also takes the **Name**, **Email** and **Link** of who you are in touch
+with, saved with the post, and saving them never clears a next step saved
+before. The Application tab's picture in the guide showed an empty pane; it
+shows the tab again.
+
+**Delete deleted your own resume.** On the Resume page, choosing a tailored
+resume and pressing **Delete resume** deleted the resume you uploaded, not
+the one chosen. The button now follows the card chosen and says which:
+**Delete your resume** or **Delete this tailored resume**, which removes that
+one with its PDF and Word copies. A tailored resume could not be deleted
+before at all, and a cover letter only from the list at the bottom of the
+page; a cover letter's tab now has **Delete this cover letter** wherever it
+is shown. A file a second version of the same resume still uses is kept.
+
+---
+
+## Fixed — 2026-11-12 — Updates finish on Windows and Linux, and a What's new list after one
+
+Reported on 2026-11-12: on Windows and Linux, an update from 0.16.3 ran but
+the old version stayed.
+
+- **Windows.** jobdork started the new installer while it was still open
+  and closed itself seconds later. The installer could find it open (its
+  close question waiting on a scheduled scan), and, running silently, went
+  on without the files it could not replace, then opened the old version.
+  Now the installer is started only once jobdork has quit (a hidden
+  PowerShell that waits for it, `updates.run_windows_installer_after_quit`)
+  and writes a log (`logs/update-install.log`). The installer itself waits
+  up to a minute for a running jobdork to close and closes it if it will not
+  (`CloseApplications=force`, `PrepareToInstall`, packaging/jobdork.iss), so
+  an update started from 0.16.4 or 0.16.3, whose old code starts it early,
+  finishes too.
+- **Linux, the .deb.** The version was read from the downloaded file's name
+  as `jobdork-0.16.4-…`, which a .deb (`jobdork_0.16.4_amd64.deb`) never
+  matched, so a .deb was never installed, only its folder opened. Read now
+  with either separator. That fix is in the new version's code, so moving
+  off 0.16.4 or older with a .deb needs one install by hand (`sudo apt
+  install ./jobdork_<version>_amd64.deb`).
+- **What's new.** The first time jobdork opens on a newer version, a window
+  lists what changed for you: the release entry's list
+  (`jobdork/data/whats-new.json`, written by `scripts/whats_new.py`), once,
+  with a link to the release page. A new copy shows nothing; one updated
+  from before this existed, with job posts already, shows it.
+  tests/test_whats_new.py fails while the list names another version than
+  pyproject.toml.
+- **Notifications:** "You have no notifications from jobdork" is in the
+  middle of the page, not of a narrower box.
+
+tests/test_whats_new.py covers the list, when it is shown, the .deb's name
+and the Windows installer's start; the guide's Settings page says so.
+
+---
+
+## Changed — 2026-11-11 — Tighter CI: no needless installer builds, no hung or piled-up runs
+
+Asked for on 2026-11-11: fewer and shorter runs, still catching what
+breaks. A healthy run already takes about eight minutes, the installers
+built in parallel; the long waits that day were GitHub's outage. What
+changed:
+
+- **Installers are not rebuilt for a change to `docker.yml`** (its image,
+  test or release steps change no installer, and a tag builds them all
+  anyway). They still are for anything that can change one: `packaging/`,
+  `desktop.yml`, the locked desktop dependencies, the version, the CI
+  scripts the installer jobs run (`gpg_sign.sh`, `ci_apt_mirror.sh`), and
+  the code only the installed app runs, now including `core/store.py` and
+  `core/schedule.py`.
+- **A pull request's newer push cancels its older run** (the CI and the
+  dependency review), instead of both running to the end. A push to main
+  and a release tag are never cancelled.
+- **Every job has a time limit** (5 to 30 minutes, by what it does), so one
+  that hangs fails and says so, rather than holding a runner for GitHub's
+  default six hours.
+
+---
+
+## Changed — 2026-11-11 — Each release is announced in Discussions
+
+Asked for on 2026-11-11: every release is also posted in the repository's
+Discussions, under **Announcements**, with the same text as its release
+page (what changed, the downloads, how to check them), so people following
+the project hear of updates there. The release run's `gh release create`
+makes the discussion itself (`--discussion-category Announcements`); its
+job may now write discussions, nothing more.
+
+---
+
+## Security — 2026-11-11 — The Linux installers are signed with GPG
+
+Asked for on 2026-11-11. The AppImage and `.deb` carried a build
+attestation (Sigstore) and a checksum, but no GPG signature, which is what
+Linux users and tools usually check.
+
+Each release now puts a detached, ASCII-armoured signature beside every
+Linux installer on its page, `<file>.asc`, made with jobdork's GPG key
+(`scripts/gpg_sign.sh`):
+
+- **Signed in the `release` environment**, by a new `sign-linux` job that
+  waits for the same approval as the image, so the secret key
+  (`LINUX_GPG_KEY`, `LINUX_GPG_PASSPHRASE`) is only handed to a run you
+  approved, and is imported into a temporary keyring removed afterwards.
+- **Checked before it is published**: every signature is verified against
+  the public key in the repository alone
+  (`packaging/jobdork-signing-key.asc`), as a user would; one that does not
+  check stops the release.
+- **Tried on every change** that builds the installers: a `gpg-check` job
+  runs the same script with a key made and thrown away in CI.
+- Without the key set, the release says so and goes out with no `.asc`
+  files, rather than not at all.
+
+Checking one: `gpg --import` the public key, then `gpg --verify
+<file>.asc <file>` (docs/run/desktop.md, the release page, SECURITY.md).
+The key is "jobdork releases", fingerprint
+`FCA7DA9B0F3C02D33CCB60E3D6B51B0A75A1ACCF` (ed25519, expires 2028-11-10):
+its public half is `packaging/jobdork-signing-key.asc`, its secret half
+only in the `release` environment and the maintainer's own keyring.
+
+---
+
+## Added — 2026-11-11 — A Microsoft Store package
+
+The Windows build is now also made as an MSIX package,
+`jobdork-<version>-windows-x64.msix`, for the Microsoft Store. The Store
+signs what it publishes, so this needs no code-signing certificate of
+jobdork's own (the installer still has none; docs/DECISIONS.md).
+
+- **The package** (`packaging/build.py`, `msix`): the same PyInstaller
+  build, its manifest declaring jobdork as a full-trust desktop app, the
+  `jobdork://` link (so a click on a notification still opens the
+  Notifications page) and a `jobdork` command, and its logos made from the
+  icon. Its identity comes from Partner Center, in `packaging/store.toml`;
+  until that is filled in, the build makes a stand-in that only CI
+  installs.
+- **In the Store's copy** (`core/store.py`): the Store updates it, so
+  jobdork neither asks GitHub nor offers its own update, and Settings says
+  the Store keeps it up to date; notifications are shown under the
+  package's app id; the scheduled scan starts the `jobdork` command, whose
+  path stays the same when an update renames the package's folder.
+- **CI**: the Windows build keeps the package as its own artifact
+  (`store-Windows-X64`), never on the release page; a new job signs a copy
+  with a certificate made for the test, installs it, runs its self-test
+  through the `jobdork` command, and removes it.
+
+Windows keeps a Store app's own data apart: the Store copy's settings and
+job posts are not the installer's, and go when it is uninstalled.
+tests/test_store_package.py covers the manifest, the version, and the
+update check, notification id and scheduled scan in the package.
+
+---
+
 ## Changed — 2026-11-11 — version 0.16.4
 
 0.16.4 carries the 29 entries below, everything since 0.16.3. For you:
